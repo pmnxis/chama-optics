@@ -5,7 +5,6 @@
  */
 
 use crate::packed_image::PackedImage;
-use egui::TextureHandle;
 use std::path::PathBuf;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -18,7 +17,7 @@ pub struct ChamaOptics {
     pub pending_paths: std::collections::VecDeque<PathBuf>,
 
     #[serde(skip)]
-    pub packed_images: Vec<(PackedImage, TextureHandle)>,
+    pub packed_images: Vec<PackedImage>,
 }
 
 impl Default for ChamaOptics {
@@ -48,74 +47,14 @@ impl ChamaOptics {
     fn update_packed_image(&mut self, ui: &mut egui::Ui) {
         let mut remove_index: Option<usize> = None;
 
-        for (idx, (pi, texture)) in self.packed_images.iter().enumerate() {
-            ui.group(|ui| {
-                ui.horizontal(|ui| {
-                    let orient = crate::orientation::Orientation::from_tiff(pi.orientation());
-                    let (angle, _origin) = orient.egui_rotate();
-
-                    ui.vertical(|ui| {
-                        ui.label(pi.file_name());
-                        ui.label(format!(
-                            "{} {}  |  {} {}",
-                            pi.camera_mnf(),
-                            pi.camera_model(),
-                            pi.lens_mnf(),
-                            pi.lens_model()
-                        ));
-                        ui.label(format!(
-                            "F {}  |  {} |  ISO {}  | {}mm",
-                            pi.fnumber(),
-                            pi.exposure(),
-                            pi.iso_speed().map_or("".to_owned(), |x| x.to_string()),
-                            pi.focal()
-                        ));
-                        ui.label(format!(
-                            "{} [{}]  |  {}",
-                            pi.orientation(),
-                            angle,
-                            pi.datetime()
-                        ));
-
-                        ui.horizontal(|ui| {
-                            if ui.button("💾 Save").clicked() {
-                                // add later
-                            }
-
-                            if ui.button("🗑 Delete").clicked() {
-                                // add later
-                                remove_index = Some(idx);
-                            }
-                        });
-                    });
-
-                    // 이미지 썸네일
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
-                        let width = max_height * texture.aspect_ratio();
-                        let size = egui::Vec2::new(width, max_height);
-
-                        // let size = if !orient.is_vertical_rotated() {
-                        //     let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
-                        //     let width = max_height * texture.aspect_ratio();
-                        //     egui::Vec2::new(width, max_height)
-                        // } else {
-                        //     let max_width = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
-                        //     let height = max_width / texture.aspect_ratio();
-
-                        //     egui::Vec2::new(height, max_width)
-                        // };
-                        ui.add(
-                            egui::Image::from_texture(texture)
-                                .rotate(angle, egui::Vec2::splat(0.5))
-                                .corner_radius(2.0)
-                                .fit_to_exact_size(size)
-                                .maintain_aspect_ratio(true),
-                            // .fit_to_fraction(size),
-                        );
-                    });
-                });
-            });
+        for (idx, pi) in self.packed_images.iter_mut().enumerate() {
+            match pi.update_ui(ui) {
+                crate::packed_image::PackedImageEvent::None => { /* Nothing */ }
+                crate::packed_image::PackedImageEvent::Remove => {
+                    // todo - ordering bigger number of index, and remove later
+                    remove_index = Some(idx);
+                }
+            }
         }
 
         if let Some(idx) = remove_index {
@@ -201,11 +140,9 @@ impl eframe::App for ChamaOptics {
 
         // out side thread
         if let Some(popped_path) = self.pending_paths.pop_front() {
-            match PackedImage::try_from_path(&popped_path) {
-                Ok((p, thumb)) => {
-                    let texture =
-                        ctx.load_texture(p.file_path(), thumb, egui::TextureOptions::NEAREST);
-                    self.packed_images.push((p, texture));
+            match PackedImage::try_from_path(&popped_path, ctx) {
+                Ok(p) => {
+                    self.packed_images.push(p);
                 }
                 Err(e) => {
                     println!("Error opening file : {e:?}");

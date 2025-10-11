@@ -6,46 +6,27 @@
 
 use exif::{In, Tag};
 
-#[allow(unused)]
-pub struct SimplifiedExif {
-    pub camera_model: String,
-    pub camera_mnf: String,
-    pub lens_model: String,
-}
+pub(crate) const _MAX_FIELD_WIDTH: f32 = 140.0;
+pub(crate) const _LABEL_SPACING: f32 = 3.0;
 
-/// Remove trash chars from exif string field
-fn simplify_exif_string(input: &str) -> String {
-    let mut parts = Vec::new();
-    let mut inside = false;
-    let mut current = String::new();
+#[derive(Default)]
+pub struct OriginalExif(Option<exif::Exif>);
 
-    for c in input.chars() {
-        match c {
-            '"' => {
-                if inside {
-                    // " closed
-                    let trimmed = current.trim();
-                    if !trimmed.is_empty() {
-                        parts.push(trimmed.to_string());
-                    }
-                    current.clear();
-                    inside = false;
-                } else {
-                    // " opened
-                    inside = true;
-                }
-            }
-            _ if inside => current.push(c),
-            _ => {}
-        }
+impl OriginalExif {
+    pub fn new(exif_or_none: Option<exif::Exif>) -> Self {
+        Self(exif_or_none)
     }
 
-    parts.join(" | ")
-}
+    pub fn new_with_exif(exif: exif::Exif) -> Self {
+        Self(Some(exif))
+    }
 
-impl crate::packed_image::PackedImage {
-    fn get_exif_value(&self, tag: Tag) -> String {
-        self.src_exif
+    pub fn none() -> Self {
+        Self(None)
+    }
+
+    pub fn get_exif_value(&self, tag: Tag) -> String {
+        self.0
             .as_ref()
             .and_then(|exif| {
                 exif.get_field(tag, In::PRIMARY)
@@ -54,8 +35,8 @@ impl crate::packed_image::PackedImage {
             .unwrap_or_default()
     }
 
-    fn get_exif_trim_string(&self, tag: Tag) -> String {
-        self.src_exif
+    pub fn get_exif_trim_string(&self, tag: Tag) -> String {
+        self.0
             .as_ref()
             .and_then(|exif| {
                 exif.get_field(tag, In::PRIMARY)
@@ -64,15 +45,14 @@ impl crate::packed_image::PackedImage {
             .unwrap_or_default()
     }
 
-    // todo - Make orientation enum and rotated thumbnail as well
-    pub fn orientation(&self) -> u32 {
+    pub fn orientation(&self) -> crate::orientation::Orientation {
         // Orientation (TIFF 0x112)
         let value = self
-            .src_exif
+            .0
             .as_ref()
             .and_then(|exif| exif.get_field(Tag::Orientation, In::PRIMARY))
             .and_then(|field| field.value.get_uint(0));
-        value.unwrap_or(0)
+        crate::orientation::Orientation::from_tiff(value.unwrap_or(0))
     }
 
     /// Manufacturer of the image input equipment.
@@ -114,7 +94,7 @@ impl crate::packed_image::PackedImage {
 
     /// ISO Speed
     pub fn iso_speed(&self) -> Option<u32> {
-        self.src_exif
+        self.0
             .as_ref()
             .and_then(|exif| {
                 exif.get_field(Tag::ISOSpeed, In::PRIMARY)
@@ -127,6 +107,197 @@ impl crate::packed_image::PackedImage {
     /// Datetime
     pub fn datetime(&self) -> String {
         self.get_exif_value(Tag::DateTime)
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Default, Clone, PartialEq, PartialOrd)]
+#[serde(default)]
+pub struct SimplifiedExif {
+    pub camera_mnf: String,
+    pub camera_model: String,
+    pub lens_model: String,
+    pub focal: String,
+    pub fnumber: String,
+    pub exposure: String,
+    pub iso_speed: Option<u32>,
+    pub datetime: String, // Option<DateTime>,
+
+    #[serde(skip)]
+    pub orientation: crate::orientation::Orientation,
+}
+
+/// Remove trash chars from exif string field
+fn simplify_exif_string(input: &str) -> String {
+    let mut parts = Vec::new();
+    let mut inside = false;
+    let mut current = String::new();
+
+    for c in input.chars() {
+        match c {
+            '"' => {
+                if inside {
+                    // " closed
+                    let trimmed = current.trim();
+                    if !trimmed.is_empty() {
+                        parts.push(trimmed.to_string());
+                    }
+                    current.clear();
+                    inside = false;
+                } else {
+                    // " opened
+                    inside = true;
+                }
+            }
+            _ if inside => current.push(c),
+            _ => {}
+        }
+    }
+
+    parts.join(" | ")
+}
+
+impl From<&OriginalExif> for SimplifiedExif {
+    fn from(value: &OriginalExif) -> Self {
+        Self {
+            camera_mnf: value.camera_mnf(),
+            camera_model: value.camera_model(),
+            lens_model: value.lens_model(),
+            focal: value.focal(),
+            fnumber: value.fnumber(),
+            exposure: value.exposure(),
+            iso_speed: value.iso_speed(),
+            datetime: value.datetime(),
+            orientation: value.orientation(),
+        }
+    }
+}
+use egui::{RichText, TextEdit, TextStyle};
+
+impl SimplifiedExif {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {
+        let small_text = |text: &str| RichText::new(text).text_style(TextStyle::Small);
+
+        ui.spacing_mut().item_spacing.y = 2.0;
+        // ui.style_mut().interaction.selectable_labels = false;
+
+        // Camera
+        ui.label(small_text("Camera"));
+        if editable {
+            ui.horizontal(|ui| {
+                ui.add(
+                    TextEdit::singleline(&mut self.camera_mnf)
+                        .font(TextStyle::Small)
+                        .desired_width(60.0),
+                );
+
+                ui.label(small_text("\t\tModel"));
+                ui.add(
+                    TextEdit::singleline(&mut self.camera_model)
+                        .font(TextStyle::Small)
+                        .desired_width(140.0),
+                );
+            });
+        } else {
+            ui.label(small_text(&format!(
+                "{}  {}",
+                self.camera_mnf, self.camera_model
+            )));
+        }
+
+        ui.end_row();
+
+        // Lens
+        ui.label(small_text("Lens"));
+        if editable {
+            ui.add(
+                TextEdit::singleline(&mut self.lens_model)
+                    .font(TextStyle::Small)
+                    .desired_width(280.0),
+            );
+        } else {
+            ui.label(small_text(&self.lens_model));
+        }
+
+        ui.end_row();
+
+        // Focal
+        ui.label(small_text("Focal"));
+        if editable {
+            ui.horizontal(|ui| {
+                ui.add(
+                    TextEdit::singleline(&mut self.focal)
+                        .font(TextStyle::Small)
+                        .desired_width(40.0),
+                );
+                ui.label(small_text("mm"));
+            });
+        } else {
+            ui.label(small_text(&format!("{} mm", self.focal)));
+        }
+        ui.end_row();
+
+        // F-number
+        ui.label(small_text("F"));
+        if editable {
+            ui.add(
+                TextEdit::singleline(&mut self.fnumber)
+                    .font(TextStyle::Small)
+                    .desired_width(40.0),
+            );
+        } else {
+            ui.label(small_text(&self.fnumber));
+        }
+
+        ui.end_row();
+
+        // Shutter + ISO
+        ui.label(small_text("Shutter"));
+        if editable {
+            ui.horizontal(|ui| {
+                ui.add(
+                    TextEdit::singleline(&mut self.exposure)
+                        .font(TextStyle::Small)
+                        .desired_width(40.0),
+                );
+                ui.label(small_text("sec"));
+            });
+            ui.end_row();
+
+            ui.label(small_text("ISO"));
+            let mut iso_str = self.iso_speed.map_or(String::new(), |v| v.to_string());
+            if ui
+                .add(
+                    TextEdit::singleline(&mut iso_str)
+                        .font(TextStyle::Small)
+                        .desired_width(40.0),
+                )
+                .changed()
+                && let Ok(v) = iso_str.parse::<u32>() {
+                    self.iso_speed = Some(v);
+                }
+        } else {
+            ui.horizontal(|ui| {
+                ui.label(small_text(&self.exposure));
+                let iso = self.iso_speed.map_or(String::from("-"), |v| v.to_string());
+                ui.label(small_text(&format!("\tISO {}", iso)));
+            });
+        }
+
+        ui.end_row();
+
+        // DateTime
+        ui.label(small_text("DateTime"));
+        if editable {
+            ui.add(
+                TextEdit::singleline(&mut self.datetime)
+                    .font(TextStyle::Small)
+                    .desired_width(80.0),
+            );
+        } else {
+            ui.label(small_text(&self.datetime));
+        }
+
+        ui.end_row();
     }
 }
 

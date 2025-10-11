@@ -5,7 +5,7 @@
  */
 
 /// Orientation (TIFF tag 0x112)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
 pub enum Orientation {
     None,           // 0
     Normal,         // 1
@@ -17,6 +17,12 @@ pub enum Orientation {
     Transverse,     // 7
     Rotate270,      // 8
     Reserved(u32),
+}
+
+impl std::default::Default for Orientation {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 impl Orientation {

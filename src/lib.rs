@@ -12,6 +12,7 @@ mod fonts;
 pub(crate) mod heic;
 pub(crate) mod orientation;
 pub(crate) mod packed_image;
+pub(crate) mod theme;
 // pub(crate) mod preview;
 
 pub use app::ChamaOptics;

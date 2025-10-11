@@ -5,13 +5,20 @@
  */
 
 use egui::ColorImage;
-use exif::Exif;
 use fast_image_resize as fr;
 use std::io::Seek;
 use std::path::PathBuf;
 
+use crate::exif_impl::{OriginalExif, SimplifiedExif};
+
 pub const THUMBNAIL_MAX_HEIGHT: u32 = 320;
 pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 160.0; // considering retina display
+
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+pub enum PackedImageEvent {
+    None,
+    Remove,
+}
 
 #[non_exhaustive]
 pub struct PackedImage {
@@ -19,9 +26,16 @@ pub struct PackedImage {
     pub path: PathBuf,
 
     /// EXIF from image
-    pub src_exif: Option<Exif>,
-    // /// editable EXIF
-    // pub
+    pub src_exif: OriginalExif,
+
+    /// editable EXIF
+    pub view_exif: SimplifiedExif,
+
+    /// editable button for UI
+    pub editable: bool,
+
+    /// texture internally for egui framework
+    pub texture: egui::TextureHandle,
 }
 
 fn to_thumbnail_colorimage(
@@ -79,18 +93,20 @@ fn to_thumbnail_colorimage(
 }
 
 impl PackedImage {
-    pub fn try_from_path(path: &PathBuf) -> Result<(Self, ColorImage), image::ImageError> {
+    pub fn try_from_path(path: &PathBuf, ctx: &egui::Context) -> Result<Self, image::ImageError> {
         let file = std::fs::File::open(path)?;
         let mut buf_reader = std::io::BufReader::new(file);
 
         // Parse EXIF first
-        let exif = match exif::Reader::new().read_from_container(&mut buf_reader) {
-            Ok(exif) => Some(exif),
-            Err(e) => {
-                log::error!("Failed to parse EXIF from image: {e:?}");
-                None
-            }
-        };
+        let original_exif = OriginalExif::new(
+            match exif::Reader::new().read_from_container(&mut buf_reader) {
+                Ok(exif) => Some(exif),
+                Err(e) => {
+                    log::error!("Failed to parse EXIF from image: {e:?}");
+                    None
+                }
+            },
+        );
 
         buf_reader
             .seek(std::io::SeekFrom::Start(0))
@@ -146,14 +162,21 @@ impl PackedImage {
         )?;
 
         let thumbnail = to_thumbnail_colorimage(dyn_image, THUMBNAIL_MAX_HEIGHT)?;
+        let view_exif = SimplifiedExif::from(&original_exif);
+        let file_name = path
+            .clone()
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
 
-        Ok((
-            PackedImage {
-                path: path.clone(),
-                src_exif: exif,
-            },
-            thumbnail,
-        ))
+        Ok(PackedImage {
+            path: path.clone(),
+            src_exif: original_exif,
+            view_exif,
+            editable: false,
+            texture: ctx.load_texture(file_name, thumbnail, egui::TextureOptions::NEAREST),
+        })
     }
 
     pub fn file_name(&self) -> String {
@@ -167,5 +190,85 @@ impl PackedImage {
 
     pub fn file_path(&self) -> String {
         self.path.clone().to_string_lossy().to_string()
+    }
+
+    fn update_editable_button(&mut self, ui: &mut egui::Ui) {
+        ui.horizontal(|ui| {
+            let btn_text = if self.editable {
+                "💾Apply"
+            } else {
+                "✏Edit"
+            };
+            if ui.button(btn_text).clicked() {
+                self.editable = !self.editable;
+            }
+        });
+    }
+
+    pub fn update_ui(&mut self, ui: &mut egui::Ui) -> PackedImageEvent {
+        let mut ret = PackedImageEvent::None;
+
+        let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
+        let width = max_height * self.texture.aspect_ratio();
+        let size = egui::Vec2::new(width, max_height);
+
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                let ui_builder = egui::UiBuilder::new();
+                // let orient = self.view_exif.orientation;
+                // let (angle, _origin) = orient.egui_rotate();
+
+                // EXIF Information
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(self.file_name());
+                        self.update_editable_button(ui);
+                    });
+
+                    ui.scope_builder(ui_builder, |ui| {
+                        egui::Grid::new(self.file_path())
+                            .num_columns(2)
+                            .spacing([10.0, 0.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                self.view_exif.update_ui(ui, self.editable);
+                            })
+                    });
+
+                    if !self.editable {
+                        ui.horizontal(|ui| {
+                            ui.horizontal(|ui| {
+                                if ui
+                                    .add(egui::Button::new("💾 Save").fill(egui::Color32::GREEN))
+                                    .clicked()
+                                {
+                                    // TODO: save handler
+                                }
+
+                                if ui
+                                    .add(egui::Button::new("🗑 Delete").fill(egui::Color32::RED))
+                                    .clicked()
+                                {
+                                    ret = PackedImageEvent::Remove;
+                                }
+                            });
+                        });
+                    }
+                });
+
+                // Thumbnail
+                ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
+                    ui.add(
+                        egui::Image::from_texture(&self.texture)
+                            // .rotate(angle, egui::Vec2::splat(0.5))
+                            .corner_radius(4.0)
+                            .fit_to_exact_size(size)
+                            .maintain_aspect_ratio(true),
+                    );
+                });
+            });
+        });
+
+        ret
     }
 }
