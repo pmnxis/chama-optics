@@ -14,7 +14,7 @@ use zip::ZipArchive;
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let font_path = out_dir.join("DS-DIGIT.TTF");
+    let font_path = out_dir.join("DS-DIGI.TTF");
     let zip_path = out_dir.join("ds_digital.zip");
 
     println!("cargo:rerun-if-changed=build.rs");
@@ -52,9 +52,9 @@ fn main() {
         let reader = Cursor::new(buffer);
         let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
 
-        // add DS-DIGIT.TTF
+        // add DS-DIGI.TTF
         let mut file = archive
-            .by_name("DS-DIGIT.TTF")
+            .by_name("DS-DIGI.TTF")
             .expect("DS-Digital.ttf not found in ZIP");
 
         let mut buf = Vec::new();

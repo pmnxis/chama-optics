@@ -11,14 +11,12 @@ use std::path::PathBuf;
 #[serde(default)]
 pub struct ChamaOptics {
     pub label: String,
-
     pub pending_paths: std::collections::VecDeque<PathBuf>,
+    pub import_config: crate::import_config::ImportConfig,
+    pub export_config: crate::export_config::ExportConfig,
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
-
-    #[serde(skip)]
-    pub export_config: crate::export_config::ExportConfig,
 }
 
 impl Default for ChamaOptics {
@@ -26,8 +24,9 @@ impl Default for ChamaOptics {
         Self {
             label: "World Strongest Idol".into(),
             pending_paths: std::collections::VecDeque::new(),
-            packed_images: vec![],
+            import_config: crate::import_config::ImportConfig::default(),
             export_config: crate::export_config::ExportConfig::default(),
+            packed_images: vec![],
         }
     }
 }
@@ -91,6 +90,7 @@ impl eframe::App for ChamaOptics {
             });
 
             // show export configuration
+            self.import_config.update_ui(ui);
             self.export_config.update_ui(ui);
 
             ui.separator();
@@ -146,7 +146,10 @@ impl eframe::App for ChamaOptics {
         // out side thread
         if let Some(popped_path) = self.pending_paths.pop_front() {
             match PackedImage::try_from_path(&popped_path, ctx) {
-                Ok(p) => {
+                Ok(mut p) => {
+                    if self.import_config.get_alt_fnumber {
+                        p.view_exif.replace_with_fnumber_alt_when_invalid();
+                    }
                     self.packed_images.push(p);
                 }
                 Err(e) => {

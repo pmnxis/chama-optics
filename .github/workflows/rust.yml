@@ -16,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install libheif dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:strukturag/libheif
+          sudo apt-get install -y libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev libssl-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -26,27 +32,38 @@ jobs:
           command: check
           args: --all-features
 
-  check_wasm:
-    name: Check wasm32
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: wasm32-unknown-unknown
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --all-features --lib --target wasm32-unknown-unknown
+  # check_wasm:
+  #   name: Check wasm32
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Install libheif dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y \
+  #           libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         profile: minimal
+  #         toolchain: stable
+  #         target: wasm32-unknown-unknown
+  #         override: true
+  #     - uses: actions-rs/cargo@v1
+  #       with:
+  #         command: check
+  #         args: --all-features --lib --target wasm32-unknown-unknown
 
   test:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install libheif dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:strukturag/libheif
+          sudo apt-get install -y libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev libssl-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -63,6 +80,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install libheif dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:strukturag/libheif
+          sudo apt-get install -y libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev libssl-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -79,6 +102,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install libheif dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:strukturag/libheif
+          sudo apt-get install -y libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev libssl-dev
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -90,21 +119,26 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  trunk:
-    name: trunk
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.81.0
-          target: wasm32-unknown-unknown
-          override: true
-      - name: Download and install Trunk binary
-        run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
-      - name: Build
-        run: ./trunk build
+  # trunk:
+  #   name: trunk
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions-rs/toolchain@v1
+  #     - name: Install libheif dependencies (Linux)
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y \
+  #           libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev
+  #       with:
+  #         profile: minimal
+  #         toolchain: 1.88.0
+  #         target: wasm32-unknown-unknown
+  #         override: true
+  #     - name: Download and install Trunk binary
+  #       run: wget -qO- https://github.com/thedodd/trunk/releases/latest/download/trunk-x86_64-unknown-linux-gnu.tar.gz | tar -xzf-
+  #     - name: Build
+  #       run: ./trunk build
 
   build:
     runs-on: ${{ matrix.os }}
@@ -115,14 +149,17 @@ jobs:
         - os: macos-latest
           TARGET: aarch64-apple-darwin
 
-        - os: ubuntu-latest
-          TARGET: aarch64-unknown-linux-gnu
+        # - os: macos-latest
+        #   TARGET: x86_64-apple-darwin
+
+        # - os: ubuntu-latest
+        #   TARGET: arm-unknown-linux-musleabihf
+
+        # - os: ubuntu-latest
+        #   TARGET: armv7-unknown-linux-musleabihf
 
         - os: ubuntu-latest
-          TARGET: armv7-unknown-linux-gnueabihf
-
-        - os: ubuntu-latest
-          TARGET: x86_64-unknown-linux-gnu
+          TARGET: x86_64-unknown-linux-musl
 
         - os: windows-latest
           TARGET: x86_64-pc-windows-msvc
@@ -132,43 +169,40 @@ jobs:
     - name: Building ${{ matrix.TARGET }}
       run: echo "${{ matrix.TARGET }}"
 
+    - name: Install libheif dependencies (Linux)
+      if: contains(matrix.os, 'ubuntu')
+      run: |
+        sudo apt-get update
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:strukturag/libheif
+          sudo apt-get install -y libheif-dev libde265-dev libx265-dev libjpeg-dev libpng-dev libaom-dev libssl-dev
+    - name: Install libheif dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew update
+        brew install libheif pkg-config
+    - name: Install libheif dependencies (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        # Install vcpkg if not present
+        if (-not (Test-Path "C:\vcpkg")) {
+          git clone https://github.com/microsoft/vcpkg C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+        }
+        echo "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        C:\vcpkg\vcpkg install libheif:x64-windows
+        C:\vcpkg\vcpkg integrate install
+
     - uses: actions/checkout@master
-    - name: Install build dependencies - Rustup
-      run: |
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain stable --profile default --target ${{ matrix.TARGET }} -y
-        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-    # For linux, it's necessary to use cross from the git repository to avoid glibc problems
-    # Ref: https://github.com/cross-rs/cross/issues/1510
-    - name: Install cross for linux
-      if: contains(matrix.TARGET, 'linux')
-      run: |
-        cargo install cross --git https://github.com/cross-rs/cross --rev 1b8cf50d20180c1a394099e608141480f934b7f7
-
-    - name: Install cross for mac and windows
-      if: ${{ !contains(matrix.TARGET, 'linux') }}
-      run: |
-        cargo install cross
-
-    - name: Build
-      run: |
-        cross build --verbose --release --target=${{ matrix.TARGET }}
-
-    - name: Rename
-      run: cp target/${{ matrix.TARGET }}/release/chamera-app${{ matrix.EXTENSION }} chamera-app-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-
-    - uses: actions/upload-artifact@master
+    - uses: actions-rs/toolchain@v1.0.1
       with:
-        name: chamera-app-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        path: chamera-app-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
+        toolchain: stable
+        target: ${{ matrix.TARGET }}
+        override: true
 
-    - uses: svenstaro/upload-release-action@v2
-      name: Upload binaries to release
-      if: ${{ github.event_name == 'push' }}
+    - uses: actions-rs/cargo@v1
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: chamera-app-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        asset_name: chamera-app-${{ matrix.TARGET }}${{ matrix.EXTENSION }}
-        tag: ${{ github.ref }}
-        prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        overwrite: true
+        use-cross: true
+        command: build
+        args: --verbose --release --target=${{ matrix.TARGET }}

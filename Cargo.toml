@@ -8,7 +8,7 @@ version = "0.1.0"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 edition = "2024"
 include = ["LICENSE-NON-AI-MIT", "**/*.rs", "Cargo.toml"]
-rust-version = "1.90"
+rust-version = "1.88"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -31,7 +31,7 @@ log = "0.4.28"
 serde = { version = "1", features = ["derive"] }
 # kamadak-exif = "0.6.1"
 exif = { git = "https://github.com/pmnxis/exif-rs", rev = "7cb491cd22aa4a586f37c0c0c3ef5c9ae207d337" }
-image = { version = "0.25" }
+image = { version = "0.25", features = ["serde"] }
 base64 = "0.22.1"
 rfd = "0.15.3"
 egui-file-dialog = "0.12.0"

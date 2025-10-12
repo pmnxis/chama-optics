@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct ExportConfig {
     pub scale_config: crate::scale_config::ScaleConfig,
     pub extension: image::ImageFormat,

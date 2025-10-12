@@ -193,23 +193,69 @@ use egui::{RichText, TextEdit, TextStyle};
 impl SimplifiedExif {
     pub fn get_fnumber(&self) -> Option<String> {
         match self.fnumber.as_str() {
-            "" | "F0" | "0.0" | "0.1" | "0.2" | "0.00" => None,
+            "0" | "" | "F0" | "0.0" | "0.1" | "0.2" | "0.00" => None,
             others => Some(others.to_string()),
         }
     }
 
+    pub fn extract_fnumber_from_lens(&self) -> Option<String> {
+        let bytes = self.lens_model.as_bytes();
+        let len = bytes.len();
+
+        let mut i = 0;
+        while i < len {
+            let c = bytes[i];
+            if c == b'F' || c == b'f' {
+                let mut j = i + 1;
+                while j < len && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+
+                if j < len && (bytes[j].is_ascii_digit() || bytes[j] == b'.') {
+                    let start = j;
+                    while j < len
+                        && (bytes[j].is_ascii_digit() || bytes[j] == b'.' || bytes[j] == b'-')
+                    {
+                        j += 1;
+                    }
+
+                    let num = &self.lens_model[start..j];
+
+                    // consider F3.5-5.6
+                    let num = num.split('-').next().unwrap_or(num);
+                    return Some(num.to_owned());
+                }
+            }
+            i += 1;
+        }
+        None
+    }
+
+    pub fn get_fnumber_alt(&self) -> Option<String> {
+        match self.get_fnumber() {
+            None => self.extract_fnumber_from_lens(),
+            x => x,
+        }
+    }
+
+    pub fn replace_with_fnumber_alt_when_invalid(&mut self) -> bool {
+        if self.get_fnumber().is_none()
+            && let Some(x) = self.get_fnumber_alt() {
+                self.fnumber = x;
+                return true;
+            }
+        false
+    }
+
     pub fn get_exposure(&self) -> Option<String> {
-        match self.fnumber.as_str() {
+        match self.exposure.as_str() {
             "" | "0" | "0.0" | "0.00" | "1/0" | "0/1" => None,
             others => Some(others.to_string()),
         }
     }
 
     pub fn get_iso(&self) -> Option<String> {
-        match self.fnumber.as_str() {
-            "" | "0" | "0.0" | "0.00" => None,
-            others => Some(others.to_string()),
-        }
+        self.iso_speed.map(|x| x.to_string())
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {

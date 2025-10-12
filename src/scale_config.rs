@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-#[derive(Clone, Copy)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy)]
 pub enum ScaleConfig {
     /// No scale
     None,
@@ -94,7 +94,7 @@ impl ScaleConfig {
         if !is_vert_rot {
             self.__apply(width, height)
         } else {
-            match self.clone() {
+            match *self {
                 ScaleConfig::MaxWidth(x) => ScaleConfig::MaxHeight(x),
                 ScaleConfig::MaxHeight(x) => ScaleConfig::MaxWidth(x),
                 ScaleConfig::NearCommonDivisorConsiderWidth(x) => {
@@ -103,7 +103,7 @@ impl ScaleConfig {
                 ScaleConfig::NearCommonDivisorConsiderHeight(x) => {
                     ScaleConfig::NearCommonDivisorConsiderWidth(x)
                 }
-                others => others.clone(),
+                others => others,
             }
             .__apply(width, height)
         }

@@ -4,26 +4,25 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-pub struct Film {}
-
 use crate::theme::Theme;
-use ab_glyph::PxScale;
+use crate::{px_h, px_w, pxscale_w};
+use ab_glyph::{Font, PxScale, ScaleFont};
 use imageproc::drawing::draw_text_mut;
+
+pub struct Film {
+    // font_size: f32,
+}
 
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 153, 0, 255]);
 
-fn merge_option_string(
-    x: Option<String>,
-    y: Option<String>,
-    y_prefix: &str,
-    y_postfix: &str,
-) -> Option<String> {
-    match (x, y) {
-        (None, None) => None,
-        (Some(xv), None) => Some(xv),
-        (None, Some(yv)) => Some(format!("{y_prefix}{yv}{y_postfix}")),
-        (Some(xv), Some(yv)) => Some(format!("{xv}\n{y_prefix}{yv}{y_postfix}")),
-    }
+fn text_dimensions(scale: PxScale, font: &impl Font, text: &str) -> (f32, f32) {
+    let scaled = font.as_scaled(scale);
+    (
+        text.chars()
+            .map(|c| scaled.h_advance(font.glyph_id(c)))
+            .sum::<f32>(),
+        scaled.height(),
+    )
 }
 
 impl Theme for Film {
@@ -33,58 +32,90 @@ impl Theme for Film {
         export_config: &crate::export_config::ExportConfig,
         output_path: &std::path::Path,
     ) -> Result<(), image::ImageError> {
-        let exif: &crate::exif_impl::SimplifiedExif = &pi.view_exif;
+        let exif = &pi.view_exif;
         let scale_config = export_config.scale_config;
-        let left_str = format!(
-            "{}  {}\n{}",
-            exif.camera_mnf, exif.camera_model, exif.lens_model
+        let mut dyn_image = pi.with_scale_and_orientation(scale_config)?;
+        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
+        let font = crate::fonts::FONT_DIGITS.clone();
+
+        let margin = px_w!(120, dyn_w).trunc() as i32;
+
+        // Left
+        let camera_text = format!("{} {}", exif.camera_mnf, exif.camera_model);
+        let lens_text = exif.lens_model.clone();
+
+        let base_y = (dyn_h as i32 * 11) / 12;
+        draw_text_mut(
+            &mut dyn_image,
+            FILM_COLOR,
+            margin,
+            (base_y as f32 - px_h!(80, dyn_h)).trunc() as i32,
+            px_w!(75, dyn_w),
+            &font,
+            &camera_text,
+        );
+        draw_text_mut(
+            &mut dyn_image,
+            FILM_COLOR,
+            margin,
+            (base_y as f32 + px_h!(20, dyn_h)).trunc() as i32,
+            px_w!(75, dyn_w),
+            &font,
+            &lens_text,
         );
 
-        let right_str = {
-            let mut ret = exif
-                .get_fnumber()
-                .map_or(None, |x| Some(format!("F {}", x)));
-
-            ret = merge_option_string(ret, exif.get_exposure(), "", " sec");
-
-            merge_option_string(ret, exif.get_iso(), "ISO ", "")
+        // Right
+        let pairs = {
+            let mut list = Vec::new();
+            if let Some(f) = exif.get_fnumber() {
+                list.push(("F", f));
+            }
+            if let Some(sec) = exif.get_exposure() {
+                list.push(("SEC", sec));
+            }
+            if let Some(iso) = exif.get_iso() {
+                list.push(("ISO", iso));
+            }
+            list
         };
 
-        let mut dyn_image = pi.with_scale_and_orientation(scale_config)?;
+        let prefix_scale = pxscale_w!(65, dyn_w);
+        let number_scale = pxscale_w!(100, dyn_w);
+        let spacing = px_w!(10, dyn_w);
+        let mut y: f32 = base_y as f32;
 
-        // todo - asepct ratio font size
-        let font = crate::fonts::FONT_DIGITS.clone();
-        let scale = PxScale::from(80.0);
-        let margin = 60;
-        let line_height = 100;
+        for (prefix, number) in pairs.iter().rev() {
+            let (prefix_w, prefix_h) = text_dimensions(prefix_scale, &font, prefix);
+            let (number_w, number_h) = text_dimensions(number_scale, &font, number);
+            let line_h = number_h.max(prefix_h);
+            let total_w = prefix_w + spacing + number_w;
 
-        // split by vec
-        let left_lines: Vec<&str> = left_str.lines().collect();
-        let left_total_height = left_lines.len() * line_height;
-        let right_lines: Vec<&str> = right_str
-            .as_ref()
-            .map(|s| s.lines().collect::<Vec<_>>())
-            .unwrap_or_default();
-        let right_total_height = right_lines.len() * line_height;
+            // For right alignment
+            let x_right = dyn_w as f32 - margin as f32;
+            let x_prefix = (x_right - total_w).round() as i32;
+            let x_number = (x_right - number_w).round() as i32;
 
-        // starting y place
-        let y_start_left = dyn_image.height() as i32 - left_total_height as i32 - margin as i32;
-        let y_start_right = dyn_image.height() as i32 - right_total_height as i32 - margin as i32;
+            draw_text_mut(
+                &mut dyn_image,
+                FILM_COLOR,
+                x_prefix,
+                (y + number_h - prefix_h - px_h!(4.25, dyn_h)).round() as i32,
+                prefix_scale,
+                &font,
+                prefix,
+            );
 
-        // left side
-        for (i, line) in left_lines.iter().enumerate() {
-            let y = y_start_left + (i as i32 * line_height as i32);
-            draw_text_mut(&mut dyn_image, FILM_COLOR, margin, y, scale, &font, line);
-        }
+            draw_text_mut(
+                &mut dyn_image,
+                FILM_COLOR,
+                x_number,
+                y.round() as i32,
+                number_scale,
+                &font,
+                number,
+            );
 
-        // right side
-        let img_width = dyn_image.width() as i32;
-        for (i, line) in right_lines.iter().enumerate() {
-            let text_width_est = (line.len() as i32) * 40;
-            let x = img_width - text_width_est - margin as i32;
-            let y = y_start_right + (i as i32 * line_height as i32);
-
-            draw_text_mut(&mut dyn_image, FILM_COLOR, x, y, scale, &font, line);
+            y -= line_h;
         }
 
         dyn_image.save(output_path)

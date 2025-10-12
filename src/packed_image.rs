@@ -327,10 +327,10 @@ impl PackedImage {
                                         .set_file_name(new_default_file_name)
                                         .save_file()
                                     {
-                                        // todo - select theme with phatom or somthing
+                                        // todo - select theme with phatom or something
                                         let theme = crate::theme::film::Film {};
 
-                                        match theme.apply(&self, export_config, &output_path) {
+                                        match theme.apply(self, export_config, &output_path) {
                                             Ok(_) => {
                                                 log::info!(
                                                     "Saved with EXIF overlay to {output_path:?}"

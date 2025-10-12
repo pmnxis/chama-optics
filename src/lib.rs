@@ -11,9 +11,10 @@ pub(crate) mod exif_impl;
 pub(crate) mod export_config;
 mod fonts;
 pub(crate) mod heic;
+pub(crate) mod import_config;
 pub(crate) mod packed_image;
 pub(crate) mod scale_config;
-pub(crate) mod theme;
+pub mod theme;
 // pub(crate) mod preview;
 
 pub use app::ChamaOptics;
