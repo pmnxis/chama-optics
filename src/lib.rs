@@ -8,10 +8,11 @@
 
 mod app;
 pub(crate) mod exif_impl;
+pub(crate) mod export_config;
 mod fonts;
 pub(crate) mod heic;
-pub(crate) mod orientation;
 pub(crate) mod packed_image;
+pub(crate) mod scale_config;
 pub(crate) mod theme;
 // pub(crate) mod preview;
 

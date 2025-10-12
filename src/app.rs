@@ -11,23 +11,23 @@ use std::path::PathBuf;
 #[serde(default)]
 pub struct ChamaOptics {
     pub label: String,
-    pub brightness: f32,
-    pub contrast: f32,
 
     pub pending_paths: std::collections::VecDeque<PathBuf>,
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
+
+    #[serde(skip)]
+    pub export_config: crate::export_config::ExportConfig,
 }
 
 impl Default for ChamaOptics {
     fn default() -> Self {
         Self {
-            label: "Hello World!".into(),
-            brightness: 0.0,
-            contrast: 0.0,
+            label: "World Strongest Idol".into(),
             pending_paths: std::collections::VecDeque::new(),
             packed_images: vec![],
+            export_config: crate::export_config::ExportConfig::default(),
         }
     }
 }
@@ -48,7 +48,7 @@ impl ChamaOptics {
         let mut remove_index: Option<usize> = None;
 
         for (idx, pi) in self.packed_images.iter_mut().enumerate() {
-            match pi.update_ui(ui) {
+            match pi.update_ui(ui, &self.export_config) {
                 crate::packed_image::PackedImageEvent::None => { /* Nothing */ }
                 crate::packed_image::PackedImageEvent::Remove => {
                     // todo - ordering bigger number of index, and remove later
@@ -90,26 +90,31 @@ impl eframe::App for ChamaOptics {
                 ui.text_edit_singleline(&mut self.label);
             });
 
-            ui.separator();
-            ui.label("Drag drop image here\n\n\n");
+            // show export configuration
+            self.export_config.update_ui(ui);
 
-            // add image by file open dialog
-            if ui.button("Open file…").clicked()
-                && let Some(path) = rfd::FileDialog::new().pick_file()
-            {
-                println!("By file dialog :{:?}", path);
-                self.pending_paths.push_back(path);
-            }
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label("Drag drop image here or ");
+
+                // add image by file open dialog
+                if ui.button("Open file").clicked()
+                    && let Some(path) = rfd::FileDialog::new().pick_file()
+                {
+                    log::info!("By file dialog :{:?}", path);
+                    self.pending_paths.push_back(path);
+                }
+            });
 
             // add image by drag and drop
             ctx.input(|i| {
                 if !i.raw.dropped_files.is_empty() {
                     for (idx, file) in i.raw.dropped_files.iter().enumerate() {
                         if let Some(dropped_path) = &file.path {
-                            println!("By dropped[{}] : {:?}", idx, dropped_path);
+                            log::info!("By dropped[{}] : {:?}", idx, dropped_path);
                             self.pending_paths.push_back(dropped_path.clone());
                         } else {
-                            println!("Failed to get file path");
+                            log::error!("Failed to get file path");
                         }
                     }
                 }
@@ -145,7 +150,7 @@ impl eframe::App for ChamaOptics {
                     self.packed_images.push(p);
                 }
                 Err(e) => {
-                    println!("Error opening file : {e:?}");
+                    log::error!("Error opening file : {e:?}");
                 }
             }
         }

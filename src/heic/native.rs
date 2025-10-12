@@ -18,7 +18,7 @@ pub(crate) fn load_heif(path: &PathBuf) -> Result<image::DynamicImage, Box<dyn s
 
     let color_space = img.color_space().ok_or("Unknown HEIF color space")?;
 
-    // color_space and bpp dependancy
+    // color_space and bpp dependency
     let bpp = match color_space {
         ColorSpace::Monochrome => img.bits_per_pixel(Channel::Y),
         ColorSpace::Rgb(_) => img.bits_per_pixel(Channel::R),
@@ -35,7 +35,7 @@ pub(crate) fn load_heif(path: &PathBuf) -> Result<image::DynamicImage, Box<dyn s
         .interleaved
         .ok_or("Unsupported: no interleaved RGBA plane")?;
 
-    println!(
+    log::info!(
         "HEIF decoded: color_space={:?}, bpp={}, {}x{}",
         color_space,
         bpp.map_or("Unknown".to_owned(), |x| x.to_string()),

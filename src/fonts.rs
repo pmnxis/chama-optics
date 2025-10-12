@@ -9,8 +9,8 @@
 use eframe::egui;
 
 struct BuiltInFonts {
-    name: &'static str,
-    data: &'static [u8],
+    pub(crate) name: &'static str,
+    pub(crate) data: &'static [u8],
 }
 
 const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
@@ -22,6 +22,10 @@ const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
     name: "NotoSans-Medium",
     data: include_bytes!("../assets/fonts/NotoSansKR-Medium.ttf"),
 };
+
+lazy_static::lazy_static! {
+    pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DS_DIGITAL_FONT_PATH"))).expect("Cannot init font.");
+}
 
 // Demonstrates how to replace all fonts.
 pub(crate) fn replace_fonts(ctx: &egui::Context) {

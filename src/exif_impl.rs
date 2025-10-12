@@ -45,14 +45,15 @@ impl OriginalExif {
             .unwrap_or_default()
     }
 
-    pub fn orientation(&self) -> crate::orientation::Orientation {
+    pub fn orientation(&self) -> image::metadata::Orientation {
         // Orientation (TIFF 0x112)
         let value = self
             .0
             .as_ref()
             .and_then(|exif| exif.get_field(Tag::Orientation, In::PRIMARY))
             .and_then(|field| field.value.get_uint(0));
-        crate::orientation::Orientation::from_tiff(value.unwrap_or(0))
+        image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+            .unwrap_or(image::metadata::Orientation::NoTransforms)
     }
 
     /// Manufacturer of the image input equipment.
@@ -110,7 +111,7 @@ impl OriginalExif {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Default, Clone, PartialEq, PartialOrd)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, PartialEq)]
 #[serde(default)]
 pub struct SimplifiedExif {
     pub camera_mnf: String,
@@ -123,7 +124,23 @@ pub struct SimplifiedExif {
     pub datetime: String, // Option<DateTime>,
 
     #[serde(skip)]
-    pub orientation: crate::orientation::Orientation,
+    pub orientation: image::metadata::Orientation,
+}
+
+impl std::default::Default for SimplifiedExif {
+    fn default() -> Self {
+        Self {
+            camera_mnf: String::new(),
+            camera_model: String::new(),
+            lens_model: String::new(),
+            focal: String::new(),
+            fnumber: String::new(),
+            exposure: String::new(),
+            iso_speed: None,
+            datetime: String::new(),
+            orientation: image::metadata::Orientation::NoTransforms,
+        }
+    }
 }
 
 /// Remove trash chars from exif string field
@@ -174,6 +191,27 @@ impl From<&OriginalExif> for SimplifiedExif {
 use egui::{RichText, TextEdit, TextStyle};
 
 impl SimplifiedExif {
+    pub fn get_fnumber(&self) -> Option<String> {
+        match self.fnumber.as_str() {
+            "" | "F0" | "0.0" | "0.1" | "0.2" | "0.00" => None,
+            others => Some(others.to_string()),
+        }
+    }
+
+    pub fn get_exposure(&self) -> Option<String> {
+        match self.fnumber.as_str() {
+            "" | "0" | "0.0" | "0.00" | "1/0" | "0/1" => None,
+            others => Some(others.to_string()),
+        }
+    }
+
+    pub fn get_iso(&self) -> Option<String> {
+        match self.fnumber.as_str() {
+            "" | "0" | "0.0" | "0.00" => None,
+            others => Some(others.to_string()),
+        }
+    }
+
     pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         let small_text = |text: &str| RichText::new(text).text_style(TextStyle::Small);
 
@@ -272,9 +310,10 @@ impl SimplifiedExif {
                         .desired_width(40.0),
                 )
                 .changed()
-                && let Ok(v) = iso_str.parse::<u32>() {
-                    self.iso_speed = Some(v);
-                }
+                && let Ok(v) = iso_str.parse::<u32>()
+            {
+                self.iso_speed = Some(v);
+            }
         } else {
             ui.horizontal(|ui| {
                 ui.label(small_text(&self.exposure));
@@ -298,6 +337,13 @@ impl SimplifiedExif {
         }
 
         ui.end_row();
+    }
+
+    pub fn is_vertical_rotated(&self) -> bool {
+        matches!(
+            self.orientation,
+            image::metadata::Orientation::Rotate90 | image::metadata::Orientation::Rotate270
+        )
     }
 }
 
