@@ -7,6 +7,7 @@
 // #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
+pub mod builtin_fonts;
 pub(crate) mod exif_impl;
 pub(crate) mod export_config;
 mod fonts;

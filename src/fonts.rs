@@ -24,7 +24,7 @@ const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
 };
 
 lazy_static::lazy_static! {
-    pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DS_DIGITAL_FONT_PATH"))).expect("Cannot init font.");
+    pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
 }
 
 // Demonstrates how to replace all fonts.

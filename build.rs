@@ -1,71 +1,96 @@
 /*
  * SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
  *
- * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
+ * SPDX-License-Identifier: MIT
  */
 
-use md5::{Digest, Md5};
-use std::{
-    env, fs,
-    io::{Cursor, Read},
-    path::PathBuf,
-};
-use zip::ZipArchive;
+mod builtin_fonts {
+    include!("src/builtin_fonts.rs");
+
+    impl BuildAsset {
+        /// Download, verify MD5, unzip (if needed), and set cargo env var
+        pub fn load(&self, out_dir: &std::path::Path) {
+            use md5::{Digest, Md5};
+            use std::fs;
+            use std::io::{self, Cursor, Read};
+            use zip::ZipArchive;
+
+            let file_name = self.file_name.unwrap_or_else(|| {
+                self.url
+                    .split('/')
+                    .last()
+                    .expect("Cannot determine file name from URL")
+            });
+
+            let zip_path = out_dir.join(file_name);
+
+            println!("cargo:rerun-if-changed=build.rs");
+
+            // Download
+            if !zip_path.exists() {
+                println!("Downloading {} ...", self.url);
+                let resp = reqwest::blocking::get(self.url).expect("failed to download file");
+                let bytes = resp.bytes().expect("failed to read response bytes");
+                fs::write(&zip_path, &bytes).expect("failed to write downloaded file");
+            }
+
+            // MD5 check
+            let mut buffer = Vec::new();
+            fs::File::open(&zip_path)
+                .and_then(|mut f| f.read_to_end(&mut buffer))
+                .expect("failed to read downloaded file for MD5");
+
+            let mut hasher = Md5::new();
+            hasher.update(&buffer);
+            let actual_md5 = format!("{:x}", hasher.finalize());
+
+            if actual_md5 != self.expected_md5 {
+                panic!(
+                    "MD5 checksum mismatch for {}!\nExpected: {}\nActual:   {}",
+                    zip_path.display(),
+                    self.expected_md5,
+                    actual_md5
+                );
+            } else {
+                println!("MD5 checksum verified ✅");
+            }
+
+            // Unzip if necessary
+            let final_path = if self.unzip {
+                let extract_name = self
+                    .extract_file_name
+                    .expect("extract_file_name required when unzip=true");
+                let font_path = out_dir.join(extract_name);
+
+                if !font_path.exists() {
+                    let reader = Cursor::new(buffer);
+                    let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
+                    let mut file = archive
+                        .by_name(extract_name)
+                        .unwrap_or_else(|_| panic!("{extract_name} not found in ZIP"));
+                    let mut extracted = Vec::new();
+                    io::copy(&mut file, &mut extracted).expect("failed to extract file");
+                    fs::write(&font_path, extracted).expect("failed to write extracted file");
+                }
+                font_path
+            } else {
+                zip_path
+            };
+
+            // Expose to cargo environment
+            println!("cargo:rustc-env={}={}", self.env_key, final_path.display());
+        }
+    }
+}
+
+use builtin_fonts::*;
+use std::env;
+use std::path::PathBuf;
 
 fn main() {
+    // Enable only build-script logic in build_asset.rs
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let font_path = out_dir.join("DS-DIGI.TTF");
-    let zip_path = out_dir.join("ds_digital.zip");
-
-    println!("cargo:rerun-if-changed=build.rs");
-
-    // Download DS-Digital.zip
-    let url = "https://github.com/aur-archive/ds-digital-fonts/raw/master/ds_digital.zip";
-    let expected_md5 = "d4b7aea7106cc00daef73d51eeda826c";
-
-    // if there's no DSDigital
-    if !zip_path.exists() {
-        println!("Downloading ds_digital.zip ...");
-        let resp = reqwest::blocking::get(url).expect("failed to download zip");
-        let bytes = resp.bytes().expect("failed to read zip bytes");
-        fs::write(&zip_path, &bytes).expect("failed to write zip file");
+    for asset in BUILTIN_FONTS {
+        asset.load(&out_dir);
     }
-
-    let mut file = fs::File::open(&zip_path).expect("failed to open zip file");
-    let mut hasher = Md5::new();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    hasher.update(&buffer);
-    let result = format!("{:x}", hasher.finalize());
-
-    if result != expected_md5 {
-        panic!(
-            "MD5 checksum mismatch for ds_digital.zip!\nExpected: {}\nActual:   {}",
-            expected_md5, result
-        );
-    } else {
-        println!("MD5 checksum verified ✅");
-    }
-
-    // uncompress
-    if !font_path.exists() {
-        let reader = Cursor::new(buffer);
-        let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
-
-        // add DS-DIGI.TTF
-        let mut file = archive
-            .by_name("DS-DIGI.TTF")
-            .expect("DS-Digital.ttf not found in ZIP");
-
-        let mut buf = Vec::new();
-        std::io::copy(&mut file, &mut buf).expect("failed to extract font file");
-
-        fs::write(&font_path, buf).expect("failed to write extracted font");
-    }
-
-    // add on OUT_DIR
-    println!(
-        "cargo:rustc-env=DS_DIGITAL_FONT_PATH={}",
-        font_path.display()
-    );
 }

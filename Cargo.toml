@@ -79,6 +79,6 @@ opt-level = 2
 # eframe = { path = "../egui/crates/eframe" }
 
 [build-dependencies]
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12.24", features = ["blocking"] }
 zip = "6.0.0"
 md-5 = "0.10.6"
