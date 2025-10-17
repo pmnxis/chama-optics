@@ -97,7 +97,13 @@ impl Theme for Film {
             y -= line_h;
         }
 
-        dyn_image.save(output_path)
+        if let Err(e) = export_config
+            .output_format
+            .save_image(&dyn_image, output_path)
+        {
+            println!("{:?}", e);
+        }
+        Ok(())
     }
 
     fn ui_config(&mut self, _ui: &mut egui::Ui) {
