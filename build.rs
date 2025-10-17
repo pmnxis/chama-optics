@@ -18,7 +18,7 @@ mod builtin_fonts {
             let file_name = self.file_name.unwrap_or_else(|| {
                 self.url
                     .split('/')
-                    .last()
+                    .next_back()
                     .expect("Cannot determine file name from URL")
             });
 

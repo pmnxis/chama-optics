@@ -7,7 +7,6 @@
 use crate::theme::Theme;
 use crate::{px_h, px_w, pxscale_w};
 use ab_glyph::{Font, PxScale, ScaleFont};
-use imageproc::drawing::draw_text_mut;
 
 pub struct Film {
     // font_size: f32,
@@ -38,31 +37,27 @@ impl Theme for Film {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let font = crate::fonts::FONT_DIGITS.clone();
 
+        #[rustfmt::skip]
+        macro_rules! draw {
+            ($xxx:expr, $yyy:expr, $scale:expr, $text:expr) => {
+                imageproc::drawing::draw_text_mut(&mut dyn_image, FILM_COLOR, ($xxx) as i32, ($yyy as f32 - font.as_scaled($scale).ascent()) as i32, $scale, &font, $text);
+            };
+        }
+
         let margin = px_w!(120, dyn_w).trunc() as i32;
 
         // Left
-        let camera_text = format!("{} {}", exif.camera_mnf, exif.camera_model);
-        let lens_text = exif.lens_model.clone();
+        let base_y = (dyn_h as i32 * 13) / 14;
 
-        let base_y = (dyn_h as i32 * 11) / 12;
-        draw_text_mut(
-            &mut dyn_image,
-            FILM_COLOR,
+        let cam_scale = pxscale_w!(75, dyn_w);
+        draw!(
             margin,
-            (base_y as f32 - px_h!(80, dyn_h)).trunc() as i32,
-            px_w!(75, dyn_w),
-            &font,
-            &camera_text,
+            base_y as f32 - px_h!(75, dyn_h),
+            cam_scale,
+            &format!("{}  {}", exif.camera_mnf, exif.camera_model)
         );
-        draw_text_mut(
-            &mut dyn_image,
-            FILM_COLOR,
-            margin,
-            (base_y as f32 + px_h!(20, dyn_h)).trunc() as i32,
-            px_w!(75, dyn_w),
-            &font,
-            &lens_text,
-        );
+
+        draw!(margin, base_y, cam_scale, &exif.lens_model.clone());
 
         // Right
         let pairs = {
@@ -81,6 +76,7 @@ impl Theme for Film {
 
         let prefix_scale = pxscale_w!(65, dyn_w);
         let number_scale = pxscale_w!(100, dyn_w);
+
         let spacing = px_w!(10, dyn_w);
         let mut y: f32 = base_y as f32;
 
@@ -95,25 +91,8 @@ impl Theme for Film {
             let x_prefix = (x_right - total_w).round() as i32;
             let x_number = (x_right - number_w).round() as i32;
 
-            draw_text_mut(
-                &mut dyn_image,
-                FILM_COLOR,
-                x_prefix,
-                (y + number_h - prefix_h - px_h!(4.25, dyn_h)).round() as i32,
-                prefix_scale,
-                &font,
-                prefix,
-            );
-
-            draw_text_mut(
-                &mut dyn_image,
-                FILM_COLOR,
-                x_number,
-                y.round() as i32,
-                number_scale,
-                &font,
-                number,
-            );
+            draw!(x_prefix, y, prefix_scale, prefix);
+            draw!(x_number, y, number_scale, number);
 
             y -= line_h;
         }

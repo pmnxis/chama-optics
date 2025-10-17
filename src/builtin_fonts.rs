@@ -36,4 +36,4 @@ pub const BUILTIN_FONTS: [BuildAsset; 1] = [BuildAsset {
 }];
 
 #[allow(unused)] // actually it used
-pub const ASSET_DS_DIGITAL: &'static BuildAsset = &BUILTIN_FONTS[0];
+pub const ASSET_DS_DIGITAL: &BuildAsset = &BUILTIN_FONTS[0];
