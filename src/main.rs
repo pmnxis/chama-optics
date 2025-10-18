@@ -21,10 +21,8 @@ fn main() -> eframe::Result<()> {
             .with_min_inner_size([300.0, 220.0])
             .with_drag_and_drop(true)
             .with_icon(
-                eframe::icon_data::from_png_bytes(
-                    &include_bytes!("../assets/chama-optics.png")[..],
-                )
-                .expect("Failed to load icon"),
+                eframe::icon_data::from_png_bytes(&include_bytes!("../assets/mac-icon.png")[..])
+                    .expect("Failed to load icon"),
             ),
         ..Default::default()
     };

@@ -372,7 +372,7 @@ impl SimplifiedExif {
             ui.horizontal(|ui| {
                 ui.label(small_text(&self.exposure));
                 let iso = self.iso_speed.map_or(String::from("-"), |v| v.to_string());
-                ui.label(small_text(&format!("\tISO {}", iso)));
+                ui.label(small_text(&format!("\tISO {iso}")));
             });
         }
 
@@ -401,7 +401,7 @@ impl SimplifiedExif {
 #[allow(dead_code)]
 fn hex_dump(s: &str) {
     for (i, b) in s.as_bytes().iter().enumerate() {
-        print!("{:02X} ", b);
+        print!("{b:02X} ");
         if (i + 1) % 16 == 0 {
             println!();
         }

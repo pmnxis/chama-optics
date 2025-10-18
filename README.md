@@ -10,7 +10,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 [![Build Status](https://github.com/pmnxis/chama-optics/workflows/CI/badge.svg)](https://github.com/pmnxis/chama-optics/actions?workflow=CI)
 
 
-![Build Status](assets/chama-optics.png)
+![Build Status](assets/mac-icon.png)
 
 Chama Optics is a program created for mirrorless and DSLR cameras, inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.com/@AkaiHaato)), who loves photography.
 
@@ -22,7 +22,9 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Read JPEG/PNG and other common formats
 - [x] Read HEIF photos (libheif)
 - [x] Read EXIF data (supports up to 2.3.x standard; not yet compliant with 3.0)
-- [ ] Save photos with selected frames and settings
+- [x] Save photos with selected frames and settings
+- [ ] More themes
+- [ ] Save photos with EXIF
 - [ ] Watermark feature
 - [ ] Web application supports (libheif wasm)
 

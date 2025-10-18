@@ -87,8 +87,84 @@ use builtin_fonts::*;
 use std::env;
 use std::path::PathBuf;
 
+fn get_git_commit_hash(short: bool) -> Option<String> {
+    let args = if short {
+        vec!["rev-parse", "--short", "HEAD"]
+    } else {
+        vec!["rev-parse", "HEAD"]
+    };
+
+    let output = std::process::Command::new("git").args(args).output().ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let hash = String::from_utf8_lossy(&output.stdout)
+        .trim()
+        .to_string()
+        .to_ascii_lowercase();
+    Some(hash)
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=locales");
+
+    // Get project name and version
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .no_deps()
+        .exec()
+        .expect("Failed to get cargo metadata.");
+
+    if let Some(package) = metadata.packages.first() {
+        let project_name = &package.name;
+        let project_version = package.version.to_string();
+
+        println!("cargo:rustc-env=PROJECT_NAME={project_name}");
+        println!("cargo:rustc-env=PROJECT_VERSION={project_version}");
+    } else {
+        println!("cargo:rustc-env=PROJECT_NAME=unknown");
+        println!("cargo:rustc-env=PROJECT_VERSION=Unknown");
+    }
+
+    // Get the Git commit hash
+    if let (Some(commit_hash), Some(commit_short_hash)) =
+        (get_git_commit_hash(false), get_git_commit_hash(true))
+    {
+        let is_dirty = {
+            let output = std::process::Command::new("git")
+                .args(["status", "--porcelain"])
+                .output()
+                .expect("Failed to execute git status");
+
+            !output.stdout.is_empty()
+        };
+
+        let (dirty_str, short_dirty_str) = if is_dirty {
+            ("-dirty".to_owned(), "-dirty".to_owned())
+        } else {
+            ("".to_owned(), "  ".to_owned())
+        };
+
+        let output = std::process::Command::new("git")
+            .args(["log", "-1", "--format=%ai", &commit_hash])
+            .output()
+            .expect("Failed to execute command");
+        let commit_datetime = String::from_utf8_lossy(&output.stdout);
+
+        // Output the version and commit hash to a file
+        // This is u8 array
+
+        println!("cargo:rustc-env=GIT_COMMIT_HASH={commit_hash}{dirty_str}");
+
+        println!("cargo:rustc-env=GIT_COMMIT_SHORT_HASH={commit_short_hash}{short_dirty_str}");
+        println!("cargo:rustc-env=GIT_COMMIT_DATETIME={commit_datetime}");
+    } else {
+        println!("cargo:rustc-env=GIT_COMMIT_HASH=unknown");
+
+        println!("cargo:rustc-env=GIT_COMMIT_SHORT_HASH=unknown");
+        println!("cargo:rustc-env=GIT_COMMIT_DATETIME=unknown");
+    }
 
     // Enable only build-script logic in build_asset.rs
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());

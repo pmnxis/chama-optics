@@ -64,11 +64,11 @@ fn resize_image(
         fr::PixelType::U8x4,
     )
     .map_err(|e| {
-        log::error!("thumbnail : {:?}", e);
+        log::error!("thumbnail : {e:?}");
 
         image::ImageError::Encoding(image::error::EncodingError::new(
             image::error::ImageFormatHint::Unknown,
-            format!("thumbnail source prepare failed by {:?}", e),
+            format!("thumbnail source prepare failed by {e:?}"),
         ))
     })?;
 
@@ -165,8 +165,7 @@ fn __load_image(
                                         path.to_path_buf(),
                                     ),
                                     image::error::UnsupportedErrorKind::GenericFeature(format!(
-                                        "libheif internal error {} and unsp_e : {}",
-                                        e, unsp_e
+                                        "libheif internal error {e} and unsp_e : {unsp_e}"
                                     )),
                                 ),
                             )

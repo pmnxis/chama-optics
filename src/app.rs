@@ -107,7 +107,7 @@ impl eframe::App for ChamaOptics {
                 if ui.button(t!("app.open_files.button")).clicked()
                     && let Some(path) = rfd::FileDialog::new().pick_file()
                 {
-                    log::info!("By file dialog :{:?}", path);
+                    log::info!("By file dialog :{path:?}");
                     self.pending_paths.push_back(path);
                 }
             });
@@ -117,7 +117,7 @@ impl eframe::App for ChamaOptics {
                 if !i.raw.dropped_files.is_empty() {
                     for (idx, file) in i.raw.dropped_files.iter().enumerate() {
                         if let Some(dropped_path) = &file.path {
-                            log::info!("By dropped[{}] : {:?}", idx, dropped_path);
+                            log::info!("By dropped[{idx}] : {dropped_path:?}");
                             self.pending_paths.push_back(dropped_path.clone());
                         } else {
                             log::error!("Failed to get file path");
@@ -143,10 +143,18 @@ impl eframe::App for ChamaOptics {
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                egui::warn_if_debug_build(ui);
+            // ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
+            egui::warn_if_debug_build(ui);
+            ui.horizontal(|ui| {
                 ui.label("ChamaOptics");
+                ui.add_space(60.0);
+                ui.label(format!(
+                    "v{} ({})",
+                    env!("PROJECT_VERSION"),
+                    env!("GIT_COMMIT_SHORT_HASH")
+                ));
             });
+            // });
         });
 
         // out side thread

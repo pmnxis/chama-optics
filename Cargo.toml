@@ -14,6 +14,11 @@ rust-version = "1.88"
 all-features = true
 targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 
+[package.metadata.bundle]
+name = "Chama Optics"
+icon = ["chama-optics-x256.ico", "assets/mac-icon.png"]
+identifier = "com.github.pmnxis.chamaoptics"
+
 [dependencies]
 egui = "^0.33"
 eframe = { version = "^0.33", default-features = false, features = [
@@ -44,21 +49,13 @@ fast_image_resize = "5.3.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = "0.11.8"
-mozjpeg = { version = "0.10.13" }                            # todo - nasm_simd and neon feature later
+mozjpeg = { version = "0.10.13" }                                                # todo - nasm_simd and neon feature later
 webp = "0.3.1"
 oxipng = "9.1.5"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 rust-i18n = "3.1.5"
 sys-locale = "0.3.2"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-libheif-rs = { version = "2.4", default-features = false, features = [
-    "v1_18",
-    "embedded-libheif",
-] }
-
-[target.'cfg(target_os = "macos")'.dependencies]
 libheif-rs = { version = "2.4", default-features = false, features = ["v1_18"] }
 
 # native:
@@ -95,6 +92,10 @@ opt-level = 2
 # eframe = { path = "../egui/crates/eframe" }
 
 [build-dependencies]
-reqwest = { version = "0.12.24", features = ["blocking"] }
+reqwest = { version = "0.12.24", features = [
+    "blocking",
+    "rustls-tls",
+], default-features = false }
 zip = "6.0.0"
 md-5 = "0.10.6"
+cargo_metadata = "0.23"
