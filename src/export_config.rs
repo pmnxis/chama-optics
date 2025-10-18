@@ -10,6 +10,7 @@ use rust_i18n::t;
 pub struct ExportConfig {
     pub scale_config: crate::scale_config::ScaleConfig,
     pub output_format: crate::output_format::OutputFormat,
+    pub theme_reg: crate::theme::ThemeRegistry,
 }
 
 impl core::default::Default for ExportConfig {
@@ -17,6 +18,7 @@ impl core::default::Default for ExportConfig {
         Self {
             scale_config: crate::scale_config::SCALE_NEAR_COMMON_4K,
             output_format: crate::output_format::OutputFormat::default(),
+            theme_reg: crate::theme::ThemeRegistry::new(),
         }
     }
 }
@@ -29,6 +31,8 @@ impl ExportConfig {
             self.scale_config.update_ui(ui);
             ui.separator();
             self.output_format.update_ui(ui);
+            ui.separator();
+            self.theme_reg.update_ui(ui);
         });
     }
 }

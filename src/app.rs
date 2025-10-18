@@ -10,7 +10,6 @@ use std::path::PathBuf;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct ChamaOptics {
-    pub label: String,
     pub pending_paths: std::collections::VecDeque<PathBuf>,
     pub import_config: crate::import_config::ImportConfig,
     pub export_config: crate::export_config::ExportConfig,
@@ -23,7 +22,6 @@ pub struct ChamaOptics {
 impl Default for ChamaOptics {
     fn default() -> Self {
         Self {
-            label: "World Strongest Idol".into(),
             pending_paths: std::collections::VecDeque::new(),
             import_config: crate::import_config::ImportConfig::default(),
             export_config: crate::export_config::ExportConfig::default(),
@@ -95,11 +93,6 @@ impl eframe::App for ChamaOptics {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("ChamaOptics");
-
-            ui.horizontal(|ui| {
-                ui.label("Watermark Text : ");
-                ui.text_edit_singleline(&mut self.label);
-            });
 
             // show export configuration
             self.import_config.update_ui(ui);

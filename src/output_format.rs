@@ -58,7 +58,11 @@ impl core::default::Default for OutputFormat {
     }
 }
 
-fn save_jpeg_moz<P: AsRef<Path>>(img: image::RgbImage, path: P, quality: u8) -> anyhow::Result<()> {
+fn save_jpeg_moz<P: AsRef<Path>>(
+    img: image::RgbImage,
+    path: P,
+    quality: u8,
+) -> Result<(), image::ImageError> {
     use mozjpeg::ColorSpace;
     let mut comp = mozjpeg::Compress::new(ColorSpace::JCS_RGB);
     comp.set_size(img.width() as usize, img.height() as usize);
@@ -74,7 +78,11 @@ fn save_jpeg_moz<P: AsRef<Path>>(img: image::RgbImage, path: P, quality: u8) -> 
     Ok(())
 }
 
-fn save_webp<P: AsRef<Path>>(img: image::RgbImage, path: P, quality: u8) -> anyhow::Result<()> {
+fn save_webp<P: AsRef<Path>>(
+    img: image::RgbImage,
+    path: P,
+    quality: u8,
+) -> Result<(), image::ImageError> {
     use webp::Encoder;
     let encoder = Encoder::from_rgb(&img, img.width(), img.height());
     let webp_data = encoder.encode(quality as f32);
@@ -82,7 +90,7 @@ fn save_webp<P: AsRef<Path>>(img: image::RgbImage, path: P, quality: u8) -> anyh
     Ok(())
 }
 
-fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> anyhow::Result<()> {
+fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> Result<(), image::ImageError> {
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
     let file = std::fs::File::create(path)?;
     let writer = std::io::BufWriter::new(file);
@@ -99,13 +107,16 @@ fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> anyhow::Result<()> {
 }
 
 impl OutputFormat {
-    pub fn save_image<P: AsRef<Path>>(&self, img: &DynamicImage, path: P) -> anyhow::Result<()> {
+    pub fn save_image<P: AsRef<Path>>(
+        &self,
+        img: &DynamicImage,
+        path: P,
+    ) -> Result<(), image::ImageError> {
         match self.ext {
-            OutputExtension::Jpeg => save_jpeg_moz(img.to_rgb8(), path, self.quality)?,
-            OutputExtension::Webp => save_webp(img.to_rgb8(), path, self.quality)?,
-            OutputExtension::PngOptimized => save_png(img, path)?,
+            OutputExtension::Jpeg => save_jpeg_moz(img.to_rgb8(), path, self.quality),
+            OutputExtension::Webp => save_webp(img.to_rgb8(), path, self.quality),
+            OutputExtension::PngOptimized => save_png(img, path),
         }
-        Ok(())
     }
 
     fn has_quality(&self) -> bool {

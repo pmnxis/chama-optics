@@ -9,10 +9,7 @@ use fast_image_resize as fr;
 use std::io::Seek;
 use std::path::PathBuf;
 
-use crate::{
-    exif_impl::{OriginalExif, SimplifiedExif},
-    theme::Theme,
-};
+use crate::exif_impl::{OriginalExif, SimplifiedExif};
 
 pub const THUMBNAIL_MAX_HEIGHT: u32 = 320;
 pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 160.0; // considering retina display
@@ -327,10 +324,11 @@ impl PackedImage {
                                         .set_file_name(new_default_file_name)
                                         .save_file()
                                     {
-                                        // todo - select theme with phatom or something
-                                        let theme = crate::theme::film::Film {};
-
-                                        match theme.apply(self, export_config, &output_path) {
+                                        match export_config.theme_reg.selected_theme().apply(
+                                            self,
+                                            export_config,
+                                            &output_path,
+                                        ) {
                                             Ok(_) => {
                                                 log::info!(
                                                     "Saved with EXIF overlay to {output_path:?}"

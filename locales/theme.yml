@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+theme:
+  selector:
+    en: "Theme"
+    ko: "테마"
+  # From here actual themes here
+  nothing:
+    en: "Nothing"
+    ko: "효과 없음"
+  film:
+    en: "Film"
+    ko: "필름"
+  

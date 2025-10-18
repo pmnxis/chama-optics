@@ -7,7 +7,9 @@
 use crate::theme::Theme;
 use crate::{px_h, px_w, pxscale_w};
 use ab_glyph::{Font, PxScale, ScaleFont};
+use rust_i18n::t;
 
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct Film {
     // font_size: f32,
 }
@@ -25,6 +27,14 @@ fn text_dimensions(scale: PxScale, font: &impl Font, text: &str) -> (f32, f32) {
 }
 
 impl Theme for Film {
+    fn unique_name(&self) -> &'static str {
+        "film"
+    }
+
+    fn label(&self) -> std::borrow::Cow<'static, str> {
+        t!("theme.film")
+    }
+
     fn apply(
         &self,
         pi: &crate::packed_image::PackedImage,
@@ -97,13 +107,9 @@ impl Theme for Film {
             y -= line_h;
         }
 
-        if let Err(e) = export_config
+        export_config
             .output_format
             .save_image(&dyn_image, output_path)
-        {
-            println!("{:?}", e);
-        }
-        Ok(())
     }
 
     fn ui_config(&mut self, _ui: &mut egui::Ui) {
