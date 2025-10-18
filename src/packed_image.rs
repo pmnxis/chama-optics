@@ -98,7 +98,6 @@ fn gen_thumbnail(
     let (src_width, src_height) = (decoded_image.width(), decoded_image.height());
 
     let is_vert_rot = crate::exif_impl::__is_vertical_rotated(orientation);
-    println!("orientation : {:?} - {}", orientation, is_vert_rot);
 
     let (mid_width, mid_height) = THUMBMANIL_SCALE.apply(src_width, src_height, is_vert_rot);
     let resized_image: fast_image_resize::images::Image<'static> =
@@ -112,11 +111,10 @@ fn gen_thumbnail(
     .expect("Failed to convert to ImageBuffer");
 
     let mut dyn_image = image::DynamicImage::ImageRgba8(image_buffer);
-    println!("a {} x {}", dyn_image.width(), dyn_image.height());
+
     dyn_image.apply_orientation(orientation);
     let x = (dyn_image.width() - THUMBNAIL_MAX_WIDTH) / 2;
     let y = (dyn_image.height() - THUMBNAIL_MAX_HEIGHT) / 2;
-    println!("b {} x {}", dyn_image.width(), dyn_image.height());
 
     let dyn_image = dyn_image.crop(x, y, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
 

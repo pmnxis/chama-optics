@@ -30,8 +30,8 @@ log = "0.4.28"
 # You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-# kamadak-exif = "0.6.1"
 exif = { git = "https://github.com/pmnxis/exif-rs", rev = "7cb491cd22aa4a586f37c0c0c3ef5c9ae207d337" }
+# kamadak-exif = "0.6.1"
 image = { version = "0.25", features = ["serde"] }
 base64 = "0.22.1"
 rfd = "0.15.3"
@@ -44,14 +44,22 @@ fast_image_resize = "5.3.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = "0.11.8"
-libheif-rs = { version = "2.4", default-features = false, features = ["v1_18"] }
-mozjpeg = { version = "0.10.13" }                                                                      # todo - nasm_simd and neon feature later
+mozjpeg = { version = "0.10.13" }                            # todo - nasm_simd and neon feature later
 webp = "0.3.1"
 oxipng = "9.1.5"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 rust-i18n = "3.1.5"
 sys-locale = "0.3.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libheif-rs = { version = "2.4", default-features = false, features = [
+    "v1_18",
+    "embedded-libheif",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libheif-rs = { version = "2.4", default-features = false, features = ["v1_18"] }
 
 # native:
 # [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
