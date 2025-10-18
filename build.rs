@@ -88,6 +88,8 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    println!("cargo:rerun-if-changed=locales");
+
     // Enable only build-script logic in build_asset.rs
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     for asset in BUILTIN_FONTS {

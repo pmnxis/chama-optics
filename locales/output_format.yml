@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+output_format:
+  label:
+    en: "format"
+    ko: "포맷"
+  quality:
+    en: "Quality"
+    ko: "품질"

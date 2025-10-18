@@ -14,6 +14,7 @@ pub struct ChamaOptics {
     pub pending_paths: std::collections::VecDeque<PathBuf>,
     pub import_config: crate::import_config::ImportConfig,
     pub export_config: crate::export_config::ExportConfig,
+    pub lang: crate::langs::Language,
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
@@ -26,6 +27,7 @@ impl Default for ChamaOptics {
             pending_paths: std::collections::VecDeque::new(),
             import_config: crate::import_config::ImportConfig::default(),
             export_config: crate::export_config::ExportConfig::default(),
+            lang: crate::langs::Language::get_system(),
             packed_images: vec![],
         }
     }
@@ -35,10 +37,17 @@ impl ChamaOptics {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         crate::fonts::replace_fonts(&cc.egui_ctx);
 
+        log::info!(
+            "Current support langs : {:?}",
+            rust_i18n::available_locales!()
+        );
+
         let app: ChamaOptics = cc
             .storage
             .and_then(|s| eframe::get_value(s, eframe::APP_KEY))
             .unwrap_or_default();
+
+        app.lang.update_i18n();
 
         app
     }
@@ -75,6 +84,9 @@ impl eframe::App for ChamaOptics {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
+                ui.add_space(16.0);
+
+                self.lang.update_menu_ui(ui);
                 ui.add_space(16.0);
 
                 egui::widgets::global_theme_preference_buttons(ui);

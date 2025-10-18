@@ -127,7 +127,7 @@ pub struct SimplifiedExif {
     pub orientation: image::metadata::Orientation,
 }
 
-impl std::default::Default for SimplifiedExif {
+impl core::default::Default for SimplifiedExif {
     fn default() -> Self {
         Self {
             camera_mnf: String::new(),
@@ -240,10 +240,11 @@ impl SimplifiedExif {
 
     pub fn replace_with_fnumber_alt_when_invalid(&mut self) -> bool {
         if self.get_fnumber().is_none()
-            && let Some(x) = self.get_fnumber_alt() {
-                self.fnumber = x;
-                return true;
-            }
+            && let Some(x) = self.get_fnumber_alt()
+        {
+            self.fnumber = x;
+            return true;
+        }
         false
     }
 

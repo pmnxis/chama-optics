@@ -1,0 +1,51 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+scale_config:
+  label:
+    en: "Scale Mode"
+    ko: "스케일 설정"
+  none:
+    en: "None"
+    ko: "없음"
+  max_width:
+    en: "Max Width"
+    ko: "최대 너비"
+  max_height:
+    en: "Max Height"
+    ko: "최대 높이"
+  divide:
+    en: "Divide"
+    ko: "분할 비율"
+  near_common_divisor_width:
+    en: "Near Common Divisor (Width)"
+    ko: "공약수 근사 (너비)"
+  near_common_divisor_height:
+    en: "Near Common Divisor (Height)"
+    ko: "공약수 근사 (높이)"
+  field:
+    none:
+      en: "Use original resolution"
+      ko: "원본 해상도 사용"
+    max_width:
+      en: "Max width"
+      ko: "최대 너비"
+    max_height:
+      en: "Max height"
+      ko: "최대 높이"
+    divide:
+      en: "Divide factor"
+      ko: "분할 비율"
+    near_common_divisor_width:
+      en: "Target width"
+      ko: "목표 너비"
+    near_common_divisor_height:
+      en: "Target height"
+      ko: "목표 높이"
+  px_std:
+    en: "px"
+    ko: "px"
+

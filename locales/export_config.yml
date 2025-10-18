@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+export_config:
+  label:
+    en: "Export config"
+    ko: "사진 저장 설정"

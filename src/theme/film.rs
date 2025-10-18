@@ -32,8 +32,8 @@ impl Theme for Film {
         output_path: &std::path::Path,
     ) -> Result<(), image::ImageError> {
         let exif = &pi.view_exif;
-        let scale_config = export_config.scale_config;
-        let mut dyn_image = pi.with_scale_and_orientation(scale_config)?;
+        let scale_config = &export_config.scale_config;
+        let mut dyn_image = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let font = crate::fonts::FONT_DIGITS.clone();
 

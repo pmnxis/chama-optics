@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+language:
+  label:
+    en: "Language"
+    ko: "언어 (Language)"
+  en:
+    en: "English"
+    ko: "영어 (English)"
+  ko:
+    en: "Korean (한국어)"
+    ko: "한국어"

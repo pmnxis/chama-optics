@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+import_config:
+  label:
+    en: "Import config"
+    ko: "사진 입력 설정"
+  f_number_recovery:
+    name:
+      en: "F-number Recovery"
+      ko: "F조리개값 복구시도"
+    description:
+      en: "If the EXIF aperture value is missing or invalid, this option attempts to recover it by parsing the lens information. Useful for manual-focus lenses that embed aperture data in the lens name (e.g., 'F0.95', 'f3.5-5.6')."
+      ko: "사진의 EXIF정보에서 F조리개값을 구하지못하는 경우, Lens의 이름에서 최대개방 조리개값을 유추하여 F조리개값으로 대체사용합니다."

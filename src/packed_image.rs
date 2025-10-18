@@ -321,7 +321,7 @@ impl PackedImage {
                                     let new_default_file_name = self.prepostfixed_filename(
                                         "CHAO-",
                                         "",
-                                        export_config.extension(),
+                                        export_config.output_format.extension(),
                                     );
                                     if let Some(output_path) = rfd::FileDialog::new()
                                         .set_file_name(new_default_file_name)
