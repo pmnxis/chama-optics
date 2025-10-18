@@ -27,6 +27,10 @@ pub enum ScaleMode {
 
     /// Choose nearest height by considering common divisor
     NearCommonDivisorConsiderHeight,
+
+    /// Resize and crop fill to specific size
+    /// This option mostly used for thumbnail
+    ResizeAndCrop,
 }
 
 impl ScaleMode {
@@ -41,6 +45,9 @@ impl ScaleMode {
             }
             ScaleMode::NearCommonDivisorConsiderHeight => {
                 t!("scale_config.near_common_divisor_height")
+            }
+            ScaleMode::ResizeAndCrop => {
+                t!("scale_config.resize_and_crop")
             }
         }
     }
@@ -57,6 +64,9 @@ impl ScaleMode {
             ScaleMode::NearCommonDivisorConsiderHeight => {
                 t!("scale_config.field.near_common_divisor_height")
             }
+            ScaleMode::ResizeAndCrop => {
+                t!("scale_config.field.resize_and_crop")
+            }
         }
     }
 }
@@ -66,6 +76,7 @@ impl ScaleMode {
 pub struct ScaleConfig {
     pub mode: ScaleMode,
     pub value: u32,
+    pub sub_value: u32,
 }
 
 impl core::default::Default for ScaleConfig {
@@ -73,6 +84,7 @@ impl core::default::Default for ScaleConfig {
         Self {
             mode: ScaleMode::NearCommonDivisorConsiderWidth,
             value: 4072,
+            sub_value: 3054,
         }
     }
 }
@@ -80,6 +92,7 @@ impl core::default::Default for ScaleConfig {
 pub const SCALE_NEAR_COMMON_4K: ScaleConfig = ScaleConfig {
     mode: ScaleMode::NearCommonDivisorConsiderWidth,
     value: 4072,
+    sub_value: 3054,
 };
 
 impl ScaleConfig {
@@ -87,12 +100,13 @@ impl ScaleConfig {
         match *self {
             Self {
                 mode: ScaleMode::None,
-                value: _,
+                ..
             } => (width, height),
 
             Self {
                 mode: ScaleMode::MaxWidth,
                 value: target_w,
+                ..
             } => {
                 if width == 0 || height == 0 || width < target_w {
                     return (width, height);
@@ -106,6 +120,7 @@ impl ScaleConfig {
             Self {
                 mode: ScaleMode::MaxHeight,
                 value: target_h,
+                ..
             } => {
                 if width == 0 || height == 0 || height < target_h {
                     return (width, height);
@@ -118,6 +133,7 @@ impl ScaleConfig {
             Self {
                 mode: ScaleMode::Divide,
                 value: div,
+                ..
             } => {
                 if div == 0 {
                     return (width, height);
@@ -128,6 +144,7 @@ impl ScaleConfig {
             Self {
                 mode: ScaleMode::NearCommonDivisorConsiderWidth,
                 value: target_w,
+                ..
             } => {
                 let gcd = gcd::euclid_nonzero_u32(
                     std::num::NonZero::new(width).unwrap(),
@@ -143,6 +160,7 @@ impl ScaleConfig {
             Self {
                 mode: ScaleMode::NearCommonDivisorConsiderHeight,
                 value: target_h,
+                ..
             } => {
                 let gcd = gcd::euclid_nonzero_u32(
                     std::num::NonZero::new(width).unwrap(),
@@ -153,6 +171,30 @@ impl ScaleConfig {
 
                 let k = (target_h as f64 / h_unit as f64).round() as u32;
                 (w_unit * k, h_unit * k)
+            }
+            Self {
+                mode: ScaleMode::ResizeAndCrop,
+                value: target_w,
+                sub_value: target_h,
+            } => {
+                if width == 0 || height == 0 {
+                    return (width, height);
+                }
+
+                let src_ratio = width as f64 / height as f64;
+                let dst_ratio = target_w as f64 / target_h as f64;
+
+                if src_ratio > dst_ratio {
+                    let new_h = target_h;
+                    let ratio = new_h as f64 / height as f64;
+                    let new_w = (width as f64 * ratio).round() as u32;
+                    (new_w, new_h)
+                } else {
+                    let new_w = target_w;
+                    let ratio = new_w as f64 / width as f64;
+                    let new_h = (height as f64 * ratio).round() as u32;
+                    (new_w, new_h)
+                }
             }
         }
     }
@@ -173,7 +215,16 @@ impl ScaleConfig {
                     }
                     others => others,
                 },
-                value: self.value,
+                value: if self.mode != ScaleMode::ResizeAndCrop {
+                    self.value
+                } else {
+                    self.sub_value
+                },
+                sub_value: if self.mode != ScaleMode::ResizeAndCrop {
+                    self.sub_value
+                } else {
+                    self.value
+                },
             }
             .__apply(width, height)
         }

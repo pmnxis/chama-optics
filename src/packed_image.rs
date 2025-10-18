@@ -6,13 +6,24 @@
 
 use egui::ColorImage;
 use fast_image_resize as fr;
+use rust_i18n::t;
 use std::io::Seek;
 use std::path::PathBuf;
 
 use crate::exif_impl::{OriginalExif, SimplifiedExif};
 
-pub const THUMBNAIL_MAX_HEIGHT: u32 = 320;
-pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 160.0; // considering retina display
+pub const THUMBNAIL_MAX_WIDTH: u32 = 330;
+pub const THUMBNAIL_MAX_HEIGHT: u32 = 220;
+pub const THUMBNAIL_MAX_WIDTH_AS_F32: f32 = 110.0; // considering retina display
+pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 165.0; // considering retina display
+pub const THUMBNAIL_DIMM: egui::Vec2 =
+    egui::Vec2::new(THUMBNAIL_MAX_HEIGHT_AS_F32, THUMBNAIL_MAX_WIDTH_AS_F32);
+
+pub const THUMBMANIL_SCALE: crate::scale_config::ScaleConfig = crate::scale_config::ScaleConfig {
+    mode: crate::scale_config::ScaleMode::ResizeAndCrop,
+    value: THUMBNAIL_MAX_WIDTH,
+    sub_value: THUMBNAIL_MAX_HEIGHT,
+};
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum PackedImageEvent {
@@ -77,31 +88,41 @@ fn resize_image(
     Ok(dst_image)
 }
 
-fn to_thumbnail_colorimage(
+fn gen_thumbnail(
     decoded_image: image::DynamicImage,
-    max_height: u32,
+    orientation: image::metadata::Orientation,
 ) -> Result<ColorImage, image::ImageError> {
     // future todo
     // resolve RGB -> RGBA makes clone+compute resource
     // Also this function does not cover U16 slice such as HDR
-    let src_image = decoded_image.to_rgba8();
-    let (src_width, src_height) = src_image.dimensions();
+    let (src_width, src_height) = (decoded_image.width(), decoded_image.height());
 
-    let new_height = max_height;
-    let new_width = (max_height * src_width) / src_height;
+    let is_vert_rot = crate::exif_impl::__is_vertical_rotated(orientation);
+    println!("orientation : {:?} - {}", orientation, is_vert_rot);
 
-    let dst_image = resize_image(decoded_image, new_width, new_height)?;
+    let (mid_width, mid_height) = THUMBMANIL_SCALE.apply(src_width, src_height, is_vert_rot);
+    let resized_image: fast_image_resize::images::Image<'static> =
+        resize_image(decoded_image, mid_width, mid_height)?;
 
-    // at last FR do U8x4 -> Resize -> Floating -> F32x4
-    // let data = ColorImage {
-    //     size: [new_width as usize, new_height as usize],
-    //     pixels: dst_image.buffer().into(),
-    // };
+    let image_buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+        mid_width,
+        mid_height,
+        resized_image.into_vec(),
+    )
+    .expect("Failed to convert to ImageBuffer");
 
-    // Finally return GPU friendly object
+    let mut dyn_image = image::DynamicImage::ImageRgba8(image_buffer);
+    println!("a {} x {}", dyn_image.width(), dyn_image.height());
+    dyn_image.apply_orientation(orientation);
+    let x = (dyn_image.width() - THUMBNAIL_MAX_WIDTH) / 2;
+    let y = (dyn_image.height() - THUMBNAIL_MAX_HEIGHT) / 2;
+    println!("b {} x {}", dyn_image.width(), dyn_image.height());
+
+    let dyn_image = dyn_image.crop(x, y, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT);
+
     Ok(ColorImage::from_rgba_unmultiplied(
-        [new_width as usize, new_height as usize],
-        dst_image.buffer(),
+        [THUMBNAIL_MAX_WIDTH as usize, THUMBNAIL_MAX_HEIGHT as usize],
+        dyn_image.as_bytes(),
     ))
 }
 
@@ -176,11 +197,10 @@ impl PackedImage {
     ) -> Result<image::DynamicImage, image::ImageError> {
         use image::ImageBuffer;
         use image::Rgba;
-        use imageproc::drawing::Canvas;
 
         let dyn_image = self.get_image()?;
         let orientation = self.view_exif.orientation;
-        let (old_width, old_height) = dyn_image.dimensions();
+        let (old_width, old_height) = (dyn_image.width(), dyn_image.height());
         let (new_width, new_height) =
             scale.apply(old_width, old_height, self.view_exif.is_vertical_rotated());
 
@@ -216,8 +236,9 @@ impl PackedImage {
             .expect("Failed reset seek zero");
 
         let dyn_image = __load_image(path, &mut buf_reader)?;
+        let orientation = original_exif.orientation();
 
-        let thumbnail = to_thumbnail_colorimage(dyn_image, THUMBNAIL_MAX_HEIGHT)?;
+        let thumbnail = gen_thumbnail(dyn_image, orientation)?;
         let view_exif = SimplifiedExif::from(&original_exif);
         let file_name = path
             .clone()
@@ -247,13 +268,6 @@ impl PackedImage {
     pub fn prepostfixed_filename(&self, prefix: &str, postfix: &str, ext: &str) -> String {
         let stem = self.path.file_stem().unwrap_or_default().to_string_lossy();
 
-        // let ext = self
-        //     .path
-        //     .extension()
-        //     .map(|e| format!(".{}", e.to_string_lossy()))
-        //     .unwrap_or_default();
-
-        // format!("{prefix}{stem}{postfix}{ext}")
         format!("{prefix}{stem}{postfix}.{ext}")
     }
 
@@ -264,9 +278,9 @@ impl PackedImage {
     fn update_editable_button(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let btn_text = if self.editable {
-                "💾Apply"
+                t!("app.default.apply")
             } else {
-                "✏Edit"
+                t!("app.default.edit")
             };
             if ui.button(btn_text).clicked() {
                 self.editable = !self.editable;
@@ -281,9 +295,9 @@ impl PackedImage {
     ) -> PackedImageEvent {
         let mut ret = PackedImageEvent::None;
 
-        let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
-        let width = max_height * self.texture.aspect_ratio();
-        let size = egui::Vec2::new(width, max_height);
+        // let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
+        // let width = max_height * self.texture.aspect_ratio();
+        // let size = THUMBNAIL_DIMM;
 
         ui.group(|ui| {
             ui.horizontal(|ui| {
@@ -312,7 +326,10 @@ impl PackedImage {
                         ui.horizontal(|ui| {
                             ui.horizontal(|ui| {
                                 if ui
-                                    .add(egui::Button::new("💾 Save").fill(egui::Color32::GREEN))
+                                    .add(
+                                        egui::Button::new(t!("app.default.save"))
+                                            .fill(egui::Color32::GREEN),
+                                    )
                                     .clicked()
                                 {
                                     let new_default_file_name = self.prepostfixed_filename(
@@ -342,7 +359,10 @@ impl PackedImage {
                                 }
 
                                 if ui
-                                    .add(egui::Button::new("🗑 Delete").fill(egui::Color32::RED))
+                                    .add(
+                                        egui::Button::new(t!("app.default.delete"))
+                                            .fill(egui::Color32::RED),
+                                    )
                                     .clicked()
                                 {
                                     ret = PackedImageEvent::Remove;
@@ -358,9 +378,11 @@ impl PackedImage {
                         egui::Image::from_texture(&self.texture)
                             // .rotate(angle, egui::Vec2::splat(0.5))
                             .corner_radius(4.0)
-                            .fit_to_exact_size(size)
-                            .maintain_aspect_ratio(true),
+                            .fit_to_exact_size(THUMBNAIL_DIMM)
+                            .shrink_to_fit(),
                     );
+                    // .maintain_aspect_ratio(false), // .maintain_aspect_ratio(true),
+                    // .fit_to_exact_size(THUMBNAIL_DIMM)
                 });
             });
         });

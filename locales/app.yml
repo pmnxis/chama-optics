@@ -1,0 +1,44 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+app:
+  app_name:
+    en: "Chama Optics"
+    ko: "쨔마 옵틱스"
+  file_menu:
+    root:
+      en: "File"
+      ko: "파일"
+    quit:
+      en: "Quit"
+      ko: "종료"
+  open_files:
+    drag_drop:
+      en: "Drag drop image here or"
+      ko: "여기에 이미지를 드래그&드롭 하거나"
+    button:
+      en: "Open file"
+      ko: "파일 열기"
+  images:
+    list:
+      en: "📁 Images"
+      ko: "📁 사진 목록"
+    remove_all:
+      en: "Remove all"
+      ko: "전체삭제"
+  default:
+    apply:
+      en: "💾Apply"
+      ko: "💾적용"
+    save:
+      en: "💾Save"
+      ko: "💾저장"
+    delete:
+      en: "🗑 Delete"
+      ko: "🗑 삭제"
+    edit:
+      en: "✏Edit"
+      ko: "✏수정"

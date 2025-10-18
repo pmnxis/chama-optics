@@ -12,6 +12,13 @@ pub(crate) const _LABEL_SPACING: f32 = 3.0;
 #[derive(Default)]
 pub struct OriginalExif(Option<exif::Exif>);
 
+pub fn __is_vertical_rotated(ort: image::metadata::Orientation) -> bool {
+    matches!(
+        ort,
+        image::metadata::Orientation::Rotate90 | image::metadata::Orientation::Rotate270
+    )
+}
+
 impl OriginalExif {
     pub fn new(exif_or_none: Option<exif::Exif>) -> Self {
         Self(exif_or_none)
@@ -387,10 +394,7 @@ impl SimplifiedExif {
     }
 
     pub fn is_vertical_rotated(&self) -> bool {
-        matches!(
-            self.orientation,
-            image::metadata::Orientation::Rotate90 | image::metadata::Orientation::Rotate270
-        )
+        __is_vertical_rotated(self.orientation)
     }
 }
 

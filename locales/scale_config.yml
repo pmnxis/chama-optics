@@ -26,6 +26,9 @@ scale_config:
   near_common_divisor_height:
     en: "Near Common Divisor (Height)"
     ko: "공약수 근사 (높이)"
+  resize_and_crop:
+    en: "Resize and crop"
+    ko: "축소크롭"
   field:
     none:
       en: "Use original resolution"
@@ -45,6 +48,9 @@ scale_config:
     near_common_divisor_height:
       en: "Target height"
       ko: "목표 높이"
+    resize_and_crop:
+      en: "specific WxH"
+      ko: "맞추려는 너비 높이"
   px_std:
     en: "px"
     ko: "px"

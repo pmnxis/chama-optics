@@ -38,7 +38,7 @@ impl Language {
         }
     }
 
-    pub fn into_str(&self) -> &'static str {
+    pub fn into_str(self) -> &'static str {
         Into::<&'static str>::into(self)
     }
 

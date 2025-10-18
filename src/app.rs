@@ -5,6 +5,7 @@
  */
 
 use crate::packed_image::PackedImage;
+use rust_i18n::t;
 use std::path::PathBuf;
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -77,8 +78,8 @@ impl eframe::App for ChamaOptics {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
+                ui.menu_button(t!("app.file_menu.root"), |ui| {
+                    if ui.button(t!("app.file_menu.quit")).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
@@ -92,7 +93,7 @@ impl eframe::App for ChamaOptics {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("ChamaOptics");
+            ui.heading(t!("app.app_name"));
 
             // show export configuration
             self.import_config.update_ui(ui);
@@ -100,10 +101,10 @@ impl eframe::App for ChamaOptics {
 
             ui.separator();
             ui.horizontal(|ui| {
-                ui.label("Drag drop image here or ");
+                ui.label(t!("app.open_files.drag_drop"));
 
                 // add image by file open dialog
-                if ui.button("Open file").clicked()
+                if ui.button(t!("app.open_files.button")).clicked()
                     && let Some(path) = rfd::FileDialog::new().pick_file()
                 {
                     log::info!("By file dialog :{:?}", path);
@@ -127,9 +128,9 @@ impl eframe::App for ChamaOptics {
 
             ui.separator();
 
-            ui.heading("📁 Images");
-            if ui.button("Remove all").clicked() {
-                // need Arc/RwLock later
+            ui.heading(t!("app.images.list"));
+            if ui.button(t!("app.images.remove_all")).clicked() {
+                // need Arc<RwLock<T>> later
                 self.packed_images.clear();
             }
 
