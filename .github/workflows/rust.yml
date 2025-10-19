@@ -29,6 +29,8 @@ jobs:
         with:
           command: check
           args: --all-features
+      - name: Check spelling of entire workspace
+        uses: crate-ci/typos@master
 
   test:
     name: Test Suite
@@ -116,6 +118,7 @@ jobs:
     - name: Building ${{ matrix.TARGET }}
       run: echo "${{ matrix.TARGET }}"
 
+    # macOS
     - name: Install cargo bundle
       run: cargo install cargo-bundle
       if: matrix.os == 'macos-latest'
@@ -129,6 +132,8 @@ jobs:
       run: |
         brew update
         brew install libheif pkg-config
+
+    # windows
     - name: Install libheif dependencies (Windows)
       if: matrix.os == 'windows-2022'
       shell: pwsh
@@ -137,8 +142,44 @@ jobs:
         vcpkg install libheif:x64-windows-static-md
         vcpkg install libheif:x64-windows-static
 
+    # common
     - uses: actions-rs/cargo@v1
       with:
         use-cross: true
         command: build
         args: --verbose --release --target=${{ matrix.TARGET }}
+
+    # From here only works when there's tag starting with `v`
+    # macOS
+    - name: Install cargo bundle
+      run: ./build_mac.sh
+      if: matrix.os == 'macos-latest'
+
+    - name: Zip Mac Silicon Bundle
+      run: mv target/release/bundle/osx/Chama\ Optics.app . && zip -r chama_optics_macos_apple_silicon.zip Chama\ Optics.app
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
+
+    - name: Upload Mac Release
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
+      id: upload-release-asset-mac
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release_job.outputs.upload_url }}
+        asset_path: chama_optics_macos_apple_silicon.zip
+        asset_name: chama_optics_macos_apple_silicon.zip
+        asset_content_type: application/zip
+
+    # windows
+    - name: Upload Windows 2019 Release exe
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-2019'
+      id: upload-release-asset-windows-classic
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.release_job.outputs.upload_url }}
+        asset_path: target/release/chama-optics.exe
+        asset_name: chama-optics.exe
+        asset_content_type: application/zip
