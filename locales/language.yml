@@ -8,9 +8,16 @@ language:
   label:
     en: "Language"
     ko: "언어 (Language)"
+    ja: "言語 (Language)"
   en:
     en: "English"
     ko: "영어 (English)"
+    ja: "英語 (English)"
   ko:
-    en: "Korean (한국어)"
+    en: "English (영어)"
     ko: "한국어"
+    ja: "日本語 (일본어)"
+  ja:
+    en: "英語 (English)"
+    ko: "한국어 (韓国語)"
+    ja: "日本語"

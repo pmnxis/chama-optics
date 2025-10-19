@@ -158,7 +158,7 @@ fn __load_image(
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
                     if img_format.is_none() {
-                        crate::heic::load_heif(path).map_err(|e| {
+                        crate::image::heic::load_heif(path).map_err(|e| {
                             image::error::ImageError::Unsupported(
                                 image::error::UnsupportedError::from_format_and_kind(
                                     image::error::ImageFormatHint::PathExtension(
@@ -262,10 +262,27 @@ impl PackedImage {
             .to_string()
     }
 
-    pub fn prepostfixed_filename(&self, prefix: &str, postfix: &str, ext: &str) -> String {
+    pub fn prepostfixed_filename(
+        &self,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> String {
+        let ext = export_config.output_format.extension();
+        let postfix = &export_config.output_name.postfix;
+        let prefix = &export_config.output_name.prefix;
+
         let stem = self.path.file_stem().unwrap_or_default().to_string_lossy();
 
         format!("{prefix}{stem}{postfix}.{ext}")
+    }
+
+    pub fn bulk_path(
+        &self,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> std::path::PathBuf {
+        let file_name = self.prepostfixed_filename(export_config);
+        let mut path = export_config.output_name.folder.clone();
+        path.push(file_name);
+        path
     }
 
     pub fn file_path(&self) -> String {
@@ -329,11 +346,8 @@ impl PackedImage {
                                     )
                                     .clicked()
                                 {
-                                    let new_default_file_name = self.prepostfixed_filename(
-                                        "CHAO-",
-                                        "",
-                                        export_config.output_format.extension(),
-                                    );
+                                    let new_default_file_name =
+                                        self.prepostfixed_filename(export_config);
                                     if let Some(output_path) = rfd::FileDialog::new()
                                         .set_file_name(new_default_file_name)
                                         .save_file()

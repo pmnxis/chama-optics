@@ -248,6 +248,15 @@ impl ScaleConfig {
                 if self.mode == ScaleMode::Divide {
                     ui.add(egui::DragValue::new(&mut self.value).range(1..=1024));
                     ui.label(t!("scale_config.px_std"));
+                } else if self.mode == ScaleMode::ResizeAndCrop {
+                    // ResizeAndCrop has two value
+                    ui.add(egui::DragValue::new(&mut self.value).range(1..=20000));
+                    ui.label(t!("scale_config.px_std"));
+                    ui.add_space(5.0);
+                    ui.label("x");
+                    ui.add_space(5.0);
+                    ui.add(egui::DragValue::new(&mut self.sub_value).range(1..=20000));
+                    ui.label(t!("scale_config.px_std"));
                 } else if self.mode != ScaleMode::None {
                     ui.add(egui::DragValue::new(&mut self.value).range(1..=20000));
                     ui.label(t!("scale_config.px_std"));

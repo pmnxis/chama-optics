@@ -16,8 +16,12 @@ use strum_macros::{EnumString, IntoStaticStr};
 )]
 #[strum(serialize_all = "lowercase")]
 pub enum Language {
+    /// English
     En,
+    /// Korean 한국어
     Ko,
+    /// Japanese 日本語
+    Ja,
 }
 
 impl core::default::Default for Language {

@@ -58,6 +58,7 @@ strum_macros = { version = "0.27.2" }
 rust-i18n = "3.1.5"
 sys-locale = "0.3.2"
 libheif-rs = { version = "2.4", default-features = false, features = ["v1_18"] }
+dirs = "6.0"
 
 [profile.release]
 opt-level = 3

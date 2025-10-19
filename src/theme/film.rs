@@ -54,12 +54,12 @@ impl Theme for Film {
             };
         }
 
-        let margin = px_w!(120, dyn_w).trunc() as i32;
+        let margin = px_w!(120, dyn_w.max(dyn_h)).trunc() as i32;
 
         // Left
-        let base_y = (dyn_h as i32 * 13) / 14;
+        let base_y = dyn_h as i32 - margin;
 
-        let cam_scale = pxscale_w!(75, dyn_w);
+        let cam_scale = pxscale_w!(75, dyn_w.max(dyn_h));
         draw!(
             margin,
             base_y as f32 - px_h!(75, dyn_h),
@@ -84,10 +84,10 @@ impl Theme for Film {
             list
         };
 
-        let prefix_scale = pxscale_w!(65, dyn_w);
-        let number_scale = pxscale_w!(100, dyn_w);
+        let prefix_scale = pxscale_w!(65, dyn_w.max(dyn_h));
+        let number_scale = pxscale_w!(100, dyn_w.max(dyn_h));
 
-        let spacing = px_w!(10, dyn_w);
+        let spacing = px_w!(8, dyn_w.max(dyn_h));
         let mut y: f32 = base_y as f32;
 
         for (prefix, number) in pairs.iter().rev() {

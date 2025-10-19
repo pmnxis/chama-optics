@@ -9,8 +9,7 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 [![dependency status](https://deps.rs/repo/github/pmnxis/chama-optics/status.svg)](https://deps.rs/repo/github/pmnxis/chama-optics)
 [![Build Status](https://github.com/pmnxis/chama-optics/workflows/CI/badge.svg)](https://github.com/pmnxis/chama-optics/actions?workflow=CI)
 
-
-![Build Status](assets/mac-icon.png)
+<p align="center"><img src="assets/mac-icon.png" width="256" height="256"/></p>
 
 Chama Optics is a program created for mirrorless and DSLR cameras, inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.com/@AkaiHaato)), who loves photography.
 
@@ -47,4 +46,8 @@ brew install pkgconf libheif
 ```
 
 ### License
-Non-AI-MIT
+Most of the code depends on the NON-AI-MIT license, while some portions are under the MIT or Apache 2.0 licenses.
+
+In particular, the image data has been processed by pmnxis, but the original vector icons were used with permission from シエミカ (X: shiemika324).
+
+All icons are strictly prohibited from being used for any form of AI training without exception.

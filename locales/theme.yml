@@ -8,11 +8,13 @@ theme:
   selector:
     en: "Theme"
     ko: "테마"
+    ja: "テーマ"
   # From here actual themes here
   nothing:
     en: "Nothing"
     ko: "효과 없음"
+    ja: "なし"
   film:
     en: "Film"
     ko: "필름"
-  
+    ja: "フィルム"

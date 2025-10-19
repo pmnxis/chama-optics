@@ -5,7 +5,7 @@
  */
 
 mod builtin_fonts {
-    include!("src/builtin_fonts.rs");
+    include!("src/fonts/builtin_fonts.rs");
 
     impl BuildAsset {
         /// Download, verify MD5, unzip (if needed), and set cargo env var

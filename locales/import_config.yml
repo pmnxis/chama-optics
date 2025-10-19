@@ -8,10 +8,13 @@ import_config:
   label:
     en: "Import config"
     ko: "사진 입력 설정"
+    ja: "設定をインポート"
   f_number_recovery:
     name:
       en: "F-number Recovery"
       ko: "F조리개값 복구시도"
+      ja: "F値の復元を試みる"
     description:
       en: "If the EXIF aperture value is missing or invalid, this option attempts to recover it by parsing the lens information. Useful for manual-focus lenses that embed aperture data in the lens name (e.g., 'F0.95', 'f3.5-5.6')."
       ko: "사진의 EXIF정보에서 F조리개값을 구하지못하는 경우, Lens의 이름에서 최대개방 조리개값을 유추하여 F조리개값으로 대체사용합니다."
+      ja: "EXIFの絞り値が存在しない、または無効な場合、レンズ情報を解析してF値を復元しようとします。レンズ名に絞り値が含まれているマニュアルフォーカスレンズ（例：「F0.95」や「f3.5-5.6」など）に有効です。"

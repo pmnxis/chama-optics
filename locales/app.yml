@@ -8,37 +8,52 @@ app:
   app_name:
     en: "Chama Optics"
     ko: "쨔마 옵틱스"
+    ja: "ちゃまオプティクス"
   file_menu:
     root:
       en: "File"
       ko: "파일"
+      ja: "ファイル"
     quit:
       en: "Quit"
       ko: "종료"
+      ja: "終了"
   open_files:
     drag_drop:
       en: "Drag drop image here or"
       ko: "여기에 이미지를 드래그&드롭 하거나"
+      ja: "ここに画像をドラッグ＆ドロップするか"
     button:
       en: "Open file"
       ko: "파일 열기"
+      ja: "ファイルを開く"
   images:
     list:
       en: "📁 Images"
       ko: "📁 사진 목록"
+      ja: "📁 画像一覧"
+    save_all:
+      en: "Save all"
+      ko: "전체 저장"
+      ja: "すべて保存"
     remove_all:
       en: "Remove all"
-      ko: "전체삭제"
+      ko: "전체 삭제"
+      ja: "すべて削除"
   default:
     apply:
       en: "💾Apply"
       ko: "💾적용"
+      ja: "💾適用"
     save:
       en: "💾Save"
       ko: "💾저장"
+      ja: "💾保存"
     delete:
       en: "🗑 Delete"
       ko: "🗑 삭제"
+      ja: "🗑削除"
     edit:
       en: "✏Edit"
       ko: "✏수정"
+      ja: "✏編集"

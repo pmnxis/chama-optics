@@ -51,6 +51,49 @@ impl ChamaOptics {
         app
     }
 
+    fn save_packed_image_all(&mut self, _ui: &mut egui::Ui) {
+        // save each
+        fn __save_buck_each(
+            idx: usize,
+            pi: &mut PackedImage,
+            export_config: &crate::export_config::ExportConfig,
+        ) {
+            let new_path = pi.bulk_path(export_config);
+
+            match export_config
+                .theme_reg
+                .selected_theme()
+                .apply(pi, export_config, &new_path)
+            {
+                Ok(_) => {
+                    log::info!("Bulk saved with EXIF overlay to {idx} {new_path:?}");
+                }
+                Err(e) => {
+                    log::error!("Failed to save EXIF overlay: {e:?}");
+                }
+            }
+        }
+
+        if !self.export_config.output_name.check_folder_available(true) {
+            log::error!(
+                "Cannot access following directory {:?}",
+                self.export_config.output_name.folder
+            );
+            // todo - warning on UI
+        }
+
+        if !self.export_config.output_name.remove_after_bulk_save {
+            for (idx, pi) in self.packed_images.iter_mut().enumerate() {
+                __save_buck_each(idx, pi, &self.export_config);
+            }
+        } else {
+            for (idx, mut pi) in self.packed_images.drain(..).enumerate() {
+                __save_buck_each(idx, &mut pi, &self.export_config);
+                // todo - Multi threading and update ui continuously
+            }
+        }
+    }
+
     fn update_packed_image(&mut self, ui: &mut egui::Ui) {
         let mut remove_index: Option<usize> = None;
 
@@ -129,10 +172,17 @@ impl eframe::App for ChamaOptics {
             ui.separator();
 
             ui.heading(t!("app.images.list"));
-            if ui.button(t!("app.images.remove_all")).clicked() {
-                // need Arc<RwLock<T>> later
-                self.packed_images.clear();
-            }
+            ui.horizontal(|ui| {
+                if ui.button(t!("app.images.save_all")).clicked() {
+                    self.save_packed_image_all(ui);
+                    self.packed_images.clear();
+                }
+
+                if ui.button(t!("app.images.remove_all")).clicked() {
+                    // need Arc<RwLock<T>> later
+                    self.packed_images.clear();
+                }
+            });
 
             // Scrollable stuff
             egui::ScrollArea::vertical()

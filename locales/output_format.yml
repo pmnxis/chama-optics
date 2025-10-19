@@ -8,6 +8,8 @@ output_format:
   label:
     en: "format"
     ko: "포맷"
+    ja: "フォーマット"
   quality:
     en: "Quality"
     ko: "품질"
+    ja: "品質"

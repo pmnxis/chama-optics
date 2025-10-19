@@ -8,3 +8,29 @@ export_config:
   label:
     en: "Export config"
     ko: "사진 저장 설정"
+    ja: "設定をエクスポート"
+  output_name:
+    label:
+      en: "Save"
+      ko: "사진 저장"
+      ja: "写真 保存"
+    postfix:
+      en: "Prefix"
+      ko: "접두어"
+      ja: "接頭辞"
+    prefix:
+      en: "Postfix"
+      ko: "접미어"
+      ja: "接尾辞"
+    save_directory:
+      en: "Save folder"
+      ko: "저장 폴더"
+      ja: "保存フォルダ"
+    select_directory:
+      en: "Select folder"
+      ko: "폴더 선택"
+      ja: "フォルダ選択"
+    remove_after_bulk_save:
+      en: "Remove after bulk save"
+      ko: "사진 전체저장 후 목록 초기화"
+      ja: "一括保存後に一覧を初期化"

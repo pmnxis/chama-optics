@@ -10,6 +10,7 @@
 // At runtime, only constant metadata is exposed.
 
 /// Build asset to download
+#[allow(dead_code)]
 pub struct BuildAsset {
     /// Resource download URL
     pub url: &'static str,
@@ -26,6 +27,7 @@ pub struct BuildAsset {
 }
 
 // Common definitions (usable both in build.rs and src)
+#[allow(unused)] // actually it used
 pub const BUILTIN_FONTS: [BuildAsset; 1] = [BuildAsset {
     url: "https://dl.dafont.com/dl/?f=digital_7",
     expected_md5: "50960f1aa2b138b3a81fa2b48d4f87bc",

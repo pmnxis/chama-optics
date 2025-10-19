@@ -8,6 +8,8 @@
 
 use eframe::egui;
 
+pub(crate) mod builtin_fonts;
+
 struct BuiltInFonts {
     pub(crate) name: &'static str,
     pub(crate) data: &'static [u8],
@@ -15,12 +17,12 @@ struct BuiltInFonts {
 
 const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
-    data: include_bytes!("../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
+    data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
 
 const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
     name: "NotoSans-Medium",
-    data: include_bytes!("../assets/fonts/NotoSansKR-Medium.ttf"),
+    data: include_bytes!("../../assets/fonts/NotoSansKR-Medium.ttf"),
 };
 
 lazy_static::lazy_static! {
