@@ -110,6 +110,12 @@ fn get_git_commit_hash(short: bool) -> Option<String> {
 fn main() {
     println!("cargo:rerun-if-changed=locales");
 
+    if cfg!(target_os = "windows") {
+        let mut res = winres::WindowsResource::new();
+        res.set_icon("assets/chama-optics-x256.ico");
+        _ = res.compile();
+    }
+
     // Get project name and version
     let metadata = cargo_metadata::MetadataCommand::new()
         .no_deps()
