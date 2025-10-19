@@ -16,3 +16,5 @@ nda
 nda_note.md
 *.svd
 PKGBUILD
+vcpkg/
+vcpkg

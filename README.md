@@ -24,25 +24,62 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Save photos with selected frames and settings
 - [ ] More themes
 - [ ] Save photos with EXIF
+- [ ] Multi core usage
 - [ ] Watermark feature
+- [ ] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
+- [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
+- [ ] Function to group similar photos or images taken around the same time
+- [ ] Preset and adjustment controls for contrast, brightness, grain, texture, and LUT
 - [ ] Web application supports (libheif wasm)
 
 
-### Testing locally
+## Testing locally
+### Windows
+#### vcpkg
+In Windows OS, need vcpkg to install libheif easily
+```bat
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg; .\bootstrap-vcpkg.bat
+vcpkg integrate install
+vcpkg install libheif:x64-windows-static-md
+vcpkg install libheif:x64-windows-static
+cd ..
+```
 
-`cargo run --release`
+#### Running
+```bat
+:: or cargo run --release
+cargo run
 
+:: When you looking for *.exe after release build
+:: target/release/chama-optics.exe
+```
+
+### macOS
+```sh
+brew install pkgconf libheif
+cargo run --release
+# When make *.app
+./build_mac.sh
+cd ./target/release/bundle/osx
+open -n "Chama Optics.app"
+```
+
+### Linux
+
+Linux has `libheif-dev` or `libheif` binding is difficult at first time. Do it yourself up to your environment.
+
+#### General egui dependency
 On Linux you need to first run:
-
 `sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libssl-dev`
 
 On Fedora Rawhide you need to run:
-
 `dnf install clang clang-devel clang-tools-extra libxkbcommon-devel pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel`
 
-#### macOS
+#### Running
 ```sh
-brew install pkgconf libheif
+# or cargo run --release
+cargo run 
 ```
 
 ### License
