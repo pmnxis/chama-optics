@@ -175,7 +175,6 @@ impl eframe::App for ChamaOptics {
             ui.horizontal(|ui| {
                 if ui.button(t!("app.images.save_all")).clicked() {
                     self.save_packed_image_all(ui);
-                    self.packed_images.clear();
                 }
 
                 if ui.button(t!("app.images.remove_all")).clicked() {

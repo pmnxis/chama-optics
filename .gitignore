@@ -18,3 +18,10 @@ nda_note.md
 PKGBUILD
 vcpkg/
 vcpkg
+self_sign.sh
+codesign.cnf
+build_mac_with_sign.sh
+*.p12
+*.crt
+*.key
+.tmp

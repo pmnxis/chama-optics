@@ -16,8 +16,8 @@ language:
   ko:
     en: "English (영어)"
     ko: "한국어"
-    ja: "日本語 (일본어)"
+    ja: "韓国語 (한국어)"
   ja:
     en: "英語 (English)"
-    ko: "한국어 (韓国語)"
+    ko: "일본어 (日本語)"
     ja: "日本語"

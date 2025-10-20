@@ -4,7 +4,8 @@
 
 [package]
 name = "chama-optics"
-version = "0.1.1"
+version = "0.1.1-hotfix1"
+description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 edition = "2024"
 include = ["LICENSE-NON-AI-MIT", "**/*.rs", "Cargo.toml"]
@@ -50,7 +51,8 @@ fast_image_resize = "5.3.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = "0.11.8"
-mozjpeg = { version = "0.10.13" }                                                # todo - nasm_simd and neon feature later
+# todo - nasm_simd and neon feature later on mozjpeg
+mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
 oxipng = "9.1.5"
 strum = { version = "0.27.2", features = ["std", "derive"] }

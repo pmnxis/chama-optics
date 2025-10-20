@@ -10,7 +10,7 @@ TOOLCHAIN=$(rustc --version --verbose | grep host | cut -f2 -d":" | tr -d "[:spa
 echo we are using $TOOLCHAIN
 export MACOSX_DEPLOYMENT_TARGET=10.15
 cargo install cargo-bundle --quiet
-brew install libheif ffmpeg nasm --quiet
+brew install libheif x265 libde265 ffmpeg nasm --quiet
 
 rustup target add aarch64-apple-darwin
 # rustup target add x86_64-apple-darwin
