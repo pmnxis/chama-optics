@@ -25,3 +25,5 @@ build_mac_with_sign.sh
 *.crt
 *.key
 .tmp
+*.dmg
+*.zip

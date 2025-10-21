@@ -37,7 +37,8 @@ log = "0.4.28"
 # You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-exif = { git = "https://github.com/pmnxis/exif-rs", rev = "7cb491cd22aa4a586f37c0c0c3ef5c9ae207d337" }
+# todo - replace to 0.6.2 or 0.7 when once released (https://github.com/kamadak/exif-rs/pull/51)
+exif = { git = "https://github.com/kamadak/exif-rs", rev = "7cb491cd22aa4a586f37c0c0c3ef5c9ae207d337" }
 # kamadak-exif = "0.6.1"
 image = { version = "0.25", features = ["serde"] }
 base64 = "0.22.1"

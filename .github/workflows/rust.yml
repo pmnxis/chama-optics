@@ -192,6 +192,7 @@ jobs:
       env:
         CERT_KEY_B64: ${{ secrets.CERT_KEY_B64 }}
         CERT_CRT_B64: ${{ secrets.CERT_CRT_B64 }}
+        P12_PASS: ${{ secrets.P12_PASS }}
       run: bash ./codesign_mac.sh
 
     - name: Zip Mac Silicon Bundle
@@ -207,8 +208,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.release_job.outputs.upload_url }}
-        asset_path: chama_optics_macos_apple_silicon.zip
-        asset_name: chama_optics_macos_apple_silicon.zip
+        asset_path: ChamaOptics-arm64.dmg
+        asset_name: ChamaOptics-arm64.dmg
         asset_content_type: application/zip
 
     # windows
