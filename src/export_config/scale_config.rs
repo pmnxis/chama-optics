@@ -71,12 +71,13 @@ impl ScaleMode {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, PartialOrd)]
 
 pub struct ScaleConfig {
     pub mode: ScaleMode,
     pub value: u32,
     pub sub_value: u32,
+    pub scale_value: f32,
 }
 
 impl core::default::Default for ScaleConfig {
@@ -85,6 +86,7 @@ impl core::default::Default for ScaleConfig {
             mode: ScaleMode::NearCommonDivisorConsiderWidth,
             value: 4072,
             sub_value: 3054,
+            scale_value: 2.0,
         }
     }
 }
@@ -93,6 +95,7 @@ pub const SCALE_NEAR_COMMON_4K: ScaleConfig = ScaleConfig {
     mode: ScaleMode::NearCommonDivisorConsiderWidth,
     value: 4072,
     sub_value: 3054,
+    scale_value: 2.0, // actually not in use
 };
 
 impl ScaleConfig {
@@ -132,13 +135,16 @@ impl ScaleConfig {
 
             Self {
                 mode: ScaleMode::Divide,
-                value: div,
+                scale_value: div,
                 ..
             } => {
-                if div == 0 {
+                if div <= 1.0 {
                     return (width, height);
                 }
-                (width / div, height / div)
+                (
+                    (width as f32 / div).trunc() as u32,
+                    ((height as f32) / div).trunc() as u32,
+                )
             }
 
             Self {
@@ -176,6 +182,7 @@ impl ScaleConfig {
                 mode: ScaleMode::ResizeAndCrop,
                 value: target_w,
                 sub_value: target_h,
+                ..
             } => {
                 if width == 0 || height == 0 {
                     return (width, height);
@@ -225,6 +232,7 @@ impl ScaleConfig {
                 } else {
                     self.value
                 },
+                scale_value: self.scale_value,
             }
             .__apply(width, height)
         }
@@ -246,8 +254,9 @@ impl ScaleConfig {
             ui.horizontal(|ui| {
                 ui.label(self.mode.field_label());
                 if self.mode == ScaleMode::Divide {
-                    ui.add(egui::DragValue::new(&mut self.value).range(1..=1024));
-                    ui.label(t!("scale_config.px_std"));
+                    ui.label(t!("scale_config.divide_prefix"));
+                    ui.add(egui::DragValue::new(&mut self.scale_value).range(1.0..=128.0));
+                    ui.label(t!("scale_config.divide_postfix"));
                 } else if self.mode == ScaleMode::ResizeAndCrop {
                     // ResizeAndCrop has two value
                     ui.add(egui::DragValue::new(&mut self.value).range(1..=20000));

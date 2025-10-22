@@ -52,6 +52,8 @@ impl Language {
 
     pub fn update_menu_ui(&mut self, ui: &mut egui::Ui) {
         ui.menu_button(t!("language.label"), |ui| {
+            ui.set_width_range(105.00..=130.00);
+
             for lang in Language::iter() {
                 if ui
                     .button(t!(format!("language.{}", lang.into_str())))

@@ -14,10 +14,10 @@ language:
     ko: "영어 (English)"
     ja: "英語 (English)"
   ko:
-    en: "English (영어)"
+    en: "Korean (한국어)"
     ko: "한국어"
     ja: "韓国語 (한국어)"
   ja:
-    en: "英語 (English)"
+    en: "Japanese (日本語)"
     ko: "일본어 (日本語)"
     ja: "日本語"

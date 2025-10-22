@@ -17,8 +17,8 @@ fn main() -> eframe::Result<()> {
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0])
-            .with_min_inner_size([300.0, 220.0])
+            .with_inner_size([550.0, 680.0])
+            .with_min_inner_size([500.0, 630.0])
             .with_drag_and_drop(true)
             .with_icon(
                 eframe::icon_data::from_png_bytes(&include_bytes!("../assets/mac-icon.png")[..])

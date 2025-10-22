@@ -23,6 +23,7 @@ pub const THUMBMANIL_SCALE: crate::scale_config::ScaleConfig = crate::scale_conf
     mode: crate::scale_config::ScaleMode::ResizeAndCrop,
     value: THUMBNAIL_MAX_WIDTH,
     sub_value: THUMBNAIL_MAX_HEIGHT,
+    scale_value: 2.0, // Don't care
 };
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]

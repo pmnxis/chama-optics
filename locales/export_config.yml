@@ -31,6 +31,6 @@ export_config:
       ko: "폴더 선택"
       ja: "フォルダ選択"
     remove_after_bulk_save:
-      en: "Remove after bulk save"
+      en: "Remove from list after bulk save"
       ko: "사진 전체저장 후 목록 초기화"
       ja: "一括保存後に一覧を初期化"

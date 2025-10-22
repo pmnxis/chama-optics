@@ -122,6 +122,8 @@ impl eframe::App for ChamaOptics {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(t!("app.file_menu.root"), |ui| {
+                    ui.set_max_width(130.00);
+
                     if ui.button(t!("app.file_menu.quit")).clicked() {
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }

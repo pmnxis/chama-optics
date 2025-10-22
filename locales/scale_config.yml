@@ -66,6 +66,14 @@ scale_config:
       en: "specific WxH"
       ko: "맞추려는 너비 높이"
       ja: "指定の幅×高さ"
+  divide_prefix:
+    en: "Divide resolution with "
+    ko: "해상도를"
+    ja: "解像度を"
+  divide_postfix:
+    en: ""
+    ko: "로 나눕니다."
+    ja: "で割ります。"
   px_std:
     en: "px"
     ko: "px"
