@@ -13,32 +13,9 @@ use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
-#[macro_export]
-macro_rules! px_w {
-    ($value:expr, $img_width:expr) => {
-        ($value as f32) * ($img_width as f32 / 4000.0)
-    };
-}
-
-#[macro_export]
-macro_rules! pxscale_w {
-    ($value:expr, $img_width:expr) => {
-        ab_glyph::PxScale::from(($value as f32) * ($img_width as f32 / 4000.0))
-    };
-}
-
-#[macro_export]
-macro_rules! px_h {
-    ($value:expr, $img_height:expr) => {
-        ($value as f32) * ($img_height as f32 / 2_666.666_7)
-    };
-}
-
-#[macro_export]
-macro_rules! pxscale_h {
-    ($value:expr, $img_height:expr) => {
-        ab_glyph::PxScale::from(($value as f32) * ($img_height as f32 / 2666.66667))
-    };
+pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
+    let [r, g, b, a] = color.to_array();
+    image::Rgba([r, g, b, a])
 }
 
 pub trait Theme {
@@ -81,8 +58,9 @@ impl Default for ThemeRegistry {
 
 impl ThemeRegistry {
     pub fn new() -> Self {
-        let film = Arc::new(RwLock::new(film::Film {})) as Arc<RwLock<dyn Theme>>;
-        let nothing_theme = Arc::new(RwLock::new(nothing::Nothing {})) as Arc<RwLock<dyn Theme>>;
+        let film = Arc::new(RwLock::new(film::Film::default())) as Arc<RwLock<dyn Theme>>;
+        let nothing_theme =
+            Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>;
 
         Self {
             themes: vec![film, nothing_theme],
@@ -92,8 +70,8 @@ impl ThemeRegistry {
 
     pub fn from_state(state: ThemeRegistryState) -> Self {
         let available: Vec<Arc<RwLock<dyn Theme>>> = vec![
-            Arc::new(RwLock::new(film::Film {})) as Arc<RwLock<dyn Theme>>,
-            Arc::new(RwLock::new(nothing::Nothing {})) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(film::Film::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>,
         ];
 
         let mut ordered = Vec::new();
@@ -101,9 +79,7 @@ impl ThemeRegistry {
 
         for saved_name in &state.names {
             if let Some(pos) = remaining.iter().position(|t: &Arc<RwLock<dyn Theme>>| {
-                // t.read().unique_name() == saved_name)
                 t.read().unwrap().unique_name() == saved_name
-                // true
             }) {
                 ordered.push(remaining.remove(pos));
             }
@@ -134,7 +110,7 @@ impl ThemeRegistry {
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
+        ui.vertical(|ui| {
             ui.label(t!("theme.selector"));
             egui::ComboBox::from_id_salt("theme_selector")
                 .selected_text(self.themes[self.selected].read().unwrap().label())
@@ -149,8 +125,9 @@ impl ThemeRegistry {
                     }
                 });
 
-            // 이제 가능
-            self.themes[self.selected].write().unwrap().ui_config(ui);
+            ui.collapsing(t!("theme.settings"), |ui| {
+                self.themes[self.selected].write().unwrap().ui_config(ui);
+            });
         });
     }
 }

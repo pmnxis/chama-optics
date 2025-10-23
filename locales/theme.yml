@@ -9,6 +9,18 @@ theme:
     en: "Theme"
     ko: "테마"
     ja: "テーマ"
+  settings:
+    en: "Detail theme settings"
+    ko: "상세 테마 설정"
+    ja: "テーマの詳細設定"
+  font_size:
+    en: "Font size"
+    ko: "폰트 사이즈"
+    ja: "フォントサイズ"
+  font_size_description:
+    en: "The default font size is %{default}, and it is applied relative to this base value rather than in pixels."
+    ko: "폰트 사이즈의 기본값은 %{default} 이며 px가 아닌 기본값에서 상대적인 크기로 적용됩니다."
+    ja: "フォントサイズの基本値は %{default} であり、px ではなくこの基準値に対して相対的に適用されます。"
   # From here actual themes here
   nothing:
     en: "Nothing"

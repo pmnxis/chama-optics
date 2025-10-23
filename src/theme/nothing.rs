@@ -7,7 +7,7 @@
 use crate::theme::Theme;
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Default)]
 pub struct Nothing {}
 
 impl Theme for Nothing {

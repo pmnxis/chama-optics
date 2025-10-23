@@ -62,6 +62,7 @@ rust-i18n = "3.1.5"
 sys-locale = "0.3.2"
 libheif-rs = { version = "2.4", default-features = false, features = ["v1_18"] }
 dirs = "6.0"
+num-traits = "0.2.19"
 
 [profile.release]
 opt-level = 3
