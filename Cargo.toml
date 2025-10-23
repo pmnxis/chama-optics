@@ -4,7 +4,7 @@
 
 [package]
 name = "chama-optics"
-version = "0.1.1-hotfix1"
+version = "0.1.2-rc"
 description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 edition = "2024"

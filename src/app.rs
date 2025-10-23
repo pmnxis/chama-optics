@@ -62,7 +62,7 @@ impl ChamaOptics {
 
             match export_config
                 .theme_reg
-                .selected_theme()
+                .selected_theme_read()
                 .apply(pi, export_config, &new_path)
             {
                 Ok(_) => {

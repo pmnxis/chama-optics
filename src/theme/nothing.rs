@@ -33,5 +33,7 @@ impl Theme for Nothing {
             .save_image(&dyn_image, output_path)
     }
 
-    fn ui_config(&mut self, _ui: &mut egui::Ui) {}
+    fn ui_config(&mut self, _ui: &mut egui::Ui) {
+        // show ui here
+    }
 }

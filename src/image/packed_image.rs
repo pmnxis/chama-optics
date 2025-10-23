@@ -353,7 +353,7 @@ impl PackedImage {
                                         .set_file_name(new_default_file_name)
                                         .save_file()
                                     {
-                                        match export_config.theme_reg.selected_theme().apply(
+                                        match export_config.theme_reg.selected_theme_read().apply(
                                             self,
                                             export_config,
                                             &output_path,

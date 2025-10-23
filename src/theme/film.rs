@@ -113,6 +113,6 @@ impl Theme for Film {
     }
 
     fn ui_config(&mut self, _ui: &mut egui::Ui) {
-        unimplemented!()
+        // show ui here
     }
 }

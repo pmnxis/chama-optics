@@ -11,7 +11,7 @@ pub(crate) mod film;
 pub(crate) mod nothing;
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[macro_export]
 macro_rules! px_w {
@@ -69,7 +69,7 @@ pub struct ThemeRegistryState {
 #[serde(default)]
 pub struct ThemeRegistry {
     #[serde(skip)]
-    pub themes: Vec<Arc<dyn Theme>>,
+    pub themes: Vec<Arc<RwLock<dyn Theme>>>,
     pub selected: usize,
 }
 
@@ -81,8 +81,8 @@ impl Default for ThemeRegistry {
 
 impl ThemeRegistry {
     pub fn new() -> Self {
-        let film = Arc::new(film::Film {}) as Arc<dyn Theme>;
-        let nothing_theme = Arc::new(nothing::Nothing {}) as Arc<dyn Theme>;
+        let film = Arc::new(RwLock::new(film::Film {})) as Arc<RwLock<dyn Theme>>;
+        let nothing_theme = Arc::new(RwLock::new(nothing::Nothing {})) as Arc<RwLock<dyn Theme>>;
 
         Self {
             themes: vec![film, nothing_theme],
@@ -91,16 +91,20 @@ impl ThemeRegistry {
     }
 
     pub fn from_state(state: ThemeRegistryState) -> Self {
-        let available: Vec<Arc<dyn Theme>> = vec![
-            Arc::new(film::Film {}) as Arc<dyn Theme>,
-            Arc::new(nothing::Nothing {}) as Arc<dyn Theme>,
+        let available: Vec<Arc<RwLock<dyn Theme>>> = vec![
+            Arc::new(RwLock::new(film::Film {})) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(nothing::Nothing {})) as Arc<RwLock<dyn Theme>>,
         ];
 
         let mut ordered = Vec::new();
         let mut remaining = available.clone();
 
         for saved_name in &state.names {
-            if let Some(pos) = remaining.iter().position(|t| t.unique_name() == saved_name) {
+            if let Some(pos) = remaining.iter().position(|t: &Arc<RwLock<dyn Theme>>| {
+                // t.read().unique_name() == saved_name)
+                t.read().unwrap().unique_name() == saved_name
+                // true
+            }) {
                 ordered.push(remaining.remove(pos));
             }
         }
@@ -119,25 +123,25 @@ impl ThemeRegistry {
             names: self
                 .themes
                 .iter()
-                .map(|t| t.unique_name().to_string())
+                .map(|t| t.read().unwrap().unique_name().to_string())
                 .collect(),
             selected: self.selected.min(self.themes.len().saturating_sub(1)),
         }
     }
 
-    pub fn selected_theme(&self) -> Arc<dyn Theme> {
-        self.themes[self.selected].clone()
+    pub fn selected_theme_read(&self) -> std::sync::RwLockReadGuard<'_, dyn Theme> {
+        self.themes[self.selected].read().unwrap()
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(t!("theme.selector"));
             egui::ComboBox::from_id_salt("theme_selector")
-                .selected_text(self.themes[self.selected].label())
+                .selected_text(self.themes[self.selected].read().unwrap().label())
                 .show_ui(ui, |ui| {
                     for (i, theme) in self.themes.iter().enumerate() {
                         if ui
-                            .selectable_label(i == self.selected, theme.label())
+                            .selectable_label(i == self.selected, theme.read().unwrap().label())
                             .clicked()
                         {
                             self.selected = i;
@@ -145,9 +149,8 @@ impl ThemeRegistry {
                     }
                 });
 
-            // need to fix here. arc error
-            // pub fn ui_config(&mut self, ui: &mut egui::Ui)
-            // self.themes[self.selected].ui_config(ui);
+            // 이제 가능
+            self.themes[self.selected].write().unwrap().ui_config(ui);
         });
     }
 }
