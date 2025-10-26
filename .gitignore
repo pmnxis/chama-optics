@@ -27,3 +27,4 @@ build_mac_with_sign.sh
 .tmp
 *.dmg
 *.zip
+test_image

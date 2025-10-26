@@ -6,6 +6,10 @@
 
 use exif::{In, Tag};
 
+mod hotfix {
+    include!("exif_hotfix.rs");
+}
+
 pub(crate) const _MAX_FIELD_WIDTH: f32 = 140.0;
 pub(crate) const _LABEL_SPACING: f32 = 3.0;
 
@@ -52,6 +56,19 @@ impl OriginalExif {
             .unwrap_or_default()
     }
 
+    pub fn get_exif_decimal_string(&self, tag: Tag, round_up: Option<i32>) -> String {
+        self.0
+            .as_ref()
+            .and_then(|exif| {
+                exif.get_field(tag, In::PRIMARY).map(|f| {
+                    let mut s = String::new();
+                    let _ = hotfix::d_decimal(&mut s, &f.value, round_up.unwrap_or(2));
+                    s
+                })
+            })
+            .unwrap_or_default()
+    }
+
     pub fn orientation(&self) -> image::metadata::Orientation {
         // Orientation (TIFF 0x112)
         let value = self
@@ -92,12 +109,21 @@ impl OriginalExif {
 
     /// Lens aperture (F-number)
     pub fn fnumber(&self) -> String {
-        self.get_exif_value(Tag::FNumber)
+        self.get_exif_decimal_string(Tag::FNumber, None)
     }
 
     /// Exposure time
     pub fn exposure(&self) -> String {
-        self.get_exif_value(Tag::ExposureTime)
+        self.0
+            .as_ref()
+            .and_then(|exif| {
+                exif.get_field(Tag::ExposureTime, In::PRIMARY).map(|f| {
+                    let mut s = String::new();
+                    let _ = hotfix::d_exptime(&mut s, &f.value);
+                    s
+                })
+            })
+            .unwrap_or_default()
     }
 
     /// ISO Speed
@@ -407,4 +433,15 @@ fn hex_dump(s: &str) {
         }
     }
     println!();
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn default_option() {
+        // let path_list = list_import_images().unwrap();
+        // let theme = Film::default();
+        // let export_config =
+        //     crate::export_config::ExportConfig::default().insert_or_replace_theme(theme);
+    }
 }
