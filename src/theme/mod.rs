@@ -8,7 +8,10 @@
 //! collection of themes
 
 pub(crate) mod film;
+pub(crate) mod film_date;
+pub(crate) mod film_glow;
 pub(crate) mod nothing;
+
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
@@ -16,6 +19,17 @@ use std::sync::{Arc, RwLock};
 pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
     let [r, g, b, a] = color.to_array();
     image::Rgba([r, g, b, a])
+}
+
+fn text_dimensions(scale: ab_glyph::PxScale, font: &impl ab_glyph::Font, text: &str) -> (f32, f32) {
+    use ab_glyph::ScaleFont;
+    let scaled = font.as_scaled(scale);
+    (
+        text.chars()
+            .map(|c| scaled.h_advance(font.glyph_id(c)))
+            .sum::<f32>(),
+        scaled.height(),
+    )
 }
 
 pub trait Theme {
@@ -57,22 +71,35 @@ impl Default for ThemeRegistry {
 }
 
 impl ThemeRegistry {
-    pub fn new() -> Self {
-        let film = Arc::new(RwLock::new(film::Film::default())) as Arc<RwLock<dyn Theme>>;
-        let nothing_theme =
-            Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>;
+    pub fn default_vector() -> Vec<Arc<RwLock<dyn Theme>>> {
+        vec![
+            Arc::new(RwLock::new(film::Film::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(film_glow::FilmGlow::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(film_date::FilmDate::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>,
+        ]
+    }
 
+    pub fn new() -> Self {
         Self {
-            themes: vec![film, nothing_theme],
+            themes: Self::default_vector(),
             selected: 0,
         }
     }
 
+    pub fn find(&self, unique: &str) -> Option<std::sync::RwLockReadGuard<'_, dyn Theme>> {
+        self.themes
+            .iter()
+            .position(|t| {
+                t.read()
+                    .map(|tt| tt.unique_name() == unique)
+                    .unwrap_or(false)
+            })
+            .map(|idx| self.themes[idx].read().unwrap())
+    }
+
     pub fn from_state(state: ThemeRegistryState) -> Self {
-        let available: Vec<Arc<RwLock<dyn Theme>>> = vec![
-            Arc::new(RwLock::new(film::Film::default())) as Arc<RwLock<dyn Theme>>,
-            Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>,
-        ];
+        let available: Vec<Arc<RwLock<dyn Theme>>> = Self::default_vector();
 
         let mut ordered = Vec::new();
         let mut remaining = available.clone();
@@ -129,5 +156,23 @@ impl ThemeRegistry {
                 self.themes[self.selected].write().unwrap().ui_config(ui);
             });
         });
+    }
+
+    #[cfg(test)]
+    pub fn insert_or_replace_theme<T: Theme + 'static>(&mut self, theme: T) {
+        let unique = theme.unique_name();
+        let arc_theme = Arc::new(RwLock::new(theme));
+
+        if let Some(idx) = self.themes.iter().position(|t| {
+            t.read()
+                .map(|tt| tt.unique_name() == unique)
+                .unwrap_or(false)
+        }) {
+            self.themes[idx] = arc_theme;
+            self.selected = idx;
+        } else {
+            self.themes.push(arc_theme);
+            self.selected = self.themes.len() - 1;
+        }
     }
 }

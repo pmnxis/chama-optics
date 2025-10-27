@@ -8,7 +8,7 @@
 rust_i18n::i18n!("locales");
 
 mod app;
-pub(crate) mod export_config;
+pub mod export_config;
 pub(crate) mod fonts;
 // pub(crate) use fonts::builtin_fonts;
 pub(crate) mod import_config;
@@ -16,6 +16,9 @@ pub(crate) use export_config::scale_config;
 pub(crate) mod langs;
 pub(crate) use image::{exif_impl, packed_image};
 pub(crate) mod image;
+
+pub(crate) mod effect;
+pub mod test_helper;
 
 pub mod theme;
 // pub(crate) mod preview;

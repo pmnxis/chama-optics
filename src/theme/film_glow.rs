@@ -11,26 +11,31 @@ use imageproc::integral_image::ArrayData;
 use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct Film {
+pub struct FilmGlow {
     font_color: egui::Color32,
+    glow_color: egui::Color32,
     font_size: f32,
+    glow_gain: f32,
 }
 
-const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 153, 0, 255]);
+const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
+const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 
-impl core::default::Default for Film {
+impl core::default::Default for FilmGlow {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
-
+        let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+            glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE as f32,
+            glow_gain: 8.0,
         }
     }
 }
 
-impl Film {
+impl FilmGlow {
     fn rel_size<F: Copy + num_traits::AsPrimitive<f32>, G: Copy + num_traits::AsPrimitive<f32>>(
         &self,
         size: F,
@@ -48,13 +53,13 @@ impl Film {
     }
 }
 
-impl Theme for Film {
+impl Theme for FilmGlow {
     fn unique_name(&self) -> &'static str {
-        "film"
+        "film_glow"
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        t!("theme.film")
+        t!("theme.film_glow")
     }
 
     fn apply(
@@ -65,8 +70,10 @@ impl Theme for Film {
     ) -> Result<(), image::ImageError> {
         let exif = &pi.view_exif;
         let color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
+        let glow_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.glow_color);
         let scale_config = &export_config.scale_config;
-        let mut dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        let mut dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
+        let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
         let font = crate::fonts::FONT_DIGITS.clone();
@@ -74,7 +81,7 @@ impl Theme for Film {
         #[rustfmt::skip]
         macro_rules! draw {
             ($xxx:expr, $yyy:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut dyn_image, color, ($xxx) as i32, ($yyy as f32 - font.as_scaled($scale).ascent()) as i32, $scale, &font, $text);
+                imageproc::drawing::draw_text_mut(&mut luma_text, image::Luma([255]), ($xxx) as i32, ($yyy as f32 - font.as_scaled($scale).ascent()) as i32, $scale, &font, $text);
             };
         }
 
@@ -130,6 +137,22 @@ impl Theme for Film {
             y -= line_h;
         }
 
+        let rgba_image = dyn_image
+            .as_mut_rgba8()
+            .ok_or(image::ImageError::Parameter(
+                image::error::ParameterError::from_kind(image::error::ParameterErrorKind::Generic(
+                    "Mismatch RGBA channel internally, it should not happend".to_owned(),
+                )),
+            ))?;
+
+        crate::effect::glow::final_glow_effect(
+            rgba_image,
+            &luma_text,
+            color,
+            glow_color,
+            self.rel_size(self.glow_gain, dyn_wh),
+        );
+
         export_config
             .output_format
             .save_image(&dyn_image, output_path)
@@ -145,6 +168,18 @@ impl Theme for Film {
                     "theme.font_size_description",
                     default = DEFAULT_FONT_SIZE
                 ));
+                ui.add_space(1.0);
+                egui::color_picker::color_picker_color32(
+                    ui,
+                    &mut self.font_color,
+                    egui::color_picker::Alpha::Opaque,
+                );
+            });
+            ui.vertical(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
+                        .text(t!("theme.film_config.glow_range")),
+                );
                 ui.add_space(1.0);
                 egui::color_picker::color_picker_color32(
                     ui,

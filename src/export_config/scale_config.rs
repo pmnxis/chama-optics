@@ -91,8 +91,17 @@ impl core::default::Default for ScaleConfig {
     }
 }
 
+#[allow(unused)]
 pub const SCALE_NEAR_COMMON_4K: ScaleConfig = ScaleConfig {
     mode: ScaleMode::NearCommonDivisorConsiderWidth,
+    value: 4072,
+    sub_value: 3054,
+    scale_value: 2.0, // actually not in use
+};
+
+#[allow(unused)]
+pub const SCALE_HALF: ScaleConfig = ScaleConfig {
+    mode: ScaleMode::Divide,
     value: 4072,
     sub_value: 3054,
     scale_value: 2.0, // actually not in use

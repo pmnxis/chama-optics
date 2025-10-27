@@ -434,14 +434,3 @@ fn hex_dump(s: &str) {
     }
     println!();
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn default_option() {
-        // let path_list = list_import_images().unwrap();
-        // let theme = Film::default();
-        // let export_config =
-        //     crate::export_config::ExportConfig::default().insert_or_replace_theme(theme);
-    }
-}

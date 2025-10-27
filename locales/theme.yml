@@ -30,3 +30,33 @@ theme:
     en: "Film"
     ko: "필름"
     ja: "フィルム"
+  film_glow:
+    en: "Film Glow"
+    ko: "필름 글로우"
+    ja: "フィルムグロー"
+
+  film_date:
+    en: "Film Date"
+    ko: "필름 날짜"
+    ja: "フィルム日付"
+
+  # Some config
+  film_config:
+    glow:
+      en: "Glow effect"
+      ko: "글로우 효과"
+      ja: "グロー効果"
+    glow_range:
+      en: "Glow range"
+      ko: "글로우 범위"
+      ja: "グロー範囲"
+    hide_camera_exif:
+      label:
+        en: "Hide Camera & Lens Info"
+        ko: "카메라 및 렌즈 정보 숨기기"
+        ja: "カメラとレンズ情報を非表示にする"
+      description:
+        en: "Hides the camera model and lens information from EXIF data when displaying photos."
+        ko: "사진을 표시할 때 EXIF 데이터의 카메라 기종과 렌즈 정보를 숨깁니다."
+        ja: "写真表示時にEXIFデータ内のカメラ機種とレンズ情報を非表示にします。"
+

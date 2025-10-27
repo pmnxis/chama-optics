@@ -56,29 +56,42 @@ mod builtin_fonts {
             }
 
             // Unzip if necessary
-            let final_path = if self.unzip {
-                let extract_name = self
-                    .extract_file_name
-                    .expect("extract_file_name required when unzip=true");
-                let font_path = out_dir.join(extract_name);
+            if self.unzip {
+                let extract_list = self
+                    .extract_file_names
+                    .expect("extract_file_names required when unzip=true");
+                let env_keys = self.env_keys.expect("env_keys required when unzip=true");
 
-                if !font_path.exists() {
-                    let reader = Cursor::new(buffer);
-                    let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
-                    let mut file = archive
-                        .by_name(extract_name)
-                        .unwrap_or_else(|_| panic!("{extract_name} not found in ZIP"));
-                    let mut extracted = Vec::new();
-                    io::copy(&mut file, &mut extracted).expect("failed to extract file");
-                    fs::write(&font_path, extracted).expect("failed to write extracted file");
+                if extract_list.len() != env_keys.len() {
+                    panic!("extract_file_names and env_keys must have the same length");
                 }
-                font_path
-            } else {
-                zip_path
-            };
 
-            // Expose to cargo environment
-            println!("cargo:rustc-env={}={}", self.env_key, final_path.display());
+                let reader = Cursor::new(buffer);
+                let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
+
+                for (extract_name, env_key) in extract_list.iter().zip(env_keys.iter()) {
+                    let out_path = out_dir.join(extract_name);
+                    if !out_path.exists() {
+                        println!("Extracting {extract_name} ...");
+                        let mut file = archive
+                            .by_name(extract_name)
+                            .unwrap_or_else(|_| panic!("{extract_name} not found in ZIP"));
+                        let mut extracted = Vec::new();
+                        io::copy(&mut file, &mut extracted).expect("failed to extract file");
+                        fs::write(&out_path, extracted).expect("failed to write extracted file");
+                    }
+
+                    // Export environment variable per file
+                    println!("cargo:rustc-env={}={}", env_key, out_path.display());
+                }
+            } else {
+                // If not unzip, assign directly
+                if let Some(env_keys) = self.env_keys {
+                    for env_key in env_keys {
+                        println!("cargo:rustc-env={}={}", env_key, zip_path.display());
+                    }
+                }
+            }
         }
     }
 }

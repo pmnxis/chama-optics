@@ -20,11 +20,18 @@ pub struct ExportConfig {
 
 impl core::default::Default for ExportConfig {
     fn default() -> Self {
-        Self {
-            scale_config: scale_config::SCALE_NEAR_COMMON_4K,
-            output_format: output_format::OutputFormat::default(),
-            output_name: output_name::OutputName::default(),
-            theme_reg: crate::theme::ThemeRegistry::new(),
+        #[cfg(not(test))]
+        {
+            Self {
+                scale_config: scale_config::SCALE_NEAR_COMMON_4K,
+                output_format: output_format::OutputFormat::default(),
+                output_name: output_name::OutputName::default(),
+                theme_reg: crate::theme::ThemeRegistry::new(),
+            }
+        }
+        #[cfg(test)]
+        {
+            Self::testkit_default()
         }
     }
 }
@@ -42,5 +49,25 @@ impl ExportConfig {
             ui.separator();
             self.theme_reg.update_ui(ui);
         });
+    }
+
+    pub fn testkit_default() -> Self {
+        use std::str::FromStr;
+        Self {
+            scale_config: scale_config::SCALE_HALF,
+            output_format: output_format::OutputFormat::default(),
+            output_name: output_name::OutputName {
+                prefix: "".to_owned(),
+                postfix: "-testcase".to_owned(),
+                folder: std::path::PathBuf::from_str("test_image/export").unwrap(),
+                remove_after_bulk_save: false,
+            },
+            theme_reg: crate::theme::ThemeRegistry::new(),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn insert_or_replace_theme<T: crate::theme::Theme + 'static>(&mut self, theme: T) {
+        self.theme_reg.insert_or_replace_theme(theme);
     }
 }

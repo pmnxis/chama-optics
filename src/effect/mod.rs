@@ -4,9 +4,4 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-pub(crate) mod heic;
-
-#[allow(dead_code)]
-pub(crate) mod common;
-pub(crate) mod exif_impl;
-pub(crate) mod packed_image;
+pub(crate) mod glow;
