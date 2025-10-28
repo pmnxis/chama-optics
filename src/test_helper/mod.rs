@@ -19,12 +19,11 @@ pub fn list_import_images_path() -> std::io::Result<Vec<std::path::PathBuf>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if exts.contains(&ext.to_lowercase().as_str()) {
-                    images.push(path);
-                }
-            }
+        if path.is_file()
+            && let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && exts.contains(&ext.to_lowercase().as_str())
+        {
+            images.push(path);
         }
     }
 

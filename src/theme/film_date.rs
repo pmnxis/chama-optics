@@ -127,7 +127,7 @@ impl Theme for FilmDate {
             .as_mut_rgba8()
             .ok_or(image::ImageError::Parameter(
                 image::error::ParameterError::from_kind(image::error::ParameterErrorKind::Generic(
-                    "Mismatch RGBA channel internally, it should not happend".to_owned(),
+                    "Mismatch RGBA channel internally, it should not happened".to_owned(),
                 )),
             ))?;
 
