@@ -58,9 +58,8 @@ pub fn final_glow_effect(
         let rr = right * right_weight;
         // let ret = 0xFFFF - (0xFFFF - ll) * (0xFFFF - rr);
         // to allow overflow
-        let ret = 0xFFFFu32.wrapping_sub(
-            (0xFFFFu32.wrapping_sub(ll)).wrapping_mul(0xFFFFu32.wrapping_sub(rr)),
-        );
+        let ret = 0xFFFFu32
+            .wrapping_sub((0xFFFFu32.wrapping_sub(ll)).wrapping_mul(0xFFFFu32.wrapping_sub(rr)));
 
         (ret >> 24) as u8
     }

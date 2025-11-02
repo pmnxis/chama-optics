@@ -197,10 +197,10 @@ impl FontsUnify {
             read: &'a std::sync::RwLockReadGuard<'_, Vec<SystemFont>>,
             select: &FontSelection,
         ) -> Result<&'a SystemFont, Option<(FontIndex, &'a SystemFont)>> {
-            if let Some(sf) = read.get(select.select.index) {
-                if sf.name != select.name {
-                    return Ok(sf);
-                }
+            if let Some(sf) = read.get(select.select.index)
+                && sf.name != select.name
+            {
+                return Ok(sf);
             }
 
             if let Some((index, item)) = read

@@ -11,23 +11,18 @@ use strum_macros::{EnumString, IntoStaticStr};
 
 #[rustfmt::skip]
 #[derive(
-    EnumString, IntoStaticStr, EnumIter, Clone, Copy,
+    EnumString, IntoStaticStr, EnumIter, Clone, Copy, Default,
     Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord,
 )]
 #[strum(serialize_all = "lowercase")]
 pub enum Language {
     /// English
+    #[default]
     En,
     /// Korean 한국어
     Ko,
     /// Japanese 日本語
     Ja,
-}
-
-impl core::default::Default for Language {
-    fn default() -> Self {
-        Self::En
-    }
 }
 
 impl Language {
