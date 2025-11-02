@@ -9,6 +9,10 @@ export_config:
     en: "Export config"
     ko: "사진 저장 설정"
     ja: "設定をエクスポート"
+  detail_of_export:
+    en: "Detail of export config"
+    ko: "살세 저장 설정"
+    ja: "詳細設定をエクスポート"
   output_name:
     label:
       en: "Save"

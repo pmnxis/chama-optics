@@ -16,6 +16,7 @@ pub struct ExportConfig {
     pub output_format: output_format::OutputFormat,
     pub output_name: output_name::OutputName,
     pub theme_reg: crate::theme::ThemeRegistry,
+    pub watermark: crate::effect::watermark::Watermark,
 }
 
 impl core::default::Default for ExportConfig {
@@ -27,6 +28,7 @@ impl core::default::Default for ExportConfig {
                 output_format: output_format::OutputFormat::default(),
                 output_name: output_name::OutputName::default(),
                 theme_reg: crate::theme::ThemeRegistry::new(),
+                watermark: crate::effect::watermark::Watermark::default(),
             }
         }
         #[cfg(test)]
@@ -42,10 +44,14 @@ impl ExportConfig {
             ui.heading(t!("export_config.label"));
             ui.separator();
             self.scale_config.update_ui(ui);
-            ui.separator();
-            self.output_format.update_ui(ui);
-            ui.separator();
-            self.output_name.update_ui(ui);
+            ui.collapsing(t!("export_config.detail_of_export"), |ui| {
+                ui.separator();
+                self.output_format.update_ui(ui);
+                ui.separator();
+                self.output_name.update_ui(ui);
+                ui.separator();
+                self.watermark.update_ui(ctx, ui);
+            });
             ui.separator();
             self.theme_reg.update_ui(ctx, ui);
         });
@@ -63,7 +69,17 @@ impl ExportConfig {
                 remove_after_bulk_save: false,
             },
             theme_reg: crate::theme::ThemeRegistry::new(),
+            watermark: crate::effect::watermark::Watermark::default(),
         }
+    }
+
+    pub fn save_image<P: AsRef<std::path::Path>>(
+        &self,
+        dyn_image: &mut image::DynamicImage,
+        path: P,
+    ) -> Result<(), image::ImageError> {
+        self.watermark.apply(dyn_image)?;
+        self.output_format.save_image(dyn_image, path)
     }
 
     #[cfg(test)]

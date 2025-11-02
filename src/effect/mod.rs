@@ -5,3 +5,4 @@
  */
 
 pub(crate) mod glow;
+pub(crate) mod watermark;

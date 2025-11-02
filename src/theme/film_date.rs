@@ -146,9 +146,7 @@ impl Theme for FilmDate {
             self.rel_size(self.glow_gain, dyn_wh),
         );
 
-        export_config
-            .output_format
-            .save_image(&dyn_image, output_path)
+        export_config.save_image(&mut dyn_image, output_path)
     }
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {

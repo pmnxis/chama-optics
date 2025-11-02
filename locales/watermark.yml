@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+watermark:
+  is_enabled:
+    en: "Enabled watermark"
+    ko: "워터마크 활성화"
+    ja: "ウォーターマーク活性化"
+  text:
+    en: "Watermark text"
+    ko: "워터마크 문장"
+    ja: "ウォーターマーク文章"

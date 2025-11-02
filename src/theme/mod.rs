@@ -21,7 +21,11 @@ pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
     image::Rgba([r, g, b, a])
 }
 
-fn text_dimensions(scale: ab_glyph::PxScale, font: &impl ab_glyph::Font, text: &str) -> (f32, f32) {
+pub(crate) fn text_dimensions(
+    scale: ab_glyph::PxScale,
+    font: &impl ab_glyph::Font,
+    text: &str,
+) -> (f32, f32) {
     use ab_glyph::ScaleFont;
     let scaled = font.as_scaled(scale);
     (
