@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+fonts_selector:
+  select_a_font:
+    en: "Select a font"
+    ko: "폰트 선택"
+    ja: "フォントを選択"
+  builtin_fonts:
+    en: "⛶ Built-in Fonts"
+    ko: "⛶ 프로그램 내장 폰트"
+    ja: "⛶ 内蔵フォント"
+  system_fonts:
+    en: "💻 System Fonts"
+    ko: "💻 시스템 폰트"
+    ja: "💻 システムフォント"
+  system_fonts_loading:
+    en: "⏳ Loading system fonts..."
+    ko: "⏳ 시스템 폰트 로딩중..."
+    ja: "⏳ システムフォントを読み込み中..."
+  default:
+    en: "Default"
+    ko: "기본값"
+    ja: "デフォルト"

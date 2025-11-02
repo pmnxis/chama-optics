@@ -9,23 +9,34 @@
 use eframe::egui;
 
 pub(crate) mod builtin_fonts;
+pub(crate) mod font_unify;
 
 struct BuiltInFonts {
     pub(crate) name: &'static str,
     pub(crate) data: &'static [u8],
 }
 
-const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
+ const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
     data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
-
-const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
+ const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
     name: "NotoSans-Medium",
     data: include_bytes!("../../assets/fonts/NotoSansKR-Medium.ttf"),
 };
 
+ const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
+    name: "Digital 7",
+    data: include_bytes!(env!("DIGITAL_7_FONT_PATH")),
+};
+ const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
+    name: "Digital 7 Italic",
+    data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
+};
+
 lazy_static::lazy_static! {
+    pub static ref FONTS_UNIFY: crate::fonts::font_unify::FontsUnify = crate::fonts::font_unify::FontsUnify::new();
+
     pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
     pub static ref FONT_DIGITS_ITALIC: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH"))).expect("Cannot init font.");
 }

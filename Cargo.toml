@@ -65,6 +65,7 @@ dirs = "6.0"
 num-traits = "0.2.19"
 clap = { version = "4.5.50", features = ["derive"] }
 chrono = "0.4.42"
+font-kit = "0.14.3"
 
 [profile.release]
 opt-level = 3

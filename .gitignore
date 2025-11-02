@@ -28,3 +28,4 @@ build_mac_with_sign.sh
 *.dmg
 *.zip
 test_image
+.cargo/

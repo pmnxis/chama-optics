@@ -12,6 +12,8 @@ use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct FilmDate {
+    font: crate::FontSelection,
+    font_date: crate::FontSelection,
     font_color: egui::Color32,
     glow_color: egui::Color32,
     font_size: f32,
@@ -28,6 +30,8 @@ impl core::default::Default for FilmDate {
         let [r, g, b, a] = FILM_COLOR.data();
         let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
+            font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7),
+            font_date: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7Italic),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE as f32,
@@ -78,8 +82,8 @@ impl Theme for FilmDate {
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
-        let font = crate::fonts::FONT_DIGITS.clone();
-        let font_italic = crate::fonts::FONT_DIGITS_ITALIC.clone();
+        let font = crate::FONTS_UNIFY.search(&self.font)?;
+        let font_date = crate::FONTS_UNIFY.search(&self.font_date)?;
 
         #[rustfmt::skip]
         macro_rules! draw {
@@ -117,11 +121,11 @@ impl Theme for FilmDate {
         let datetime_scale = self.rel_scale(105, dyn_wh);
         let y: f32 = base_y as f32;
 
-        let (datetime_w, _) = text_dimensions(datetime_scale, &font_italic, &date);
+        let (datetime_w, _) = text_dimensions(datetime_scale, &font_date, &date);
 
         let x_right = dyn_w as f32 - margin as f32;
         let x_datetime = (x_right - datetime_w).round() as i32;
-        draw!(x_datetime, y, &font_italic, datetime_scale, &date);
+        draw!(x_datetime, y, &font_date, datetime_scale, &date);
 
         let rgba_image = dyn_image
             .as_mut_rgba8()
@@ -144,12 +148,17 @@ impl Theme for FilmDate {
             .save_image(&dyn_image, output_path)
     }
 
-    fn ui_config(&mut self, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         ui.checkbox(
             &mut self.hide_camera_exif,
             t!("theme.film_config.hide_camera_exif.label"),
         )
         .on_hover_text(t!("theme.film_config.hide_camera_exif.description"));
+
+        self.font.update_ui_with_default_label(ctx, ui);
+
+        self.font_date
+            .update_ui_with_label(ctx, ui, t!("theme.film_date_config.date_font_select"));
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {

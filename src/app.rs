@@ -142,7 +142,7 @@ impl eframe::App for ChamaOptics {
 
             // show export configuration
             self.import_config.update_ui(ui);
-            self.export_config.update_ui(ui);
+            self.export_config.update_ui(ctx, ui);
 
             ui.separator();
             ui.horizontal(|ui| {

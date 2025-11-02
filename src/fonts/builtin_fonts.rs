@@ -36,6 +36,3 @@ pub const BUILTIN_FONTS: [BuildAsset; 1] = [BuildAsset {
     extract_file_names: Some(&["digital-7.ttf", "digital-7 (italic).ttf"]),
     env_keys: Some(&["DIGITAL_7_FONT_PATH", "DIGITAL_7_ITALIC_FONT_PATH"]),
 }];
-
-#[allow(unused)] // actually it used
-pub const ASSET_DS_DIGITAL: &BuildAsset = &BUILTIN_FONTS[0];

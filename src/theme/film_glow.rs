@@ -12,6 +12,7 @@ use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct FilmGlow {
+    font: crate::FontSelection,
     font_color: egui::Color32,
     glow_color: egui::Color32,
     font_size: f32,
@@ -27,6 +28,7 @@ impl core::default::Default for FilmGlow {
         let [r, g, b, a] = FILM_COLOR.data();
         let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
+            font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE as f32,
@@ -76,7 +78,7 @@ impl Theme for FilmGlow {
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
-        let font = crate::fonts::FONT_DIGITS.clone();
+        let font = crate::FONTS_UNIFY.search(&self.font)?;
 
         #[rustfmt::skip]
         macro_rules! draw {
@@ -158,9 +160,11 @@ impl Theme for FilmGlow {
             .save_image(&dyn_image, output_path)
     }
 
-    fn ui_config(&mut self, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.vertical(|ui| {
+                self.font.update_ui_with_default_label(ctx, ui);
+
                 ui.add(
                     egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")),
                 )

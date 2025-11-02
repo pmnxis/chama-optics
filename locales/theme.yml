@@ -39,6 +39,11 @@ theme:
     en: "Film Date"
     ko: "필름 날짜"
     ja: "フィルム日付"
+  film_date_config:
+    date_font_select:
+      en: "Select date font"
+      ko: "날짜 폰트 선택"
+      ja: "日付選択"
 
   # Some config
   film_config:
