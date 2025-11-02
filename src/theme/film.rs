@@ -81,19 +81,25 @@ impl Theme for Film {
         }
 
         let margin = self.rel_size(120, dyn_wh).trunc() as i32;
-
-        // Left
         let base_y = dyn_h as i32 - margin;
 
+        // Left
+        let mut y = base_y as f32;
         let cam_scale = self.rel_scale(75, dyn_wh);
-        draw!(
-            margin,
-            base_y as f32 - cam_scale.y,
-            cam_scale,
-            &format!("{}  {}", exif.camera_mnf, exif.camera_model)
-        );
-
-        draw!(margin, base_y, cam_scale, &exif.lens_model.clone());
+        let left_list = {
+            let mut list = Vec::new();
+            if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
+                list.push(format!("{}  {}", exif.camera_mnf, exif.camera_model));
+            }
+            if !exif.lens_model.is_empty() {
+                list.push(exif.lens_model.clone());
+            }
+            list
+        };
+        for left_str in left_list.iter().rev() {
+            draw!(margin, y, cam_scale, left_str);
+            y -= cam_scale.y;
+        }
 
         // Right
         let pairs = {
