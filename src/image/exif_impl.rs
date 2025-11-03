@@ -140,7 +140,7 @@ impl OriginalExif {
 
     /// Datetime
     pub fn datetime(&self) -> String {
-        self.get_exif_value(Tag::DateTime)
+        self.get_exif_value(Tag::DateTimeOriginal)
     }
 }
 
