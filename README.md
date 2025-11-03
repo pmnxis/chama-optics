@@ -11,7 +11,8 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 <p align="center"><img src="assets/mac-icon.png" width="256" height="256"/></p>
 
-Chama Optics is a program created for mirrorless and DSLR cameras, inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.com/@AkaiHaato)), who loves photography.
+Chama Optics is a program created for recent mirrorless and DSLR cameras, <br/>
+inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.com/@AkaiHaato)), who loves photography.
 
 It analyzes the EXIF data embedded in photos along with the user’s settings to resize, compress, and tag images before saving them, while also offering additional convenient features.
 
@@ -25,7 +26,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [ ] More themes
 - [ ] Save photos with EXIF
 - [ ] Multi core usage
-- [ ] Watermark feature
+- [x] Watermark feature
 - [ ] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
 - [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
 - [ ] Function to group similar photos or images taken around the same time
