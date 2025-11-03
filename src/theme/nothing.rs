@@ -26,11 +26,9 @@ impl Theme for Nothing {
         output_path: &std::path::Path,
     ) -> Result<(), image::ImageError> {
         let scale_config = &export_config.scale_config;
-        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        let mut dyn_image = pi.with_scale_and_orientation(*scale_config)?;
 
-        export_config
-            .output_format
-            .save_image(&dyn_image, output_path)
+        export_config.save_image(&mut dyn_image, None, output_path)
     }
 
     fn ui_config(&mut self, _ctx: &egui::Context, _ui: &mut egui::Ui) {

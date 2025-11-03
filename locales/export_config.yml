@@ -11,7 +11,7 @@ export_config:
     ja: "設定をエクスポート"
   detail_of_export:
     en: "Detail of export config"
-    ko: "살세 저장 설정"
+    ko: "상세 저장 설정"
     ja: "詳細設定をエクスポート"
   output_name:
     label:

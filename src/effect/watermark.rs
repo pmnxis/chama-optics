@@ -9,15 +9,17 @@ use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Watermark {
-    is_enabled: bool,
+    pub is_enabled: bool,
     font_color: egui::Color32,
     font_size: f32,
     font: crate::FontSelection,
     label: String,
+    position: u8,
 }
 
 const DEFAULT_COLOR: image::Rgba<u8> = image::Rgba([232, 232, 232, 255]);
-const DEFAULT_FONT_SIZE: u32 = 10;
+const DEFAULT_FONT_SIZE: u32 = 25;
+const POSITION_ICONS: [&str; 9] = ["↖", "↑", "↗", "←", "●", "→", "↙", "↓", "↘"];
 
 impl core::default::Default for Watermark {
     fn default() -> Self {
@@ -30,6 +32,7 @@ impl core::default::Default for Watermark {
             font_size: DEFAULT_FONT_SIZE as f32,
             font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::NtSansMed),
             label: "".to_owned(),
+            position: 8,
         }
     }
 }
@@ -51,7 +54,60 @@ impl Watermark {
         ab_glyph::PxScale::from(self.rel_size(size, dyn_wh))
     }
 
-    pub fn apply(&self, dyn_image: &mut image::DynamicImage) -> Result<(), image::ImageError> {
+    fn position(
+        &self,
+        (dyn_w, dyn_h): (u32, u32),
+        (txt_w, txt_h): (f32, f32),
+        (ascent, descent): (f32, f32),
+        margin: i32,
+    ) -> (i32, i32) {
+        let (dyn_w, dyn_h) = (dyn_w as f32, dyn_h as f32);
+        let margin = margin as f32;
+
+        match self.position {
+            // Top Line
+            1 => (margin as i32, margin as i32),
+            2 => (((dyn_w - txt_w) / 2.0) as i32, margin as i32),
+            3 => ((dyn_w - txt_w - margin) as i32, margin as i32),
+
+            // Center Line
+            4 => (
+                margin as i32,
+                ((dyn_h / 2.0) - (txt_h / 2.0) - ((ascent - descent) / 2.0)) as i32,
+            ),
+            5 => (
+                ((dyn_w - txt_w) / 2.0) as i32,
+                ((dyn_h / 2.0) - (txt_h / 2.0) - ((ascent - descent) / 2.0)) as i32,
+            ),
+            6 => (
+                (dyn_w - txt_w - margin) as i32,
+                ((dyn_h / 2.0) - (txt_h / 2.0) - ((ascent - descent) / 2.0)) as i32,
+            ),
+
+            // Bottom line
+            7 => (margin as i32, (dyn_h - txt_h - margin - descent) as i32),
+            8 => (
+                ((dyn_w - txt_w) / 2.0) as i32,
+                (dyn_h - margin - ascent) as i32,
+            ),
+            9 => (
+                (dyn_w - txt_w - margin) as i32,
+                (dyn_h - margin - ascent) as i32,
+            ),
+
+            // Same as position 8
+            _ => (
+                ((dyn_w - txt_w) / 2.0) as i32,
+                (dyn_h - margin - ascent) as i32,
+            ),
+        }
+    }
+
+    pub fn apply(
+        &self,
+        dyn_image: &mut image::DynamicImage,
+        margin: Option<i32>,
+    ) -> Result<(), image::ImageError> {
         #[allow(unused)]
         use {ab_glyph::Font, ab_glyph::ScaleFont};
 
@@ -61,27 +117,23 @@ impl Watermark {
         let dyn_wh = dyn_w.max(dyn_h);
         let font = crate::FONTS_UNIFY.search(&self.font)?;
 
-        let margin = self.rel_size(120, dyn_wh).trunc() as i32;
-        let base_y = dyn_h as i32 - margin;
+        let margin = margin.unwrap_or(self.rel_size(120, dyn_wh).trunc() as i32);
+
         let scale = self.rel_scale(75, dyn_wh);
-        let (txt_w, _txt_h) = text_dimensions(scale, &font, &self.label);
+        let (txt_w, txt_h) = text_dimensions(scale, &font, &self.label);
 
-        let yyy = base_y;
-        let mut xxx = (dyn_w as f32) / 2.0;
-        // todo - need to select where the position
-        xxx -= (txt_w / 2.0).round();
-
-        // todo - Supports transparent watermarks to suit transparency
-        // todo - ascent position pollution
-        imageproc::drawing::draw_text_mut(
-            dyn_image,
-            color,
-            xxx as i32,
-            (yyy as f32 - font.as_scaled(scale).ascent()) as i32,
-            scale,
-            &font,
-            &self.label,
+        let (xxx, yyy) = self.position(
+            (dyn_w, dyn_h),
+            (txt_w, txt_h),
+            (
+                font.as_scaled(scale).ascent(),
+                font.as_scaled(scale).descent(),
+            ),
+            margin,
         );
+
+        // // todo - Supports transparent watermarks to suit transparency
+        imageproc::drawing::draw_text_mut(dyn_image, color, xxx, yyy, scale, &font, &self.label);
 
         Ok(())
     }
@@ -102,6 +154,25 @@ impl Watermark {
                 ));
                 ui.label(t!("watermark.text"));
                 ui.add(egui::TextEdit::singleline(&mut self.label).desired_width(200.0));
+                ui.label(t!("watermark.position"));
+
+                for row in 0..3 {
+                    ui.horizontal(|ui| {
+                        for col in 0..3 {
+                            let i = (row * 3 + col + 1) as u8;
+                            let selected = self.position == i;
+                            let label = POSITION_ICONS[(i - 1) as usize];
+                            let hover = t!(format!("watermark.position.{}", i));
+                            if ui
+                                .selectable_label(selected, label)
+                                .on_hover_text(hover)
+                                .clicked()
+                            {
+                                self.position = i;
+                            }
+                        }
+                    });
+                }
             });
 
             ui.vertical(|ui| {

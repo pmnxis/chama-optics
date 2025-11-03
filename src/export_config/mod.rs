@@ -76,9 +76,12 @@ impl ExportConfig {
     pub fn save_image<P: AsRef<std::path::Path>>(
         &self,
         dyn_image: &mut image::DynamicImage,
+        margin: Option<i32>,
         path: P,
     ) -> Result<(), image::ImageError> {
-        self.watermark.apply(dyn_image)?;
+        if self.watermark.is_enabled {
+            self.watermark.apply(dyn_image, margin)?;
+        }
         self.output_format.save_image(dyn_image, path)
     }
 

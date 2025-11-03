@@ -138,7 +138,7 @@ impl Theme for Film {
             y -= line_h;
         }
 
-        export_config.save_image(&mut dyn_image, output_path)
+        export_config.save_image(&mut dyn_image, Some(margin), output_path)
     }
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {

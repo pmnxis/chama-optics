@@ -13,3 +13,43 @@ watermark:
     en: "Watermark text"
     ko: "워터마크 문장"
     ja: "ウォーターマーク文章"
+  position:
+    en: "Position"
+    ko: "위치"
+    ja: "位置"
+    1:
+      en: "Top Left"
+      ko: "좌상단"
+      ja: "左上"
+    2:
+      en: "Top Center"
+      ko: "상단 중앙"
+      ja: "上中央"
+    3:
+      en: "Top Right"
+      ko: "우상단"
+      ja: "右上"
+    4:
+      en: "Middle Left"
+      ko: "좌측 중앙"
+      ja: "左中央"
+    5:
+      en: "Center"
+      ko: "중앙"
+      ja: "中央"
+    6:
+      en: "Middle Right"
+      ko: "우측 중앙"
+      ja: "右中央"
+    7:
+      en: "Bottom Left"
+      ko: "좌하단"
+      ja: "左下"
+    8:
+      en: "Bottom Center"
+      ko: "하단 중앙"
+      ja: "下中央"
+    9:
+      en: "Bottom Right"
+      ko: "우하단"
+      ja: "右下"
