@@ -4,5 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+pub(crate) mod custom_weighted_sum;
+pub(crate) mod draw_with_transparency;
 pub(crate) mod glow;
 pub(crate) mod watermark;

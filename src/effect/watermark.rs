@@ -4,12 +4,16 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+use crate::effect::draw_with_transparency::{
+    draw_text_screen_transparency_mut, draw_text_transparency_mut,
+};
 use crate::theme::text_dimensions;
 use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct Watermark {
     pub is_enabled: bool,
+    pub is_screen_overlay: bool,
     font_color: egui::Color32,
     font_size: f32,
     font: crate::FontSelection,
@@ -28,6 +32,7 @@ impl core::default::Default for Watermark {
 
         Self {
             is_enabled: false,
+            is_screen_overlay: false,
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             font_size: DEFAULT_FONT_SIZE as f32,
             font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::NtSansMed),
@@ -118,6 +123,7 @@ impl Watermark {
         let font = crate::FONTS_UNIFY.search(&self.font)?;
 
         let margin = margin.unwrap_or(self.rel_size(120, dyn_wh).trunc() as i32);
+        let tp = self.font_color[3];
 
         let scale = self.rel_scale(75, dyn_wh);
         let (txt_w, txt_h) = text_dimensions(scale, &font, &self.label);
@@ -133,7 +139,15 @@ impl Watermark {
         );
 
         // // todo - Supports transparent watermarks to suit transparency
-        imageproc::drawing::draw_text_mut(dyn_image, color, xxx, yyy, scale, &font, &self.label);
+        // imageproc::drawing::draw_text_mut(dyn_image, color, xxx, yyy, scale, &font, &self.label);
+
+        if self.is_screen_overlay {
+            #[rustfmt::skip]
+            draw_text_screen_transparency_mut(dyn_image, color, xxx, yyy, scale, &font, tp, &self.label);
+        } else {
+            #[rustfmt::skip]
+            draw_text_transparency_mut(dyn_image, color, xxx, yyy, scale, &font, tp, &self.label);
+        }
 
         Ok(())
     }
@@ -156,23 +170,59 @@ impl Watermark {
                 ui.add(egui::TextEdit::singleline(&mut self.label).desired_width(200.0));
                 ui.label(t!("watermark.position"));
 
-                for row in 0..3 {
-                    ui.horizontal(|ui| {
-                        for col in 0..3 {
-                            let i = (row * 3 + col + 1) as u8;
-                            let selected = self.position == i;
-                            let label = POSITION_ICONS[(i - 1) as usize];
-                            let hover = t!(format!("watermark.position.{}", i));
-                            if ui
-                                .selectable_label(selected, label)
-                                .on_hover_text(hover)
-                                .clicked()
-                            {
-                                self.position = i;
-                            }
+                ui.horizontal(|ui| {
+                    ui.vertical(|ui| {
+                        for row in 0..3 {
+                            ui.horizontal(|ui| {
+                                for col in 0..3 {
+                                    let i = (row * 3 + col + 1) as u8;
+                                    let selected = self.position == i;
+                                    let label = POSITION_ICONS[(i - 1) as usize];
+                                    let hover = t!(format!("watermark.position.{}", i));
+                                    if ui
+                                        .selectable_label(selected, label)
+                                        .on_hover_text(hover)
+                                        .clicked()
+                                    {
+                                        self.position = i;
+                                    }
+                                }
+                            });
                         }
                     });
-                }
+
+                    // corner
+                    ui.vertical(|ui| {
+                        ui.label(t!("watermark.blend_mode.label"));
+
+                        ui.horizontal(|ui| {
+                            let normal_selected = !self.is_screen_overlay;
+                            let screen_selected = self.is_screen_overlay;
+
+                            if ui
+                                .selectable_label(
+                                    normal_selected,
+                                    t!("watermark.blend_mode.normal"),
+                                )
+                                .on_hover_text(t!("watermark.blend_mode.normal_hint"))
+                                .clicked()
+                            {
+                                self.is_screen_overlay = false;
+                            }
+
+                            if ui
+                                .selectable_label(
+                                    screen_selected,
+                                    t!("watermark.blend_mode.screen"),
+                                )
+                                .on_hover_text(t!("watermark.blend_mode.screen_hint"))
+                                .clicked()
+                            {
+                                self.is_screen_overlay = true;
+                            }
+                        });
+                    });
+                });
             });
 
             ui.vertical(|ui| {

@@ -13,6 +13,27 @@ watermark:
     en: "Watermark text"
     ko: "워터마크 문장"
     ja: "ウォーターマーク文章"
+  blend_mode:
+    label:
+      en: "Blend mode"
+      ko: "블렌드 모드"
+      ja: "ブレンドモード"
+    normal:
+      en: "Normal"
+      ko: "일반"
+      ja: "ノーマル"
+    screen:
+      en: "Screen"
+      ko: "스크린"
+      ja: "スクリーン"
+    normal_hint:
+      en: "Use standard blending"
+      ko: "기본 합성 방식 사용"
+      ja: "標準的な合成モードを使用"
+    screen_hint:
+      en: "Use bright overlay blending (like Photoshop Screen mode)"
+      ko: "포토샵의 Screen 모드처럼 밝게 합성"
+      ja: "Photoshopのスクリーンモードのように明るく合成"
   position:
     en: "Position"
     ko: "위치"

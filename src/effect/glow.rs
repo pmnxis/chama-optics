@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+use crate::effect::custom_weighted_sum::*;
 use image::ImageBuffer;
 
 // // todo! - reduce glow layer computing because only short area compute area
@@ -51,35 +52,6 @@ pub fn final_glow_effect(
     glow_color: image::Rgba<u8>,
     glow_radius: f32,
 ) {
-    fn int_sh_weighted_sum(left: u32, right: u32, right_weight: u32) -> u8 {
-        let left_weight = 256 - right_weight;
-
-        let ll = left * left_weight;
-        let rr = right * right_weight;
-        // let ret = 0xFFFF - (0xFFFF - ll) * (0xFFFF - rr);
-        // to allow overflow
-        let ret = 0xFFFFu32
-            .wrapping_sub((0xFFFFu32.wrapping_sub(ll)).wrapping_mul(0xFFFFu32.wrapping_sub(rr)));
-
-        (ret >> 24) as u8
-    }
-
-    fn int_weighted_sum(left: u32, right: u32, right_weight: u32) -> u8 {
-        let left_weight = 256 - right_weight;
-        let ret = (left * left_weight) + (right * right_weight);
-        (ret >> 8) as u8
-    }
-    fn int_weighted_sum_rev(left: u32, right: u32, right_weight: u32) -> u8 {
-        let left_weight = 256 - right_weight;
-
-        let bg_factor = 64 + (((256 - left) * 192) >> 8);
-
-        let adjusted_weight = (right_weight * bg_factor) >> 8;
-
-        let ret = left * (256 - adjusted_weight) + right * adjusted_weight;
-        ((ret + 128) >> 8).clamp(0, 255) as u8
-    }
-
     fn flow_glow(back: u32, glow: u32, glow_weight: u32, text: u32, text_weight: u32) -> u8 {
         // let first = int_weighted_sum(back, , right_weight)
         // let first = int_sh_weighted_sum(back, glow, glow_weight);
