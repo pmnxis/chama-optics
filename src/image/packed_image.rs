@@ -37,7 +37,8 @@ pub struct PackedImage {
 }
 
 impl PackedImage {
-    pub fn get_image(&self) -> Result<image::DynamicImage, image::ImageError> {
+    /// image::DynamicImage and is orientation required or not with boolean signal
+    pub fn get_image(&self) -> Result<(image::DynamicImage, bool), image::ImageError> {
         let file = std::fs::File::open(self.path.clone())?;
         let mut buf_reader = std::io::BufReader::new(file);
         __load_image(&self.path, &mut buf_reader)
@@ -50,8 +51,12 @@ impl PackedImage {
         use image::ImageBuffer;
         use image::Rgba;
 
-        let dyn_image = self.get_image()?;
-        let orientation = self.view_exif.orientation;
+        let (dyn_image, need_orientation) = self.get_image()?;
+        let orientation = if need_orientation {
+            self.view_exif.orientation
+        } else {
+            image::metadata::Orientation::NoTransforms
+        };
         let (old_width, old_height) = (dyn_image.width(), dyn_image.height());
         let (new_width, new_height) =
             scale.apply(old_width, old_height, self.view_exif.is_vertical_rotated());
@@ -87,8 +92,12 @@ impl PackedImage {
             .seek(std::io::SeekFrom::Start(0))
             .expect("Failed reset seek zero");
 
-        let dyn_image = __load_image(path, &mut buf_reader)?;
-        let orientation = original_exif.orientation();
+        let (dyn_image, need_orientation) = __load_image(path, &mut buf_reader)?;
+        let orientation = if need_orientation {
+            original_exif.orientation()
+        } else {
+            image::metadata::Orientation::NoTransforms
+        };
 
         let thumbnail = gen_thumbnail(dyn_image, orientation)?;
         let view_exif = SimplifiedExif::from(&original_exif);

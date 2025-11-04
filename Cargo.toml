@@ -53,12 +53,12 @@ lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = "0.11.8"
 # todo - nasm_simd and neon feature later on mozjpeg
+rust-i18n = "3.1.5"
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
 oxipng = "9.1.5"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
-rust-i18n = "3.1.5"
 sys-locale = "0.3.2"
 libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"] }
 dirs = "6.0"

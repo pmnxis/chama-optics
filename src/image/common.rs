@@ -102,10 +102,11 @@ pub(crate) fn gen_thumbnail(
     ))
 }
 
+/// image::DynamicImage and is orientation required or not with boolean signal
 pub(crate) fn __load_image(
     path: &std::path::PathBuf,
     buf_reader: &mut std::io::BufReader<std::fs::File>,
-) -> Result<image::DynamicImage, image::ImageError> {
+) -> Result<(image::DynamicImage, bool), image::ImageError> {
     let img_format = path
         .extension()
         .filter(|ext| !ext.is_empty())
@@ -136,18 +137,22 @@ pub(crate) fn __load_image(
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
                     if img_format.is_none() {
-                        crate::image::heic::load_heif(path).map_err(|e| {
-                            image::error::ImageError::Unsupported(
-                                image::error::UnsupportedError::from_format_and_kind(
-                                    image::error::ImageFormatHint::PathExtension(
-                                        path.to_path_buf(),
+                        crate::image::heic::load_heif(path)
+                            .map(|img| (img, false))
+                            .map_err(|e| {
+                                image::error::ImageError::Unsupported(
+                                    image::error::UnsupportedError::from_format_and_kind(
+                                        image::error::ImageFormatHint::PathExtension(
+                                            path.to_path_buf(),
+                                        ),
+                                        image::error::UnsupportedErrorKind::GenericFeature(
+                                            format!(
+                                                "libheif internal error {e} and unsp_e : {unsp_e}"
+                                            ),
+                                        ),
                                     ),
-                                    image::error::UnsupportedErrorKind::GenericFeature(format!(
-                                        "libheif internal error {e} and unsp_e : {unsp_e}"
-                                    )),
-                                ),
-                            )
-                        })
+                                )
+                            })
                     } else {
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
@@ -155,7 +160,7 @@ pub(crate) fn __load_image(
                 other_err => Err(other_err),
             }
         },
-        Ok,
+        |img| Ok((img, true)),
     )
 }
 

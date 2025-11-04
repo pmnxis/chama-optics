@@ -14,14 +14,20 @@ pub(crate) fn load_heif(path: &PathBuf) -> Result<image::DynamicImage, Box<dyn s
     let ctx = HeifContext::read_from_file(path.to_str().expect("Invalid path"))?;
     let handle = ctx.primary_image_handle()?;
     let decode_opt = if let Some(mut opt) = libheif_rs::DecodingOptions::new() {
-        opt.set_ignore_transformations(true);
+        opt.set_ignore_transformations(false);
+        opt.set_convert_hdr_to_8bit(true);
+        // TODO - In future HEIF loader options would be required for advanced user
+        // opt.color_conversion_options()
         Some(opt)
     } else {
         log::warn!("There's possibility HEIF image get rotated");
         None
     };
 
-    let img = lib.decode(&handle, ColorSpace::Rgb(RgbChroma::Rgb), decode_opt)?;
+    // TODO - Determine image is YCbCr or YCbCr+A
+    // Some HEIF image has alpha channel. When libheif convert YCbCr(/w Alpha) to RGB it occurs problem
+    let img = lib.decode(&handle, ColorSpace::Rgb(RgbChroma::Rgba), decode_opt)?;
+    // let img = lib.decode(&handle, ColorSpace::Undefined, decode_opt)?;
     let color_space = img.color_space().ok_or("Unknown HEIF color space")?;
 
     // color_space and bpp dependency
