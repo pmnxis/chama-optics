@@ -34,12 +34,51 @@ theme:
     en: "Film Glow"
     ko: "필름 글로우"
     ja: "フィルムグロー"
-
   film_date:
     en: "Film Date"
     ko: "필름 날짜"
     ja: "フィルム日付"
-  film_date_config:
+
+  just_frame:
+    title:
+      en: "Just frame"
+      ko: "단순 프레임"
+      ja: "単純余白"
+    padding:
+      en: "Frame padding"
+      ko: "프레임 여백"
+      ja: "フレーム余白"
+    padding_description:
+      en: "Adjust how much space to leave around the image."
+      ko: "이미지 주변에 얼마나 여백을 둘지 설정합니다."
+      ja: "画像の周囲にどのくらい余白を設けるかを設定します。"
+    color:
+      en: "Frame color"
+      ko: "프레임 색상"
+      ja: "フレームの色"
+    padding_mode:
+      label:
+        en: "Padding mode"
+        ko: "여백 모드"
+        ja: "余白モード"
+      absolute:
+        en: "Absolute"
+        ko: "절대값"
+        ja: "固定値"
+      absolute_hint:
+        en: "Use a fixed padding value (e.g., 100px)."
+        ko: "고정된 여백 크기(예: 100px)를 사용합니다."
+        ja: "固定の余白値(例: 100px)を使用します。"
+      relative:
+        en: "Relative"
+        ko: "상대값"
+        ja: "相対値"
+      relative_hint:
+        en: "Scale padding relative to 2000px width (e.g., 100 → 100px at 2000px)."
+        ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 → 2000px 기준 100px)."
+        ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 → 2000pxで100px)。"
+
+  date_config:
     date_font_select:
       en: "Select date font"
       ko: "날짜 폰트 선택"

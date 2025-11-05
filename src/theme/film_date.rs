@@ -159,7 +159,7 @@ impl Theme for FilmDate {
         self.font.update_ui_with_default_label(ctx, ui);
 
         self.font_date
-            .update_ui_with_label(ctx, ui, t!("theme.film_date_config.date_font_select"));
+            .update_ui_with_label(ctx, ui, t!("theme.date_config.date_font_select"));
 
         ui.horizontal(|ui| {
             ui.vertical(|ui| {

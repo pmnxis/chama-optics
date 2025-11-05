@@ -10,6 +10,7 @@
 pub(crate) mod film;
 pub(crate) mod film_date;
 pub(crate) mod film_glow;
+pub(crate) mod just_frame;
 pub(crate) mod nothing;
 
 use rust_i18n::t;
@@ -81,6 +82,7 @@ impl ThemeRegistry {
             Arc::new(RwLock::new(film_glow::FilmGlow::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(film_date::FilmDate::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(just_frame::JustFrame::default())) as Arc<RwLock<dyn Theme>>,
         ]
     }
 
