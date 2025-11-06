@@ -20,26 +20,26 @@ app:
       ja: "終了"
   open_files:
     drag_drop:
-      en: "Drag drop image here or"
-      ko: "여기에 이미지를 드래그&드롭 하거나"
-      ja: "ここに画像をドラッグ＆ドロップするか"
+      en: "Drag drop image here"
+      ko: "여기에 이미지를 드래그&드롭"
+      ja: "ここに画像をドラッグ＆ドロップ"
     button:
-      en: "Open file"
-      ko: "파일 열기"
-      ja: "ファイルを開く"
+      en: "✨Add file"
+      ko: "✨파일 추가"
+      ja: "✨ファイルを追加"
   images:
     list:
       en: "📁 Images"
       ko: "📁 사진 목록"
       ja: "📁 画像一覧"
     save_all:
-      en: "Save all"
-      ko: "전체 저장"
-      ja: "すべて保存"
+      en: "📥Save all"
+      ko: "📥전체 저장"
+      ja: "📥すべて保存"
     remove_all:
-      en: "Remove all"
-      ko: "전체 삭제"
-      ja: "すべて削除"
+      en: "💣Remove all"
+      ko: "💣전체 삭제"
+      ja: "💣すべて削除"
   default:
     apply:
       en: "💾Apply"

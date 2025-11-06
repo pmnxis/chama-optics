@@ -6,6 +6,7 @@
 
 use rust_i18n::t;
 
+pub(crate) mod open_explorer;
 pub(crate) mod output_format;
 pub(crate) mod output_name;
 pub(crate) mod scale_config;

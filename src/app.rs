@@ -110,6 +110,21 @@ impl ChamaOptics {
         if let Some(idx) = remove_index {
             let _ = self.packed_images.remove(idx);
         }
+
+        if self.packed_images.is_empty() {
+            ui.with_layout(
+                egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                |ui| {
+                    ui.add_space(ui.available_height() / 16.0);
+
+                    ui.label(
+                        egui::RichText::new(t!("app.open_files.drag_drop"))
+                            .font(egui::FontId::proportional(28.0))
+                            .color(egui::Color32::from_rgba_unmultiplied(200, 200, 200, 50)),
+                    );
+                },
+            );
+        }
     }
 }
 
@@ -144,19 +159,6 @@ impl eframe::App for ChamaOptics {
             self.import_config.update_ui(ui);
             self.export_config.update_ui(ctx, ui);
 
-            ui.separator();
-            ui.horizontal(|ui| {
-                ui.label(t!("app.open_files.drag_drop"));
-
-                // add image by file open dialog
-                if ui.button(t!("app.open_files.button")).clicked()
-                    && let Some(path) = rfd::FileDialog::new().pick_file()
-                {
-                    log::info!("By file dialog :{path:?}");
-                    self.pending_paths.push_back(path);
-                }
-            });
-
             // add image by drag and drop
             ctx.input(|i| {
                 if !i.raw.dropped_files.is_empty() {
@@ -173,11 +175,25 @@ impl eframe::App for ChamaOptics {
 
             ui.separator();
 
-            ui.heading(t!("app.images.list"));
             ui.horizontal(|ui| {
+                ui.heading(t!("app.images.list"));
+
+                // add image by file open dialog
+                if ui.button(t!("app.open_files.button")).clicked()
+                    && let Some(path) = rfd::FileDialog::new().pick_file()
+                {
+                    log::info!("By file dialog :{path:?}");
+                    self.pending_paths.push_back(path);
+                }
+
                 if ui.button(t!("app.images.save_all")).clicked() {
                     self.save_packed_image_all(ui);
                 }
+
+                crate::export_config::open_explorer::launch_explorer_ui(
+                    ui,
+                    &self.export_config.output_name.folder,
+                );
 
                 if ui.button(t!("app.images.remove_all")).clicked() {
                     // need Arc<RwLock<T>> later

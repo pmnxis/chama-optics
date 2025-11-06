@@ -54,7 +54,7 @@ impl Theme for JustFrame {
         let min_wh = dyn_w.min(dyn_h);
 
         let rel_padding = self.rel_size(dyn_wh);
-        println!("{rel_padding} {}", self.padding);
+
         let boarder = crate::effect::boarder::Border::uniform(
             if self.is_relative {
                 rel_padding

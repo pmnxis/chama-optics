@@ -185,7 +185,7 @@ impl Theme for FilmDate {
                 ui.add_space(1.0);
                 egui::color_picker::color_picker_color32(
                     ui,
-                    &mut self.font_color,
+                    &mut self.glow_color,
                     egui::color_picker::Alpha::Opaque,
                 );
             });

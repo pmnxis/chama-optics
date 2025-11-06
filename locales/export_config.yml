@@ -38,3 +38,12 @@ export_config:
       en: "Remove from list after bulk save"
       ko: "사진 전체저장 후 목록 초기화"
       ja: "一括保存後に一覧を初期化"
+  open_folder:
+    label:
+      en: "🔗Open Folder"
+      ko: "🔗폴더 열기"
+      ja: "🔗フォルダを開く"
+    description:
+      en: "Opens the folder in your system’s file explorer where all files are saved."
+      ko: "전체 저장 시 파일들이 저장되는 경로를 탐색기로 엽니다."
+      ja: "すべてのファイルが保存されるフォルダをエクスプローラーで開きます。"
