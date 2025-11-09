@@ -96,21 +96,23 @@ impl Theme for FilmDate {
         let base_y = dyn_h as i32 - margin;
 
         // Left
-        let mut y = base_y as f32;
-        let cam_scale = self.rel_scale(75, dyn_wh);
-        let left_list = {
-            let mut list = Vec::new();
-            if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
-                list.push(format!("{}  {}", exif.camera_mnf, exif.camera_model));
+        if !self.hide_camera_exif {
+            let mut y = base_y as f32;
+            let cam_scale = self.rel_scale(75, dyn_wh);
+            let left_list = {
+                let mut list = Vec::new();
+                if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
+                    list.push(format!("{}  {}", exif.camera_mnf, exif.camera_model));
+                }
+                if !exif.lens_model.is_empty() {
+                    list.push(exif.lens_model.clone());
+                }
+                list
+            };
+            for left_str in left_list.iter().rev() {
+                draw!(margin, y, &font, cam_scale, left_str);
+                y -= cam_scale.y;
             }
-            if !exif.lens_model.is_empty() {
-                list.push(exif.lens_model.clone());
-            }
-            list
-        };
-        for left_str in left_list.iter().rev() {
-            draw!(margin, y, &font, cam_scale, left_str);
-            y -= cam_scale.y;
         }
 
         // Right

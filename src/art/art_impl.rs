@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: © 2025 PistonDevelopers (https://github.com/image-rs) and Jinwoo Park (pmnxis@gmail.com)
+ * SPDX-FileCopyrightText: Jinwoo Park (pmnxis@gmail.com)
  *
  * SPDX-License-Identifier: MIT
  */
@@ -36,7 +36,7 @@ impl ArtAsset {
         arr.iter().find(|asset| asset.is_match((mnf, model)))
     }
 
-    pub fn draw(&self, target_height: u32) -> Result<image::DynamicImage, ()> {
+    pub fn draw(&self, target_height: u32) -> Result<image::DynamicImage, image::ImageError> {
         use image::{DynamicImage, ImageBuffer, Rgba};
 
         use resvg::usvg;
@@ -46,11 +46,13 @@ impl ArtAsset {
 
         // parse svg
         let opt = usvg::Options::default();
-        // let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref())?;
-        // let rtree = usvg::Tree::from_data(svg_bytes, &opt.to_ref()).unwrap();
         let svg_str = std::str::from_utf8(svg_bytes).unwrap();
-        let rtree = usvg::Tree::from_str(svg_str, &opt).map_err(|_e| ())?;
-        // .map_err(|e| anyhow::anyhow!("SVG parse error: {:?}", e))?;
+        let rtree = usvg::Tree::from_str(svg_str, &opt).map_err(|e| {
+            image::ImageError::Decoding(image::error::DecodingError::new(
+                image::error::ImageFormatHint::PathExtension(std::path::PathBuf::from(self.key)),
+                e,
+            ))
+        })?;
 
         // get svg original size (viewBox)
         let svg_size = rtree.size();
@@ -58,8 +60,14 @@ impl ArtAsset {
         let orig_h = svg_size.height();
 
         if orig_w <= 0.0 || orig_h <= 0.0 {
-            println!("Invalid SVG dimensions: {orig_w}x{orig_h}");
-            return Err(());
+            return Err(image::ImageError::Decoding(
+                image::error::DecodingError::new(
+                    image::error::ImageFormatHint::PathExtension(std::path::PathBuf::from(
+                        self.key,
+                    )),
+                    format!("Invalid SVG dimensions: {orig_w}x{orig_h}"),
+                ),
+            ));
         }
 
         // compute scale factor to match target height
@@ -68,30 +76,26 @@ impl ArtAsset {
         let height_px = (orig_h * scale).ceil() as u32;
 
         // Create Pixmap and render
-        let mut pixmap = Pixmap::new(width_px, height_px)
-            // .ok_or_else(|| anyhow::anyhow!("Failed to create pixmap"))?;
-            .ok_or(())?;
+        let mut pixmap = Pixmap::new(width_px, height_px).ok_or(image::ImageError::Decoding(
+            image::error::DecodingError::new(
+                image::error::ImageFormatHint::PathExtension(std::path::PathBuf::from(self.key)),
+                format!("Failed to create pixmap: {orig_w}x{orig_h}"),
+            ),
+        ))?;
 
         let transform = usvg::Transform::from_scale(scale, scale);
         resvg::render(&rtree, transform, &mut pixmap.as_mut());
-        // .ok_or_else(|| anyhow::anyhow!("Rendering failed"))?;
-        // .ok_or_else(|| ());
 
-        // let data = pixmap.data(); // &[u8] in BGRA format (premultiplied)
-        let mut rgba = Vec::with_capacity((width_px * height_px * 4) as usize);
-
-        for px in pixmap.data().chunks_exact(4) {
-            rgba.push(px[0]); // R
-            rgba.push(px[1]); // G
-            rgba.push(px[2]); // B
-            rgba.push(px[3]); // A
-        }
-
-        let img = ImageBuffer::<Rgba<u8>, _>::from_raw(width_px, height_px, rgba)
-            // .ok_or_else(|| anyhow::anyhow!("Failed to create ImageBuffer"))?;
-            .ok_or(())?;
-
-        Ok(DynamicImage::ImageRgba8(img))
+        Ok(DynamicImage::ImageRgba8(
+            ImageBuffer::<Rgba<u8>, _>::from_raw(width_px, height_px, pixmap.take()).ok_or({
+                image::ImageError::Decoding(image::error::DecodingError::new(
+                    image::error::ImageFormatHint::PathExtension(std::path::PathBuf::from(
+                        self.key,
+                    )),
+                    format!("Failed to move rendered image to dynamic image"),
+                ))
+            })?,
+        ))
     }
 }
 
