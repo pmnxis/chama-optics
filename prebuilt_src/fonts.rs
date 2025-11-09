@@ -71,6 +71,13 @@ mod builtin_fonts {
 
                 for (extract_name, env_key) in extract_list.iter().zip(env_keys.iter()) {
                     let out_path = out_dir.join(extract_name);
+
+                    if let Some(parent) = out_path.parent() {
+                        fs::create_dir_all(parent).unwrap_or_else(|e| {
+                            panic!("failed to create directory {parent:?}: {e}")
+                        });
+                    }
+
                     if !out_path.exists() {
                         println!("Extracting {extract_name} ...");
                         let mut file = archive

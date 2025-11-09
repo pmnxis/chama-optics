@@ -92,7 +92,7 @@ impl ArtAsset {
                     image::error::ImageFormatHint::PathExtension(std::path::PathBuf::from(
                         self.key,
                     )),
-                    format!("Failed to move rendered image to dynamic image"),
+                    "Failed to move rendered image to dynamic image".to_string(),
                 ))
             })?,
         ))
