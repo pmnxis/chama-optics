@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-// #![warn(clippy::all, rust_2018_idioms)]
 rust_i18n::i18n!("locales");
 
 mod app;
@@ -14,11 +13,12 @@ pub(crate) mod fonts;
 pub(crate) mod import_config;
 pub(crate) use export_config::scale_config;
 pub(crate) mod langs;
+pub(crate) use art::ART_UNIFY;
 pub(crate) use fonts::FONTS_UNIFY;
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 pub(crate) use image::{exif_impl, packed_image};
+pub mod art;
 pub(crate) mod image;
-pub mod logo;
 
 pub(crate) mod effect;
 pub mod test_helper;

@@ -12,6 +12,7 @@ pub(crate) mod film_date;
 pub(crate) mod film_glow;
 pub(crate) mod just_frame;
 pub(crate) mod nothing;
+pub(crate) mod strap;
 
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
@@ -83,6 +84,7 @@ impl ThemeRegistry {
             Arc::new(RwLock::new(film_date::FilmDate::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(nothing::Nothing::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(just_frame::JustFrame::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(strap::Strap::default())) as Arc<RwLock<dyn Theme>>,
         ]
     }
 

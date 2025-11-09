@@ -112,3 +112,32 @@ pub fn draw_text_screen_transparency_mut<C>(
         })
     });
 }
+
+pub fn overlay_alpha_screen_mode(
+    base: &mut image::DynamicImage,
+    overlay: &image::DynamicImage,
+    x_offset: u32,
+    y_offset: u32,
+) {
+    use imageproc::drawing::Canvas;
+    let (w, h) = overlay.dimensions();
+
+    for oy in 0..h {
+        for ox in 0..w {
+            let bx = x_offset + ox;
+            let by = y_offset + oy;
+
+            if bx >= base.width() || by >= base.height() {
+                continue;
+            }
+
+            let bg = base.get_pixel(bx, by);
+            let fg = overlay.get_pixel(ox, oy);
+
+            let alpha_top = fg[3] as u32;
+            let blended = sh_weighted_sum(bg, fg, alpha_top);
+
+            base.draw_pixel(bx, by, blended);
+        }
+    }
+}

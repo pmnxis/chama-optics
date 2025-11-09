@@ -70,6 +70,8 @@ num-traits = "0.2.19"
 clap = { version = "4.5.50", features = ["derive"] }
 chrono = "0.4.42"
 font-kit = "0.14.3"
+resvg = "0.45.1"
+tiny-skia = "0.11.4"
 
 [profile.release]
 opt-level = 3

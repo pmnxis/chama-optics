@@ -5,7 +5,7 @@
  */
 
 #[allow(dead_code)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ColorType {
     Black,
     BlackMixed,
@@ -13,14 +13,14 @@ pub enum ColorType {
 }
 
 #[allow(dead_code)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum FillOperation {
     Default,
     Monochrome,
 }
 
 #[allow(dead_code)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum MnfRelation {
     Any,
     Both,
@@ -28,7 +28,7 @@ pub enum MnfRelation {
 
 #[allow(dead_code)]
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct LogoAsset {
+pub struct ArtAsset {
     pub key: &'static str,
     pub data: &'static [u8],
     pub color_type: ColorType,

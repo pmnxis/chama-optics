@@ -78,6 +78,12 @@ theme:
         ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 → 2000px 기준 100px)."
         ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 → 2000pxで100px)。"
 
+  strap:
+    title:
+      en: "Strap"
+      ko: "스트랩"
+      ja: "ストラップ"
+
   date_config:
     date_font_select:
       en: "Select date font"
