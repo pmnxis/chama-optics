@@ -97,6 +97,12 @@ impl OriginalExif {
     }
 
     /// Lens Model
+    pub fn lens_maker(&self) -> String {
+        // hex_dump(value.as_str());
+        self.get_exif_trim_string(Tag::LensMake)
+    }
+
+    /// Lens Model
     pub fn lens_model(&self) -> String {
         // hex_dump(value.as_str());
         self.get_exif_trim_string(Tag::LensModel)
@@ -149,6 +155,7 @@ impl OriginalExif {
 pub struct SimplifiedExif {
     pub camera_mnf: String,
     pub camera_model: String,
+    pub lens_mnf: String,
     pub lens_model: String,
     pub focal: String,
     pub fnumber: String,
@@ -165,6 +172,7 @@ impl core::default::Default for SimplifiedExif {
         Self {
             camera_mnf: String::new(),
             camera_model: String::new(),
+            lens_mnf: String::new(),
             lens_model: String::new(),
             focal: String::new(),
             fnumber: String::new(),
@@ -211,6 +219,7 @@ impl From<&OriginalExif> for SimplifiedExif {
         Self {
             camera_mnf: value.camera_mnf(),
             camera_model: value.camera_model(),
+            lens_mnf: value.lens_mnf(),
             lens_model: value.lens_model(),
             focal: value.focal(),
             fnumber: value.fnumber(),
@@ -421,6 +430,40 @@ impl SimplifiedExif {
 
     pub fn is_vertical_rotated(&self) -> bool {
         __is_vertical_rotated(self.orientation)
+    }
+
+    pub fn format_custom(&self, fmt: impl AsRef<str>) -> String {
+        let fmt = fmt.as_ref();
+        let json_value = serde_json::to_value(self).unwrap();
+        let map = json_value.as_object().unwrap();
+
+        let mut result = String::new();
+        let mut chars = fmt.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                let mut key = String::new();
+                while let Some(&next_ch) = chars.peek() {
+                    chars.next();
+                    if next_ch == '}' {
+                        break;
+                    }
+                    key.push(next_ch);
+                }
+                // return key
+                let replacement = match map.get(&key) {
+                    Some(serde_json::Value::String(s)) => s.clone(),
+                    Some(serde_json::Value::Number(n)) => n.to_string(),
+                    Some(serde_json::Value::Null) => "".to_string(),
+                    _ => format!("{{{key}}}"),
+                };
+                result.push_str(&replacement);
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
     }
 }
 
