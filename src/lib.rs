@@ -18,6 +18,7 @@ pub(crate) use fonts::FONTS_UNIFY;
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 pub(crate) use image::{exif_impl, packed_image};
 pub(crate) mod image;
+pub mod logo;
 
 pub(crate) mod effect;
 pub mod test_helper;

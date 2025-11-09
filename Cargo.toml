@@ -7,6 +7,7 @@ name = "chama-optics"
 version = "0.1.4-alpha"
 description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
+repository = "https://github.com/pmnxis/chama-optics"
 edition = "2024"
 include = ["LICENSE-NON-AI-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.88"
@@ -20,6 +21,9 @@ targets = ["x86_64-unknown-linux-gnu"]
 name = "Chama Optics"
 icon = ["chama-optics-x256.ico", "assets/mac-icon.png"]
 identifier = "com.github.pmnxis.chamaoptics"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(has_logo_asset_path)'] }
 
 [dependencies]
 egui = "^0.33"
@@ -112,7 +116,9 @@ opt-level = 2
 # eframe = { path = "../egui/crates/eframe" }
 
 [build-dependencies]
+serde = { version = "1", features = ["derive"] }
 reqwest = { version = "0.12.24", features = [
+    "gzip",
     "blocking",
     "rustls-tls",
 ], default-features = false }
@@ -120,3 +126,4 @@ zip = "6.0.0"
 md-5 = "0.10.6"
 cargo_metadata = "0.23"
 winres = "0.1"
+csv = "1.4"

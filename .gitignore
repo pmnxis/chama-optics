@@ -8,6 +8,8 @@ target
 target_rareu
 target_wasm
 bak
+assets/download
+assets/auto_generated
 Cargo.lock
 **/Cargo.lock
 .lycheecache

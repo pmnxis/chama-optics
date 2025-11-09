@@ -4,97 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-mod builtin_fonts {
-    include!("src/fonts/builtin_fonts.rs");
-
-    impl BuildAsset {
-        /// Download, verify MD5, unzip (if needed), and set cargo env var
-        pub fn load(&self, out_dir: &std::path::Path) {
-            use md5::{Digest, Md5};
-            use std::fs;
-            use std::io::{self, Cursor, Read};
-            use zip::ZipArchive;
-
-            let file_name = self.file_name.unwrap_or_else(|| {
-                self.url
-                    .split('/')
-                    .next_back()
-                    .expect("Cannot determine file name from URL")
-            });
-
-            let zip_path = out_dir.join(file_name);
-
-            println!("cargo:rerun-if-changed=build.rs");
-
-            // Download
-            if !zip_path.exists() {
-                println!("Downloading {} ...", self.url);
-                let resp = reqwest::blocking::get(self.url).expect("failed to download file");
-                let bytes = resp.bytes().expect("failed to read response bytes");
-                fs::write(&zip_path, &bytes).expect("failed to write downloaded file");
-            }
-
-            // MD5 check
-            let mut buffer = Vec::new();
-            fs::File::open(&zip_path)
-                .and_then(|mut f| f.read_to_end(&mut buffer))
-                .expect("failed to read downloaded file for MD5");
-
-            let mut hasher = Md5::new();
-            hasher.update(&buffer);
-            let actual_md5 = format!("{:x}", hasher.finalize());
-
-            if actual_md5 != self.expected_md5 {
-                panic!(
-                    "MD5 checksum mismatch for {}!\nExpected: {}\nActual:   {}",
-                    zip_path.display(),
-                    self.expected_md5,
-                    actual_md5
-                );
-            } else {
-                println!("MD5 checksum verified ✅");
-            }
-
-            // Unzip if necessary
-            if self.unzip {
-                let extract_list = self
-                    .extract_file_names
-                    .expect("extract_file_names required when unzip=true");
-                let env_keys = self.env_keys.expect("env_keys required when unzip=true");
-
-                if extract_list.len() != env_keys.len() {
-                    panic!("extract_file_names and env_keys must have the same length");
-                }
-
-                let reader = Cursor::new(buffer);
-                let mut archive = ZipArchive::new(reader).expect("failed to open zip archive");
-
-                for (extract_name, env_key) in extract_list.iter().zip(env_keys.iter()) {
-                    let out_path = out_dir.join(extract_name);
-                    if !out_path.exists() {
-                        println!("Extracting {extract_name} ...");
-                        let mut file = archive
-                            .by_name(extract_name)
-                            .unwrap_or_else(|_| panic!("{extract_name} not found in ZIP"));
-                        let mut extracted = Vec::new();
-                        io::copy(&mut file, &mut extracted).expect("failed to extract file");
-                        fs::write(&out_path, extracted).expect("failed to write extracted file");
-                    }
-
-                    // Export environment variable per file
-                    println!("cargo:rustc-env={}={}", env_key, out_path.display());
-                }
-            } else {
-                // If not unzip, assign directly
-                if let Some(env_keys) = self.env_keys {
-                    for env_key in env_keys {
-                        println!("cargo:rustc-env={}={}", env_key, zip_path.display());
-                    }
-                }
-            }
-        }
-    }
-}
+include!("prebuilt_src/fonts.rs");
+include!("prebuilt_src/logo.rs");
 
 use builtin_fonts::*;
 use std::env;
@@ -121,7 +32,11 @@ fn get_git_commit_hash(short: bool) -> Option<String> {
 }
 
 fn main() {
+    let logo_csv_path = PathBuf::from("assets/logo_mnf.csv");
+    let tmp_dir = PathBuf::from("assets/download");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=locales");
+    println!("cargo:rerun-if-changed={}", logo_csv_path.display());
 
     if cfg!(target_os = "windows") {
         let mut res = winres::WindowsResource::new();
@@ -186,8 +101,30 @@ fn main() {
     }
 
     // Enable only build-script logic in build_asset.rs
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     for asset in BUILTIN_FONTS {
         asset.load(&out_dir);
     }
+
+    // Logo related
+    std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
+    let generated_dir = PathBuf::from("assets/auto_generated");
+    std::fs::create_dir_all(&generated_dir).expect("failed to create src/generated directory");
+    let output_file = generated_dir.join("logo_assets.rs");
+
+    // Generate Rust source code
+    let generated_code = builtin_logos::generate(&tmp_dir, &logo_csv_path);
+
+    // std::fs::write(&output_file, generated_code).expect("failed to write generated logo_assets.rs");
+    write_if_changed(&output_file, &generated_code);
+
+    println!(
+        "cargo:rustc-env=LOGO_ASSET_PATH={}",
+        std::fs::canonicalize(&output_file)
+            .unwrap_or_else(|_| output_file.clone())
+            .display()
+    );
+    if std::env::var("LOGO_ASSET_PATH").is_ok() {
+        println!("cargo:rustc-cfg=has_logo_asset_path");
+    }
+    println!("✅ Generated {}", output_file.display());
 }

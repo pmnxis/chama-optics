@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
  *
- * SPDX-License-Identifier: LicenseRef-MIT
+ * SPDX-License-Identifier: MIT
  */
 
 use rust_i18n::t;

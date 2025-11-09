@@ -1,0 +1,34 @@
+﻿key,url,expected_md5,color_type,fill_ops,mnf,model,mnf_model_rel
+apple.svg,https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg,00587615733dd4954be85d8bf79f1d6f,Black,Default,apple,iphone,Any
+asus.svg,https://upload.wikimedia.org/wikipedia/commons/2/2e/ASUS_Logo.svg,db0d3062ee4842c23a4091366aec6fa6,Black,Default,asus,,Any
+canon.svg,https://upload.wikimedia.org/wikipedia/commons/0/0a/Canon_wordmark.svg,ead7f26512044fad4afe8fc64ba63e3d,Color,Default,canon,,Any
+contax.svg,assets/logo_mnf/contax.svg,71782b9391fb7260fbf5db9217399262,Black,Default,contax,,Any
+dji.svg,https://upload.wikimedia.org/wikipedia/commons/9/9a/DJI_Innovations_logo.svg,301d9ca6be4f18136759e6722010d58c,Color,Default,dji,,Any
+epson.svg,https://upload.wikimedia.org/wikipedia/commons/5/59/Epson_logo.svg,41653235ed4e6a53bb745e7ba2ab9ed2,Color,Default,epson,,Any
+fujifilm.svg,https://upload.wikimedia.org/wikipedia/commons/a/a1/Fujifilm_logo.svg,08f19c304f84d8c9a4e53669cfc6b7af,BlackMixed,Default,fuji,,Any
+google.svg,https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg,e99543bb86794e15928d03e9b41bb3c8,Color,Default,google,,Any
+hasselblad.svg,https://upload.wikimedia.org/wikipedia/commons/d/dd/Hasselblad_logo.svg,20cf3fdd80d28409bcab6a282e3f2671,Black,Default,hasselblad,,Any
+huawei.svg,https://upload.wikimedia.org/wikipedia/en/0/04/Huawei_Standard_logo.svg,b0ae7679fdd6b8c7cc0fa5936bc2a0bd,Color,Default,huawei,,Any
+kodak.svg,https://upload.wikimedia.org/wikipedia/commons/8/84/Eastman_Kodak_Company_logo_%282016%29.svg,e8f93a31d5487dbea012c8f7e2006043,Color,Default,kodak,,Any
+leica.svg,https://upload.wikimedia.org/wikipedia/commons/8/8e/Leica_Camera.svg,eeb638bb786ba7af871919fb473da23c,Color,Default,leica,,Any
+lenovo.svg,https://upload.wikimedia.org/wikipedia/commons/c/c9/Lenovo_%282015%29.svg,140ffe0b03783a209bcf3b4ef0a9533c,Black,Default,lenovo,,Any
+lumix.svg,https://upload.wikimedia.org/wikipedia/commons/3/3e/Lumix_logo.svg,8e2bbfb6211c4981de0457e2ec041196,Black,Default,panasonic,lumix,Any
+mamiya.svg,https://upload.wikimedia.org/wikipedia/commons/4/41/Mamiya_logo.svg,c3ec57dc37824f684582d6bccdbbb588,Color,Default,maminy,,Any
+nec.svg,https://upload.wikimedia.org/wikipedia/commons/9/96/NEC_logo.svg,1947566026101aa6f1b3909b28ccde6c,Color,Default,nec,,Any
+nikon.svg,https://upload.wikimedia.org/wikipedia/commons/f/f3/Nikon_Logo.svg,3e730f62af1d6066125a3bf82bae3c4d,Color,Default,nikon,,Any
+nothing.svg,https://upload.wikimedia.org/wikipedia/commons/3/30/Nothing.svg,38dc920613a776a36ede00fc8f74e10a,Black,Default,nothing,,Any
+olympus.svg,https://upload.wikimedia.org/wikipedia/commons/2/2d/Olympus_Corporation_logo.svg,aeb70eb133f690bff49a428757d51de7,Color,Default,olympus,,Any
+om_system.svg,https://upload.wikimedia.org/wikipedia/commons/5/53/OM_Digital_Solutions_Logo.svg,df00467317d3d9e1e7ca05df7145350c,Black,Default,om digital,,Any
+pentax.svg,https://upload.wikimedia.org/wikipedia/commons/8/81/Pentax_Logo.svg,ace73a6251435a1512f553708170a644,Color,Monochrome,pentax,,Any
+phaseone.svg,https://upload.wikimedia.org/wikipedia/commons/2/28/Phase_One_logo.svg,3faebadc043aaa8b1a049c87aad0197a,Color,Default,phase one,,Any
+poco.svg,https://upload.wikimedia.org/wikipedia/commons/7/78/Poco_Smartphone_Company_logo.svg,859860ecfa2c3eac97d4f31a9fc42bbb,Color,Default,poco,,Any
+redmi.svg,https://upload.wikimedia.org/wikipedia/commons/4/4d/Xiaomi_Redmi_Logo.svg,1b660532134dd4a4c094c8ec9ab7718e,Black,Default,redmi,,Any
+ricoh.svg,https://upload.wikimedia.org/wikipedia/commons/2/2e/Ricoh_logo_2005.svg,58a28fb9c0b5a966431ca3f1d458f0a5,Color,Default,ricoh,,Any
+samsung.svg,https://upload.wikimedia.org/wikipedia/commons/b/b7/Samsung_Black_icon.svg,2d2d42b208d929a3fccb7ccf39a87856,Black,Default,samsung,,Any
+sharp.svg,https://upload.wikimedia.org/wikipedia/commons/c/c8/Logo_of_the_Sharp_Corporation.svg,98f0ae673826b171fea64d998c8230be,Color,Default,sharp,,Any
+sigma2025.svg,https://upload.wikimedia.org/wikipedia/commons/8/8f/Sigma%27s_new_updated_logo_revealed%2C_February_2025.svg,c0ea0e16c7c3b44d0cf4ac0f0824d37b,Black,Default,sigma,sigma bf,Both
+sigma.svg,https://upload.wikimedia.org/wikipedia/commons/b/bb/SIGMA_CORPORATION.svg,e15c52752bd9c53ff4cc16620c7b486f,Black,Default,sigma,,Any
+sony.svg,https://upload.wikimedia.org/wikipedia/commons/c/ca/Sony_logo.svg,1ed13aab2c2264d4bb0ff45bb066198d,Black,Default,sony,,Any
+xiaomi.svg,https://upload.wikimedia.org/wikipedia/commons/a/ae/Xiaomi_logo_%282021-%29.svg,80caddd717cfafd45b0671c5b8969296,Color,Default,xiaomi,,Any
+zte.svg,https://upload.wikimedia.org/wikipedia/commons/2/20/ZTE-logo.svg,5910de8e4a95f4ac6b0ba21fc000b433,Color,Default,zte,,Any
+zeiss.svg,https://upload.wikimedia.org/wikipedia/commons/9/95/Zeiss_logo.svg,f4e304393afc62dc3462bd0619540473,Color,Default,zeiss,,Any
