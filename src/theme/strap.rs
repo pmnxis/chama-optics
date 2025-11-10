@@ -19,11 +19,12 @@ pub struct Strap {
     show_hint: bool,
 }
 
-const DEFAULT_BORDER_MIN_SIZE: u32 = 120;
+const DEFAULT_BORDER_DEFAULT_SIZE: u32 = 120;
+const DEFAULT_BORDER_MIN_SIZE: u32 = 60;
 const DEFAULT_LIMIT: crate::effect::border::BorderLimit =
     crate::effect::border::BorderLimit::bottom(DEFAULT_BORDER_MIN_SIZE, 900);
 const DEFAULT_BORDER: crate::effect::border::Border =
-    crate::effect::border::Border::bottom(DEFAULT_BORDER_MIN_SIZE, egui::Color32::WHITE);
+    crate::effect::border::Border::bottom(DEFAULT_BORDER_DEFAULT_SIZE, egui::Color32::WHITE);
 // const DEFAULT_FONT_SIZE: u32 = 25;
 
 impl core::default::Default for Strap {
