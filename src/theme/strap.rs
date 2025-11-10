@@ -102,9 +102,6 @@ impl Theme for Strap {
         let left_top = pi.view_exif.format_custom(&self.exif_left_top);
         let left_bot = pi.view_exif.format_custom(&self.exif_left_bot);
 
-        println!("{} => {left_top}", self.exif_left_top);
-        println!("{} => {left_bot}", self.exif_left_bot);
-
         let mut y = txt_y_base;
         let left_x = txt_b_gap * 1.2 + ll as f32;
 
@@ -116,9 +113,6 @@ impl Theme for Strap {
         // right
         let right_top = pi.view_exif.format_custom(&self.exif_right_top);
         let right_bot = pi.view_exif.format_custom(&self.exif_right_bot);
-
-        println!("{} => {right_top}", self.exif_right_top);
-        println!("{} => {right_bot}", self.exif_right_bot);
 
         let mut y = txt_y_base;
         let right_x = new_image.width() as f32 - txt_b_gap * 1.2 - rr as f32;
