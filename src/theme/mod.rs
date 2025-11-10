@@ -53,6 +53,8 @@ pub trait Theme {
     ) -> Result<(), image::ImageError>;
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui);
+
+    // todo - the trait reset some value when UI is selected
 }
 /// Serializable state used for saving/loading preferences.
 #[derive(Debug, Clone, Serialize, Deserialize)]

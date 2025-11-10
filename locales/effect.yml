@@ -1,0 +1,73 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+effect:
+  border:
+    title:
+      en: "Border"
+      ko: "테두리"
+      ja: "枠線"
+    top:
+      en: "Top"
+      ko: "위쪽"
+      ja: "上"
+    bottom:
+      en: "Bottom"
+      ko: "아래쪽"
+      ja: "下"
+    left:
+      en: "Left"
+      ko: "왼쪽"
+      ja: "左"
+    right:
+      en: "Right"
+      ko: "오른쪽"
+      ja: "右"
+    color:
+      en: "Color"
+      ko: "색상"
+      ja: "色"
+    padding:
+      en: "Frame padding"
+      ko: "프레임 여백"
+      ja: "フレーム余白"
+    padding_description:
+      en: "Adjust how much space to leave around the image."
+      ko: "이미지 주변에 얼마나 여백을 둘지 설정합니다."
+      ja: "画像の周囲にどのくらい余白を設けるかを設定します。"
+    padding_mode:
+      label:
+        en: "Padding mode"
+        ko: "여백 모드"
+        ja: "余白モード"
+      absolute:
+        en: "Absolute"
+        ko: "절대값"
+        ja: "固定値"
+      absolute_hint:
+        en: "Use a fixed padding value (e.g., 100px)."
+        ko: "고정된 여백 크기(예: 100px)를 사용합니다."
+        ja: "固定の余白値(例: 100px)を使用します。"
+      relative:
+        en: "Relative"
+        ko: "상대값"
+        ja: "相対値"
+      relative_hint:
+        en: "Scale padding relative to 2000px width (e.g., 100 → 100px at 2000px)."
+        ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 → 2000px 기준 100px)."
+        ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 → 2000pxで100px)。"
+    default:
+      en: "↺ Default"
+      ko: "↺ 기본값"
+      ja: "↺ デフォルト"
+    default_desc:
+      en: "Return border configuration to default"
+      ko: "테두리 설정을 기본값으로 되돌리기"
+      ja: "枠線設定をデフォルトに戻す"
+    preview_desc:
+      en: "Actual results may vary depending on photo size."
+      ko: "실제 결과는 사진 크기마다 다릅니다."
+      ja: "実際の結果は写真サイズによって異なります。"

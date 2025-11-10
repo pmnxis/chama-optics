@@ -432,6 +432,24 @@ impl SimplifiedExif {
         __is_vertical_rotated(self.orientation)
     }
 
+    fn format_key(
+        &self,
+        map: &serde_json::Map<String, serde_json::Value>,
+        key: impl AsRef<str>,
+    ) -> String {
+        match key.as_ref() {
+            "fnumber" => self.get_fnumber().unwrap_or_default(),
+            "exposure" => self.get_exposure().unwrap_or_default(),
+            // default
+            default => match map.get(default) {
+                Some(serde_json::Value::String(s)) => s.clone(),
+                Some(serde_json::Value::Number(n)) => n.to_string(),
+                Some(serde_json::Value::Null) => "".to_string(),
+                _ => "".to_string(),
+            },
+        }
+    }
+
     pub fn format_custom(&self, fmt: impl AsRef<str>) -> String {
         let fmt = fmt.as_ref();
         let json_value = serde_json::to_value(self).unwrap();
@@ -450,14 +468,24 @@ impl SimplifiedExif {
                     }
                     key.push(next_ch);
                 }
-                // return key
-                let replacement = match map.get(&key) {
-                    Some(serde_json::Value::String(s)) => s.clone(),
-                    Some(serde_json::Value::Number(n)) => n.to_string(),
-                    Some(serde_json::Value::Null) => "".to_string(),
-                    _ => format!("{{{key}}}"),
-                };
-                result.push_str(&replacement);
+
+                let val = self.format_key(map, key);
+                result.push_str(&val);
+            } else if ch == '[' {
+                let mut block_content = String::new();
+                for c in chars.by_ref() {
+                    if c == ']' {
+                        break;
+                    }
+                    block_content.push(c);
+                }
+
+                let expanded = self.format_custom(block_content.as_str());
+
+                // remove [ ]
+                if expanded.chars().any(|c| !c.is_whitespace()) {
+                    result.push_str(&expanded);
+                }
             } else {
                 result.push(ch);
             }

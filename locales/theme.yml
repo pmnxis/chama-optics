@@ -44,39 +44,6 @@ theme:
       en: "Just frame"
       ko: "단순 프레임"
       ja: "単純余白"
-    padding:
-      en: "Frame padding"
-      ko: "프레임 여백"
-      ja: "フレーム余白"
-    padding_description:
-      en: "Adjust how much space to leave around the image."
-      ko: "이미지 주변에 얼마나 여백을 둘지 설정합니다."
-      ja: "画像の周囲にどのくらい余白を設けるかを設定します。"
-    color:
-      en: "Frame color"
-      ko: "프레임 색상"
-      ja: "フレームの色"
-    padding_mode:
-      label:
-        en: "Padding mode"
-        ko: "여백 모드"
-        ja: "余白モード"
-      absolute:
-        en: "Absolute"
-        ko: "절대값"
-        ja: "固定値"
-      absolute_hint:
-        en: "Use a fixed padding value (e.g., 100px)."
-        ko: "고정된 여백 크기(예: 100px)를 사용합니다."
-        ja: "固定の余白値(例: 100px)を使用します。"
-      relative:
-        en: "Relative"
-        ko: "상대값"
-        ja: "相対値"
-      relative_hint:
-        en: "Scale padding relative to 2000px width (e.g., 100 → 100px at 2000px)."
-        ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 → 2000px 기준 100px)."
-        ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 → 2000pxで100px)。"
 
   strap:
     title:
@@ -110,3 +77,74 @@ theme:
         ko: "사진을 표시할 때 EXIF 데이터의 카메라 기종과 렌즈 정보를 숨깁니다."
         ja: "写真表示時にEXIFデータ内のカメラ機種とレンズ情報を非表示にします。"
 
+  strap_config:
+    exif_left_top:
+      en: "Top Left"
+      ko: "좌상단"
+      ja: "左上"
+    exif_right_top:
+      en: "Top Right"
+      ko: "우상단"
+      ja: "右上"
+    exif_left_bot:
+      en: "Bottom Left"
+      ko: "좌하단"
+      ja: "左下"
+    exif_right_bot:
+      en: "Bottom Right"
+      ko: "우하단"
+      ja: "右下"
+    font_color:
+      en: "Font color"
+      ko: "폰트 색상"
+      ja: "フォントカラー"
+
+
+  template_format_hint:
+    title:
+      en: "About Template Format"
+      ko: "탬플릿 문자열에 관하여"
+      ja: "フィールド名に関して"
+    description:
+      en: |
+        You can customize how EXIF info is shown using `{}` placeholders.  
+        Each `{key}` will be replaced with the corresponding value from the photo’s metadata.  
+        If the value is empty or missing, the entire block wrapped in `[...]` will be hidden automatically.
+
+        **Example:**
+        ```
+        [ISO{iso_speed}] [{focal}mm] [F{fnumber}] [{exposure}s]
+        ```
+
+        - If `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"`,  
+          → **Result:** `ISO200 35mm F1.8 1/125s`
+        - If `focal` is empty,  
+          → **Result:** `ISO200 F1.8 1/125s` (the `[ {focal}mm ]` part is skipped)
+
+      ko: |
+        `{}` 안에 EXIF 필드 이름을 입력하면 자동으로 값이 치환됩니다.  
+        해당 값이 비어 있거나 존재하지 않으면, `[...]`로 감싼 부분 전체가 표시되지 않습니다.
+
+        **예시:**
+        ```
+        [ISO{iso_speed}] [{focal}mm] [F{fnumber}] [{exposure}s]
+        ```
+
+        - `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"` 일 때  
+          → **결과:** `ISO200 35mm F1.8 1/125s`
+        - `focal` 값이 없을 경우  
+          → **결과:** `ISO200 F1.8 1/125s` (`[{focal}mm]` 전체가 숨겨짐)
+
+      ja: |
+        `{}` 内に EXIF フィールド名を入力すると、その値が自動的に置き換えられます。  
+        値が空または存在しない場合、対応する `[...]` ブロック全体が非表示になります。
+
+        **例:**
+        ```
+        [ISO{iso_speed}] [{focal}mm] [F{fnumber}] [{exposure}s]
+        ```
+
+        - `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"` の場合  
+          → **結果:** `ISO200 35mm F1.8 1/125s`
+        - `focal` が空の場合  
+          → **結果:** `ISO200 F1.8 1/125s` (`[{focal}mm]` ブロックは表示されません)
