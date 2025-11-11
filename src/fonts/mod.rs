@@ -10,6 +10,7 @@ use eframe::egui;
 
 pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
+pub(crate) mod variable_font;
 
 struct BuiltInFonts {
     pub(crate) name: &'static str,
@@ -34,28 +35,11 @@ const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
 };
 
-pub struct BarlowFontPack {
-    pub font: [ab_glyph::FontArc; 9],
-}
-
 lazy_static::lazy_static! {
     pub static ref FONTS_UNIFY: crate::fonts::font_unify::FontsUnify = crate::fonts::font_unify::FontsUnify::new();
 
     pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
     pub static ref FONT_DIGITS_ITALIC: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH"))).expect("Cannot init font.");
-
-    pub static ref FONT_PACK_BARLOW: BarlowFontPack = BarlowFontPack {
-        font : [
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_100_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_200_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_300_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_400_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_500_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_600_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_700_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_800_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_900_FONT_PATH"))).unwrap(),
-    ]};
 }
 
 // Demonstrates how to replace all fonts.

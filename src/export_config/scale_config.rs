@@ -264,7 +264,7 @@ impl ScaleConfig {
                 ui.label(self.mode.field_label());
                 if self.mode == ScaleMode::Divide {
                     ui.label(t!("scale_config.divide_prefix"));
-                    ui.add(egui::DragValue::new(&mut self.scale_value).range(1.0..=128.0));
+                    ui.add(egui::DragValue::new(&mut self.scale_value).range(1.0..=10.0));
                     ui.label(t!("scale_config.divide_postfix"));
                 } else if self.mode == ScaleMode::ResizeAndCrop {
                     // ResizeAndCrop has two value

@@ -8,4 +8,5 @@ pub(crate) mod border;
 pub(crate) mod custom_weighted_sum;
 pub(crate) mod draw_with_transparency;
 pub(crate) mod glow;
+pub(crate) mod variable_text;
 pub(crate) mod watermark;
