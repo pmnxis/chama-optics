@@ -98,7 +98,10 @@ theme:
       en: "Font color"
       ko: "폰트 색상"
       ja: "フォントカラー"
-
+  logo_height:
+    en: "Logo height"
+    ko: "로고 높이"
+    ja: "ロゴの高さ"
 
   template_format_hint:
     title:

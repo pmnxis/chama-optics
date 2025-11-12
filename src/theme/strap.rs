@@ -13,6 +13,7 @@ use rust_i18n::t;
 pub struct Strap {
     border: crate::effect::border::Border,
     pub font_color: egui::Color32,
+    pub logo_height: u32,
     pub left_top: VariableTextSlot,
     pub left_bot: VariableTextSlot,
     pub right_top: VariableTextSlot,
@@ -31,6 +32,7 @@ const DEFAULT_RIGHT_BOT: VariableTextSlotDefault =
 
 const DEFAULT_BORDER_DEFAULT_SIZE: u32 = 120;
 const DEFAULT_BORDER_MIN_SIZE: u32 = 60;
+const DEFAULT_LOGO_HEIGHT: u32 = 75;
 const DEFAULT_LIMIT: crate::effect::border::BorderLimit =
     crate::effect::border::BorderLimit::bottom(DEFAULT_BORDER_MIN_SIZE, 900);
 const DEFAULT_BORDER: crate::effect::border::Border =
@@ -42,6 +44,7 @@ impl core::default::Default for Strap {
         Self {
             border: DEFAULT_BORDER,
             font_color: egui::Color32::BLACK,
+            logo_height: DEFAULT_LOGO_HEIGHT,
             left_top: VariableTextSlot::from_default(&DEFAULT_LEFT_TOP),
             left_bot: VariableTextSlot::from_default(&DEFAULT_LEFT_BOT),
             right_top: VariableTextSlot::from_default(&DEFAULT_RIGHT_TOP),
@@ -115,11 +118,16 @@ impl Theme for Strap {
         // left
         let mut y = txt_y_base;
         let left_x = txt_b_gap * 1.2 + ll as f32;
+        let mut max_left_x = left_x;
 
         for item in [&self.left_top, &self.left_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
+            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, item.get_font(), &txt);
+
             draw!(left_x, y, item.get_font(), txt_scale, &txt);
+
             y -= txt_scale.y;
+            max_left_x = max_left_x.max(www + left_x);
         }
 
         // right
@@ -129,7 +137,7 @@ impl Theme for Strap {
         let mut min_right_x = right_x;
         for item in [&self.right_top, &self.right_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
-            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &font, &txt);
+            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, item.get_font(), &txt);
             let new_right_x = right_x - www;
 
             draw!(new_right_x, y, item.get_font(), txt_scale, &txt);
@@ -141,12 +149,18 @@ impl Theme for Strap {
         if let Some(svg) = crate::ART_UNIFY.get_camera_logo(&pi.view_exif) {
             use image::GenericImageView;
 
-            let svg_rel_size = self.rel_size(0.75, bb);
-            let logo = svg.draw(svg_rel_size as u32)?;
+            // | Left Str1                                Right Str1 |
+            // | Left Str2                                Right Str2 |
+            // |           <----- available width ------>            |
+
+            let logo_height_ratio = self.logo_height.clamp(10, 75) as f32 / 100.0;
+            let avail_width = min_right_x - max_left_x;
+            let avail_height = self.rel_size(logo_height_ratio, bb);
+            let logo = svg.draw_fit(avail_width.trunc() as u32, avail_height.trunc() as u32)?;
 
             let logo_x = (min_right_x - (txt_b_gap * 2.0)) as i32 - logo.width() as i32;
-            let logo_y =
-                (new_image.dimensions().1 as i32) - (bb as i32) + self.rel_size(0.125, bb) as i32;
+            let logo_y = (new_image.dimensions().1 as i32) - ((bb + logo.height()) / 2) as i32;
+            // (new_image.dimensions().1 as i32) - (bb as i32) + self.rel_size(0.125, bb) as i32;
 
             // resolve overflow issue
             let logo_x = if logo_x < 0 {
@@ -168,7 +182,7 @@ impl Theme for Strap {
             if is_overflow {
                 log::error!("{dyn_w} x {dyn_h}");
                 log::error!(
-                    "svg_rel_size : {svg_rel_size}, min_right_x : {min_right_x}, txt_b_gap : {txt_b_gap}, logo : {} x {}",
+                    "logo_height_ratio : {logo_height_ratio}, min_right_x : {min_right_x}, txt_b_gap : {txt_b_gap}, logo : {} x {}",
                     logo.width(),
                     logo.height()
                 );
@@ -207,6 +221,19 @@ impl Theme for Strap {
                         &mut self.font_color,
                         egui::color_picker::Alpha::Opaque,
                     );
+                    ui.end_row();
+
+                    ui.label(t!("theme.logo_height"));
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            // [slider_width, 23.0],
+                            egui::Slider::new(&mut self.logo_height, 10..=90).step_by(0.01),
+                        );
+                        ui.label("% ");
+                        if ui.button("↺").clicked() {
+                            self.logo_height = DEFAULT_LOGO_HEIGHT;
+                        }
+                    });
                     ui.end_row();
 
                     self.left_top.ui(
