@@ -11,6 +11,9 @@ use eframe::egui;
 pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
 pub(crate) mod variable_font;
+pub(crate) use variable_font::{
+    BUILTIN_VARIABLE_FONTS, BuiltinVariableFontIndex, VariableFontPack,
+};
 
 struct BuiltInFonts {
     pub(crate) name: &'static str,

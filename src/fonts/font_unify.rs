@@ -22,7 +22,7 @@ pub enum FontSort {
 }
 
 #[rustfmt::skip]
-#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, strum::Display)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, strum::Display, Debug)]
 pub enum FontError {
     Unknown,
     InvalidIndex(usize),
@@ -34,14 +34,14 @@ pub enum FontError {
     NonRecoverSelectedFont,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Default, Clone, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Default, Clone, Debug)]
 pub struct FontIndex {
     pub sort: FontSort,
     pub index: usize,
     pub path: Option<std::path::PathBuf>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Default, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, PartialEq, Default, Clone, Debug)]
 pub struct FontSelection {
     pub name: String,
     pub select: FontIndex,

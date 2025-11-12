@@ -9,6 +9,10 @@ fonts_selector:
     en: "Select a font"
     ko: "폰트 선택"
     ja: "フォントを選択"
+  variable_fonts:
+    en: "↔ Variable Fonts"
+    ko: "↔ 프로그램 내장 가변폭 폰트"
+    ja: "↔ 内蔵可変フォント"
   builtin_fonts:
     en: "⛶ Built-in Fonts"
     ko: "⛶ 프로그램 내장 폰트"

@@ -122,9 +122,9 @@ impl Theme for Strap {
 
         for item in [&self.left_top, &self.left_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
-            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, item.get_font(), &txt);
+            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
 
-            draw!(left_x, y, item.get_font(), txt_scale, &txt);
+            draw!(left_x, y, &item.get_font(), txt_scale, &txt);
 
             y -= txt_scale.y;
             max_left_x = max_left_x.max(www + left_x);
@@ -137,10 +137,10 @@ impl Theme for Strap {
         let mut min_right_x = right_x;
         for item in [&self.right_top, &self.right_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
-            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, item.get_font(), &txt);
+            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
             let new_right_x = right_x - www;
 
-            draw!(new_right_x, y, item.get_font(), txt_scale, &txt);
+            draw!(new_right_x, y, &item.get_font(), txt_scale, &txt);
             y -= txt_scale.y;
             min_right_x = min_right_x.min(new_right_x);
         }
@@ -203,7 +203,7 @@ impl Theme for Strap {
         )
     }
 
-    fn ui_config(&mut self, _ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -237,6 +237,7 @@ impl Theme for Strap {
                     ui.end_row();
 
                     self.left_top.ui(
+                        ctx,
                         ui,
                         t!("theme.strap_config.exif_left_top"),
                         &DEFAULT_LEFT_TOP,
@@ -244,6 +245,7 @@ impl Theme for Strap {
                     ui.end_row();
 
                     self.left_bot.ui(
+                        ctx,
                         ui,
                         t!("theme.strap_config.exif_left_bot"),
                         &DEFAULT_LEFT_BOT,
@@ -251,6 +253,7 @@ impl Theme for Strap {
                     ui.end_row();
 
                     self.right_top.ui(
+                        ctx,
                         ui,
                         t!("theme.strap_config.exif_right_top"),
                         &DEFAULT_RIGHT_TOP,
@@ -258,6 +261,7 @@ impl Theme for Strap {
                     ui.end_row();
 
                     self.right_bot.ui(
+                        ctx,
                         ui,
                         t!("theme.strap_config.exif_right_bot"),
                         &DEFAULT_RIGHT_BOT,
