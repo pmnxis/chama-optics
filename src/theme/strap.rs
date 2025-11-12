@@ -279,4 +279,8 @@ impl Theme for Strap {
             }
         });
     }
+
+    fn is_ui_config_available(&self) -> bool {
+        true
+    }
 }

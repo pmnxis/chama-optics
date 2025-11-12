@@ -153,12 +153,19 @@ impl Watermark {
     }
 
     pub fn update_ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                // left
-                ui.checkbox(&mut self.is_enabled, t!("watermark.is_enabled"));
+        ui.vertical(|ui| {
+            // left
+            ui.checkbox(&mut self.is_enabled, t!("watermark.is_enabled"));
 
-                self.font.update_ui_with_default_label(ctx, ui);
+            self.font.update_ui_with_default_label(ctx, ui);
+
+            ui.horizontal(|ui| {
+                egui::color_picker::color_edit_button_srgba(
+                    ui,
+                    &mut self.font_color,
+                    egui::color_picker::Alpha::BlendOrAdditive,
+                );
+                ui.add_space(1.0);
                 ui.add(
                     egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")),
                 )
@@ -166,73 +173,57 @@ impl Watermark {
                     "theme.font_size_description",
                     default = DEFAULT_FONT_SIZE
                 ));
-                ui.label(t!("watermark.text"));
-                ui.add(egui::TextEdit::singleline(&mut self.label).desired_width(200.0));
-                ui.label(t!("watermark.position"));
+            });
+            ui.label(t!("watermark.text"));
+            ui.add(egui::TextEdit::singleline(&mut self.label).desired_width(200.0));
+            ui.label(t!("watermark.position"));
 
-                ui.horizontal(|ui| {
-                    ui.vertical(|ui| {
-                        for row in 0..3 {
-                            ui.horizontal(|ui| {
-                                for col in 0..3 {
-                                    let i = (row * 3 + col + 1) as u8;
-                                    let selected = self.position == i;
-                                    let label = POSITION_ICONS[(i - 1) as usize];
-                                    let hover = t!(format!("watermark.position.{}", i));
-                                    if ui
-                                        .selectable_label(selected, label)
-                                        .on_hover_text(hover)
-                                        .clicked()
-                                    {
-                                        self.position = i;
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    // corner
-                    ui.vertical(|ui| {
-                        ui.label(t!("watermark.blend_mode.label"));
-
+            ui.horizontal(|ui| {
+                ui.vertical(|ui| {
+                    for row in 0..3 {
                         ui.horizontal(|ui| {
-                            let normal_selected = !self.is_screen_overlay;
-                            let screen_selected = self.is_screen_overlay;
-
-                            if ui
-                                .selectable_label(
-                                    normal_selected,
-                                    t!("watermark.blend_mode.normal"),
-                                )
-                                .on_hover_text(t!("watermark.blend_mode.normal_hint"))
-                                .clicked()
-                            {
-                                self.is_screen_overlay = false;
-                            }
-
-                            if ui
-                                .selectable_label(
-                                    screen_selected,
-                                    t!("watermark.blend_mode.screen"),
-                                )
-                                .on_hover_text(t!("watermark.blend_mode.screen_hint"))
-                                .clicked()
-                            {
-                                self.is_screen_overlay = true;
+                            for col in 0..3 {
+                                let i = (row * 3 + col + 1) as u8;
+                                let selected = self.position == i;
+                                let label = POSITION_ICONS[(i - 1) as usize];
+                                let hover = t!(format!("watermark.position.{}", i));
+                                if ui
+                                    .selectable_label(selected, label)
+                                    .on_hover_text(hover)
+                                    .clicked()
+                                {
+                                    self.position = i;
+                                }
                             }
                         });
+                    }
+                });
+
+                // corner
+                ui.vertical(|ui| {
+                    ui.label(t!("watermark.blend_mode.label"));
+
+                    ui.horizontal(|ui| {
+                        let normal_selected = !self.is_screen_overlay;
+                        let screen_selected = self.is_screen_overlay;
+
+                        if ui
+                            .selectable_label(normal_selected, t!("watermark.blend_mode.normal"))
+                            .on_hover_text(t!("watermark.blend_mode.normal_hint"))
+                            .clicked()
+                        {
+                            self.is_screen_overlay = false;
+                        }
+
+                        if ui
+                            .selectable_label(screen_selected, t!("watermark.blend_mode.screen"))
+                            .on_hover_text(t!("watermark.blend_mode.screen_hint"))
+                            .clicked()
+                        {
+                            self.is_screen_overlay = true;
+                        }
                     });
                 });
-            });
-
-            ui.vertical(|ui| {
-                // right
-                ui.add_space(1.0);
-                egui::color_picker::color_picker_color32(
-                    ui,
-                    &mut self.font_color,
-                    egui::color_picker::Alpha::BlendOrAdditive,
-                );
             });
         });
     }

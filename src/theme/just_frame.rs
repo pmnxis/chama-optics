@@ -55,4 +55,8 @@ impl Theme for JustFrame {
     fn ui_config(&mut self, _ctx: &egui::Context, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
     }
+
+    fn is_ui_config_available(&self) -> bool {
+        true
+    }
 }

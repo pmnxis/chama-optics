@@ -164,33 +164,33 @@ impl Theme for FilmDate {
             .update_ui_with_label(ctx, ui, t!("theme.date_config.date_font_select"));
 
         ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")),
-                )
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut self.font_color,
+                egui::color_picker::Alpha::Opaque,
+            );
+            ui.add_space(1.0);
+            ui.add(egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")))
                 .on_hover_text(t!(
                     "theme.font_size_description",
                     default = DEFAULT_FONT_SIZE
                 ));
-                ui.add_space(1.0);
-                egui::color_picker::color_picker_color32(
-                    ui,
-                    &mut self.font_color,
-                    egui::color_picker::Alpha::Opaque,
-                );
-            });
-            ui.vertical(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
-                        .text(t!("theme.film_config.glow_range")),
-                );
-                ui.add_space(1.0);
-                egui::color_picker::color_picker_color32(
-                    ui,
-                    &mut self.glow_color,
-                    egui::color_picker::Alpha::Opaque,
-                );
-            });
         });
+        ui.horizontal(|ui| {
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut self.glow_color,
+                egui::color_picker::Alpha::Opaque,
+            );
+            ui.add_space(1.0);
+            ui.add(
+                egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
+                    .text(t!("theme.film_config.glow_range")),
+            );
+        });
+    }
+
+    fn is_ui_config_available(&self) -> bool {
+        true
     }
 }

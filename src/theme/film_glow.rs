@@ -165,10 +165,16 @@ impl Theme for FilmGlow {
     }
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                self.font.update_ui_with_default_label(ctx, ui);
+        ui.vertical(|ui| {
+            self.font.update_ui_with_default_label(ctx, ui);
 
+            ui.horizontal(|ui| {
+                egui::color_picker::color_edit_button_srgba(
+                    ui,
+                    &mut self.font_color,
+                    egui::color_picker::Alpha::Opaque,
+                );
+                ui.add_space(1.0);
                 ui.add(
                     egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")),
                 )
@@ -176,25 +182,23 @@ impl Theme for FilmGlow {
                     "theme.font_size_description",
                     default = DEFAULT_FONT_SIZE
                 ));
-                ui.add_space(1.0);
-                egui::color_picker::color_picker_color32(
-                    ui,
-                    &mut self.font_color,
-                    egui::color_picker::Alpha::Opaque,
-                );
             });
-            ui.vertical(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
-                        .text(t!("theme.film_config.glow_range")),
-                );
-                ui.add_space(1.0);
-                egui::color_picker::color_picker_color32(
+            ui.horizontal(|ui| {
+                egui::color_picker::color_edit_button_srgba(
                     ui,
                     &mut self.glow_color,
                     egui::color_picker::Alpha::Opaque,
                 );
+                ui.add_space(1.0);
+                ui.add(
+                    egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
+                        .text(t!("theme.film_config.glow_range")),
+                );
             });
         });
+    }
+
+    fn is_ui_config_available(&self) -> bool {
+        true
     }
 }

@@ -54,6 +54,8 @@ pub trait Theme {
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui);
 
+    fn is_ui_config_available(&self) -> bool;
+
     // todo - the trait reset some value when UI is selected
 }
 /// Serializable state used for saving/loading preferences.
@@ -162,12 +164,12 @@ impl ThemeRegistry {
                     }
                 });
 
-            ui.collapsing(t!("theme.settings"), |ui| {
-                self.themes[self.selected]
-                    .write()
-                    .unwrap()
-                    .ui_config(ctx, ui);
-            });
+            let mut theme = self.themes[self.selected].write().unwrap();
+            if theme.is_ui_config_available() {
+                ui.collapsing(t!("theme.settings"), |ui| {
+                    theme.ui_config(ctx, ui);
+                });
+            }
         });
     }
 

@@ -32,6 +32,10 @@ impl Theme for Nothing {
     }
 
     fn ui_config(&mut self, _ctx: &egui::Context, _ui: &mut egui::Ui) {
-        // show ui here
+        // nothing, because `is_ui_config_available(&self) is false`
+    }
+
+    fn is_ui_config_available(&self) -> bool {
+        false
     }
 }
