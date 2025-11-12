@@ -17,11 +17,12 @@ pub(crate) use art::ART_UNIFY;
 pub(crate) use fonts::FONTS_UNIFY;
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 pub(crate) use image::{exif_impl, packed_image};
-pub mod art;
-pub(crate) mod image;
 
+pub mod art;
 pub(crate) mod effect;
+pub(crate) mod image;
 pub mod test_helper;
+mod util;
 
 pub mod theme;
 // pub(crate) mod preview;

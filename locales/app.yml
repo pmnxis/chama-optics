@@ -57,3 +57,33 @@ app:
       en: "✏Edit"
       ko: "✏수정"
       ja: "✏編集"
+
+update:
+  not_checked:
+    en: "Release not checked"
+    ko: "아직 릴리스를 확인하지 않았습니다"
+    ja: "リリースはまだ確認されていません"
+  checking:
+    en: "Checking for updates..."
+    ko: "アップデートを確認中..."
+    ja: "アップデートを確認中..."
+  label:
+    en: "New version available:"
+    ko: "새 버전이 있습니다:"
+    ja: "新しいバージョンがあります:"
+  no_info:
+    en: "New update found, but no version info."
+    ko: "새 버전이 있지만 정보가 없습니다."
+    ja: "新しいバージョンが見つかりましたが、情報がありません。"
+  checked:
+    en: "You are using the latest version."
+    ko: "최신 버전을 사용 중입니다."
+    ja: "最新バージョンを使用しています。"
+  status_unavailable:
+    en: "Status unavailable"
+    ko: "상태를 읽을 수 없습니다."
+    ja: "ステータスを読み取れません。"
+  read_fail:
+    en: "Failed to read new version info."
+    ko: "새 버전 정보를 읽지 못했습니다."
+    ja: "新しいバージョン情報を読み取れませんでした。"

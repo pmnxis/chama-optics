@@ -18,6 +18,9 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
+
+    #[serde(skip)]
+    pub update: crate::util::check_update::CheckRelease,
 }
 
 impl Default for ChamaOptics {
@@ -28,6 +31,7 @@ impl Default for ChamaOptics {
             export_config: crate::export_config::ExportConfig::default(),
             lang: crate::langs::Language::get_system(),
             packed_images: vec![],
+            update: crate::util::check_update::CheckRelease::new(),
         }
     }
 }
@@ -214,12 +218,14 @@ impl eframe::App for ChamaOptics {
             egui::warn_if_debug_build(ui);
             ui.horizontal(|ui| {
                 ui.label("ChamaOptics");
-                ui.add_space(60.0);
+                ui.add_space(20.0);
                 ui.label(format!(
                     "v{} ({})",
                     env!("PROJECT_VERSION"),
                     env!("GIT_COMMIT_SHORT_HASH")
                 ));
+                ui.add_space(20.0);
+                self.update.ui(ui);
             });
             // });
         });

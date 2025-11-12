@@ -67,11 +67,17 @@ sys-locale = "0.3.2"
 libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"] }
 dirs = "6.0"
 num-traits = "0.2.19"
-clap = { version = "4.5.50", features = ["derive"] }
-chrono = "0.4.42"
+clap = { version = "4.5.51", features = ["derive"] }
+chrono = { version = "0.4.42", features = ["serde"] }
 font-kit = "0.14.3"
 resvg = "0.45.1"
 tiny-skia = "0.11.4"
+reqwest = { version = "0.12.24", features = [
+    "gzip",
+    "blocking",
+    "rustls-tls",
+    "json",
+], default-features = false }
 
 [profile.release]
 opt-level = 3
@@ -129,3 +135,4 @@ md-5 = "0.10.6"
 cargo_metadata = "0.23"
 winres = "0.1"
 csv = "1.4"
+chrono = { version = "0.4.42", features = ["serde"] }
