@@ -113,6 +113,7 @@ impl BuiltinVariableFontIndex {
             });
     }
 
+    #[allow(dead_code)]
     pub fn update_ui_with_label<S: Into<egui::WidgetText> + Clone>(
         &mut self,
         ui: &mut egui::Ui,
@@ -124,6 +125,7 @@ impl BuiltinVariableFontIndex {
         });
     }
 
+    #[allow(dead_code)]
     pub fn update_ui_with_default_label(&mut self, ui: &mut egui::Ui) {
         let label = rust_i18n::t!("fonts_selector.select_a_font");
         ui.horizontal(|ui| {

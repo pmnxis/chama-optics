@@ -6,17 +6,18 @@
 
 use crate::fonts::variable_font::*;
 use egui::{self, Align, Ui};
+use rust_i18n::t;
 use std::borrow::Cow;
 
 #[rustfmt::skip]
 #[repr(usize)]
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq)]
-pub enum VarialbeOrNot {
+pub enum VariableOrNot {
     Variable(BuiltinVariableFontIndex),
     Others(crate::fonts::font_unify::FontSelection),
 }
 
-impl std::default::Default for VarialbeOrNot {
+impl std::default::Default for VariableOrNot {
     fn default() -> Self {
         Self::Variable(BuiltinVariableFontIndex::Barlow)
     }
@@ -26,6 +27,7 @@ pub struct VariableTextSlotDefault {
     pub text: &'static str,
     pub weight: u16,
     pub font_index: BuiltinVariableFontIndex,
+    pub fixed_index: Option<crate::BuiltinFontIndex>,
 }
 
 impl VariableTextSlotDefault {
@@ -34,6 +36,7 @@ impl VariableTextSlotDefault {
             text: default,
             weight: 300, // todo - get method with const gently
             font_index: BuiltinVariableFontIndex::Barlow,
+            fixed_index: None,
         }
     }
 }
@@ -43,7 +46,7 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
         Self {
             text: value.text.into(),
             weight: value.weight,
-            font_index: VarialbeOrNot::Variable(value.font_index),
+            font_index: VariableOrNot::Variable(value.font_index),
         }
     }
 }
@@ -52,7 +55,7 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
         Self {
             text: value.text.into(),
             weight: value.weight,
-            font_index: VarialbeOrNot::Variable(value.font_index),
+            font_index: VariableOrNot::Variable(value.font_index),
         }
     }
 }
@@ -62,7 +65,7 @@ pub struct VariableTextSlot {
     pub text: String,
     pub weight: u16,
     // todo - future selection variable fonts
-    pub font_index: VarialbeOrNot,
+    pub font_index: VariableOrNot,
 }
 
 impl VariableTextSlot {
@@ -71,7 +74,7 @@ impl VariableTextSlot {
         Self {
             text: default.to_string(),
             weight,
-            font_index: VarialbeOrNot::default(),
+            font_index: VariableOrNot::default(),
         }
     }
 
@@ -87,11 +90,11 @@ impl VariableTextSlot {
         // todo - resolve &'static, &, * hell
         // todo - Result<T,E>
         match &self.font_index {
-            VarialbeOrNot::Variable(var) => var.get_font_by_weight(self.weight).clone(),
-            VarialbeOrNot::Others(others) => match crate::FONTS_UNIFY.search(&others) {
+            VariableOrNot::Variable(var) => var.get_font_by_weight(self.weight).clone(),
+            VariableOrNot::Others(others) => match crate::FONTS_UNIFY.search(others) {
                 Ok(x) => x,
                 Err(e) => {
-                    log::error!("{}", e);
+                    log::error!("{e}");
                     BuiltinVariableFontIndex::Barlow
                         .get_font_by_weight(self.weight)
                         .clone()
@@ -108,42 +111,56 @@ impl VariableTextSlot {
         default: &'static VariableTextSlotDefault,
     ) {
         // ensure outside is grid ui
-
-        ui.label(label.clone());
-        ui.horizontal(|ui| {
-            let total_width = ui.available_width();
-
-            if let VarialbeOrNot::Others(font_select) = &mut self.font_index {
-                font_select.update_ui_with_label(ctx, ui, label.clone());
-            } else if let VarialbeOrNot::Variable(mut variable_select) = self.font_index {
-                variable_select.update_ui_with_label(ui, label.clone());
-            }
+        ui.vertical(|ui| {
+            ui.add_space(2.0);
+            ui.label(label.clone());
+            ui.add_space(27.0);
         });
+        // let total_width = ui.available_width();
 
-        ui.end_row();
+        ui.vertical(|ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(2.0);
+                ui.selectable_value(
+                    &mut self.font_index,
+                    VariableOrNot::Variable(default.font_index),
+                    t!("fonts_selector.variable.label"),
+                )
+                .on_hover_text(t!("fonts_selector.variable.hint"));
 
-        ui.label(label.clone());
+                ui.selectable_value(
+                    &mut self.font_index,
+                    VariableOrNot::Others(
+                        crate::FONTS_UNIFY.builtin_select(default.fixed_index.unwrap_or_default()),
+                    ),
+                    t!("fonts_selector.others.label"),
+                )
+                .on_hover_text(t!("fonts_selector.others.hint"));
 
-        ui.horizontal(|ui| {
-            // let font_pack = self.font_index.get_font();
-            // let (start, end, step) = font_pack.range();
-            let total_width = ui.available_width();
-            let slider_width = (total_width * 0.30).min(195.0);
-            let text_width = (total_width * 0.60).max(total_width - 195.0);
+                if let VariableOrNot::Variable(mut variable_select) = self.font_index {
+                    // variable_select.update_ui_with_label(ui, label.clone());
+                    variable_select.update_ui(ui, label.clone());
+                    let (start, end, step) = variable_select.get_font().range();
+                    ui.add(egui::Slider::new(&mut self.weight, start..=end).step_by(step.into()));
+                } else if let VariableOrNot::Others(font_select) = &mut self.font_index {
+                    // font_select.update_ui_with_label(ctx, ui, label.clone());
+                    font_select.update_ui(ctx, ui, label.clone());
+                };
 
-            ui.add_sized(
-                [text_width, 23.0],
-                egui::TextEdit::singleline(&mut self.text).vertical_align(Align::Center),
-            );
-            // ui.add_sized(
-            //     [slider_width, 23.0],
-            //     egui::Slider::new(&mut self.weight, start..=end).step_by(step.into()),
-            // );
-            if ui.button("↺").clicked() {
-                *self = default.into();
-            }
+                if ui.button("↺").clicked() {
+                    *self = default.into();
+                }
+            });
 
-            // todo - font selection with variable_font_index
+            ui.horizontal(|ui| {
+                ui.add_sized(
+                    [(ui.available_width() - 8.0).max(16.0), 23.0],
+                    egui::TextEdit::singleline(&mut self.text).vertical_align(Align::Center),
+                );
+
+                // todo - font selection with variable_font_index
+            });
+            ui.add_space(4.0);
         });
     }
 }

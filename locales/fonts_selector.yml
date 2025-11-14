@@ -29,3 +29,22 @@ fonts_selector:
     en: "Default"
     ko: "기본값"
     ja: "デフォルト"
+  variable:
+    label:
+      en: "Variable"
+      ko: "가변폭"
+      ja: "可変冷"
+    hint:
+      en: "A variable font built into the program that allows fine-grained adjustment of weight and width."
+      ko: "프로그램 내장 가변폭 폰트로, 글씨 굵기와 폭을 세세하게 조절할 수 있습니다."
+      ja: "プログラム内蔵の可変フォントで、文字の太さや幅を細かく調整できます。"
+
+  others:
+    label:
+      en: "Standard"
+      ko: "기본형"
+      ja: "標準冷"
+    hint:
+      en: "A standard font that is either built into the program or provided by the operating system."
+      ko: "프로그램 내장 또는 운영체제에 내장된 일반 폰트를 선택할 수 있습니다."
+      ja: "プログラム内蔵またはOSに搭載されている標準フォントを選択できます。"
