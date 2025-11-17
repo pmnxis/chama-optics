@@ -184,10 +184,13 @@ impl eframe::App for ChamaOptics {
 
                 // add image by file open dialog
                 if ui.button(t!("app.open_files.button")).clicked()
-                    && let Some(path) = rfd::FileDialog::new().pick_file()
+                    && let Some(open_files) = rfd::FileDialog::new().pick_files()
+                // && let Some(path) = rfd::FileDialog::new().pick_file()
                 {
-                    log::info!("By file dialog :{path:?}");
-                    self.pending_paths.push_back(path);
+                    for (idx, file) in open_files.iter().enumerate() {
+                        log::info!("By file dialog[{idx}] : {file:?}");
+                        self.pending_paths.push_back(file.to_owned());
+                    }
                 }
 
                 if ui.button(t!("app.images.save_all")).clicked() {
