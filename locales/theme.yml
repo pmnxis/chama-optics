@@ -103,6 +103,66 @@ theme:
     ko: "로고 높이"
     ja: "ロゴの高さ"
 
+  # For Monitor
+  monitor:
+    title:
+      en: "Monitor"
+      ko: "모니터"
+      ja: "モニター"
+
+  monitor_config:
+    font_color:
+      en: "Font color"
+      ko: "폰트 색상"
+      ja: "フォントカラー"
+    center_align:
+      label:
+        en: "Center alignm"
+        ko: "가운데 정렬"
+        ja: "中央揃え方式"
+      simple:
+        en: "Simple alignment"
+        ko: "단순정렬"
+        ja: "シンプル配置"
+      simple_hint:
+        en: "Simply centers four text items within four equally divided spaces."
+        ko: "단순히 4개의 텍스트를 4개로 나눈 공간에 가운데 정렬합니다."
+        ja: "4つのテキストを4分割されたスペース内で中央揃えします。"
+      spacing:
+        en: "Even spacing"
+        ko: "일정간격"
+        ja: "均等間隔"
+      spacing_hint:
+        en: "Arranges the four text items so they maintain an even spacing across the width."
+        ko: "4개의 텍스트들이 일정한 간격을 가지고 너비를 가질 수 있도록 배치합니다."
+        ja: "4つのテキストが一定の間隔を保ちながら横幅に配置されます。"
+    exif_bottom_0:
+      en: "Text 0"
+      ko: "텍스트0"
+      ja: "テキスト0"
+    exif_bottom_1:
+      en: "Text 1"
+      ko: "텍스트1"
+      ja: "テキスト1"
+    exif_bottom_2:
+      en: "Text 2"
+      ko: "텍스트2"
+      ja: "テキスト2"
+    exif_bottom_3:
+      en: "Text 3"
+      ko: "텍스트3"
+      ja: "テキスト3"
+
+  font_height_ratio:
+    label:
+      en: "Font height ratio"
+      ko: "폰트 높이 비율"
+      ja: "フォント高さ比率"
+    hint:
+      en: "Adjusts the vertical scaling ratio of the font relative to its base size."
+      ko: "폰트의 기본 크기에 대해 세로 비율을 조정합니다."
+      ja: "フォントの基準サイズに対して縦方向の比率を調整します。"
+
   template_format_hint:
     title:
       en: "About Template Format"

@@ -39,6 +39,15 @@ impl VariableTextSlotDefault {
             fixed_index: None,
         }
     }
+
+    pub const fn with_barlow_weight(default: &'static str, weight: u16) -> Self {
+        Self {
+            text: default,
+            weight,
+            font_index: BuiltinVariableFontIndex::Barlow,
+            fixed_index: None,
+        }
+    }
 }
 
 impl From<VariableTextSlotDefault> for VariableTextSlot {
