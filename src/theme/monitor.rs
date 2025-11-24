@@ -21,15 +21,6 @@ pub struct Monitor {
 
 const DEFAULT_FONT_HEIGHT: u32 = 75;
 
-const DEFAULT_BOTTOM_0: VariableTextSlotDefault =
-    VariableTextSlotDefault::with_barlow_weight("[F{fnumber}]", 500);
-const DEFAULT_BOTTOM_1: VariableTextSlotDefault =
-    VariableTextSlotDefault::with_barlow_weight("[{exposure}s]", 500);
-const DEFAULT_BOTTOM_2: VariableTextSlotDefault =
-    VariableTextSlotDefault::with_barlow_weight("[ISO{iso_speed}]", 500);
-const DEFAULT_BOTTOM_3: VariableTextSlotDefault =
-    VariableTextSlotDefault::with_barlow_weight("[{focal}mm]", 500);
-
 const DEFAULT_BOTTOM: [VariableTextSlotDefault; 4] = [
     VariableTextSlotDefault::with_barlow_weight("[F{fnumber}]", 500),
     VariableTextSlotDefault::with_barlow_weight("[{exposure}s]", 500),
@@ -52,10 +43,10 @@ impl core::default::Default for Monitor {
             font_color: egui::Color32::WHITE,
             font_height: DEFAULT_FONT_HEIGHT,
             bottoms: [
-                VariableTextSlot::from_default(&DEFAULT_BOTTOM_0),
-                VariableTextSlot::from_default(&DEFAULT_BOTTOM_1),
-                VariableTextSlot::from_default(&DEFAULT_BOTTOM_2),
-                VariableTextSlot::from_default(&DEFAULT_BOTTOM_3),
+                VariableTextSlot::from_default(&DEFAULT_BOTTOM[0]),
+                VariableTextSlot::from_default(&DEFAULT_BOTTOM[1]),
+                VariableTextSlot::from_default(&DEFAULT_BOTTOM[2]),
+                VariableTextSlot::from_default(&DEFAULT_BOTTOM[3]),
             ],
             width_aligned: true,
             show_hint: false,
@@ -193,7 +184,7 @@ impl Theme for Monitor {
                 .num_columns(2)
                 .spacing([4.0, 3.0])
                 .show(ui, |ui| {
-                    ui.label(t!("theme.monitor_config.font_color"));
+                    ui.label(t!("theme.font_color"));
                     egui::widgets::color_picker::color_edit_button_srgba(
                         ui,
                         &mut self.font_color,

@@ -77,32 +77,6 @@ theme:
         ko: "사진을 표시할 때 EXIF 데이터의 카메라 기종과 렌즈 정보를 숨깁니다."
         ja: "写真表示時にEXIFデータ内のカメラ機種とレンズ情報を非表示にします。"
 
-  strap_config:
-    exif_left_top:
-      en: "Top Left"
-      ko: "좌상단"
-      ja: "左上"
-    exif_right_top:
-      en: "Top Right"
-      ko: "우상단"
-      ja: "右上"
-    exif_left_bot:
-      en: "Bottom Left"
-      ko: "좌하단"
-      ja: "左下"
-    exif_right_bot:
-      en: "Bottom Right"
-      ko: "우하단"
-      ja: "右下"
-    font_color:
-      en: "Font color"
-      ko: "폰트 색상"
-      ja: "フォントカラー"
-  logo_height:
-    en: "Logo height"
-    ko: "로고 높이"
-    ja: "ロゴの高さ"
-
   # For Monitor
   monitor:
     title:
@@ -162,6 +136,45 @@ theme:
       en: "Adjusts the vertical scaling ratio of the font relative to its base size."
       ko: "폰트의 기본 크기에 대해 세로 비율을 조정합니다."
       ja: "フォントの基準サイズに対して縦方向の比率を調整します。"
+
+  lightroom:
+    title:
+      en: "Lightroom"
+      ko: "라이트룸"
+      ja: "ライトルーム"
+
+  font_color:
+    en: "Font color"
+    ko: "폰트 색상"
+    ja: "フォントカラー"
+  exif_left_top:
+    en: "Top Left"
+    ko: "좌상단"
+    ja: "左上"
+  exif_right_top:
+    en: "Top Right"
+    ko: "우상단"
+    ja: "右上"
+  exif_left_bot:
+    en: "Bottom Left"
+    ko: "좌하단"
+    ja: "左下"
+  exif_right_bot:
+    en: "Bottom Right"
+    ko: "우하단"
+    ja: "右下"
+  exif_center_bot:
+    en: "Bottom Center"
+    ko: "하단 중앙"
+    ja: "下中央"
+  exif_center_top:
+    en: "Top Center"
+    ko: "상단 중앙"
+    ja: "上中央"
+  logo_height:
+    en: "Logo height"
+    ko: "로고 높이"
+    ja: "ロゴの高さ"
 
   template_format_hint:
     title:

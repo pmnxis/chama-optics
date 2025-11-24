@@ -215,7 +215,7 @@ impl Theme for Strap {
                 .num_columns(2)
                 .spacing([4.0, 3.0])
                 .show(ui, |ui| {
-                    ui.label(t!("theme.strap_config.font_color"));
+                    ui.label(t!("theme.font_color"));
                     egui::widgets::color_picker::color_edit_button_srgba(
                         ui,
                         &mut self.font_color,
@@ -236,36 +236,20 @@ impl Theme for Strap {
                     });
                     ui.end_row();
 
-                    self.left_top.ui(
-                        ctx,
-                        ui,
-                        t!("theme.strap_config.exif_left_top"),
-                        &DEFAULT_LEFT_TOP,
-                    );
+                    self.left_top
+                        .ui(ctx, ui, t!("theme.exif_left_top"), &DEFAULT_LEFT_TOP);
                     ui.end_row();
 
-                    self.left_bot.ui(
-                        ctx,
-                        ui,
-                        t!("theme.strap_config.exif_left_bot"),
-                        &DEFAULT_LEFT_BOT,
-                    );
+                    self.left_bot
+                        .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT_BOT);
                     ui.end_row();
 
-                    self.right_top.ui(
-                        ctx,
-                        ui,
-                        t!("theme.strap_config.exif_right_top"),
-                        &DEFAULT_RIGHT_TOP,
-                    );
+                    self.right_top
+                        .ui(ctx, ui, t!("theme.exif_right_top"), &DEFAULT_RIGHT_TOP);
                     ui.end_row();
 
-                    self.right_bot.ui(
-                        ctx,
-                        ui,
-                        t!("theme.strap_config.exif_right_bot"),
-                        &DEFAULT_RIGHT_BOT,
-                    );
+                    self.right_bot
+                        .ui(ctx, ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT_BOT);
                     ui.end_row();
                 });
 

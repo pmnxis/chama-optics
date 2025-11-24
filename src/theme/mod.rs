@@ -11,6 +11,7 @@ pub(crate) mod film;
 pub(crate) mod film_date;
 pub(crate) mod film_glow;
 pub(crate) mod just_frame;
+pub(crate) mod lightroom;
 pub(crate) mod monitor;
 pub(crate) mod nothing;
 pub(crate) mod strap;
@@ -91,6 +92,7 @@ impl ThemeRegistry {
             Arc::new(RwLock::new(just_frame::JustFrame::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(strap::Strap::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(monitor::Monitor::default())) as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(lightroom::Lightroom::default())) as Arc<RwLock<dyn Theme>>,
         ]
     }
 

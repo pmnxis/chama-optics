@@ -75,7 +75,7 @@ fn get_latest_stable_release() -> Option<(String, String)> {
 
         // Check if published after our build
         if let Some(published) = rel.published_at {
-            if published > build_time {
+            if published > build_time + chrono::Duration::hours(8) {
                 return Some((rel.tag_name, rel.html_url));
             } else {
                 log::debug!("{} - {} found but pass", rel.tag_name, rel.html_url);

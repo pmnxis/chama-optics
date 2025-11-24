@@ -26,8 +26,11 @@ impl std::default::Default for VariableOrNot {
 pub struct VariableTextSlotDefault {
     pub text: &'static str,
     pub weight: u16,
+    // variable index
     pub font_index: BuiltinVariableFontIndex,
+    // fixed index
     pub fixed_index: Option<crate::BuiltinFontIndex>,
+    pub prefer_fixed: bool,
 }
 
 impl VariableTextSlotDefault {
@@ -37,6 +40,7 @@ impl VariableTextSlotDefault {
             weight: 300, // todo - get method with const gently
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
+            prefer_fixed: false,
         }
     }
 
@@ -46,25 +50,52 @@ impl VariableTextSlotDefault {
             weight,
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
+            prefer_fixed: false,
+        }
+    }
+
+    pub const fn with_digital7(default: &'static str) -> Self {
+        Self {
+            text: default,
+            weight: 300, // todo - get method with const gently
+            font_index: BuiltinVariableFontIndex::Barlow, // don't need for default
+            fixed_index: Some(crate::BuiltinFontIndex::Digital7),
+            prefer_fixed: true, // will select fixed_index
         }
     }
 }
 
 impl From<VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: VariableTextSlotDefault) -> Self {
-        Self {
-            text: value.text.into(),
-            weight: value.weight,
-            font_index: VariableOrNot::Variable(value.font_index),
+        if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
+            Self {
+                text: value.text.into(),
+                weight: value.weight,
+                font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+            }
+        } else {
+            Self {
+                text: value.text.into(),
+                weight: value.weight,
+                font_index: VariableOrNot::Variable(value.font_index),
+            }
         }
     }
 }
 impl From<&VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: &VariableTextSlotDefault) -> Self {
-        Self {
-            text: value.text.into(),
-            weight: value.weight,
-            font_index: VariableOrNot::Variable(value.font_index),
+        if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
+            Self {
+                text: value.text.into(),
+                weight: value.weight,
+                font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+            }
+        } else {
+            Self {
+                text: value.text.into(),
+                weight: value.weight,
+                font_index: VariableOrNot::Variable(value.font_index),
+            }
         }
     }
 }
