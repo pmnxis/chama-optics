@@ -19,6 +19,9 @@ pub enum ScaleMode {
     /// Resize with height with aspect ratio
     MaxHeight,
 
+    /// Choose longside with target width or height
+    Longside,
+
     /// Resize with dividing width and height
     Divide,
 
@@ -39,6 +42,9 @@ impl ScaleMode {
             ScaleMode::None => t!("scale_config.none"),
             ScaleMode::MaxWidth => t!("scale_config.max_width"),
             ScaleMode::MaxHeight => t!("scale_config.max_height"),
+            ScaleMode::Longside => {
+                t!("scale_config.longside")
+            }
             ScaleMode::Divide => t!("scale_config.divide"),
             ScaleMode::NearCommonDivisorConsiderWidth => {
                 t!("scale_config.near_common_divisor_width")
@@ -57,6 +63,9 @@ impl ScaleMode {
             ScaleMode::None => t!("scale_config.field.none"),
             ScaleMode::MaxWidth => t!("scale_config.field.max_width"),
             ScaleMode::MaxHeight => t!("scale_config.field.max_height"),
+            ScaleMode::Longside => {
+                t!("scale_config.field.longside")
+            }
             ScaleMode::Divide => t!("scale_config.field.divide"),
             ScaleMode::NearCommonDivisorConsiderWidth => {
                 t!("scale_config.field.near_common_divisor_width")
@@ -143,6 +152,44 @@ impl ScaleConfig {
             }
 
             Self {
+                mode: ScaleMode::Longside,
+                value: target,
+                ..
+            } => {
+                if width == 0 || height == 0 {
+                    return (width, height);
+                }
+
+                if width == height {
+                    return (target, target);
+                }
+
+                let (long, short, long_is_width) = if width >= height {
+                    (width as f64, height as f64, true)
+                } else {
+                    (height as f64, width as f64, false)
+                };
+
+                let ratio = target as f64 / long;
+
+                let mut new_short = (short * ratio).round() as u32;
+
+                if new_short > target {
+                    new_short = target;
+                }
+
+                if new_short == 0 {
+                    new_short = 1;
+                }
+
+                if long_is_width {
+                    (target, new_short)
+                } else {
+                    (new_short, target)
+                }
+            }
+
+            Self {
                 mode: ScaleMode::Divide,
                 scale_value: div,
                 ..
@@ -168,8 +215,13 @@ impl ScaleConfig {
                 let w_unit = width / gcd;
                 let h_unit = height / gcd;
 
-                let k = (target_w as f64 / w_unit as f64).round() as u32;
-                (w_unit * k, h_unit * k)
+                let k = target_w as f64 / w_unit as f64;
+                if k.round() >= 1.0 {
+                    let k = k.round() as u32;
+                    (w_unit * k, h_unit * k)
+                } else {
+                    ((w_unit as f64 * k) as u32, (h_unit as f64 * k) as u32)
+                }
             }
 
             Self {
@@ -184,8 +236,14 @@ impl ScaleConfig {
                 let w_unit = width / gcd;
                 let h_unit = height / gcd;
 
-                let k = (target_h as f64 / h_unit as f64).round() as u32;
-                (w_unit * k, h_unit * k)
+                let k = target_h as f64 / h_unit as f64;
+
+                if k.round() >= 1.0 {
+                    let k = k.round() as u32;
+                    (w_unit * k, h_unit * k)
+                } else {
+                    ((w_unit as f64 * k) as u32, (h_unit as f64 * k) as u32)
+                }
             }
             Self {
                 mode: ScaleMode::ResizeAndCrop,

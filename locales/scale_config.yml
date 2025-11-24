@@ -21,6 +21,10 @@ scale_config:
     en: "Max Height"
     ko: "최대 높이"
     ja: "最大高さ"
+  longside:
+    en: "Longside"
+    ko: "가장 긴 변"
+    ja: "最長辺"
   divide:
     en: "Divide"
     ko: "분할 비율"
@@ -50,6 +54,10 @@ scale_config:
       en: "Max height"
       ko: "최대 높이"
       ja: "最大高さ"
+    longside:
+      en: "Longside"
+      ko: "가장 긴 변"
+      ja: "最長辺"
     divide:
       en: "Divide factor"
       ko: "분할 비율"
