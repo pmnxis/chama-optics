@@ -10,55 +10,63 @@ use ab_glyph::{Font, ScaleFont};
 use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct Lightroom {
+pub struct OneLine {
     border: crate::effect::border::Border,
     pub font_color: egui::Color32,
     font_height: u32,
+    top_font_height: u32,
     pub left: VariableTextSlot,
-    pub center: VariableTextSlot,
     pub right: VariableTextSlot,
-    // pub width_aligned: bool,
+    pub top: VariableTextSlot,
     show_hint: bool,
 }
 
-const DEFAULT_FONT_HEIGHT: u32 = 60;
+const DEFAULT_FONT_HEIGHT: u32 = 30;
+const DEFAULT_TOP_FONT_HEIGHT: u32 = 50;
 
 const DEFAULT_LEFT: VariableTextSlotDefault = VariableTextSlotDefault::with_digital7(
-    "[ISO{iso_speed}]    [{exposure}s]    [F{fnumber}]    [{focal}mm]",
+    "[{camera_mnf}  •  ][{camera_model}][  •  {lens_model}]",
 );
 
-const DEFAULT_CENTER: VariableTextSlotDefault =
-    VariableTextSlotDefault::with_digital7("[{camera_mnf}  ][  {camera_model}]    [{lens_model}]");
+const DEFAULT_RIGHT: VariableTextSlotDefault = VariableTextSlotDefault::with_digital7(
+    "[ISO{iso_speed}  •  ][{focal}mm  •  ][F{fnumber}  •  ][{exposure}s]",
+);
 
-const DEFAULT_RIGHT: VariableTextSlotDefault = VariableTextSlotDefault::with_digital7("");
+const DEFAULT_TOP: VariableTextSlotDefault = VariableTextSlotDefault::with_barlow_weight("", 300);
 
-const DEFAULT_BORDER_DEFAULT_SIZE: u32 = 90;
-const DEFAULT_BORDER_MIN_SIZE: u32 = 50;
+// const DEFAULT_BORDER_DEFAULT_SIZE: u32 = 90;
+const DEFAULT_BORDER_MIN_SIZE: u32 = 10;
+const DEFAULT_BORDER_OTHER_SIZE: u32 = 55;
+const DEFAULT_BORDER_BOTTOM_SIZE: u32 = 135;
 const DEFAULT_LIMIT: crate::effect::border::BorderLimit =
-    crate::effect::border::BorderLimit::bottom(DEFAULT_BORDER_MIN_SIZE, 900);
-const DEFAULT_BORDER: crate::effect::border::Border =
-    crate::effect::border::Border::bottom(DEFAULT_BORDER_DEFAULT_SIZE, egui::Color32::BLACK);
-const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 153, 0, 255]);
+    crate::effect::border::BorderLimit::top_and_bottom(DEFAULT_BORDER_MIN_SIZE, 900);
 
-impl core::default::Default for Lightroom {
+const DEFAULT_BORDER: crate::effect::border::Border = crate::effect::border::Border {
+    left: DEFAULT_BORDER_OTHER_SIZE,
+    right: DEFAULT_BORDER_OTHER_SIZE,
+    top: DEFAULT_BORDER_OTHER_SIZE,
+    bottom: DEFAULT_BORDER_BOTTOM_SIZE,
+    color: egui::Color32::WHITE,
+    is_relative: true,
+};
+
+impl core::default::Default for OneLine {
     fn default() -> Self {
-        use imageproc::integral_image::ArrayData;
-        let [r, g, b, a] = FILM_COLOR.data();
-
         Self {
             border: DEFAULT_BORDER,
-            font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+            font_color: egui::Color32::BLACK,
             font_height: DEFAULT_FONT_HEIGHT,
+            top_font_height: DEFAULT_TOP_FONT_HEIGHT,
             left: VariableTextSlot::from_default(&DEFAULT_LEFT),
-            center: VariableTextSlot::from_default(&DEFAULT_CENTER),
             right: VariableTextSlot::from_default(&DEFAULT_RIGHT),
+            top: VariableTextSlot::from_default(&DEFAULT_TOP),
             // width_aligned: true,
             show_hint: false,
         }
     }
 }
 
-impl Lightroom {
+impl OneLine {
     // 0.0~1.0
     fn rel_size<F: Copy + num_traits::AsPrimitive<f32>, G: Copy + num_traits::AsPrimitive<f32>>(
         &self,
@@ -77,13 +85,13 @@ impl Lightroom {
     }
 }
 
-impl Theme for Lightroom {
+impl Theme for OneLine {
     fn unique_name(&self) -> &'static str {
-        "lightroom"
+        "one_line"
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        t!("theme.lightroom.title")
+        t!("theme.one_line.title")
     }
 
     fn apply(
@@ -98,19 +106,49 @@ impl Theme for Lightroom {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
 
-        let (ll, rr, _tt, bb) = self.border.border_size(dyn_wh);
-        let font_height_ratio = self.font_height.clamp(10, 80) as f32 / 100.0;
-        let txt_scale = self.rel_scale(font_height_ratio, bb);
+        let (ll, rr, tt, bb) = self.border.border_size(dyn_wh);
+        // let font_height_ratio = self.font_height.clamp(5, 80) as f32 / 100.0;
+        let font_height_ratio_x100 = (self.font_height).clamp(5, 800);
+
         let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
 
         // TODO - Need more profer way
         let y = new_image.height() - (bb / 2);
 
-        // left
+        // left and right first
+        let left_x = ((bb / 4).max(2) + ll) as i32;
+        let right_x_end = (new_image.width() - rr - (bb / 4).max(2)) as i32;
+        let available = right_x_end - left_x;
         let left_font = &self.left.get_font();
         let left_txt = self.left.format_custom(&pi.view_exif);
-        let left_x = ((bb / 10).min(2) + ll) as i32;
-        let (left_www, _) = crate::theme::text_dimensions(txt_scale, &left_font, &left_txt);
+        let right_font = &self.right.get_font();
+        let right_txt = self.right.format_custom(&pi.view_exif);
+
+        if available < 1 {
+            panic!("unreachable");
+        }
+
+        let txt_scale = {
+            let mut ret = self.rel_scale(0.05, bb);
+            let left_txt = format!("{left_txt}  "); // for margin
+
+            for ratio_x100 in (5..=font_height_ratio_x100).rev() {
+                let font_height_ratio = ratio_x100 as f32 / 100.0;
+                let try_scale = self.rel_scale(font_height_ratio, bb);
+
+                let (left_www, _) = crate::theme::text_dimensions(try_scale, &left_font, &left_txt);
+                let (right_www, _) =
+                    crate::theme::text_dimensions(try_scale, &right_font, &right_txt);
+
+                if (left_www + right_www).floor() as i32 <= available {
+                    ret = try_scale;
+                    break;
+                }
+            }
+            ret
+        };
+
+        // left - after
         imageproc::drawing::draw_text_mut(
             &mut new_image,
             font_color,
@@ -124,38 +162,9 @@ impl Theme for Lightroom {
             &left_txt,
         );
 
-        // center
-        let y = new_image.height() - (bb / 2);
-        let center_font = &self.center.get_font();
-        let center_txt = self.center.format_custom(&pi.view_exif);
-        let (center_www, _) = crate::theme::text_dimensions(txt_scale, &center_font, &center_txt);
-
-        let center_x = {
-            let (min_spacing, _) = crate::theme::text_dimensions(txt_scale, center_font, "      ");
-            let center_x = ((dyn_w as f32 - center_www) / 2.0) + ll as f32;
-            let left_max = left_www + left_x as f32;
-            center_x.max(left_max + min_spacing)
-        }
-        .floor() as i32;
-
-        imageproc::drawing::draw_text_mut(
-            &mut new_image,
-            font_color,
-            center_x,
-            (y as f32
-                - ((center_font.as_scaled(txt_scale).ascent()
-                    + center_font.as_scaled(txt_scale).descent().abs())
-                    * 0.55)) as i32,
-            txt_scale,
-            center_font,
-            &center_txt,
-        );
-
-        // right
-        let right_font = &self.right.get_font();
-        let right_txt = self.right.format_custom(&pi.view_exif);
+        // right - after
         let (right_www, _) = crate::theme::text_dimensions(txt_scale, right_font, &right_txt);
-        let right_x = (new_image.width() - rr - (bb / 10).min(2)) as i32 - (right_www as i32);
+        let right_x = (new_image.width() - rr - (bb / 4).max(2)) as i32 - (right_www as i32);
         imageproc::drawing::draw_text_mut(
             &mut new_image,
             font_color,
@@ -168,6 +177,31 @@ impl Theme for Lightroom {
             right_font,
             &right_txt,
         );
+
+        // top
+        if tt >= 10 {
+            let y = tt / 2;
+            let top_font = &self.top.get_font();
+            let top_txt = self.top.format_custom(&pi.view_exif);
+            let (top_www, _) = crate::theme::text_dimensions(txt_scale, &top_font, &top_txt);
+
+            let top_x = (((dyn_w as f32 - top_www) / 2.0) + ll as f32).max(0.0) as i32;
+
+            imageproc::drawing::draw_text_mut(
+                &mut new_image,
+                font_color,
+                top_x,
+                (y as f32
+                    - ((top_font.as_scaled(txt_scale).ascent()
+                        + top_font.as_scaled(txt_scale).descent().abs())
+                        * 0.5)) as i32,
+                txt_scale,
+                top_font,
+                &top_txt,
+            );
+        } else {
+            log::warn!("Cannot create top title with {tt} pixel margin");
+        }
 
         export_config.save_image(
             &mut new_image,
@@ -184,11 +218,11 @@ impl Theme for Lightroom {
             ui.add_space(4.0);
 
             // Own configuration
-            egui::Grid::new("lightroom_config_grid")
+            egui::Grid::new("one_line_config_grid")
                 .num_columns(2)
                 .spacing([4.0, 3.0])
                 .show(ui, |ui| {
-                    ui.label(t!("theme.font_color"));
+                    ui.label(t!("theme.exif_center_top") + " " + t!("theme.font_color"));
                     egui::widgets::color_picker::color_edit_button_srgba(
                         ui,
                         &mut self.font_color,
@@ -196,12 +230,35 @@ impl Theme for Lightroom {
                     );
                     ui.end_row();
 
+                    // for top
+                    ui.label(
+                        t!("theme.exif_center_top") + " " + t!("theme.font_height_ratio.label"),
+                    )
+                    .on_hover_text(t!("theme.font_height_ratio.hint"));
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            // [slider_width, 23.0],
+                            egui::Slider::new(&mut self.top_font_height, 5..=90).step_by(0.01),
+                        );
+                        ui.label("% ");
+                        if ui.button("↺").clicked() {
+                            self.top_font_height = DEFAULT_TOP_FONT_HEIGHT;
+                        }
+                    });
+                    ui.end_row();
+
+                    // todo - WARN when tt is under the 10
+                    self.top
+                        .ui(ctx, ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
+                    ui.end_row();
+
+                    // for bottom
                     ui.label(t!("theme.font_height_ratio.label"))
                         .on_hover_text(t!("theme.font_height_ratio.hint"));
                     ui.horizontal(|ui| {
                         ui.add(
                             // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.font_height, 50..=80).step_by(0.01),
+                            egui::Slider::new(&mut self.font_height, 5..=80).step_by(0.01),
                         );
                         ui.label("% ");
                         if ui.button("↺").clicked() {
@@ -212,10 +269,6 @@ impl Theme for Lightroom {
 
                     self.left
                         .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
-                    ui.end_row();
-
-                    self.center
-                        .ui(ctx, ui, t!("theme.exif_center_bot"), &DEFAULT_CENTER);
                     ui.end_row();
 
                     self.right

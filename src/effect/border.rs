@@ -27,7 +27,7 @@ impl Border {
             top: size,
             bottom: size,
             color,
-            is_relative: false,
+            is_relative: true,
         }
     }
 
@@ -39,7 +39,7 @@ impl Border {
             top: 0,
             bottom: size,
             color,
-            is_relative: false,
+            is_relative: true,
         }
     }
 
@@ -51,7 +51,7 @@ impl Border {
             top: size,
             bottom: size,
             color,
-            is_relative: false,
+            is_relative: true,
         }
     }
 

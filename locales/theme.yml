@@ -45,6 +45,12 @@ theme:
       ko: "단순 프레임"
       ja: "単純余白"
 
+  one_line:
+    title:
+      en: "One Line"
+      ko: "한줄짜리"
+      ja: "一行 テーマ"
+
   strap:
     title:
       en: "Strap"
