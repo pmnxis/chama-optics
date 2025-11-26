@@ -227,7 +227,7 @@ impl Theme for Strap {
                     ui.horizontal(|ui| {
                         ui.add(
                             // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.logo_height, 10..=90).step_by(0.01),
+                            egui::Slider::new(&mut self.logo_height, 10..=90).step_by(1.0),
                         );
                         ui.label("% ");
                         if ui.button("↺").clicked() {

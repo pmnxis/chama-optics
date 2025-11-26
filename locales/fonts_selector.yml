@@ -48,3 +48,41 @@ fonts_selector:
       en: "A standard font that is either built into the program or provided by the operating system."
       ko: "프로그램 내장 또는 운영체제에 내장된 일반 폰트를 선택할 수 있습니다."
       ja: "プログラム内蔵またはOSに搭載されている標準フォントを選択できます。"
+
+text_align:
+  bottom_text_align:
+    en: "Bottom Text Align"
+    ko: "하단 텍스트 정렬"
+    ja: "下段テキスト揃え"
+  top_text_align:
+    en: "Top Text Align"
+    ko: "상단 텍스트 정렬"
+    ja: "上段テキスト揃え"
+
+  left:
+    en: "Left Align"
+    ko: "왼쪽 정렬"
+    ja: "左揃え"
+  left_hint:
+    en: "Align text to the left"
+    ko: "텍스트를 왼쪽으로 정렬합니다."
+    ja: "テキストを左側に揃えます。"
+
+  center:
+    en: "Center Align"
+    ko: "가운데 정렬"
+    ja: "中央揃え"
+  center_hint:
+    en: "Align text to the center"
+    ko: "텍스트를 가운데로 정렬합니다."
+    ja: "テキストを中央に揃えます。"
+
+  right:
+    en: "Right Align"
+    ko: "오른쪽 정렬"
+    ja: "右揃え"
+  right_hint:
+    en: "Align text to the right"
+    ko: "텍스트를 오른쪽으로 정렬합니다."
+    ja: "テキストを右側に揃えます。"
+  

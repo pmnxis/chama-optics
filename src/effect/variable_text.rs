@@ -143,6 +143,22 @@ impl VariableTextSlot {
         }
     }
 
+    pub fn text_dimensions(&self, scale: ab_glyph::PxScale, txt: impl AsRef<str>) -> (f32, f32) {
+        crate::theme::text_dimensions(scale, &self.get_font(), txt.as_ref())
+    }
+
+    #[allow(unused)]
+    pub fn format_dimensions(
+        &self,
+        scale: ab_glyph::PxScale,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        additional_text: impl AsRef<str> + std::fmt::Display,
+    ) -> (f32, f32) {
+        let txt = exif.format_custom(format!("{}{}", self.text, additional_text));
+
+        self.text_dimensions(scale, txt)
+    }
+
     pub fn ui(
         &mut self,
         ctx: &egui::Context,

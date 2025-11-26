@@ -8,6 +8,7 @@
 
 use eframe::egui;
 
+pub(crate) mod align;
 pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
 pub(crate) mod variable_font;

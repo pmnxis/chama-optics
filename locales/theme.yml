@@ -51,6 +51,12 @@ theme:
       ko: "한줄짜리"
       ja: "一行 テーマ"
 
+  two_line:
+    title:
+      en: "Two Line"
+      ko: "두줄짜리"
+      ja: "二行 テーマ"
+
   strap:
     title:
       en: "Strap"
@@ -181,6 +187,18 @@ theme:
     en: "Logo height"
     ko: "로고 높이"
     ja: "ロゴの高さ"
+  bottom1:
+    en: "First Bottom"
+    ko: "첫번째 하단"
+    ja: "下段 1"
+  bottom2:
+    en: "Second Bottom"
+    ko: "두번째 하단"
+    ja: "下段 2"
+  bottom3:
+    en: "Third Bottom"
+    ko: "세번째 하단"
+    ja: "下段 3"
 
   template_format_hint:
     title:

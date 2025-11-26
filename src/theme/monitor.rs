@@ -197,7 +197,7 @@ impl Theme for Monitor {
                     ui.horizontal(|ui| {
                         ui.add(
                             // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.font_height, 50..=80).step_by(0.01),
+                            egui::Slider::new(&mut self.font_height, 50..=80).step_by(1.0),
                         );
                         ui.label("% ");
                         if ui.button("↺").clicked() {

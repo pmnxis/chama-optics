@@ -10,13 +10,14 @@ use ab_glyph::{Font, ScaleFont};
 use rust_i18n::t;
 
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct OneLine {
+pub struct TwoLine {
     border: crate::effect::border::Border,
     pub font_color: egui::Color32,
     font_height: u32,
     top_font_height: u32,
-    pub left: VariableTextSlot,
-    pub right: VariableTextSlot,
+    pub bottom_align: crate::fonts::align::TextAlign,
+    pub first: VariableTextSlot,
+    pub second: VariableTextSlot,
     pub top: VariableTextSlot,
     show_hint: bool,
 }
@@ -24,12 +25,11 @@ pub struct OneLine {
 const DEFAULT_FONT_HEIGHT: u32 = 30;
 const DEFAULT_TOP_FONT_HEIGHT: u32 = 50;
 
-const DEFAULT_LEFT: VariableTextSlotDefault = VariableTextSlotDefault::with_digital7(
-    "[{camera_mnf}  •  ][{camera_model}][  •  {lens_model}]",
-);
+const DEFAULT_FIRST: VariableTextSlotDefault =
+    VariableTextSlotDefault::with_barlow("[{camera_mnf}  ·  ][{camera_model}][  ·  {lens_model}]");
 
-const DEFAULT_RIGHT: VariableTextSlotDefault = VariableTextSlotDefault::with_digital7(
-    "[ISO{iso_speed}  •  ][{focal}mm  •  ][F{fnumber}  •  ][{exposure}s]",
+const DEFAULT_SECOND: VariableTextSlotDefault = VariableTextSlotDefault::with_barlow(
+    "[ISO{iso_speed}  ·  ][{focal}mm  ·  ][F{fnumber}  ·  ][{exposure}s]",
 );
 
 const DEFAULT_TOP: VariableTextSlotDefault = VariableTextSlotDefault::with_barlow_weight("", 300);
@@ -50,15 +50,16 @@ const DEFAULT_BORDER: crate::effect::border::Border = crate::effect::border::Bor
     is_relative: true,
 };
 
-impl core::default::Default for OneLine {
+impl core::default::Default for TwoLine {
     fn default() -> Self {
         Self {
             border: DEFAULT_BORDER,
             font_color: egui::Color32::BLACK,
             font_height: DEFAULT_FONT_HEIGHT,
             top_font_height: DEFAULT_TOP_FONT_HEIGHT,
-            left: VariableTextSlot::from_default(&DEFAULT_LEFT),
-            right: VariableTextSlot::from_default(&DEFAULT_RIGHT),
+            bottom_align: crate::fonts::align::TextAlign::Center,
+            first: VariableTextSlot::from_default(&DEFAULT_FIRST),
+            second: VariableTextSlot::from_default(&DEFAULT_SECOND),
             top: VariableTextSlot::from_default(&DEFAULT_TOP),
             // width_aligned: true,
             show_hint: false,
@@ -66,7 +67,7 @@ impl core::default::Default for OneLine {
     }
 }
 
-impl OneLine {
+impl TwoLine {
     // 0.0~1.0
     fn rel_size<F: Copy + num_traits::AsPrimitive<f32>, G: Copy + num_traits::AsPrimitive<f32>>(
         &self,
@@ -85,13 +86,13 @@ impl OneLine {
     }
 }
 
-impl Theme for OneLine {
+impl Theme for TwoLine {
     fn unique_name(&self) -> &'static str {
-        "one_line"
+        "two_line"
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        t!("theme.one_line.title")
+        t!("theme.two_line.title")
     }
 
     fn apply(
@@ -107,76 +108,39 @@ impl Theme for OneLine {
         let dyn_wh = dyn_w.max(dyn_h);
 
         let (ll, rr, tt, bb) = self.border.border_size(dyn_wh);
-        // let font_height_ratio = self.font_height.clamp(5, 80) as f32 / 100.0;
-        let font_height_ratio_x100 = (self.font_height).clamp(5, 800);
+        let txt_scale = self.rel_scale((self.font_height).clamp(5, 39) as f32 / 100.0, bb);
 
         let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
 
-        // TODO - Need more profer way
-        let y = new_image.height() - (bb / 2);
-
-        // left and right first
-        let left_x = ((bb / 4).max(2) + ll) as i32;
-        let right_x_end = (new_image.width() - rr - (bb / 4).max(2)) as i32;
-        let available = right_x_end - left_x;
-        let left_font = &self.left.get_font();
-        let left_txt = self.left.format_custom(&pi.view_exif);
-        let right_font = &self.right.get_font();
-        let right_txt = self.right.format_custom(&pi.view_exif);
-
-        if available < 1 {
-            panic!("unreachable");
+        #[rustfmt::skip]
+        macro_rules! draw {
+            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $text:expr) => {
+                imageproc::drawing::draw_text_mut(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $text);
+            };
         }
+        // let two_line_size = font.as_scaled(txt_scale).ascent().abs() * 2.0;
+        let ff = self.first.get_font();
+        let sf = self.second.get_font();
 
-        let txt_scale = {
-            let mut ret = self.rel_scale(0.05, bb);
-            let left_txt = format!("{left_txt}  "); // for margin
+        let two_line_size = ff.as_scaled(txt_scale).ascent() + sf.as_scaled(txt_scale).ascent();
+        // + font.as_scaled(txt_scale).descent().abs() * 1.0;
 
-            for ratio_x100 in (5..=font_height_ratio_x100).rev() {
-                let font_height_ratio = ratio_x100 as f32 / 100.0;
-                let try_scale = self.rel_scale(font_height_ratio, bb);
+        // TODO - Need more profer way
+        let txt_b_gap = (bb as f32 - two_line_size) / 2.0;
+        let txt_y_base = new_image.height() as f32 - txt_b_gap;
 
-                let (left_www, _) = crate::theme::text_dimensions(try_scale, &left_font, &left_txt);
-                let (right_www, _) =
-                    crate::theme::text_dimensions(try_scale, &right_font, &right_txt);
+        let gap_x = (bb / 4).max(2).min(ll.min(rr)) as i32;
 
-                if (left_www + right_www).floor() as i32 <= available {
-                    ret = try_scale;
-                    break;
-                }
-            }
-            ret
-        };
+        let mut y = txt_y_base;
 
-        // left - after
-        imageproc::drawing::draw_text_mut(
-            &mut new_image,
-            font_color,
-            left_x,
-            (y as f32
-                - ((left_font.as_scaled(txt_scale).ascent()
-                    + left_font.as_scaled(txt_scale).descent().abs())
-                    * 0.55)) as i32,
-            txt_scale,
-            left_font,
-            &left_txt,
-        );
+        for item in [&self.first, &self.second].iter().rev() {
+            let txt = item.format_custom(&pi.view_exif);
+            let (www, _hhh) = item.text_dimensions(txt_scale, &txt);
+            let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
-        // right - after
-        let (right_www, _) = crate::theme::text_dimensions(txt_scale, right_font, &right_txt);
-        let right_x = (new_image.width() - rr - (bb / 4).max(2)) as i32 - (right_www as i32);
-        imageproc::drawing::draw_text_mut(
-            &mut new_image,
-            font_color,
-            right_x,
-            (y as f32
-                - ((right_font.as_scaled(txt_scale).ascent()
-                    + right_font.as_scaled(txt_scale).descent().abs())
-                    * 0.55)) as i32,
-            txt_scale,
-            right_font,
-            &right_txt,
-        );
+            draw!(new_bottom_x, y, &item.get_font(), txt_scale, &txt);
+            y -= txt_scale.y;
+        }
 
         // top
         if tt >= 10 {
@@ -219,7 +183,7 @@ impl Theme for OneLine {
             ui.add_space(4.0);
 
             // Own configuration
-            egui::Grid::new("one_line_config_grid")
+            egui::Grid::new("two_line_config_grid")
                 .num_columns(2)
                 .spacing([4.0, 3.0])
                 .show(ui, |ui| {
@@ -237,10 +201,7 @@ impl Theme for OneLine {
                     )
                     .on_hover_text(t!("theme.font_height_ratio.hint"));
                     ui.horizontal(|ui| {
-                        ui.add(
-                            // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.top_font_height, 5..=90).step_by(1.0),
-                        );
+                        ui.add(egui::Slider::new(&mut self.top_font_height, 5..=90).step_by(1.0));
                         ui.label("% ");
                         if ui.button("↺").clicked() {
                             self.top_font_height = DEFAULT_TOP_FONT_HEIGHT;
@@ -257,10 +218,7 @@ impl Theme for OneLine {
                     ui.label(t!("theme.font_height_ratio.label"))
                         .on_hover_text(t!("theme.font_height_ratio.hint"));
                     ui.horizontal(|ui| {
-                        ui.add(
-                            // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.font_height, 5..=80).step_by(1.0),
-                        );
+                        ui.add(egui::Slider::new(&mut self.font_height, 5..=39).step_by(1.0));
                         ui.label("% ");
                         if ui.button("↺").clicked() {
                             self.font_height = DEFAULT_FONT_HEIGHT;
@@ -268,12 +226,15 @@ impl Theme for OneLine {
                     });
                     ui.end_row();
 
-                    self.left
-                        .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
+                    ui.label(t!("text_align.bottom_text_align"));
+                    self.bottom_align.update_ui(ui);
                     ui.end_row();
 
-                    self.right
-                        .ui(ctx, ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
+                    self.first.ui(ctx, ui, t!("theme.bottom1"), &DEFAULT_FIRST);
+                    ui.end_row();
+
+                    self.second
+                        .ui(ctx, ui, t!("theme.bottom2"), &DEFAULT_SECOND);
                     ui.end_row();
                 });
 
