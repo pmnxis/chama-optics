@@ -46,7 +46,7 @@ exif = { git = "https://github.com/kamadak/exif-rs", rev = "7cb491cd22aa4a586f37
 # kamadak-exif = "0.6.1"
 image = { version = "0.25", features = ["serde"] }
 base64 = "0.22.1"
-rfd = "0.15.3"
+rfd = "0.16.0"
 egui-file-dialog = "0.12.0"
 imageproc = "0.25"
 rusttype = "0.9"
