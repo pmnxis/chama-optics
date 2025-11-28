@@ -16,6 +16,7 @@ pub(crate) mod monitor;
 pub(crate) mod nothing;
 pub(crate) mod one_line;
 pub(crate) mod shot_on_one_line;
+pub(crate) mod shot_on_two_line;
 pub(crate) mod strap;
 pub(crate) mod two_line;
 
@@ -96,6 +97,8 @@ impl ThemeRegistry {
             Arc::new(RwLock::new(one_line::OneLine::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(two_line::TwoLine::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(shot_on_one_line::ShotOnOneLine::default()))
+                as Arc<RwLock<dyn Theme>>,
+            Arc::new(RwLock::new(shot_on_two_line::ShotOnTwoLine::default()))
                 as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(strap::Strap::default())) as Arc<RwLock<dyn Theme>>,
             Arc::new(RwLock::new(monitor::Monitor::default())) as Arc<RwLock<dyn Theme>>,
