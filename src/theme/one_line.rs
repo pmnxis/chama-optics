@@ -204,11 +204,10 @@ impl Theme for OneLine {
             log::warn!("Cannot create top title with {tt} pixel margin");
         }
 
-        export_config.save_image(
-            &mut new_image,
-            Some(self.border.interactive_watermark_padding(dyn_w, dyn_h) as i32),
-            output_path,
-        )
+        let temp_margin = self.border.interactive_watermark_padding(dyn_w, dyn_h) / 6;
+        let border_margin = (temp_margin * 5).max(bb) + temp_margin;
+
+        export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
     fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {

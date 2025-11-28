@@ -57,6 +57,12 @@ theme:
       ko: "두줄짜리"
       ja: "二行 テーマ"
 
+  shot_on_one_line:
+    title:
+      en: "Shot on one line"
+      ko: "한 줄에 담긴 순간"
+      ja: "一行に刻む瞬間"
+
   strap:
     title:
       en: "Strap"

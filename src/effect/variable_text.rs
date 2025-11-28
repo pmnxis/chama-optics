@@ -143,6 +143,27 @@ impl VariableTextSlot {
         }
     }
 
+    /// return false on bool tuple when it's not variable font
+    pub fn get_font_with_new_weight(&self, weight: u16) -> (ab_glyph::FontArc, bool) {
+        // todo - resolve &'static, &, * hell
+        // todo - Result<T,E>
+        match &self.font_index {
+            VariableOrNot::Variable(var) => (var.get_font_by_weight(weight).clone(), true),
+            VariableOrNot::Others(others) => (
+                match crate::FONTS_UNIFY.search(others) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        log::error!("{e}");
+                        BuiltinVariableFontIndex::Barlow
+                            .get_font_by_weight(self.weight)
+                            .clone()
+                    }
+                },
+                false,
+            ),
+        }
+    }
+
     pub fn text_dimensions(&self, scale: ab_glyph::PxScale, txt: impl AsRef<str>) -> (f32, f32) {
         crate::theme::text_dimensions(scale, &self.get_font(), txt.as_ref())
     }
