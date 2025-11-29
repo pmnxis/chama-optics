@@ -28,3 +28,6 @@ pub mod theme;
 // pub(crate) mod preview;
 
 pub use app::ChamaOptics;
+
+#[macro_use]
+pub mod dump;
