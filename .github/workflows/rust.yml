@@ -53,6 +53,7 @@ jobs:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
           restore-keys: |
+            logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
             logo-assets-
       - name: Install libheif dependencies (macOS)
         run: |
@@ -90,6 +91,7 @@ jobs:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
           restore-keys: |
+            logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
             logo-assets-
       - name: Install libheif dependencies (macOS)
         run: |
@@ -125,6 +127,7 @@ jobs:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
           restore-keys: |
+            logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
             logo-assets-
       - name: Install libheif dependencies
         run: |
@@ -163,6 +166,7 @@ jobs:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
           restore-keys: |
+            logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
             logo-assets-
       - name: Install libheif dependencies (macOS)
         run: |
@@ -218,6 +222,7 @@ jobs:
         path: assets/download
         key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
         restore-keys: |
+          logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
           logo-assets-
     - uses: ilammy/setup-nasm@v1
     - name: Building ${{ matrix.TARGET }}
