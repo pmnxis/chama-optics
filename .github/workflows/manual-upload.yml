@@ -6,13 +6,45 @@ name: Manual Upload Logo Assets
 
 on:
   workflow_dispatch:  # Manual trigger only
+    inputs:
+      download_url:
+        description: 'Temporary download URL for logo-assets.zip (from transfer.sh or similar)'
+        required: true
 
 jobs:
-  placeholder:
-    name: Placeholder for artifact upload
+  download-and-cache:
+    name: Download and cache logo assets
     runs-on: ubuntu-latest
     steps:
-      - name: Info
+      - uses: actions/checkout@v4
+
+      - name: Download logo assets from temporary URL
         run: |
-          echo "This workflow is a placeholder for manually uploading logo assets."
-          echo "Use: gh run upload <run-id> assets/download --name logo-assets-manual"
+          echo "Downloading from: ${{ inputs.download_url }}"
+          curl -L "${{ inputs.download_url }}" -o logo-assets.zip
+
+          echo "Extracting archive..."
+          mkdir -p assets/download
+          unzip -o logo-assets.zip -d assets/
+
+      - name: Verify logo files
+        run: |
+          echo "=== Downloaded Logo Files ==="
+          if [ -d "assets/download" ]; then
+            ls -lah assets/download/
+            echo ""
+            echo "Total files:"
+            find assets/download -type f | wc -l
+            echo ""
+            echo "Total size:"
+            du -sh assets/download/
+          else
+            echo "ERROR: assets/download not found!"
+            exit 1
+          fi
+
+      - name: Save to cache
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
