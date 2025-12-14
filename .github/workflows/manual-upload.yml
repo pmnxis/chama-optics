@@ -32,6 +32,7 @@ jobs:
           tar xzf logo-assets.tar.gz -C assets/
 
       - name: Verify logo files
+        shell: bash
         run: |
           echo "=== Downloaded Logo Files ==="
           if [ -d "assets/download" ]; then
