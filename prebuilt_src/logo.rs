@@ -26,6 +26,9 @@ mod builtin_logos {
         pub fn load(&self, out_dir: &Path) -> PathBuf {
             use md5::{Digest, Md5};
 
+            const MAX_RETRIES: usize = 3;
+            const RETRY_DURATION: std::time::Duration = std::time::Duration::from_secs(5);
+
             // let file_name = self.url.split('/').last().expect("cannot determine file name from URL");
             let file_path = out_dir.join(self.key.clone());
 
@@ -58,18 +61,54 @@ mod builtin_logos {
                         .build()
                         .expect("failed to build reqwest client");
 
-                    let resp = client
-                        .get(&self.url)
-                        .send()
-                        .unwrap_or_else(|e| panic!("Failed to download {}: {e}", &self.url));
+                    let mut last_error = None;
+                    let mut result_bytes = None;
 
-                    if !resp.status().is_success() {
-                        panic!("HTTP error {} for {}", resp.status(), self.url);
+                    for attempt in 0..=MAX_RETRIES {
+                        if attempt > 0 {
+                            println!(
+                                "cargo:warning=Retrying download attempt {}/{} after {} seconds...",
+                                attempt,
+                                MAX_RETRIES,
+                                RETRY_DURATION.as_secs()
+                            );
+                            std::thread::sleep(RETRY_DURATION);
+                        }
+
+                        let resp = match client.get(&self.url).send() {
+                            Ok(r) => r,
+                            Err(e) => {
+                                last_error = Some(format!("Failed to download {}: {e}", &self.url));
+                                continue;
+                            }
+                        };
+
+                        if resp.status().is_success() {
+                            let bytes = resp
+                                .bytes()
+                                .expect("failed to read response bytes")
+                                .to_vec();
+                            result_bytes = Some(bytes);
+                            last_error = None;
+                            break;
+                        } else if resp.status() == reqwest::StatusCode::FORBIDDEN {
+                            last_error = Some(format!(
+                                "HTTP 403 Forbidden for {} (server intentionally blocked)",
+                                self.url
+                            ));
+                            if attempt < MAX_RETRIES {
+                                continue;
+                            }
+                        } else {
+                            panic!("HTTP error {} for {}", resp.status(), self.url);
+                        }
                     }
 
-                    resp.bytes()
-                        .expect("failed to read response bytes")
-                        .to_vec()
+                    if let Some(err) = last_error {
+                        panic!("{}", err);
+                    }
+
+                    result_bytes.expect("Should have downloaded bytes")
                 } else {
                     // use local file
                     let src_path = PathBuf::from(&self.url);

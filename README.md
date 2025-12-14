@@ -24,6 +24,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Read EXIF data (supports up to 2.3.x standard; not yet compliant with 3.0)
 - [x] Save photos with selected frames and settings
 - [x] Themes from genally use in another case
+- [x] Read Panasonic lumix LUT/PhotoStyle and Nikon Picture Control names
 - [ ] More themes
 - [ ] Save photos with EXIF
 - [ ] Multi core usage
