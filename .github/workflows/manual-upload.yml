@@ -14,7 +14,7 @@ on:
 jobs:
   download-and-cache:
     name: Download and cache logo assets
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -50,4 +50,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: assets/download
-          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
