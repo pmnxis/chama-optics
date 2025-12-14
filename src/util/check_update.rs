@@ -67,9 +67,14 @@ fn get_latest_stable_release() -> Option<(String, String)> {
             continue;
         }
 
-        // Skip pre-release suffixes (alpha/beta/rc etc.)
+        // Skip pre-release suffixes (alpha/beta/gamma/delta/rc etc.)
         let tag = rel.tag_name.to_lowercase();
-        if tag.contains("alpha") || tag.contains("beta") || tag.contains("rc") {
+        if tag.contains("alpha")
+            || tag.contains("beta")
+            || tag.contains("gamma")
+            || tag.contains("delta")
+            || tag.contains("rc")
+        {
             continue;
         }
 
