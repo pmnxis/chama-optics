@@ -14,6 +14,7 @@ pub struct Film {
     font: crate::FontSelection,
     font_color: egui::Color32,
     font_size: f32,
+    show_ps: bool,
 }
 
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 153, 0, 255]);
@@ -28,6 +29,7 @@ impl core::default::Default for Film {
             font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             font_size: DEFAULT_FONT_SIZE as f32,
+            show_ps: false,
         }
     }
 }
@@ -88,6 +90,21 @@ impl Theme for Film {
         let cam_scale = self.rel_scale(75, dyn_wh);
         let left_list = {
             let mut list = Vec::new();
+
+            if let Some(ps_main) = exif.get_ps_main() {
+                if self.show_ps {
+                    list.push(if let Some(ps_sub) = exif.get_lut_detail() {
+                        if !ps_sub.is_empty() {
+                            format!("{ps_main} = {ps_sub}")
+                        } else {
+                            ps_main
+                        }
+                    } else {
+                        ps_main
+                    })
+                }
+            }
+
             if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
                 list.push(format!("{}  {}", exif.camera_mnf, exif.camera_model));
             }
@@ -159,6 +176,13 @@ impl Theme for Film {
                     "theme.font_size_description",
                     default = DEFAULT_FONT_SIZE
                 ));
+
+                ui.add_space(1.0);
+                ui.checkbox(
+                    &mut self.show_ps,
+                    t!("theme.film_config.show_photo_style.label"),
+                )
+                .on_hover_text(t!("theme.film_config.show_photo_style.description"));
             });
         });
     }

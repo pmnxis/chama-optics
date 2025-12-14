@@ -17,6 +17,7 @@ pub struct FilmGlow {
     glow_color: egui::Color32,
     font_size: f32,
     glow_gain: f32,
+    show_ps: bool,
 }
 
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
@@ -33,6 +34,7 @@ impl core::default::Default for FilmGlow {
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE as f32,
             glow_gain: 8.0,
+            show_ps: false,
         }
     }
 }
@@ -100,6 +102,20 @@ impl Theme for FilmGlow {
             }
             if !exif.lens_model.is_empty() {
                 list.push(exif.lens_model.clone());
+            }
+
+            if let Some(ps_main) = exif.get_ps_main() {
+                if self.show_ps {
+                    list.push(if let Some(ps_sub) = exif.get_lut_detail() {
+                        if !ps_sub.is_empty() {
+                            format!("{ps_main} = {ps_sub}")
+                        } else {
+                            ps_main
+                        }
+                    } else {
+                        ps_main
+                    })
+                }
             }
             list
         };
@@ -195,6 +211,13 @@ impl Theme for FilmGlow {
                         .text(t!("theme.film_config.glow_range")),
                 );
             });
+
+            ui.add_space(1.0);
+            ui.checkbox(
+                &mut self.show_ps,
+                t!("theme.film_config.show_photo_style.label"),
+            )
+            .on_hover_text(t!("theme.film_config.show_photo_style.description"));
         });
     }
 

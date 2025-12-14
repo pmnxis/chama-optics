@@ -100,6 +100,15 @@ theme:
         en: "Hides the camera model and lens information from EXIF data when displaying photos."
         ko: "사진을 표시할 때 EXIF 데이터의 카메라 기종과 렌즈 정보를 숨깁니다."
         ja: "写真表示時にEXIFデータ内のカメラ機種とレンズ情報を非表示にします。"
+    show_photo_style:
+      label:
+        en: "Show Photo Style"
+        ko: "포토 스타일 표시"
+        ja: "フォトスタイル表示"
+      description:
+        en: "Displays the Photo Style or LUT name for Panasonic Lumix cameras, or the Picture Control name for Nikon cameras, extracted from EXIF MakerNote data."
+        ko: "EXIF MakerNote 데이터에서 추출한 Panasonic Lumix의 포토 스타일 또는 LUT 이름, 혹은 Nikon 카메라의 픽처 컨트롤 이름을 표시합니다."
+        ja: "EXIFのMakerNoteデータから取得したPanasonic LumixのフォトスタイルまたはLUT名、またはNikonカメラのピクチャーコントロール名を表示します。"
 
   # For Monitor
   monitor:

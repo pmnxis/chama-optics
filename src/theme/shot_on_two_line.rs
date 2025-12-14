@@ -37,7 +37,8 @@ const DEFAULT_SECOND: VariableTextSlotDefault = VariableTextSlotDefault::with_ba
     300,
 );
 
-const DEFAULT_TOP: VariableTextSlotDefault = VariableTextSlotDefault::with_barlow_weight("", 300);
+const DEFAULT_TOP: VariableTextSlotDefault =
+    VariableTextSlotDefault::with_barlow_weight("[{photo_style}][ = {lut_detail}]", 300);
 
 // const DEFAULT_BORDER_DEFAULT_SIZE: u32 = 90;
 const DEFAULT_BORDER_MIN_SIZE: u32 = 25;

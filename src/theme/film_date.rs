@@ -19,6 +19,7 @@ pub struct FilmDate {
     font_size: f32,
     glow_gain: f32,
     hide_camera_exif: bool,
+    show_ps: bool,
 }
 
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
@@ -37,6 +38,7 @@ impl core::default::Default for FilmDate {
             font_size: DEFAULT_FONT_SIZE as f32,
             glow_gain: 8.0,
             hide_camera_exif: true,
+            show_ps: false,
         }
     }
 }
@@ -96,23 +98,38 @@ impl Theme for FilmDate {
         let base_y = dyn_h as i32 - margin;
 
         // Left
-        if !self.hide_camera_exif {
-            let mut y = base_y as f32;
-            let cam_scale = self.rel_scale(75, dyn_wh);
-            let left_list = {
-                let mut list = Vec::new();
+        let mut y = base_y as f32;
+        let cam_scale = self.rel_scale(75, dyn_wh);
+        let left_list = {
+            let mut list = Vec::new();
+            if !self.hide_camera_exif {
                 if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
                     list.push(format!("{}  {}", exif.camera_mnf, exif.camera_model));
                 }
                 if !exif.lens_model.is_empty() {
                     list.push(exif.lens_model.clone());
                 }
-                list
-            };
-            for left_str in left_list.iter().rev() {
-                draw!(margin, y, &font, cam_scale, left_str);
-                y -= cam_scale.y;
             }
+
+            if let Some(ps_main) = exif.get_ps_main() {
+                if self.show_ps {
+                    list.push(if let Some(ps_sub) = exif.get_lut_detail() {
+                        if !ps_sub.is_empty() {
+                            format!("{ps_main} = {ps_sub}")
+                        } else {
+                            ps_main
+                        }
+                    } else {
+                        ps_main
+                    })
+                }
+            }
+
+            list
+        };
+        for left_str in left_list.iter().rev() {
+            draw!(margin, y, &font, cam_scale, left_str);
+            y -= cam_scale.y;
         }
 
         // Right
@@ -157,6 +174,13 @@ impl Theme for FilmDate {
             t!("theme.film_config.hide_camera_exif.label"),
         )
         .on_hover_text(t!("theme.film_config.hide_camera_exif.description"));
+
+        ui.add_space(1.0);
+        ui.checkbox(
+            &mut self.show_ps,
+            t!("theme.film_config.show_photo_style.label"),
+        )
+        .on_hover_text(t!("theme.film_config.show_photo_style.description"));
 
         self.font.update_ui_with_default_label(ctx, ui);
 
