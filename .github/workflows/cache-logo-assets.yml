@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Cache Logo Assets
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  download-logos:
+    name: Download and cache logo assets
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore existing logo assets cache
+        id: cache-logo-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
+          restore-keys: |
+            logo-assets-
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install libheif dependencies (macOS)
+        run: |
+          brew update
+          brew install libheif pkg-config
+
+      - name: Download logo assets (via build.rs)
+        run: |
+          # This will trigger build.rs which downloads logos to assets/download
+          cargo fetch
+          cargo build
+
+      - name: Verify downloads
+        run: |
+          echo "Contents of assets/download:"
+          ls -lah assets/download/ || echo "Directory not found"
+          echo "Number of files:"
+          find assets/download -type f 2>/dev/null | wc -l || echo "0"
+
+      - name: Save logo assets cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
+
