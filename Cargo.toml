@@ -60,7 +60,7 @@ env_logger = "0.11.8"
 rust-i18n = "3.1.5"
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
-oxipng = "9.1.5"
+oxipng = "10"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 sys-locale = "0.3.2"
