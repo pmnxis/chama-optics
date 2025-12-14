@@ -8,7 +8,7 @@ on:
   workflow_dispatch:  # Manual trigger only
     inputs:
       download_url:
-        description: 'Temporary download URL for logo-assets.zip (from transfer.sh or similar)'
+        description: 'Raw URL from private GitHub Gist (must end with /raw/...)'
         required: true
 
 jobs:
@@ -18,14 +18,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download logo assets from temporary URL
+      - name: Download logo assets from GitHub Gist
         run: |
           echo "Downloading from: ${{ inputs.download_url }}"
-          curl -L "${{ inputs.download_url }}" -o logo-assets.zip
+          curl -L "${{ inputs.download_url }}" -o logo-assets.tar.gz.b64
+
+          echo "Decoding base64..."
+          base64 -d logo-assets.tar.gz.b64 > logo-assets.tar.gz
 
           echo "Extracting archive..."
-          mkdir -p assets/download
-          unzip -o logo-assets.zip -d assets/
+          mkdir -p assets
+          tar xzf logo-assets.tar.gz -C assets/
 
       - name: Verify logo files
         run: |
