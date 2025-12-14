@@ -46,8 +46,9 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cache logo assets
-        uses: actions/cache@v4
+      - name: Restore logo assets cache
+        id: cache-logo-restore
+        uses: actions/cache/restore@v4
         with:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
@@ -70,14 +71,21 @@ jobs:
           args: --all-features
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@master
+      - name: Save logo assets cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
 
   test:
     name: Test Suite
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cache logo assets
-        uses: actions/cache@v4
+      - name: Restore logo assets cache
+        id: cache-logo-restore
+        uses: actions/cache/restore@v4
         with:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
@@ -98,14 +106,21 @@ jobs:
         with:
           command: test
           args: --lib
+      - name: Save logo assets cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
 
   fmt:
     name: Rustfmt
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Cache logo assets
-        uses: actions/cache@v4
+      - name: Restore logo assets cache
+        id: cache-logo-restore
+        uses: actions/cache/restore@v4
         with:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
@@ -129,14 +144,21 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
+      - name: Save logo assets cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
 
   clippy:
     name: Clippy
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Cache logo assets
-        uses: actions/cache@v4
+      - name: Restore logo assets cache
+        id: cache-logo-restore
+        uses: actions/cache/restore@v4
         with:
           path: assets/download
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
@@ -158,6 +180,12 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+      - name: Save logo assets cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
 
   build_job:
     name: Build release
@@ -183,8 +211,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Cache logo assets
-      uses: actions/cache@v4
+    - name: Restore logo assets cache
+      id: cache-logo-restore
+      uses: actions/cache/restore@v4
       with:
         path: assets/download
         key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
@@ -271,6 +300,14 @@ jobs:
         asset_path: target/x86_64-pc-windows-msvc/release/chama-optics.exe
         asset_name: chama-optics.exe
         asset_content_type: application/zip
+
+    # Save cache even if the build fails (always runs)
+    - name: Save logo assets cache
+      if: always()
+      uses: actions/cache/save@v4
+      with:
+        path: assets/download
+        key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
 
   publish_release:
     name: Publish release
