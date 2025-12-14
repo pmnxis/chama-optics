@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Download logo assets from GitHub Gist
+        shell: bash
         run: |
           echo "Downloading from: ${{ inputs.download_url }}"
           curl -L "${{ inputs.download_url }}" -o logo-assets.tar.gz.b64
