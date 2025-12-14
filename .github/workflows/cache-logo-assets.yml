@@ -36,22 +36,47 @@ jobs:
           brew install libheif pkg-config
 
       - name: Download logo assets (via build.rs)
+        continue-on-error: true
         run: |
           # This will trigger build.rs which downloads logos to assets/download
-          cargo fetch
-          cargo build
+          # Even if it fails, we'll save whatever was downloaded
+          echo "Starting logo download..."
+          cargo fetch || true
+          cargo build --release 2>&1 | tee build.log || echo "Build failed, but continuing to save cache"
 
       - name: Verify downloads
+        if: always()
         run: |
-          echo "Contents of assets/download:"
-          ls -lah assets/download/ || echo "Directory not found"
-          echo "Number of files:"
-          find assets/download -type f 2>/dev/null | wc -l || echo "0"
+          echo "=== Download Status ==="
+          if [ -d "assets/download" ]; then
+            echo "Directory exists: assets/download"
+            echo ""
+            echo "Total files downloaded:"
+            find assets/download -type f 2>/dev/null | wc -l || echo "0"
+            echo ""
+            echo "Files list:"
+            ls -lah assets/download/ | head -20
+            echo ""
+            echo "Total size:"
+            du -sh assets/download/ 2>/dev/null || echo "N/A"
+          else
+            echo "Directory not found: assets/download"
+          fi
 
-      - name: Save logo assets cache
+      - name: Save logo assets cache (ALWAYS)
         if: always()
         uses: actions/cache/save@v4
         with:
           path: assets/download
-          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-${{ github.run_id }}
+
+      - name: Upload partial downloads as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logo-download-attempt-${{ github.run_id }}
+          path: |
+            assets/download/
+            build.log
+          retention-days: 3
 
