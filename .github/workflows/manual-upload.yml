@@ -50,4 +50,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: assets/download
-          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}
