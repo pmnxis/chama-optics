@@ -64,11 +64,11 @@ jobs:
           fi
 
       - name: Save logo assets cache (ALWAYS)
-        if: always()
+        if: always() && steps.cache-logo-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: assets/download
-          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-${{ github.run_id }}
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-${{ github.run_number }}-${{ github.run_attempt }}
 
       - name: Upload partial downloads as artifact
         if: always()
