@@ -131,9 +131,10 @@ pub(crate) fn d_default(w: &mut dyn std::fmt::Write, value: &exif::Value) -> std
         Value::SRational(ref v) => d_sub_comma(w, v),
         Value::Float(ref v) => d_sub_comma(w, v),
         Value::Double(ref v) => d_sub_comma(w, v),
-        Value::Unknown(t, c, o) => write!(
-            w,
-            "unknown value (type={t}, count={c}, offset={o:#x})"
-        ),
+        Value::Unknown(t, c, o) => write!(w, "unknown value (type={t}, count={c}, offset={o:#x})"),
+        #[allow(unreachable_patterns)]
+        _ => {
+            unimplemented!()
+        }
     }
 }

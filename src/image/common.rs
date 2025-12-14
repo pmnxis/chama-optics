@@ -7,8 +7,8 @@
 use egui::ColorImage;
 use fast_image_resize as fr;
 
-pub const THUMBNAIL_MAX_WIDTH: u32 = 330;
-pub const THUMBNAIL_MAX_HEIGHT: u32 = 220;
+pub const THUMBNAIL_MAX_WIDTH: u32 = 330 * 2;
+pub const THUMBNAIL_MAX_HEIGHT: u32 = 220 * 2;
 pub const THUMBNAIL_MAX_WIDTH_AS_F32: f32 = 110.0; // considering retina display
 pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 165.0; // considering retina display
 pub const THUMBNAIL_DIMM: egui::Vec2 =
@@ -117,6 +117,63 @@ pub(crate) fn __load_image(
     } else {
         &mut std::io::BufReader::new(std::fs::File::open(path)?)
     };
+
+    let decoder = if let Some(fmt) = img_format {
+        image::ImageReader::with_format(
+            buf_reader, // std::io::BufReader::new(std::fs::File::open(path)?),
+            fmt,
+        )
+    } else {
+        image::ImageReader::new(buf_reader)
+    };
+
+    decoder.decode().map_or_else(
+        // let dyn_image = image::ImageReader::open(path)?.decode().map_or_else(
+        |heic_suppose_or_err| {
+            // Suppose HEIC/HEIF
+            match heic_suppose_or_err {
+                // Since libheif is depend on FFIed C library.
+                // Pass buffer reader in to ffi is difficult.
+                // Keep using path
+                image::ImageError::Unsupported(unsp_e) => {
+                    if img_format.is_none() {
+                        crate::image::heic::load_heif(path)
+                            .map(|img| (img, false))
+                            .map_err(|e| {
+                                image::error::ImageError::Unsupported(
+                                    image::error::UnsupportedError::from_format_and_kind(
+                                        image::error::ImageFormatHint::PathExtension(
+                                            path.to_path_buf(),
+                                        ),
+                                        image::error::UnsupportedErrorKind::GenericFeature(
+                                            format!(
+                                                "libheif internal error {e} and unsp_e : {unsp_e}"
+                                            ),
+                                        ),
+                                    ),
+                                )
+                            })
+                    } else {
+                        Err(image::error::ImageError::Unsupported(unsp_e))
+                    }
+                }
+                other_err => Err(other_err),
+            }
+        },
+        |img| Ok((img, true)),
+    )
+}
+
+pub(crate) fn __load_image_from_vec(
+    path: &std::path::PathBuf, // just hint
+    v: std::vec::Vec<u8>,
+) -> Result<(image::DynamicImage, bool), image::ImageError> {
+    let img_format = path
+        .extension()
+        .filter(|ext| !ext.is_empty())
+        .and_then(image::ImageFormat::from_extension);
+
+    let buf_reader = std::io::BufReader::new(std::io::Cursor::new(v));
 
     let decoder = if let Some(fmt) = img_format {
         image::ImageReader::with_format(

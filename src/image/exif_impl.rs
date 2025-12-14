@@ -118,6 +118,27 @@ impl OriginalExif {
         self.get_exif_decimal_string(Tag::FNumber, None)
     }
 
+    // this is initial implement
+    pub fn make_note(&self) -> Option<SimplifiedMakeNote> {
+        let mut value = self
+            .0
+            .as_ref()
+            .and_then(|exif| exif.get_field(Tag::MakerNote, In::PRIMARY))
+            .map(|field| {
+                let a = field.value.clone();
+                if let exif::Value::Undefined(vector, _) = a {
+                    crate::dump!(vector);
+                }
+                field.value.clone()
+            });
+
+        if let Some(exif::Value::Undefined(ref mut vector, offset)) = value {
+            crate::image::make_note::parse_make_note(vector, offset).ok()
+        } else {
+            None
+        }
+    }
+
     /// Exposure time
     pub fn exposure(&self) -> String {
         self.0
@@ -162,6 +183,7 @@ pub struct SimplifiedExif {
     pub exposure: String,
     pub iso_speed: Option<u32>,
     pub datetime: String, // Option<DateTime>,
+    pub make_note: Option<SimplifiedMakeNote>,
 
     #[serde(skip)]
     pub orientation: image::metadata::Orientation,
@@ -179,6 +201,7 @@ impl core::default::Default for SimplifiedExif {
             exposure: String::new(),
             iso_speed: None,
             datetime: String::new(),
+            make_note: None,
             orientation: image::metadata::Orientation::NoTransforms,
         }
     }
@@ -226,11 +249,14 @@ impl From<&OriginalExif> for SimplifiedExif {
             exposure: value.exposure(),
             iso_speed: value.iso_speed(),
             datetime: value.datetime(),
+            make_note: value.make_note(),
             orientation: value.orientation(),
         }
     }
 }
 use egui::{RichText, TextEdit, TextStyle};
+
+use crate::image::make_note::SimplifiedMakeNote;
 
 impl SimplifiedExif {
     pub fn get_fnumber(&self) -> Option<String> {
@@ -299,6 +325,14 @@ impl SimplifiedExif {
 
     pub fn get_iso(&self) -> Option<String> {
         self.iso_speed.map(|x| x.to_string())
+    }
+
+    pub fn get_ps_main(&self) -> Option<String> {
+        self.make_note.as_ref()?.photo_style.main_name()
+    }
+
+    pub fn get_lut_detail(&self) -> Option<String> {
+        self.make_note.as_ref()?.photo_style.lut_detail()
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {
@@ -440,6 +474,8 @@ impl SimplifiedExif {
         match key.as_ref() {
             "fnumber" => self.get_fnumber().unwrap_or_default(),
             "exposure" => self.get_exposure().unwrap_or_default(),
+            "photo_style" => self.get_ps_main().unwrap_or_default(),
+            "lut_detail" => self.get_lut_detail().unwrap_or_default(),
             // default
             default => match map.get(default) {
                 Some(serde_json::Value::String(s)) => s.clone(),
@@ -480,10 +516,30 @@ impl SimplifiedExif {
                     block_content.push(c);
                 }
 
-                let expanded = self.format_custom(block_content.as_str());
+                // Extract variable values from block content to check if any are non-empty
+                let mut has_content = false;
+                let mut temp_chars = block_content.chars().peekable();
+                while let Some(c) = temp_chars.next() {
+                    if c == '{' {
+                        let mut key = String::new();
+                        while let Some(&next_ch) = temp_chars.peek() {
+                            temp_chars.next();
+                            if next_ch == '}' {
+                                break;
+                            }
+                            key.push(next_ch);
+                        }
+                        let val = self.format_key(map, key);
+                        if !val.is_empty() {
+                            has_content = true;
+                            break;
+                        }
+                    }
+                }
 
-                // remove [ ]
-                if expanded.chars().any(|c| !c.is_whitespace()) {
+                // Only include block if it contains non-empty variable values
+                if has_content {
+                    let expanded = self.format_custom(block_content.as_str());
                     result.push_str(&expanded);
                 }
             } else {

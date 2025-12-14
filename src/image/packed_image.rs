@@ -76,25 +76,69 @@ impl PackedImage {
     }
 
     pub fn try_from_path(path: &PathBuf, ctx: &egui::Context) -> Result<Self, image::ImageError> {
+        fn get_exif_with_thumbnail(
+            buf_reader: &mut std::io::BufReader<std::fs::File>,
+        ) -> (Option<exif::Exif>, Option<Vec<u8>>) {
+            match exif::Reader::new().read_from_container(buf_reader) {
+                Ok(exif) => {
+                    // currently thumbnail is too small so wait until preview image usabale
+
+                    // if let (Some(thumb_offset), Some(thumb_len)) = (
+                    //     exif.get_field(exif::Tag::JPEGInterchangeFormat, exif::In::THUMBNAIL)
+                    //         .and_then(|field| field.value.get_uint(0)),
+                    //     exif.get_field(exif::Tag::JPEGInterchangeFormatLength, exif::In::THUMBNAIL)
+                    //         .and_then(|field| field.value.get_uint(0)),
+                    // ) {
+                    //     let thumbnail = buf_reader
+                    //         .seek(std::io::SeekFrom::Start(12 + thumb_offset as u64))
+                    //         .and_then(|_| {
+                    //             let mut v = Vec::with_capacity(thumb_len as usize);
+                    //             buf_reader
+                    //                 .take(thumb_len as u64)
+                    //                 .read_to_end(&mut v)
+                    //                 .map(|_| v)
+                    //         })
+                    //         .inspect(|_| {
+                    //             log::info!("EXIF thumb : soi+{thumb_offset:X}[{thumb_len:X}]")
+                    //         })
+                    //         .ok();
+
+                    //     (Some(exif), thumbnail)
+                    // } else {
+                    //     (Some(exif), None)
+                    // }
+
+                    (Some(exif), None)
+                }
+                Err(e) => {
+                    log::error!("Failed to parse EXIF from image: {e:?}");
+                    (None, None)
+                }
+            }
+        }
+
         let file = std::fs::File::open(path)?;
         let mut buf_reader = std::io::BufReader::new(file);
 
         // Parse EXIF first
-        let original_exif = OriginalExif::new(
-            match exif::Reader::new().read_from_container(&mut buf_reader) {
-                Ok(exif) => Some(exif),
-                Err(e) => {
-                    log::error!("Failed to parse EXIF from image: {e:?}");
-                    None
-                }
-            },
-        );
+        let (exif_or_none, exif_thumbnail) = get_exif_with_thumbnail(&mut buf_reader);
+        let original_exif = OriginalExif::new(exif_or_none);
 
         buf_reader
             .seek(std::io::SeekFrom::Start(0))
             .expect("Failed reset seek zero");
 
-        let (dyn_image, need_orientation) = __load_image(path, &mut buf_reader)?;
+        let (dyn_image, need_orientation) = if let Some(exif_thumbnail) = exif_thumbnail {
+            log::info!("Used EXIF thumbnail : [{:X}]", exif_thumbnail.len());
+            crate::dump!(exif_thumbnail);
+
+            __load_image_from_vec(path, exif_thumbnail)
+        } else {
+            __load_image(path, &mut buf_reader)
+        }?;
+
+        log::debug!("{} x {}", dyn_image.width(), dyn_image.height());
+
         let orientation = if need_orientation {
             original_exif.orientation()
         } else {
@@ -102,6 +146,7 @@ impl PackedImage {
         };
 
         let thumbnail = gen_thumbnail(dyn_image, orientation)?;
+
         let view_exif = SimplifiedExif::from(&original_exif);
         let file_name = path
             .clone()
