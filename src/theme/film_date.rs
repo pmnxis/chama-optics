@@ -111,18 +111,18 @@ impl Theme for FilmDate {
                 }
             }
 
-            if let Some(ps_main) = exif.get_ps_main() {
-                if self.show_ps {
-                    list.push(if let Some(ps_sub) = exif.get_lut_detail() {
-                        if !ps_sub.is_empty() {
-                            format!("{ps_main} = {ps_sub}")
-                        } else {
-                            ps_main
-                        }
+            if let Some(ps_main) = exif.get_ps_main()
+                && self.show_ps
+            {
+                list.push(if let Some(ps_sub) = exif.get_lut_detail() {
+                    if !ps_sub.is_empty() {
+                        format!("{ps_main} = {ps_sub}")
                     } else {
                         ps_main
-                    })
-                }
+                    }
+                } else {
+                    ps_main
+                })
             }
 
             list

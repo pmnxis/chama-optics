@@ -91,18 +91,18 @@ impl Theme for Film {
         let left_list = {
             let mut list = Vec::new();
 
-            if let Some(ps_main) = exif.get_ps_main() {
-                if self.show_ps {
-                    list.push(if let Some(ps_sub) = exif.get_lut_detail() {
-                        if !ps_sub.is_empty() {
-                            format!("{ps_main} = {ps_sub}")
-                        } else {
-                            ps_main
-                        }
+            if let Some(ps_main) = exif.get_ps_main()
+                && self.show_ps
+            {
+                list.push(if let Some(ps_sub) = exif.get_lut_detail() {
+                    if !ps_sub.is_empty() {
+                        format!("{ps_main} = {ps_sub}")
                     } else {
                         ps_main
-                    })
-                }
+                    }
+                } else {
+                    ps_main
+                })
             }
 
             if !(exif.camera_mnf.is_empty() || exif.camera_model.is_empty()) {
