@@ -44,7 +44,7 @@ serde_json = { version = "1" }
 # todo - replace to 0.6.2 or 0.7 when once released (https://github.com/kamadak/exif-rs/pull/51)
 exif = { git = "https://github.com/pmnxis/exif-rs", rev = "c7be162d723e1ccdf75b05a29a298e2abcb695c4" }
 # kamadak-exif = "0.6.1"
-image = { version = "0.25", features = ["serde"] }
+image = { version = "0.25.8", features = ["serde"] }
 base64 = "0.22.1"
 rfd = "0.16.0"
 egui-file-dialog = "0.12.0"
