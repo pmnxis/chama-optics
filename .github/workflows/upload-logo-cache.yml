@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Upload Logo Cache from Artifact
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      run_id:
+        description: 'Run ID of the workflow with uploaded logo-assets artifact'
+        required: true
+
+jobs:
+  upload-cache:
+    name: Upload logo assets cache from artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download logo assets artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: logo-assets-manual
+          path: assets/download
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify logo files
+        run: |
+          echo "=== Downloaded Logo Files ==="
+          if [ -d "assets/download" ]; then
+            ls -lah assets/download/
+            echo ""
+            echo "Total files:"
+            find assets/download -type f | wc -l
+            echo ""
+            echo "Total size:"
+            du -sh assets/download/
+          else
+            echo "ERROR: assets/download not found!"
+            exit 1
+          fi
+
+      - name: Save to cache
+        uses: actions/cache/save@v4
+        with:
+          path: assets/download
+          key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete

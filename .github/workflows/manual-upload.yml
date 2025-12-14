@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+name: Manual Upload Logo Assets
+
+on:
+  workflow_dispatch:  # Manual trigger only
+
+jobs:
+  placeholder:
+    name: Placeholder for artifact upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Info
+        run: |
+          echo "This workflow is a placeholder for manually uploading logo assets."
+          echo "Use: gh run upload <run-id> assets/download --name logo-assets-manual"
