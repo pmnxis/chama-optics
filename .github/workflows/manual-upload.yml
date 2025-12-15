@@ -14,7 +14,11 @@ on:
 jobs:
   download-and-cache:
     name: Download and cache logo assets
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-2022]
     steps:
       - uses: actions/checkout@v4
 
