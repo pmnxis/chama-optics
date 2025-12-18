@@ -138,7 +138,7 @@ impl eframe::App for ChamaOptics {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        egui::Panel::top("top_panel").show(ctx, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(t!("app.file_menu.root"), |ui| {
                     ui.set_max_width(130.00);
@@ -216,7 +216,7 @@ impl eframe::App for ChamaOptics {
             ui.separator();
         });
 
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+        egui::Panel::bottom("bottom_panel").show(ctx, |ui| {
             // ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
             egui::warn_if_debug_build(ui);
             ui.horizontal(|ui| {

@@ -22,9 +22,10 @@ const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
     data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
-const FONT_NTSANS_MED: BuiltInFonts = BuiltInFonts {
-    name: "NotoSans-Medium",
-    data: include_bytes!("../../assets/fonts/NotoSansKR-Medium.ttf"),
+
+const FONT_SHSANS_MED: BuiltInFonts = BuiltInFonts {
+    name: "Source Han Sans",
+    data: include_bytes!("../../assets/fonts/SourceHanSansVF-remapped.otf"),
 };
 
 const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
@@ -55,9 +56,10 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
         std::sync::Arc::new(egui::FontData::from_static(FONT_D2CODING.data)),
     );
 
+    // Note: Variable font weight is controlled by the font's default weight
     fonts.font_data.insert(
-        FONT_NTSANS_MED.name.to_owned(),
-        std::sync::Arc::new(egui::FontData::from_static(FONT_NTSANS_MED.data)),
+        FONT_SHSANS_MED.name.to_owned(),
+        std::sync::Arc::new(egui::FontData::from_static(FONT_SHSANS_MED.data)),
     );
 
     // proportional text:
@@ -65,13 +67,7 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Proportional)
         .or_default()
-        .insert(0, FONT_NTSANS_MED.name.to_owned());
-
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .push(FONT_D2CODING.name.to_owned());
+        .insert(0, FONT_SHSANS_MED.name.to_owned());
 
     // monospace:
     fonts
@@ -84,7 +80,7 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Monospace)
         .or_default()
-        .push(FONT_NTSANS_MED.name.to_owned());
+        .push(FONT_SHSANS_MED.name.to_owned());
 
     // Tell egui to use these fonts:
     ctx.set_fonts(fonts);

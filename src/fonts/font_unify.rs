@@ -146,7 +146,7 @@ impl FontsUnify {
         Self {
             builtin_fonts: [
                 &crate::fonts::FONT_D2CODING,
-                &crate::fonts::FONT_NTSANS_MED,
+                &crate::fonts::FONT_SHSANS_MED,
                 &crate::fonts::FONT_DIGITAL_7,
                 &crate::fonts::FONT_DIGITAL_7_ITALIC,
             ],
