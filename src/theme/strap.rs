@@ -104,8 +104,8 @@ impl Theme for Strap {
 
         #[rustfmt::skip]
         macro_rules! draw {
-            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $text);
+            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $weight:expr, $text:expr) => {
+                crate::theme::draw_text_with_fallback(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $weight, $text);
             };
         }
         let two_line_size = font.as_scaled(txt_scale).ascent().abs() * 2.0;
@@ -122,9 +122,14 @@ impl Theme for Strap {
 
         for item in [&self.left_top, &self.left_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
-            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
+            let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
+                txt_scale,
+                &item.get_font(),
+                item.weight,
+                &txt,
+            );
 
-            draw!(left_x, y, &item.get_font(), txt_scale, &txt);
+            draw!(left_x, y, &item.get_font(), txt_scale, item.weight, &txt);
 
             y -= txt_scale.y;
             max_left_x = max_left_x.max(www + left_x);
@@ -137,10 +142,22 @@ impl Theme for Strap {
         let mut min_right_x = right_x;
         for item in [&self.right_top, &self.right_bot].iter().rev() {
             let txt = item.format_custom(&pi.view_exif);
-            let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
+            let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
+                txt_scale,
+                &item.get_font(),
+                item.weight,
+                &txt,
+            );
             let new_right_x = right_x - www;
 
-            draw!(new_right_x, y, &item.get_font(), txt_scale, &txt);
+            draw!(
+                new_right_x,
+                y,
+                &item.get_font(),
+                txt_scale,
+                item.weight,
+                &txt
+            );
             y -= txt_scale.y;
             min_right_x = min_right_x.min(new_right_x);
         }

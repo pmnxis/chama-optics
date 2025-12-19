@@ -136,9 +136,18 @@ impl Theme for OneLine {
                 let font_height_ratio = ratio_x100 as f32 / 100.0;
                 let try_scale = self.rel_scale(font_height_ratio, bb);
 
-                let (left_www, _) = crate::theme::text_dimensions(try_scale, &left_font, &left_txt);
-                let (right_www, _) =
-                    crate::theme::text_dimensions(try_scale, &right_font, &right_txt);
+                let (left_www, _) = crate::theme::text_dimensions_with_fallback(
+                    try_scale,
+                    left_font,
+                    self.left.weight,
+                    &left_txt,
+                );
+                let (right_www, _) = crate::theme::text_dimensions_with_fallback(
+                    try_scale,
+                    right_font,
+                    self.right.weight,
+                    &right_txt,
+                );
 
                 if (left_www + right_www).floor() as i32 <= available {
                     ret = try_scale;
@@ -149,7 +158,7 @@ impl Theme for OneLine {
         };
 
         // left - after
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             left_x,
@@ -159,13 +168,19 @@ impl Theme for OneLine {
                     * 0.55)) as i32,
             txt_scale,
             left_font,
+            self.left.weight,
             &left_txt,
         );
 
         // right - after
-        let (right_www, _) = crate::theme::text_dimensions(txt_scale, right_font, &right_txt);
+        let (right_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            right_font,
+            self.right.weight,
+            &right_txt,
+        );
         let right_x = (new_image.width() - rr - (bb / 4).max(2)) as i32 - (right_www as i32);
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             right_x,
@@ -175,6 +190,7 @@ impl Theme for OneLine {
                     * 0.55)) as i32,
             txt_scale,
             right_font,
+            self.right.weight,
             &right_txt,
         );
 
@@ -184,11 +200,16 @@ impl Theme for OneLine {
             let top_font = &self.top.get_font();
             let top_txt = self.top.format_custom(&pi.view_exif);
             let top_scale = self.rel_scale(self.top_font_height as f32 / 100.0, tt);
-            let (top_www, _) = crate::theme::text_dimensions(top_scale, &top_font, &top_txt);
+            let (top_www, _) = crate::theme::text_dimensions_with_fallback(
+                top_scale,
+                top_font,
+                self.top.weight,
+                &top_txt,
+            );
 
             let top_x = (((dyn_w as f32 - top_www) / 2.0) + ll as f32).max(0.0) as i32;
 
-            imageproc::drawing::draw_text_mut(
+            crate::theme::draw_text_with_fallback(
                 &mut new_image,
                 font_color,
                 top_x,
@@ -198,6 +219,7 @@ impl Theme for OneLine {
                         * 0.5)) as i32,
                 top_scale,
                 top_font,
+                self.top.weight,
                 &top_txt,
             );
         } else {

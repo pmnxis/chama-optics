@@ -44,6 +44,149 @@ pub(crate) fn text_dimensions(
     )
 }
 
+/// Calculate text dimensions with automatic fallback to SourceHanSans for unsupported characters
+/// This function calculates width character by character, using the appropriate font for each character.
+pub(crate) fn text_dimensions_with_fallback(
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    weight: u16,
+    text: &str,
+) -> (f32, f32) {
+    use crate::fonts::variable_font::{BUILTIN_VARIABLE_FONTS, BuiltinVariableFontIndex};
+    use ab_glyph::{Font, ScaleFont};
+
+    let fallback_weight = BUILTIN_VARIABLE_FONTS[BuiltinVariableFontIndex::SourceHanSans as usize]
+        .get_near_weight(weight);
+    let fallback_font = BuiltinVariableFontIndex::SourceHanSans.get_font_by_weight(fallback_weight);
+
+    let scaled_primary = primary_font.as_scaled(scale);
+    let max_height = scaled_primary.height();
+
+    let total_width: f32 = text
+        .chars()
+        .map(|ch| {
+            // Check if primary font supports this character
+            let glyph_id = primary_font.glyph_id(ch);
+            if glyph_id != ab_glyph::GlyphId(0) {
+                scaled_primary.h_advance(glyph_id)
+            } else {
+                // Fallback to SourceHanSans
+                let scaled_fallback = fallback_font.as_scaled(scale);
+                scaled_fallback.h_advance(fallback_font.glyph_id(ch))
+            }
+        })
+        .sum();
+
+    (total_width, max_height)
+}
+
+/// Draw text with automatic fallback to SourceHanSans for unsupported characters
+/// This function draws text character by character, using the primary font when possible
+/// and falling back to SourceHanSans for CJK and other unsupported characters.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw_text_with_fallback<I>(
+    image: &mut I,
+    color: image::Rgba<u8>,
+    x: i32,
+    y: i32,
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    weight: u16,
+    text: &str,
+) where
+    I: image::GenericImage<Pixel = image::Rgba<u8>>,
+{
+    use crate::fonts::variable_font::{BUILTIN_VARIABLE_FONTS, BuiltinVariableFontIndex};
+    use ab_glyph::{Font, ScaleFont};
+
+    let fallback_weight = BUILTIN_VARIABLE_FONTS[BuiltinVariableFontIndex::SourceHanSans as usize]
+        .get_near_weight(weight);
+    let fallback_font = BuiltinVariableFontIndex::SourceHanSans.get_font_by_weight(fallback_weight);
+
+    let mut current_x = x as f32;
+    let scaled_primary = primary_font.as_scaled(scale);
+
+    for ch in text.chars() {
+        // Check if primary font supports this character
+        let glyph_id = primary_font.glyph_id(ch);
+        let (font_to_use, scaled_font): (&ab_glyph::FontArc, _) =
+            if glyph_id != ab_glyph::GlyphId(0) {
+                (primary_font, scaled_primary)
+            } else {
+                // Fallback to SourceHanSans
+                // log::debug!("Falling back to SourceHanSans for character: {ch}");
+                (&fallback_font, fallback_font.as_scaled(scale))
+            };
+
+        // Draw single character
+        imageproc::drawing::draw_text_mut(
+            image,
+            color,
+            current_x as i32,
+            y,
+            scale,
+            font_to_use,
+            &ch.to_string(),
+        );
+
+        // Advance x position
+        current_x += scaled_font.h_advance(font_to_use.glyph_id(ch));
+    }
+}
+
+/// Draw text with automatic fallback to SourceHanSans for unsupported characters (Luma version)
+/// This function is for grayscale images used in glow effects.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw_text_with_fallback_luma<I>(
+    image: &mut I,
+    color: image::Luma<u8>,
+    x: i32,
+    y: i32,
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    weight: u16,
+    text: &str,
+) where
+    I: image::GenericImage<Pixel = image::Luma<u8>>,
+{
+    use crate::fonts::variable_font::{BUILTIN_VARIABLE_FONTS, BuiltinVariableFontIndex};
+    use ab_glyph::{Font, ScaleFont};
+
+    let fallback_weight = BUILTIN_VARIABLE_FONTS[BuiltinVariableFontIndex::SourceHanSans as usize]
+        .get_near_weight(weight);
+    let fallback_font = BuiltinVariableFontIndex::SourceHanSans.get_font_by_weight(fallback_weight);
+
+    let mut current_x = x as f32;
+    let scaled_primary = primary_font.as_scaled(scale);
+
+    for ch in text.chars() {
+        // Check if primary font supports this character
+        let glyph_id = primary_font.glyph_id(ch);
+        let (font_to_use, scaled_font): (&ab_glyph::FontArc, _) =
+            if glyph_id != ab_glyph::GlyphId(0) {
+                (primary_font, scaled_primary)
+            } else {
+                // Fallback to SourceHanSans
+                // log::debug!("Falling back to SourceHanSans for character: {ch}");
+                (&fallback_font, fallback_font.as_scaled(scale))
+            };
+
+        // Draw single character
+        imageproc::drawing::draw_text_mut(
+            image,
+            color,
+            current_x as i32,
+            y,
+            scale,
+            font_to_use,
+            &ch.to_string(),
+        );
+
+        // Advance x position
+        current_x += scaled_font.h_advance(font_to_use.glyph_id(ch));
+    }
+}
+
 pub trait Theme {
     /// return unique name of theme
     fn unique_name(&self) -> &'static str;

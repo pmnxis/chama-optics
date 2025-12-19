@@ -198,28 +198,37 @@ impl VariableTextSlot {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.add_space(2.0);
-                ui.selectable_value(
-                    &mut self.font_index,
-                    VariableOrNot::Variable(default.font_index),
-                    t!("fonts_selector.variable.label"),
-                )
-                .on_hover_text(t!("fonts_selector.variable.hint"));
 
-                ui.selectable_value(
-                    &mut self.font_index,
-                    VariableOrNot::Others(
+                // Use radio button style for variant selection
+                let is_variable = matches!(self.font_index, VariableOrNot::Variable(_));
+                if ui
+                    .selectable_label(is_variable, t!("fonts_selector.variable.label"))
+                    .on_hover_text(t!("fonts_selector.variable.hint"))
+                    .clicked()
+                    && !is_variable
+                {
+                    self.font_index = VariableOrNot::Variable(default.font_index);
+                }
+
+                let is_others = matches!(self.font_index, VariableOrNot::Others(_));
+                if ui
+                    .selectable_label(is_others, t!("fonts_selector.others.label"))
+                    .on_hover_text(t!("fonts_selector.others.hint"))
+                    .clicked()
+                    && !is_others
+                {
+                    self.font_index = VariableOrNot::Others(
                         crate::FONTS_UNIFY.builtin_select(default.fixed_index.unwrap_or_default()),
-                    ),
-                    t!("fonts_selector.others.label"),
-                )
-                .on_hover_text(t!("fonts_selector.others.hint"));
+                    );
+                }
 
-                if let VariableOrNot::Variable(mut variable_select) = self.font_index {
+                if let VariableOrNot::Variable(ref mut variable_select) = self.font_index {
                     // variable_select.update_ui_with_label(ui, label.clone());
                     variable_select.update_ui(ui, label.clone());
-                    let (start, end, step) = variable_select.get_font().range();
-                    ui.add(egui::Slider::new(&mut self.weight, start..=end).step_by(step.into()));
-                } else if let VariableOrNot::Others(font_select) = &mut self.font_index {
+
+                    let (start, end) = variable_select.get_font().range();
+                    ui.add(egui::Slider::new(&mut self.weight, start..=end).step_by(100.0));
+                } else if let VariableOrNot::Others(ref mut font_select) = self.font_index {
                     // font_select.update_ui_with_label(ctx, ui, label.clone());
                     font_select.update_ui(ctx, ui, label.clone());
                 };

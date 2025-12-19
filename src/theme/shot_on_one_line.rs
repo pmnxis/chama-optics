@@ -128,9 +128,18 @@ impl Theme for ShotOnOneLine {
                 let font_height_ratio = ratio_x100 as f32 / 100.0;
                 let try_scale = self.rel_scale(font_height_ratio, bb);
 
-                let (left_www, _) = crate::theme::text_dimensions(try_scale, &left_font, &left_txt);
-                let (right_www, _) =
-                    crate::theme::text_dimensions(try_scale, &right_font, &right_txt);
+                let (left_www, _) = crate::theme::text_dimensions_with_fallback(
+                    try_scale,
+                    left_font,
+                    self.left.weight,
+                    &left_txt,
+                );
+                let (right_www, _) = crate::theme::text_dimensions_with_fallback(
+                    try_scale,
+                    right_font,
+                    self.right.weight,
+                    &right_txt,
+                );
 
                 if (left_www + right_www).floor() as i32 <= available {
                     ret = try_scale;
@@ -141,9 +150,13 @@ impl Theme for ShotOnOneLine {
         };
 
         // left - after
-        let (left_left_www, _) =
-            crate::theme::text_dimensions(txt_scale, &left_left_font, SHOT_ON_STR);
-        imageproc::drawing::draw_text_mut(
+        let (left_left_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            &left_left_font,
+            300,
+            SHOT_ON_STR,
+        );
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             left_x,
@@ -153,10 +166,11 @@ impl Theme for ShotOnOneLine {
                     * 0.55)) as i32,
             txt_scale,
             &left_left_font,
+            300,
             SHOT_ON_STR,
         );
 
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             left_x + left_left_www as i32,
@@ -166,13 +180,19 @@ impl Theme for ShotOnOneLine {
                     * 0.55)) as i32,
             txt_scale,
             left_font,
+            self.left.weight,
             &left_txt,
         );
 
         // right - after
-        let (right_www, _) = crate::theme::text_dimensions(txt_scale, right_font, &right_txt);
+        let (right_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            right_font,
+            self.right.weight,
+            &right_txt,
+        );
         let right_x = (new_image.width() - rr - (bb / 4).max(2)) as i32 - (right_www as i32);
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             right_x,
@@ -182,6 +202,7 @@ impl Theme for ShotOnOneLine {
                     * 0.55)) as i32,
             txt_scale,
             right_font,
+            self.right.weight,
             &right_txt,
         );
 

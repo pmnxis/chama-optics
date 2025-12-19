@@ -4,18 +4,18 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+use ab_glyph::{Font, VariableFont};
 use rust_i18n::t;
 
 #[allow(dead_code)]
 pub struct VariableFontPack {
     pub label: &'static str,
-    pub font: &'static [ab_glyph::FontArc],
+    pub font: ab_glyph::FontRef<'static>,
 
-    // weight
+    // weight axis range
     pub default: u16,
     pub start: u16,
     pub end_include: u16,
-    pub step: u16,
 }
 
 #[allow(dead_code)]
@@ -27,51 +27,52 @@ impl VariableFontPack {
     pub const fn get_default_weight(&self) -> u16 {
         self.default
     }
-    // fn range() -> std::range::legacy::RangeInclusive<Num>;
-    /// (start_include: u16, end_include: u16, step: u16)
-    /// (... start_include..=end_include).step_by(step as f32)
-    pub const fn range(&self) -> (u16, u16, u16) {
-        (self.start, self.end_include, self.step)
+
+    /// (start_include: u16, end_include: u16)
+    pub const fn range(&self) -> (u16, u16) {
+        (self.start, self.end_include)
     }
 
     pub const fn default_weight(&self) -> u16 {
         self.default
     }
 
-    fn weight_to_index(&self, weight: u16) -> usize {
-        ((weight / self.step).saturating_sub(self.start / self.step))
-            .clamp(0, self.font.len() as u16) as usize
+    pub fn get_font_by_weight(&self, weight: u16) -> ab_glyph::FontArc {
+        let clamped_weight = weight.clamp(self.start, self.end_include);
+        let mut font = self.font.clone();
+        font.set_variation(b"wght", clamped_weight as f32);
+        font.into()
     }
 
-    pub fn get_font_by_weight(&'static self, weight: u16) -> &'static ab_glyph::FontArc {
-        &self.font[self.weight_to_index(weight)]
+    pub fn get_near_weight(&self, weight: u16) -> u16 {
+        // assume all fonts has weigt with 100 step
+        weight.clamp(self.start, self.end_include)
     }
 }
 
 lazy_static::lazy_static! {
-    static ref FONT_PACK_BARLOW: [ab_glyph::FontArc; 9] = [
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_100_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_200_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_300_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_400_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_500_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_600_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_700_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_800_FONT_PATH"))).unwrap(),
-        ab_glyph::FontArc::try_from_slice(include_bytes!(env!("BARLOW_900_FONT_PATH"))).unwrap(),
-    ];
-
-    static ref BARLOW : VariableFontPack = VariableFontPack {
-        label: "Barlow",
-        font: &*FONT_PACK_BARLOW,
+    static ref BARLOW: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_BARLOW.name,
+        font: ab_glyph::FontRef::try_from_slice(
+             crate::fonts::FONT_BARLOW.data
+        ).expect("Failed to load Barlow variable font"),
         default: 300,
         start: 100,
         end_include: 900,
-        step: 100
     };
 
-    pub static ref BUILTIN_VARIABLE_FONTS : [&'static VariableFontPack; 1] = [
+    static ref SOURCE_HAN_SANS: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_SHSANS.name,
+        font: ab_glyph::FontRef::try_from_slice(
+        crate::fonts::FONT_SHSANS.data).expect("Failed to load Source Han Sans variable font"),
+        default: 300,
+        start: 200,
+        end_include: 800,
+    };
+
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 2] = [
         &*BARLOW,
+        &*SOURCE_HAN_SANS,
     ];
 }
 
@@ -81,6 +82,7 @@ lazy_static::lazy_static! {
 pub enum BuiltinVariableFontIndex {
     #[default]
     Barlow,
+    SourceHanSans,
 }
 
 impl BuiltinVariableFontIndex {
@@ -88,7 +90,7 @@ impl BuiltinVariableFontIndex {
         BUILTIN_VARIABLE_FONTS[*self as usize]
     }
 
-    pub fn get_font_by_weight(&self, weight: u16) -> &'static ab_glyph::FontArc {
+    pub fn get_font_by_weight(&self, weight: u16) -> ab_glyph::FontArc {
         self.get_font().get_font_by_weight(weight)
     }
 
@@ -106,8 +108,11 @@ impl BuiltinVariableFontIndex {
                     let selected = *self as usize == i;
 
                     if ui.selectable_label(selected, font.label()).clicked() {
-                        *self = Self::from_repr(i)
-                            .expect("Something wrong with usize -> BuiltinVariableFontIndex");
+                        if let Some(new_value) = Self::from_repr(i) {
+                            *self = new_value;
+                        } else {
+                            log::error!("Failed to convert index {i} to BuiltinVariableFontIndex");
+                        }
                     }
                 }
             });
@@ -132,5 +137,20 @@ impl BuiltinVariableFontIndex {
             ui.label(label.clone());
             self.update_ui(ui, label);
         });
+    }
+}
+
+/// Get appropriate font for the given character with fallback support.
+/// Returns Barlow font by default, but falls back to SourceHanSans if the character is not supported.
+#[allow(dead_code)]
+pub fn get_font_with_fallback(ch: char, weight: u16) -> ab_glyph::FontArc {
+    let barlow = BuiltinVariableFontIndex::Barlow.get_font_by_weight(weight);
+
+    // Check if Barlow supports this character
+    if barlow.glyph_id(ch) != ab_glyph::GlyphId(0) {
+        barlow
+    } else {
+        // Fallback to Source Han Sans for CJK and other characters
+        BuiltinVariableFontIndex::SourceHanSans.get_font_by_weight(weight)
     }
 }

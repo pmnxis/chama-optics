@@ -5,7 +5,6 @@
  */
 
 use crate::theme::Theme;
-use crate::theme::text_dimensions;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
 use rust_i18n::t;
@@ -85,7 +84,7 @@ impl Theme for FilmGlow {
         #[rustfmt::skip]
         macro_rules! draw {
             ($xxx:expr, $yyy:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut luma_text, image::Luma([255]), ($xxx) as i32, ($yyy as f32 - font.as_scaled($scale).ascent()) as i32, $scale, &font, $text);
+                crate::theme::draw_text_with_fallback_luma(&mut luma_text, image::Luma([255]), ($xxx) as i32, ($yyy as f32 - font.as_scaled($scale).ascent()) as i32, $scale, &font, 400, $text);
             };
         }
 
@@ -145,8 +144,10 @@ impl Theme for FilmGlow {
         let mut y: f32 = base_y as f32;
 
         for (prefix, number) in pairs.iter().rev() {
-            let (prefix_w, prefix_h) = text_dimensions(prefix_scale, &font, prefix);
-            let (number_w, number_h) = text_dimensions(number_scale, &font, number);
+            let (prefix_w, prefix_h) =
+                crate::theme::text_dimensions_with_fallback(prefix_scale, &font, 400, prefix);
+            let (number_w, number_h) =
+                crate::theme::text_dimensions_with_fallback(number_scale, &font, 400, number);
             let line_h = number_h.max(prefix_h);
             let total_w = prefix_w + spacing + number_w;
 

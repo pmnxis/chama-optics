@@ -5,7 +5,6 @@
  */
 
 use crate::theme::Theme;
-use crate::theme::text_dimensions;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
 use rust_i18n::t;
@@ -90,7 +89,7 @@ impl Theme for FilmDate {
         #[rustfmt::skip]
         macro_rules! draw {
             ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut luma_text, image::Luma([255]), ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $text);
+                crate::theme::draw_text_with_fallback_luma(&mut luma_text, image::Luma([255]), ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, 400, $text);
             };
         }
 
@@ -143,7 +142,8 @@ impl Theme for FilmDate {
         let datetime_scale = self.rel_scale(105, dyn_wh);
         let y: f32 = base_y as f32;
 
-        let (datetime_w, _) = text_dimensions(datetime_scale, &font_date, &date);
+        let (datetime_w, _) =
+            crate::theme::text_dimensions_with_fallback(datetime_scale, &font_date, 400, &date);
 
         let x_right = dyn_w as f32 - margin as f32;
         let x_datetime = (x_right - datetime_w).round() as i32;

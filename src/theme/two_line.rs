@@ -114,8 +114,8 @@ impl Theme for TwoLine {
 
         #[rustfmt::skip]
         macro_rules! draw {
-            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $text);
+            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $weight:expr, $text:expr) => {
+                crate::theme::draw_text_with_fallback(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $weight, $text);
             };
         }
         // let two_line_size = font.as_scaled(txt_scale).ascent().abs() * 2.0;
@@ -138,7 +138,14 @@ impl Theme for TwoLine {
             let (www, _hhh) = item.text_dimensions(txt_scale, &txt);
             let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
-            draw!(new_bottom_x, y, &item.get_font(), txt_scale, &txt);
+            draw!(
+                new_bottom_x,
+                y,
+                &item.get_font(),
+                txt_scale,
+                item.weight,
+                &txt
+            );
             y -= txt_scale.y;
         }
 
@@ -148,11 +155,16 @@ impl Theme for TwoLine {
             let top_font = &self.top.get_font();
             let top_txt = self.top.format_custom(&pi.view_exif);
             let top_scale = self.rel_scale(self.top_font_height as f32 / 100.0, tt);
-            let (top_www, _) = crate::theme::text_dimensions(top_scale, &top_font, &top_txt);
+            let (top_www, _) = crate::theme::text_dimensions_with_fallback(
+                top_scale,
+                top_font,
+                self.top.weight,
+                &top_txt,
+            );
 
             let top_x = (((dyn_w as f32 - top_www) / 2.0) + ll as f32).max(0.0) as i32;
 
-            imageproc::drawing::draw_text_mut(
+            crate::theme::draw_text_with_fallback(
                 &mut new_image,
                 font_color,
                 top_x,
@@ -162,6 +174,7 @@ impl Theme for TwoLine {
                         * 0.5)) as i32,
                 top_scale,
                 top_font,
+                self.top.weight,
                 &top_txt,
             );
         } else {

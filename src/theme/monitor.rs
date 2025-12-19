@@ -110,8 +110,12 @@ impl Theme for Monitor {
                 .iter()
                 .map(|item| {
                     let txt = item.format_custom(&pi.view_exif);
-                    let (www, _hhh) =
-                        crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
+                    let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
+                        txt_scale,
+                        &item.get_font(),
+                        item.weight,
+                        &txt,
+                    );
                     www
                 })
                 .sum();
@@ -120,7 +124,12 @@ impl Theme for Monitor {
 
             for item in self.bottoms.iter() {
                 let txt = item.format_custom(&pi.view_exif);
-                let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
+                let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
+                    txt_scale,
+                    &item.get_font(),
+                    item.weight,
+                    &txt,
+                );
                 xxx += gap;
 
                 let yg = (item.get_font().as_scaled(txt_scale).ascent()
@@ -129,13 +138,14 @@ impl Theme for Monitor {
 
                 let yz = y as f32 - (yg);
 
-                imageproc::drawing::draw_text_mut(
+                crate::theme::draw_text_with_fallback(
                     &mut new_image,
                     font_color,
                     xxx as i32,
                     yz as i32,
                     txt_scale,
                     &item.get_font(),
+                    item.weight,
                     &txt,
                 );
 
@@ -145,7 +155,12 @@ impl Theme for Monitor {
             for (idx, item) in self.bottoms.iter().enumerate() {
                 let mut xxx = (ll as f32) + ((dyn_w as f32 / 5.0) * (idx + 1) as f32);
                 let txt = item.format_custom(&pi.view_exif);
-                let (www, _hhh) = crate::theme::text_dimensions(txt_scale, &item.get_font(), &txt);
+                let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
+                    txt_scale,
+                    &item.get_font(),
+                    item.weight,
+                    &txt,
+                );
                 xxx -= www / 2.0;
 
                 let yg = (item.get_font().as_scaled(txt_scale).ascent()
@@ -153,13 +168,14 @@ impl Theme for Monitor {
                     * 0.6;
                 let yz = y as f32 - (yg);
 
-                imageproc::drawing::draw_text_mut(
+                crate::theme::draw_text_with_fallback(
                     &mut new_image,
                     font_color,
                     xxx as i32,
                     yz as i32,
                     txt_scale,
                     &item.get_font(),
+                    item.weight,
                     &txt,
                 );
             }

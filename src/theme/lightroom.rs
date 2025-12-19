@@ -110,8 +110,13 @@ impl Theme for Lightroom {
         let left_font = &self.left.get_font();
         let left_txt = self.left.format_custom(&pi.view_exif);
         let left_x = ((bb / 10).min(2) + ll) as i32;
-        let (left_www, _) = crate::theme::text_dimensions(txt_scale, &left_font, &left_txt);
-        imageproc::drawing::draw_text_mut(
+        let (left_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            left_font,
+            self.left.weight,
+            &left_txt,
+        );
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             left_x,
@@ -121,6 +126,7 @@ impl Theme for Lightroom {
                     * 0.55)) as i32,
             txt_scale,
             left_font,
+            self.left.weight,
             &left_txt,
         );
 
@@ -128,17 +134,27 @@ impl Theme for Lightroom {
         let y = new_image.height() - (bb / 2);
         let center_font = &self.center.get_font();
         let center_txt = self.center.format_custom(&pi.view_exif);
-        let (center_www, _) = crate::theme::text_dimensions(txt_scale, &center_font, &center_txt);
+        let (center_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            center_font,
+            self.center.weight,
+            &center_txt,
+        );
 
         let center_x = {
-            let (min_spacing, _) = crate::theme::text_dimensions(txt_scale, center_font, "      ");
+            let (min_spacing, _) = crate::theme::text_dimensions_with_fallback(
+                txt_scale,
+                center_font,
+                self.center.weight,
+                "      ",
+            );
             let center_x = ((dyn_w as f32 - center_www) / 2.0) + ll as f32;
             let left_max = left_www + left_x as f32;
             center_x.max(left_max + min_spacing)
         }
         .floor() as i32;
 
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             center_x,
@@ -148,15 +164,21 @@ impl Theme for Lightroom {
                     * 0.55)) as i32,
             txt_scale,
             center_font,
+            self.center.weight,
             &center_txt,
         );
 
         // right
         let right_font = &self.right.get_font();
         let right_txt = self.right.format_custom(&pi.view_exif);
-        let (right_www, _) = crate::theme::text_dimensions(txt_scale, right_font, &right_txt);
+        let (right_www, _) = crate::theme::text_dimensions_with_fallback(
+            txt_scale,
+            right_font,
+            self.right.weight,
+            &right_txt,
+        );
         let right_x = (new_image.width() - rr - (bb / 10).min(2)) as i32 - (right_www as i32);
-        imageproc::drawing::draw_text_mut(
+        crate::theme::draw_text_with_fallback(
             &mut new_image,
             font_color,
             right_x,
@@ -166,6 +188,7 @@ impl Theme for Lightroom {
                     * 0.55)) as i32,
             txt_scale,
             right_font,
+            self.right.weight,
             &right_txt,
         );
 

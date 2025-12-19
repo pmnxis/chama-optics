@@ -124,8 +124,8 @@ impl Theme for ShotOnTwoLine {
 
         #[rustfmt::skip]
         macro_rules! draw {
-            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $text:expr) => {
-                imageproc::drawing::draw_text_mut(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $text);
+            ($xxx:expr, $yyy:expr, $font:expr, $scale:expr, $weight:expr, $text:expr) => {
+                crate::theme::draw_text_with_fallback(&mut new_image, font_color, ($xxx) as i32, ($yyy as f32 - $font.as_scaled($scale).ascent()) as i32, $scale, $font, $weight, $text);
             };
         }
         // let two_line_size = font.as_scaled(txt_scale).ascent().abs() * 2.0;
@@ -150,14 +150,28 @@ impl Theme for ShotOnTwoLine {
         let (www, _hhh) = self.first.text_dimensions(first_txt_scale, &first_txt);
         let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
-        draw!(new_bottom_x, y, &ff, first_txt_scale, &first_txt);
+        draw!(
+            new_bottom_x,
+            y,
+            &ff,
+            first_txt_scale,
+            self.first.weight,
+            &first_txt
+        );
         y += sf_a * 5.0 / 3.0;
 
         let second_txt = self.second.format_custom(&pi.view_exif);
         let (www, _hhh) = self.second.text_dimensions(second_txt_scale, &second_txt);
         let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
-        draw!(new_bottom_x, y, &sf, second_txt_scale, &second_txt);
+        draw!(
+            new_bottom_x,
+            y,
+            &sf,
+            second_txt_scale,
+            self.second.weight,
+            &second_txt
+        );
 
         // top
         if tt >= 10 {
@@ -165,11 +179,16 @@ impl Theme for ShotOnTwoLine {
             let top_font = &self.top.get_font();
             let top_txt = self.top.format_custom(&pi.view_exif);
             let top_scale = self.rel_scale(self.top_font_height as f32 / 100.0, tt);
-            let (top_www, _) = crate::theme::text_dimensions(top_scale, &top_font, &top_txt);
+            let (top_www, _) = crate::theme::text_dimensions_with_fallback(
+                top_scale,
+                top_font,
+                self.top.weight,
+                &top_txt,
+            );
 
             let top_x = (((dyn_w as f32 - top_www) / 2.0) + ll as f32).max(0.0) as i32;
 
-            imageproc::drawing::draw_text_mut(
+            crate::theme::draw_text_with_fallback(
                 &mut new_image,
                 font_color,
                 top_x,
@@ -179,6 +198,7 @@ impl Theme for ShotOnTwoLine {
                         * 0.5)) as i32,
                 top_scale,
                 top_font,
+                self.top.weight,
                 &top_txt,
             );
         } else {

@@ -23,9 +23,14 @@ const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
 
-const FONT_SHSANS_MED: BuiltInFonts = BuiltInFonts {
+const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
     name: "Source Han Sans",
     data: include_bytes!("../../assets/fonts/SourceHanSansVF-remapped.otf"),
+};
+
+const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
+    name: "Barlow",
+    data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped.ttf"),
 };
 
 const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
@@ -58,8 +63,8 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
 
     // Note: Variable font weight is controlled by the font's default weight
     fonts.font_data.insert(
-        FONT_SHSANS_MED.name.to_owned(),
-        std::sync::Arc::new(egui::FontData::from_static(FONT_SHSANS_MED.data)),
+        FONT_SHSANS.name.to_owned(),
+        std::sync::Arc::new(egui::FontData::from_static(FONT_SHSANS.data)),
     );
 
     // proportional text:
@@ -67,7 +72,7 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Proportional)
         .or_default()
-        .insert(0, FONT_SHSANS_MED.name.to_owned());
+        .insert(0, FONT_SHSANS.name.to_owned());
 
     // monospace:
     fonts
@@ -80,7 +85,7 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
         .families
         .entry(egui::FontFamily::Monospace)
         .or_default()
-        .push(FONT_SHSANS_MED.name.to_owned());
+        .push(FONT_SHSANS.name.to_owned());
 
     // Tell egui to use these fonts:
     ctx.set_fonts(fonts);
