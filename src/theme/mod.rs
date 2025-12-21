@@ -201,7 +201,7 @@ pub trait Theme {
         output_path: &std::path::Path,
     ) -> Result<(), image::ImageError>;
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui);
+    fn ui_config(&mut self, ui: &mut egui::Ui);
 
     fn is_ui_config_available(&self) -> bool;
 
@@ -305,7 +305,7 @@ impl ThemeRegistry {
         self.themes[self.selected].read().unwrap()
     }
 
-    pub fn update_ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.label(t!("theme.selector"));
             egui::ComboBox::from_id_salt("theme_selector")
@@ -324,7 +324,7 @@ impl ThemeRegistry {
             let mut theme = self.themes[self.selected].write().unwrap();
             if theme.is_ui_config_available() {
                 ui.collapsing(t!("theme.settings"), |ui| {
-                    theme.ui_config(ctx, ui);
+                    theme.ui_config(ui);
                 });
             }
         });

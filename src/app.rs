@@ -137,14 +137,14 @@ impl eframe::App for ChamaOptics {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::Panel::top("top_panel").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::Panel::top("top_panel").show_inside(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button(t!("app.file_menu.root"), |ui| {
                     ui.set_max_width(130.00);
 
                     if ui.button(t!("app.file_menu.quit")).clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                     }
                 });
                 ui.add_space(16.0);
@@ -156,15 +156,15 @@ impl eframe::App for ChamaOptics {
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             ui.heading(t!("app.app_name"));
 
             // show export configuration
             self.import_config.update_ui(ui);
-            self.export_config.update_ui(ctx, ui);
+            self.export_config.update_ui(ui);
 
             // add image by drag and drop
-            ctx.input(|i| {
+            ui.ctx().input(|i| {
                 if !i.raw.dropped_files.is_empty() {
                     for (idx, file) in i.raw.dropped_files.iter().enumerate() {
                         if let Some(dropped_path) = &file.path {
@@ -216,7 +216,7 @@ impl eframe::App for ChamaOptics {
             ui.separator();
         });
 
-        egui::Panel::bottom("bottom_panel").show(ctx, |ui| {
+        egui::Panel::bottom("bottom_panel").show_inside(ui, |ui| {
             // ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
             egui::warn_if_debug_build(ui);
             ui.horizontal(|ui| {
@@ -235,7 +235,7 @@ impl eframe::App for ChamaOptics {
 
         // out side thread
         if let Some(popped_path) = self.pending_paths.pop_front() {
-            match PackedImage::try_from_path(&popped_path, ctx) {
+            match PackedImage::try_from_path(&popped_path, ui.ctx()) {
                 Ok(mut p) => {
                     if self.import_config.get_alt_fnumber {
                         p.view_exif.replace_with_fnumber_alt_when_invalid();

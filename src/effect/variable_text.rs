@@ -182,7 +182,6 @@ impl VariableTextSlot {
 
     pub fn ui(
         &mut self,
-        ctx: &egui::Context,
         ui: &mut Ui,
         label: Cow<'static, str>,
         default: &'static VariableTextSlotDefault,
@@ -230,7 +229,7 @@ impl VariableTextSlot {
                     ui.add(egui::Slider::new(&mut self.weight, start..=end).step_by(100.0));
                 } else if let VariableOrNot::Others(ref mut font_select) = self.font_index {
                     // font_select.update_ui_with_label(ctx, ui, label.clone());
-                    font_select.update_ui(ctx, ui, label.clone());
+                    font_select.update_ui(ui, label.clone());
                 };
 
                 if ui.button("↺").clicked() {

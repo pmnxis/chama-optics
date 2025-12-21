@@ -31,7 +31,7 @@ impl Theme for Nothing {
         export_config.save_image(&mut dyn_image, None, output_path)
     }
 
-    fn ui_config(&mut self, _ctx: &egui::Context, _ui: &mut egui::Ui) {
+    fn ui_config(&mut self, _ui: &mut egui::Ui) {
         // nothing, because `is_ui_config_available(&self) is false`
     }
 

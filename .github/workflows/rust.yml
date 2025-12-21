@@ -61,10 +61,10 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.88
+          toolchain: 1.92
           override: true
       - name: Force zune-jpeg version to avoid 0.5.6 bug
-        run: cargo update -p zune-jpeg:0.5.6 --precise 0.5.5 || true
+        run: cargo update -p zune-jpeg:0.5.6 --precise 0.5.7 || true
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -98,7 +98,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.88
+          toolchain: 1.92
           override: true
       - name: Force zune-jpeg version to avoid 0.5.6 bug
         run: cargo update -p zune-jpeg:0.5.6 --precise 0.5.5 || true
@@ -135,7 +135,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.88
+          toolchain: 1.92
           override: true
           components: rustfmt
       - name: Force zune-jpeg version to avoid 0.5.6 bug
@@ -171,7 +171,7 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.88
+          toolchain: 1.92
           override: true
           components: clippy
       - name: Force zune-jpeg version to avoid 0.5.6 bug

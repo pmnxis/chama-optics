@@ -211,7 +211,7 @@ impl Theme for ShotOnTwoLine {
         export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -246,8 +246,7 @@ impl Theme for ShotOnTwoLine {
                     ui.end_row();
 
                     // todo - WARN when tt is under the 10
-                    self.top
-                        .ui(ctx, ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
+                    self.top.ui(ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
                     ui.end_row();
 
                     // for bottom
@@ -256,7 +255,7 @@ impl Theme for ShotOnTwoLine {
                     ui.end_row();
 
                     // bottom 1
-                    self.first.ui(ctx, ui, t!("theme.bottom1"), &DEFAULT_FIRST);
+                    self.first.ui(ui, t!("theme.bottom1"), &DEFAULT_FIRST);
                     ui.end_row();
 
                     ui.label(t!("theme.font_height_ratio.first"))
@@ -273,8 +272,7 @@ impl Theme for ShotOnTwoLine {
                     ui.end_row();
 
                     // bottom 2
-                    self.second
-                        .ui(ctx, ui, t!("theme.bottom2"), &DEFAULT_SECOND);
+                    self.second.ui(ui, t!("theme.bottom2"), &DEFAULT_SECOND);
                     ui.end_row();
 
                     ui.label(t!("theme.font_height_ratio.second"))

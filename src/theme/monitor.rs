@@ -187,7 +187,7 @@ impl Theme for Monitor {
         export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -240,7 +240,6 @@ impl Theme for Monitor {
 
                     for (idx, bottom) in self.bottoms.iter_mut().enumerate() {
                         bottom.ui(
-                            ctx,
                             ui,
                             t!(format!("theme.monitor_config.exif_bottom_{idx}")),
                             &DEFAULT_BOTTOM[idx],

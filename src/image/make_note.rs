@@ -166,11 +166,12 @@ fn take_make_photo_style(
 pub fn parse_make_note(
     make_note: &mut Vec<u8>,
     tiff_offset: u32,
+    make: Option<&str>,
 ) -> Result<SimplifiedMakeNote, ()> {
     crate::dump!(make_note);
 
     if let Ok((ret, vendor, _)) =
-        exif::make_note::parse_make_note_with_vendor(make_note, tiff_offset)
+        exif::make_note::parse_make_note_with_vendor(make_note, tiff_offset, make)
     {
         let photo_style = take_make_photo_style(&ret, vendor, tiff_offset)?;
         log::info!("make_note: {photo_style:?}");

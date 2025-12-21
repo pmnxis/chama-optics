@@ -152,12 +152,12 @@ impl Watermark {
         Ok(())
     }
 
-    pub fn update_ui(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             // left
             ui.checkbox(&mut self.is_enabled, t!("watermark.is_enabled"));
 
-            self.font.update_ui_with_default_label(ctx, ui);
+            self.font.update_ui_with_default_label(ui);
 
             ui.horizontal(|ui| {
                 egui::color_picker::color_edit_button_srgba(

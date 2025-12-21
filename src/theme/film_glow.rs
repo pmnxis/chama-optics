@@ -181,9 +181,9 @@ impl Theme for FilmGlow {
         export_config.save_image(&mut dyn_image, Some(margin), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
-            self.font.update_ui_with_default_label(ctx, ui);
+            self.font.update_ui_with_default_label(ui);
 
             ui.horizontal(|ui| {
                 egui::color_picker::color_edit_button_srgba(

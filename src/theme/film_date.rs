@@ -168,7 +168,7 @@ impl Theme for FilmDate {
         export_config.save_image(&mut dyn_image, Some(margin), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         ui.checkbox(
             &mut self.hide_camera_exif,
             t!("theme.film_config.hide_camera_exif.label"),
@@ -182,10 +182,10 @@ impl Theme for FilmDate {
         )
         .on_hover_text(t!("theme.film_config.show_photo_style.description"));
 
-        self.font.update_ui_with_default_label(ctx, ui);
+        self.font.update_ui_with_default_label(ui);
 
         self.font_date
-            .update_ui_with_label(ctx, ui, t!("theme.date_config.date_font_select"));
+            .update_ui_with_label(ui, t!("theme.date_config.date_font_select"));
 
         ui.horizontal(|ui| {
             egui::color_picker::color_edit_button_srgba(

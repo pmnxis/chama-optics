@@ -198,7 +198,7 @@ impl Theme for Lightroom {
         export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -232,16 +232,15 @@ impl Theme for Lightroom {
                     });
                     ui.end_row();
 
-                    self.left
-                        .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
+                    self.left.ui(ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
                     ui.end_row();
 
                     self.center
-                        .ui(ctx, ui, t!("theme.exif_center_bot"), &DEFAULT_CENTER);
+                        .ui(ui, t!("theme.exif_center_bot"), &DEFAULT_CENTER);
                     ui.end_row();
 
                     self.right
-                        .ui(ctx, ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
+                        .ui(ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
                     ui.end_row();
                 });
 

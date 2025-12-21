@@ -120,6 +120,17 @@ impl OriginalExif {
 
     // this is initial implement
     pub fn make_note(&self) -> Option<SimplifiedMakeNote> {
+        let make = self.0.as_ref().and_then(|exif| {
+            exif.get_field(Tag::Make, In::PRIMARY).and_then(|field| {
+                if let exif::Value::Ascii(ref vec) = field.value {
+                    vec.first()
+                        .and_then(|s| std::str::from_utf8(s).ok().map(|s| s.to_string()))
+                } else {
+                    None
+                }
+            })
+        });
+
         let mut value = self
             .0
             .as_ref()
@@ -133,7 +144,7 @@ impl OriginalExif {
             });
 
         if let Some(exif::Value::Undefined(ref mut vector, offset)) = value {
-            crate::image::make_note::parse_make_note(vector, offset).ok()
+            crate::image::make_note::parse_make_note(vector, offset, make.as_deref()).ok()
         } else {
             None
         }

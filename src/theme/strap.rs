@@ -219,7 +219,7 @@ impl Theme for Strap {
         export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -253,19 +253,19 @@ impl Theme for Strap {
                     ui.end_row();
 
                     self.left_top
-                        .ui(ctx, ui, t!("theme.exif_left_top"), &DEFAULT_LEFT_TOP);
+                        .ui(ui, t!("theme.exif_left_top"), &DEFAULT_LEFT_TOP);
                     ui.end_row();
 
                     self.left_bot
-                        .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT_BOT);
+                        .ui(ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT_BOT);
                     ui.end_row();
 
                     self.right_top
-                        .ui(ctx, ui, t!("theme.exif_right_top"), &DEFAULT_RIGHT_TOP);
+                        .ui(ui, t!("theme.exif_right_top"), &DEFAULT_RIGHT_TOP);
                     ui.end_row();
 
                     self.right_bot
-                        .ui(ctx, ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT_BOT);
+                        .ui(ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT_BOT);
                     ui.end_row();
                 });
 

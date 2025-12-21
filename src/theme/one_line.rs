@@ -232,7 +232,7 @@ impl Theme for OneLine {
         export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
     }
 
-    fn ui_config(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
 
         ui.vertical(|ui| {
@@ -270,8 +270,7 @@ impl Theme for OneLine {
                     ui.end_row();
 
                     // todo - WARN when tt is under the 10
-                    self.top
-                        .ui(ctx, ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
+                    self.top.ui(ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
                     ui.end_row();
 
                     // for bottom
@@ -289,12 +288,11 @@ impl Theme for OneLine {
                     });
                     ui.end_row();
 
-                    self.left
-                        .ui(ctx, ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
+                    self.left.ui(ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
                     ui.end_row();
 
                     self.right
-                        .ui(ctx, ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
+                        .ui(ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
                     ui.end_row();
                 });
 

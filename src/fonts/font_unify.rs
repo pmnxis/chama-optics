@@ -367,12 +367,7 @@ impl FontSelection {
         }
     }
 
-    pub fn update_ui<S: Into<egui::WidgetText>>(
-        &mut self,
-        ctx: &egui::Context,
-        ui: &mut egui::Ui,
-        label: S,
-    ) {
+    pub fn update_ui<S: Into<egui::WidgetText>>(&mut self, ui: &mut egui::Ui, label: S) {
         let current_font_label = match self.select.sort {
             FontSort::Builtin => FONTS_UNIFY
                 .builtin_fonts
@@ -430,7 +425,8 @@ impl FontSelection {
                 let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
                 if sys_lock.is_empty() {
                     ui.label(t!("fonts_selector.system_fonts_loading"));
-                    ctx.request_repaint_after(std::time::Duration::from_millis(200));
+                    ui.ctx()
+                        .request_repaint_after(std::time::Duration::from_millis(200));
                 } else {
                     for (i, sf) in sys_lock.iter().enumerate() {
                         let selected =
@@ -450,21 +446,20 @@ impl FontSelection {
 
     pub fn update_ui_with_label<S: Into<egui::WidgetText> + Clone>(
         &mut self,
-        ctx: &egui::Context,
         ui: &mut egui::Ui,
         label: S,
     ) {
         ui.horizontal(|ui| {
             ui.label(label.clone());
-            self.update_ui(ctx, ui, label);
+            self.update_ui(ui, label);
         });
     }
 
-    pub fn update_ui_with_default_label(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
+    pub fn update_ui_with_default_label(&mut self, ui: &mut egui::Ui) {
         let label = t!("fonts_selector.select_a_font");
         ui.horizontal(|ui| {
             ui.label(label.clone());
-            self.update_ui(ctx, ui, label);
+            self.update_ui(ui, label);
         });
     }
 }
