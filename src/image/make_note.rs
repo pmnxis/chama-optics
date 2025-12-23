@@ -28,7 +28,7 @@ impl MakePhotoStyle {
                 if let Some(main) = exif
                     .get_maker_note_field(&exif::nikon::tags::PictureControlData)
                     .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value))
-                    .and_then(|d| Some(d.name))
+                    .map(|d| d.name)
                 {
                     MakePhotoStyle::Nikon { main }
                 }
@@ -36,7 +36,7 @@ impl MakePhotoStyle {
                 else if let Some(main) = exif
                     .get_maker_note_field(&exif::nikon::tags::PictureControlData2)
                     .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value))
-                    .and_then(|d| Some(d.name))
+                    .map(|d| d.name)
                 {
                     MakePhotoStyle::Nikon { main }
                 } else {
