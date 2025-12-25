@@ -7,6 +7,10 @@
 rust_i18n::i18n!("locales");
 
 mod app;
+mod app_state;
+mod ui_components;
+mod ui_state;
+
 pub mod export_config;
 pub(crate) mod fonts;
 // pub(crate) use fonts::builtin_fonts;
@@ -28,6 +32,8 @@ pub mod theme;
 // pub(crate) mod preview;
 
 pub use app::ChamaOptics;
+pub use app_state::AppState;
+pub use ui_state::UiState;
 
 #[macro_use]
 pub mod dump;

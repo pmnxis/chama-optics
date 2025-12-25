@@ -238,10 +238,6 @@ impl PackedImage {
     ) -> PackedImageEvent {
         let mut ret = PackedImageEvent::None;
 
-        // let max_height = crate::packed_image::THUMBNAIL_MAX_HEIGHT_AS_F32;
-        // let width = max_height * self.texture.aspect_ratio();
-        // let size = THUMBNAIL_DIMM;
-
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 let ui_builder = egui::UiBuilder::new();
@@ -316,13 +312,10 @@ impl PackedImage {
                 ui.with_layout(egui::Layout::top_down(egui::Align::RIGHT), |ui| {
                     ui.add(
                         egui::Image::from_texture(self.texture.get())
-                            // .rotate(angle, egui::Vec2::splat(0.5))
-                            .corner_radius(4.0)
                             .fit_to_exact_size(THUMBNAIL_DIMM)
-                            .shrink_to_fit(),
+                            .shrink_to_fit()
+                            .corner_radius(4.0),
                     );
-                    // .maintain_aspect_ratio(false), // .maintain_aspect_ratio(true),
-                    // .fit_to_exact_size(THUMBNAIL_DIMM)
                 });
             });
         });
