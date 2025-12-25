@@ -11,7 +11,7 @@ pub(crate) mod output_format;
 pub(crate) mod output_name;
 pub(crate) mod scale_config;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct ExportConfig {
     pub scale_config: scale_config::ScaleConfig,
     pub output_format: output_format::OutputFormat,

@@ -79,6 +79,8 @@ chrono = { version = "0.4.42", features = ["serde"] }
 font-kit = "0.14.3"
 resvg = "0.45.1"
 tiny-skia = "0.11.4"
+rayon = "1.10"
+num_cpus = "1.16"
 
 reqwest = { version = "0.12.28", features = [
     "gzip",

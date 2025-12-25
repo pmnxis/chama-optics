@@ -187,7 +187,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
     }
 }
 
-pub trait Theme {
+pub trait Theme: Send + Sync {
     /// return unique name of theme
     fn unique_name(&self) -> &'static str;
 
@@ -215,7 +215,7 @@ pub struct ThemeRegistryState {
 }
 
 /// Runtime registry that holds real Theme trait objects.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct ThemeRegistry {
     #[serde(skip)]

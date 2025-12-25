@@ -10,7 +10,7 @@ use crate::effect::draw_with_transparency::{
 use crate::theme::text_dimensions;
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Watermark {
     pub is_enabled: bool,
     pub is_screen_overlay: bool,
