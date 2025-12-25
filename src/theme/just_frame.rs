@@ -35,6 +35,21 @@ impl Theme for JustFrame {
         t!("theme.just_frame.title")
     }
 
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
+        let dyn_wh = dyn_w.max(dyn_h);
+
+        let new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+
+        Ok(new_image)
+    }
+
     fn apply(
         &self,
         pi: &crate::packed_image::PackedImage,
@@ -44,12 +59,11 @@ impl Theme for JustFrame {
         let scale_config = &export_config.scale_config;
         let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
-        let dyn_wh = dyn_w.max(dyn_h);
 
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
         let margin = self.border.interactive_watermark_padding(dyn_w, dyn_h);
 
-        export_config.save_image(&mut new_image, Some(margin as i32), output_path)
+        let mut themed_image = self.apply_to_image(pi, export_config)?;
+        export_config.save_image(&mut themed_image, Some(margin as i32), output_path)
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {

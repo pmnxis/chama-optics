@@ -19,16 +19,13 @@ impl Theme for Nothing {
         t!("theme.nothing")
     }
 
-    fn apply(
+    fn apply_to_image(
         &self,
         pi: &crate::packed_image::PackedImage,
         export_config: &crate::export_config::ExportConfig,
-        output_path: &std::path::Path,
-    ) -> Result<(), image::ImageError> {
+    ) -> Result<image::DynamicImage, image::ImageError> {
         let scale_config = &export_config.scale_config;
-        let mut dyn_image = pi.with_scale_and_orientation(*scale_config)?;
-
-        export_config.save_image(&mut dyn_image, None, output_path)
+        pi.with_scale_and_orientation(*scale_config)
     }
 
     fn ui_config(&mut self, _ui: &mut egui::Ui) {

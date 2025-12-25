@@ -65,12 +65,11 @@ impl Theme for FilmGlow {
         t!("theme.film_glow")
     }
 
-    fn apply(
+    fn apply_to_image(
         &self,
         pi: &crate::packed_image::PackedImage,
         export_config: &crate::export_config::ExportConfig,
-        output_path: &std::path::Path,
-    ) -> Result<(), image::ImageError> {
+    ) -> Result<image::DynamicImage, image::ImageError> {
         let exif = &pi.view_exif;
         let color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
         let glow_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.glow_color);
@@ -178,7 +177,24 @@ impl Theme for FilmGlow {
             self.rel_size(self.glow_gain, dyn_wh),
         );
 
-        export_config.save_image(&mut dyn_image, Some(margin), output_path)
+        Ok(dyn_image)
+    }
+
+    fn apply(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+        output_path: &std::path::Path,
+    ) -> Result<(), image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
+        let dyn_wh = dyn_w.max(dyn_h);
+
+        let margin = self.rel_size(120, dyn_wh).trunc() as i32;
+
+        let mut themed_image = self.apply_to_image(pi, export_config)?;
+        export_config.save_image(&mut themed_image, Some(margin), output_path)
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {

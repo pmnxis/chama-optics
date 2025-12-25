@@ -85,12 +85,11 @@ impl Theme for ShotOnOneLine {
         t!("theme.shot_on_one_line.title")
     }
 
-    fn apply(
+    fn apply_to_image(
         &self,
         pi: &crate::packed_image::PackedImage,
         export_config: &crate::export_config::ExportConfig,
-        output_path: &std::path::Path,
-    ) -> Result<(), image::ImageError> {
+    ) -> Result<image::DynamicImage, image::ImageError> {
         let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
         let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
@@ -206,10 +205,26 @@ impl Theme for ShotOnOneLine {
             &right_txt,
         );
 
+        Ok(new_image)
+    }
+
+    fn apply(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+        output_path: &std::path::Path,
+    ) -> Result<(), image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
+        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
+        let dyn_wh = dyn_w.max(dyn_h);
+
+        let (_ll, _rr, _tt, bb) = self.border.border_size(dyn_wh);
         let temp_margin = self.border.interactive_watermark_padding(dyn_w, dyn_h) / 6;
         let border_margin = (temp_margin * 5).max(bb) + temp_margin;
 
-        export_config.save_image(&mut new_image, Some(border_margin as i32), output_path)
+        let mut themed_image = self.apply_to_image(pi, export_config)?;
+        export_config.save_image(&mut themed_image, Some(border_margin as i32), output_path)
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {

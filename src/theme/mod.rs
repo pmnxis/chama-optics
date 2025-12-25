@@ -194,12 +194,27 @@ pub trait Theme: Send + Sync {
     /// return label to show on UI
     fn label(&self) -> std::borrow::Cow<'static, str>;
 
+    /// Apply theme and return the resulting DynamicImage (for preview)
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError>;
+
+    /// Apply theme and save to file
     fn apply(
         &self,
         pi: &crate::packed_image::PackedImage,
         export_config: &crate::export_config::ExportConfig,
         output_path: &std::path::Path,
-    ) -> Result<(), image::ImageError>;
+    ) -> Result<(), image::ImageError> {
+        // Default implementation: apply theme and save
+        let mut dyn_image = self.apply_to_image(pi, export_config)?;
+
+        // Get margin from the theme (if applicable)
+        // For now, use None as default - themes can override this method if needed
+        export_config.save_image(&mut dyn_image, None, output_path)
+    }
 
     fn ui_config(&mut self, ui: &mut egui::Ui);
 
