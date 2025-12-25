@@ -81,34 +81,22 @@ impl PackedImage {
         ) -> (Option<exif::Exif>, Option<Vec<u8>>) {
             match exif::Reader::new().read_from_container(buf_reader) {
                 Ok(exif) => {
-                    // currently thumbnail is too small so wait until preview image usabale
+                    // Currently it's temporary. EXIF-RS has optional MPF parsing stuff.
+                    let thumbnail =
+                        if let Some(biggest) = exif.thumbnails().iter().max_by_key(|e| e.length) {
+                            // Avoid 160x120 image
+                            log::info!("Thumbnail : {:?}", biggest);
+                            if biggest.length >= 100 * 1024 {
+                                log::info!("find out good thumbnail");
+                                biggest.extract_data(buf_reader).ok()
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
 
-                    // if let (Some(thumb_offset), Some(thumb_len)) = (
-                    //     exif.get_field(exif::Tag::JPEGInterchangeFormat, exif::In::THUMBNAIL)
-                    //         .and_then(|field| field.value.get_uint(0)),
-                    //     exif.get_field(exif::Tag::JPEGInterchangeFormatLength, exif::In::THUMBNAIL)
-                    //         .and_then(|field| field.value.get_uint(0)),
-                    // ) {
-                    //     let thumbnail = buf_reader
-                    //         .seek(std::io::SeekFrom::Start(12 + thumb_offset as u64))
-                    //         .and_then(|_| {
-                    //             let mut v = Vec::with_capacity(thumb_len as usize);
-                    //             buf_reader
-                    //                 .take(thumb_len as u64)
-                    //                 .read_to_end(&mut v)
-                    //                 .map(|_| v)
-                    //         })
-                    //         .inspect(|_| {
-                    //             log::info!("EXIF thumb : soi+{thumb_offset:X}[{thumb_len:X}]")
-                    //         })
-                    //         .ok();
-
-                    //     (Some(exif), thumbnail)
-                    // } else {
-                    //     (Some(exif), None)
-                    // }
-
-                    (Some(exif), None)
+                    (Some(exif), thumbnail)
                 }
                 Err(e) => {
                     log::error!("Failed to parse EXIF from image: {e:?}");

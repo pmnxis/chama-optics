@@ -45,8 +45,9 @@ log = "0.4.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 # todo - replace to 0.6.2 or 0.7 when once released (https://github.com/kamadak/exif-rs/pull/51)
-exif = { git = "https://github.com/pmnxis/exif-rs", rev = "f9101ebdf50abd9605a65066474dfd0fddba8e59", features = [
+exif = { git = "https://github.com/pmnxis/exif-rs", rev = "961f3c40406ed25e8ba8ffd526ff7257020086ed", features = [
     "make_note",
+    "mpf",
 ] }
 # kamadak-exif = "0.6.1"
 image = { version = "0.25.9", features = ["serde"] }
