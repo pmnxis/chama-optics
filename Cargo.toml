@@ -45,7 +45,9 @@ log = "0.4.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 # todo - replace to 0.6.2 or 0.7 when once released (https://github.com/kamadak/exif-rs/pull/51)
-exif = { git = "https://github.com/pmnxis/exif-rs", rev = "e99e1d70ba398f90210e105d1a0711782e12e1f5" }
+exif = { git = "https://github.com/pmnxis/exif-rs", rev = "f9101ebdf50abd9605a65066474dfd0fddba8e59", features = [
+    "make_note",
+] }
 # kamadak-exif = "0.6.1"
 image = { version = "0.25.9", features = ["serde"] }
 # zune-jpeg 0.5.6 has critical bugs, force version to 0.5.7 or below

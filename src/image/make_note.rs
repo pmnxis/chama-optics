@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+use exif::StructuredMakerNoteData;
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, PartialEq, Default, Debug)]
 pub enum MakePhotoStyle {
     Nikon {
@@ -16,18 +18,23 @@ pub enum MakePhotoStyle {
         secondary: String,  // e.g) NostalgicFLAT.CUBE (lumix only)
         secondary_gain: u8, // e.g) 20 (lumix only)
     },
+    Sony {
+        main: String, // e.g) Standard, Vivid, Portrait, etc.
+    },
     #[default]
     None,
 }
 
 impl MakePhotoStyle {
     pub fn from_exif(exif: &exif::Exif) -> MakePhotoStyle {
+        let le = Some(exif.little_endian());
+
         match exif.maker_note_vendor() {
             Ok(exif::MakerNoteVendor::Nikon) => {
                 // PictureControlData
                 if let Some(main) = exif
                     .get_maker_note_field(&exif::nikon::tags::PictureControlData)
-                    .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value))
+                    .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value, le))
                     .map(|d| d.name)
                 {
                     MakePhotoStyle::Nikon { main }
@@ -35,7 +42,7 @@ impl MakePhotoStyle {
                 // PictureControlData2
                 else if let Some(main) = exif
                     .get_maker_note_field(&exif::nikon::tags::PictureControlData2)
-                    .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value))
+                    .and_then(|v| exif::nikon::NikonPictureControl::from_value(&v.value, le))
                     .map(|d| d.name)
                 {
                     MakePhotoStyle::Nikon { main }
@@ -70,15 +77,27 @@ impl MakePhotoStyle {
                         .unwrap_or(0) as u8,
                 }
             }
+            Ok(exif::MakerNoteVendor::Sony) => {
+                // Looking for Sony Tag9416 with CreativeStyle
+                if let Some(main) = exif
+                    .get_maker_note_field(&exif::sony::tags::Sony_0x9416)
+                    .and_then(|v| exif::sony::SonyTag9416::from_value(&v.value, le))
+                    .map(|d| d.creative_style.to_string())
+                {
+                    MakePhotoStyle::Sony { main }
+                } else {
+                    MakePhotoStyle::None
+                }
+            }
             _ => MakePhotoStyle::None,
         }
     }
 
     pub(crate) fn main_name(&self) -> Option<String> {
         match &self {
-            MakePhotoStyle::Nikon { main, .. } | MakePhotoStyle::Panasonic { main, .. } => {
-                Some(main.clone())
-            }
+            MakePhotoStyle::Nikon { main, .. }
+            | MakePhotoStyle::Panasonic { main, .. }
+            | MakePhotoStyle::Sony { main, .. } => Some(main.clone()),
 
             _ => None,
         }
