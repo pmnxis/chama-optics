@@ -30,7 +30,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [ ] Multi core usage
 - [x] Utilize camera maker logo
 - [x] Watermark feature
-- [ ] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
+- [x] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
 - [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
 - [ ] Function to group similar photos or images taken around the same time
 - [ ] Preset and adjustment controls for contrast, brightness, grain, texture, and LUT
