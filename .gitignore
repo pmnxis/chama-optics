@@ -33,3 +33,32 @@ test_image
 .cargo/
 libheif
 .cargo/config.toml
+
+# iOS / Xcode
+ios/ChamaOptics/ChamaOptics.xcodeproj/project.xcworkspace/xcuserdata/
+ios/ChamaOptics/ChamaOptics.xcodeproj/xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+.build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+Pods/
+Carthage/Build/
+
+# iOS static libraries (optional - uncomment if you don't want to track them)
+ios/ChamaOptics/ChamaOptics/libs/**/*.a

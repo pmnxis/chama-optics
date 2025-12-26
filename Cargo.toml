@@ -12,6 +12,11 @@ edition = "2024"
 include = ["LICENSE-NON-AI-MIT", "**/*.rs", "Cargo.toml"]
 rust-version = "1.92"
 
+# iOS library configuration
+[lib]
+name = "chama_optics"
+crate-type = ["cdylib", "rlib", "staticlib"]
+
 [package.metadata.docs.rs]
 all-features = true
 targets = ["x86_64-unknown-linux-gnu"]
@@ -23,12 +28,21 @@ icon = ["chama-optics-x256.ico", "assets/mac-icon.png"]
 identifier = "com.github.pmnxis.chamaoptics"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(has_logo_asset_path)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(has_logo_asset_path)', 'cfg(target_os)', 'cfg(mobile_ui)'] }
+
+[features]
+default = ["desktop"]
+# Desktop features with GUI
+desktop = ["egui", "eframe", "rfd", "egui-file-dialog", "sys-locale", "libheif-rs"]
+# Mobile UI optimizations (larger touch targets, simplified layouts)
+mobile_ui = []
+# iOS-specific features (Photos library, Share extension) - minimal deps, no GUI
+ios_integration = ["mobile_ui"]
 
 [dependencies]
 # egui = "^0.33.3"
 # 661d5f917392e88b34e00b26ab92d5accd9c6cb9 = https://github.com/emilk/egui/pull/7790 + 1.88->1.92
-egui = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b26ab92d5accd9c6cb9" }
+egui = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b26ab92d5accd9c6cb9", optional = true }
 # eframe = { version = "^0.33.3", default-features = false, features = [
 eframe = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b26ab92d5accd9c6cb9", default-features = false, features = [
     # "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
@@ -38,7 +52,7 @@ eframe = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b2
     "wayland",       # To support Linux (and CI)
     "x11",           # To support older Linux distributions (restores one of the default features),
     # "winit",
-] }
+], optional = true }
 log = "0.4.29"
 
 # You only need serde if you want app persistence:
@@ -54,8 +68,8 @@ image = { version = "0.25.9", features = ["serde"] }
 # zune-jpeg 0.5.6 has critical bugs, force version to 0.5.7 or below
 zune-jpeg = "0.5.8"
 base64 = "0.22.1"
-rfd = "0.16.0"
-egui-file-dialog = "0.12.0"
+rfd = { version = "0.16.0", optional = true }
+egui-file-dialog = { version = "0.12.0", optional = true }
 imageproc = "0.25"
 anyhow = "1.0"
 ab_glyph = "0.2.32"
@@ -70,8 +84,8 @@ webp = "0.3.1"
 oxipng = "10"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
-sys-locale = "0.3.2"
-libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"] }
+sys-locale = { version = "0.3.2", optional = true }
+libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"], optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
 clap = { version = "4.5.53", features = ["derive"] }
