@@ -27,7 +27,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Read Panasonic lumix LUT/PhotoStyle and Nikon Picture Control names
 - [ ] More themes
 - [ ] Save photos with EXIF
-- [ ] Multi core usage
+- [x] Multi core usage
 - [x] Utilize camera maker logo
 - [x] Watermark feature
 - [x] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
