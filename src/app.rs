@@ -46,6 +46,14 @@ pub struct ChamaOptics {
     theme_preview_cache_key: Option<(usize, String)>, // (image_index, theme_name)
 
     #[serde(skip)]
+    /// Background image texture for main screen
+    background_texture: Option<egui::TextureHandle>,
+
+    #[serde(skip)]
+    /// Last detected theme mode (to reload texture on theme change)
+    last_dark_mode: Option<bool>,
+
+    #[serde(skip)]
     pub update: crate::util::check_update::CheckRelease,
 
     #[serde(skip)]
@@ -70,6 +78,8 @@ impl Default for ChamaOptics {
             preview_selected_index: None,
             theme_preview_texture: None,
             theme_preview_cache_key: None,
+            background_texture: None,
+            last_dark_mode: None,
             update: crate::util::check_update::CheckRelease::new(),
             save_progress: ProgressState::new(),
             load_progress: ProgressState::new(),
@@ -239,22 +249,6 @@ impl ChamaOptics {
         ui.heading(t!("app.app_name"));
         ui.separator();
 
-        // Check for dropped files (keep drag-drop functionality)
-        ui.ctx().input(|i| {
-            if !i.raw.dropped_files.is_empty() {
-                let paths: Vec<_> = i
-                    .raw
-                    .dropped_files
-                    .iter()
-                    .filter_map(|f| f.path.clone())
-                    .collect();
-
-                for path in paths.iter() {
-                    self.pending_paths.push_back(path.clone());
-                }
-            }
-        });
-
         // Image list controls
         ui.horizontal(|ui| {
             ui.heading(t!("app.images.list"));
@@ -369,103 +363,221 @@ impl ChamaOptics {
         ui.heading(t!("tabs.theme_preview"));
         ui.separator();
 
-        if self.packed_images.is_empty() {
-            ui.centered_and_justified(|ui| {
-                ui.label(t!("app.open_files.drag_drop"));
-            });
-            return;
-        }
+        // Show image gallery only if images exist
+        if !self.packed_images.is_empty() {
+            // Top: Horizontal scrollable gallery of loaded images
+            ui.label(t!("theme_preview.select_image"));
+            let mut image_to_delete: Option<usize> = None;
 
-        // Top: Horizontal scrollable gallery of loaded images
-        ui.label(t!("theme_preview.select_image"));
-        egui::ScrollArea::horizontal()
-            .id_salt("theme_gallery")
-            .show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    for (idx, pi) in self.packed_images.iter().enumerate() {
-                        let is_selected = self.preview_selected_index == Some(idx);
+            // Fixed height gallery to prevent layout shift during loading
+            ui.allocate_ui_with_layout(
+                egui::vec2(ui.available_width(), 120.0),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    egui::ScrollArea::horizontal()
+                        .id_salt("theme_gallery")
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                for (idx, pi) in self.packed_images.iter().enumerate() {
+                                    let is_selected = self.preview_selected_index == Some(idx);
 
-                        // Small thumbnail (80x80) with optional selection frame
-                        let thumbnail_size = egui::vec2(80.0, 80.0);
+                                    // Container for thumbnail + filename (fixed width to prevent layout shift)
+                                    let container_response = ui.allocate_ui_with_layout(
+                                        egui::vec2(80.0, 100.0),
+                                        egui::Layout::top_down(egui::Align::Center),
+                                        |ui| {
+                                            // Thumbnail (80x80) with optional selection frame
+                                            let thumbnail_size = egui::vec2(80.0, 80.0);
 
-                        let frame = if is_selected {
-                            egui::Frame::new().stroke(egui::Stroke::new(
-                                2.0,
-                                egui::Color32::from_rgb(0, 150, 255),
-                            ))
-                        } else {
-                            egui::Frame::NONE
-                        };
+                                            let frame = if is_selected {
+                                                egui::Frame::new().stroke(egui::Stroke::new(
+                                                    2.0,
+                                                    egui::Color32::from_rgb(0, 150, 255),
+                                                ))
+                                            } else {
+                                                egui::Frame::NONE
+                                            };
 
-                        let response = frame
-                            .show(ui, |ui| {
-                                ui.add(
-                                    egui::Image::from_texture(pi.texture.get())
-                                        .fit_to_exact_size(thumbnail_size)
-                                        .sense(egui::Sense::click()),
-                                )
-                            })
-                            .inner;
+                                            let image_response = frame
+                                                .show(ui, |ui| {
+                                                    ui.add(
+                                                        egui::Image::from_texture(pi.texture.get())
+                                                            .fit_to_exact_size(thumbnail_size)
+                                                            .sense(egui::Sense::click_and_drag()),
+                                                    )
+                                                })
+                                                .inner;
 
-                        if response.clicked() {
-                            self.preview_selected_index = Some(idx);
-                        }
+                                            // File name (small text, centered, max width 80px)
+                                            let file_name = pi
+                                                .path
+                                                .file_name()
+                                                .unwrap_or_default()
+                                                .to_string_lossy();
+
+                                            ui.add(
+                                                egui::Label::new(
+                                                    egui::RichText::new(file_name.as_ref())
+                                                        .size(10.0)
+                                                        .color(ui.visuals().weak_text_color()),
+                                                )
+                                                .truncate(),
+                                            )
+                                            .on_hover_text(file_name.as_ref());
+
+                                            image_response
+                                        },
+                                    );
+
+                                    let image_response = container_response.inner;
+                                    let rect = image_response.rect;
+
+                                    // Check if mouse is hovering over image
+                                    let pointer_pos = ui.input(|i| i.pointer.hover_pos());
+                                    let is_hovered = if let Some(pos) = pointer_pos {
+                                        rect.contains(pos)
+                                    } else {
+                                        false
+                                    };
+
+                                    // Delete button on hover (top-right corner)
+                                    if is_hovered {
+                                        let button_size = 20.0;
+                                        let delete_button_rect = egui::Rect::from_min_size(
+                                            rect.right_top() + egui::vec2(-button_size, 0.0),
+                                            egui::vec2(button_size, button_size),
+                                        );
+
+                                        // Draw delete button visuals (red circle with X)
+                                        let center = delete_button_rect.center();
+                                        ui.painter().circle_filled(
+                                            center,
+                                            10.0,
+                                            egui::Color32::from_rgba_premultiplied(
+                                                220, 50, 50, 220,
+                                            ),
+                                        );
+
+                                        // Draw X using lines
+                                        let x_size = 5.0;
+                                        ui.painter().line_segment(
+                                            [
+                                                center + egui::vec2(-x_size, -x_size),
+                                                center + egui::vec2(x_size, x_size),
+                                            ],
+                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                        );
+                                        ui.painter().line_segment(
+                                            [
+                                                center + egui::vec2(x_size, -x_size),
+                                                center + egui::vec2(-x_size, x_size),
+                                            ],
+                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                        );
+
+                                        // Check if delete button was clicked
+                                        if let Some(pos) = pointer_pos {
+                                            if delete_button_rect.contains(pos)
+                                                && image_response.clicked()
+                                            {
+                                                image_to_delete = Some(idx);
+                                            } else if image_response.clicked() {
+                                                self.preview_selected_index = Some(idx);
+                                            }
+                                        }
+                                    } else if image_response.clicked() {
+                                        self.preview_selected_index = Some(idx);
+                                    }
+
+                                    ui.add_space(5.0);
+                                }
+                            });
+                        });
+                },
+            );
+
+            // Delete image if requested
+            if let Some(idx) = image_to_delete {
+                self.packed_images.remove(idx);
+                // Adjust preview_selected_index if necessary
+                if let Some(selected) = self.preview_selected_index {
+                    if selected == idx {
+                        self.preview_selected_index = None;
+                        self.theme_preview_texture = None;
+                    } else if selected > idx {
+                        self.preview_selected_index = Some(selected - 1);
                     }
-                });
-            });
-
-        ui.separator();
-
-        // Middle: Preview area (~50% of remaining space)
-        if let Some(idx) = self.preview_selected_index {
-            if idx < self.packed_images.len() {
-                // Generate preview if needed
-                self.generate_theme_preview(ui.ctx());
-
-                ui.vertical(|ui| {
-                    ui.label(t!("theme_preview.preview_label"));
-
-                    let preview_height = ui.available_height() * 0.5;
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(ui.available_width(), preview_height),
-                        egui::Layout::top_down(egui::Align::Center),
-                        |ui| {
-                            // Display the theme preview texture if available
-                            if let Some(texture) = &self.theme_preview_texture {
-                                let available_size = ui.available_size();
-                                let texture_size = texture.size_vec2();
-
-                                // Calculate scaling to fit within available space while maintaining aspect ratio
-                                let scale = (available_size.x / texture_size.x)
-                                    .min(available_size.y / texture_size.y)
-                                    .min(1.0); // Don't scale up
-
-                                let display_size = texture_size * scale;
-
-                                ui.centered_and_justified(|ui| {
-                                    ui.image(egui::ImageSource::Texture(
-                                        egui::load::SizedTexture::new(texture.id(), display_size),
-                                    ));
-                                });
-                            } else {
-                                // Show loading message
-                                ui.centered_and_justified(|ui| {
-                                    ui.spinner();
-                                    ui.label("Generating preview...");
-                                });
-                            }
-                        },
-                    );
-                });
-
-                ui.separator();
+                }
             }
-        } else if !self.packed_images.is_empty() {
-            // Auto-select first image if none selected
-            self.preview_selected_index = Some(0);
+
+            ui.separator();
+
+            // Middle: Preview area (~50% of remaining space)
+            if let Some(idx) = self.preview_selected_index {
+                if idx < self.packed_images.len() {
+                    // Generate preview if needed
+                    self.generate_theme_preview(ui.ctx());
+
+                    ui.vertical(|ui| {
+                        ui.label(t!("theme_preview.preview_label"));
+
+                        let preview_height = ui.available_height() * 0.5;
+                        ui.allocate_ui_with_layout(
+                            egui::vec2(ui.available_width(), preview_height),
+                            egui::Layout::top_down(egui::Align::Center),
+                            |ui| {
+                                // Display the theme preview texture if available
+                                if let Some(texture) = &self.theme_preview_texture {
+                                    let available_size = ui.available_size();
+                                    let texture_size = texture.size_vec2();
+
+                                    // Calculate scaling to fit within available space while maintaining aspect ratio
+                                    let scale = (available_size.x / texture_size.x)
+                                        .min(available_size.y / texture_size.y)
+                                        .min(1.0); // Don't scale up
+
+                                    let display_size = texture_size * scale;
+
+                                    ui.centered_and_justified(|ui| {
+                                        ui.image(egui::ImageSource::Texture(
+                                            egui::load::SizedTexture::new(
+                                                texture.id(),
+                                                display_size,
+                                            ),
+                                        ));
+                                    });
+                                } else {
+                                    // Show loading message
+                                    ui.centered_and_justified(|ui| {
+                                        ui.spinner();
+                                        ui.label(t!("theme_preview.generating"));
+                                    });
+                                }
+                            },
+                        );
+                    });
+
+                    ui.separator();
+                }
+            } else if !self.packed_images.is_empty() {
+                // Auto-select first image if none selected
+                self.preview_selected_index = Some(0);
+            }
+        } else {
+            // Show placeholder when no images loaded
+            ui.vertical_centered(|ui| {
+                ui.add_space(20.0);
+                ui.label(
+                    egui::RichText::new(t!("theme_preview.no_images"))
+                        .size(14.0)
+                        .color(ui.visuals().weak_text_color()),
+                );
+                ui.add_space(10.0);
+            });
+            ui.separator();
         }
 
-        // Bottom: Theme parameters (export_config theme settings)
+        // Always show theme parameters at the bottom
         egui::ScrollArea::vertical()
             .id_salt("theme_params")
             .show(ui, |ui| {
@@ -511,6 +623,16 @@ impl ChamaOptics {
 
         ui.add_space(10.0);
 
+        // Theme settings
+        ui.group(|ui| {
+            ui.label(t!("settings.theme"));
+            ui.horizontal(|ui| {
+                egui::widgets::global_theme_preference_buttons(ui);
+            });
+        });
+
+        ui.add_space(10.0);
+
         // Language settings
         ui.group(|ui| {
             ui.label(t!("settings.language"));
@@ -525,9 +647,6 @@ impl eframe::App for ChamaOptics {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // Render top panel using component
-        crate::ui_components::render_top_panel(ui, &mut self.lang);
-
         // Render bottom panel using component
         crate::ui_components::render_bottom_panel(
             ui,
@@ -601,11 +720,85 @@ impl eframe::App for ChamaOptics {
             });
 
         // Render central panel with tab-based content
-        egui::CentralPanel::default().show_inside(ui, |ui| match self.selected_tab {
-            MainTab::ImageList => self.render_image_list_tab(ui),
-            MainTab::ThemePreview => self.render_theme_preview_tab(ui),
-            MainTab::ImportExport => self.render_import_export_tab(ui),
-            MainTab::Settings => self.render_settings_tab(ui),
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            // Handle drag and drop for all tabs
+            ui.ctx().input(|i| {
+                if !i.raw.dropped_files.is_empty() {
+                    let paths: Vec<_> = i
+                        .raw
+                        .dropped_files
+                        .iter()
+                        .filter_map(|f| f.path.clone())
+                        .collect();
+
+                    for path in paths.iter() {
+                        self.pending_paths.push_back(path.clone());
+                    }
+                }
+            });
+
+            // Detect current theme (dark or light)
+            let is_dark_mode = ui.ctx().global_style().visuals.dark_mode;
+
+            // Invalidate texture if theme changed
+            if self.last_dark_mode != Some(is_dark_mode) {
+                self.background_texture = None;
+                self.last_dark_mode = Some(is_dark_mode);
+            }
+
+            // Load appropriate background image based on theme
+            if self.background_texture.is_none() {
+                let image_data: &[u8] = if is_dark_mode {
+                    include_bytes!("../assets/dark-background.png")
+                } else {
+                    include_bytes!("../assets/light-background.png")
+                };
+
+                if let Ok(image) = image::load_from_memory(image_data) {
+                    let size = [image.width() as _, image.height() as _];
+                    let image_buffer = image.to_rgba8();
+                    let pixels = image_buffer.as_flat_samples();
+                    let color_image =
+                        egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+                    self.background_texture = Some(ui.ctx().load_texture(
+                        "background",
+                        color_image,
+                        egui::TextureOptions::LINEAR,
+                    ));
+                }
+            }
+
+            // Draw background image with 50% opacity at bottom-right, 25% size
+            if let Some(texture) = &self.background_texture {
+                let available_rect = ui.available_rect_before_wrap();
+                let texture_size = texture.size_vec2();
+
+                // Scale to 25% of original size
+                let scaled_size = texture_size * 0.25;
+
+                // Position at bottom-right
+                let image_pos = egui::pos2(
+                    available_rect.max.x - scaled_size.x,
+                    available_rect.max.y - scaled_size.y,
+                );
+
+                let image_rect = egui::Rect::from_min_size(image_pos, scaled_size);
+
+                ui.painter().image(
+                    texture.id(),
+                    image_rect,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::from_white_alpha(128), // 50% opacity (255 * 0.5 = 127.5)
+                );
+            }
+
+            // Render tab content on top of background
+            match self.selected_tab {
+                MainTab::ImageList => self.render_image_list_tab(ui),
+                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
+                MainTab::ImportExport => self.render_import_export_tab(ui),
+                MainTab::Settings => self.render_settings_tab(ui),
+            }
         });
 
         // Background image loading logic (below UI rendering)

@@ -24,6 +24,7 @@ lazy_static::lazy_static! {
 }
 
 const FILM_COLOR: Rgba<u8> = Rgba([255, 153, 0, 255]);
+#[allow(unused)]
 const DEFAULT_FILM_FONT_SIZE: u32 = 25;
 const DEFAULT_LIGHTROOM_FONT_HEIGHT: u32 = 60;
 
@@ -230,7 +231,7 @@ pub fn render_lightroom(
     log::info!("LIGHTROOM: Starting render for {}x{} image", dyn_w, dyn_h);
 
     // Add bottom border
-    let border_size = (dyn_wh / 10).max(50).min(150);
+    let border_size = (dyn_wh / 10).clamp(50, 150);
     log::info!("LIGHTROOM: Border size = {}", border_size);
 
     let mut new_image = image::RgbaImage::new(dyn_w, dyn_h + border_size);
@@ -355,7 +356,7 @@ pub fn render_strap(
     log::info!("STRAP: Starting render for {}x{} image", dyn_w, dyn_h);
 
     // Add bottom border (slightly larger than Monitor)
-    let border_size = (dyn_wh / 12).max(60).min(150);
+    let border_size = (dyn_wh / 12).clamp(60, 150);
     log::info!("STRAP: Border size = {}", border_size);
 
     let mut new_image = image::RgbaImage::new(dyn_w, dyn_h + border_size);
@@ -454,7 +455,7 @@ pub fn render_monitor(
     log::info!("MONITOR: Starting render for {}x{} image", dyn_w, dyn_h);
 
     // Add bottom border
-    let border_size = (dyn_wh / 16).max(50).min(120);
+    let border_size = (dyn_wh / 16).clamp(50, 120);
     log::info!("MONITOR: Border size = {}", border_size);
 
     let mut new_image = image::RgbaImage::new(dyn_w, dyn_h + border_size);

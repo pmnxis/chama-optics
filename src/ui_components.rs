@@ -9,27 +9,6 @@
 use crate::ui_state::ProgressState;
 use rust_i18n::t;
 
-/// Render the top menu panel (File menu, Language, Theme)
-pub fn render_top_panel(ui: &mut egui::Ui, lang: &mut crate::langs::Language) {
-    egui::Panel::top("top_panel").show_inside(ui, |ui| {
-        egui::MenuBar::new().ui(ui, |ui| {
-            ui.menu_button(t!("app.file_menu.root"), |ui| {
-                ui.set_max_width(130.00);
-
-                if ui.button(t!("app.file_menu.quit")).clicked() {
-                    ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-                }
-            });
-            ui.add_space(16.0);
-
-            lang.update_menu_ui(ui);
-            ui.add_space(16.0);
-
-            egui::widgets::global_theme_preference_buttons(ui);
-        });
-    });
-}
-
 /// Render the bottom panel with progress bars and version info
 pub fn render_bottom_panel(
     ui: &mut egui::Ui,
@@ -43,8 +22,8 @@ pub fn render_bottom_panel(
             render_progress_bar(
                 ui,
                 load_progress,
-                "Loading images",
-                "✓ Loading completed",
+                &t!("progress.loading.in_progress"),
+                &t!("progress.loading.completed"),
                 Some(egui::Color32::from_rgb(0, 120, 215)), // Blue
             );
         }
@@ -54,8 +33,8 @@ pub fn render_bottom_panel(
             render_progress_bar(
                 ui,
                 save_progress,
-                "Saving images",
-                "✓ Saving completed",
+                &t!("progress.saving.in_progress"),
+                &t!("progress.saving.completed"),
                 None, // Default color
             );
         }

@@ -4,7 +4,7 @@
 
 [package]
 name = "chama-optics"
-version = "0.1.8-alpha"
+version = "0.1.8-beta"
 description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 repository = "https://github.com/pmnxis/chama-optics"
@@ -28,12 +28,23 @@ icon = ["chama-optics-x256.ico", "assets/mac-icon.png"]
 identifier = "com.github.pmnxis.chamaoptics"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(has_logo_asset_path)', 'cfg(target_os)', 'cfg(mobile_ui)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(has_logo_asset_path)',
+    'cfg(target_os)',
+    'cfg(mobile_ui)',
+] }
 
 [features]
 default = ["desktop"]
 # Desktop features with GUI
-desktop = ["egui", "eframe", "rfd", "egui-file-dialog", "sys-locale", "libheif-rs"]
+desktop = [
+    "egui",
+    "eframe",
+    "rfd",
+    "egui-file-dialog",
+    "sys-locale",
+    "libheif-rs",
+]
 # Mobile UI optimizations (larger touch targets, simplified layouts)
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - minimal deps, no GUI
@@ -85,7 +96,9 @@ oxipng = "10"
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 sys-locale = { version = "0.3.2", optional = true }
-libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"], optional = true }
+libheif-rs = { version = "2.5", default-features = false, features = [
+    "v1_18",
+], optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
 clap = { version = "4.5.53", features = ["derive"] }

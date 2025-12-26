@@ -89,17 +89,11 @@ pub fn spawn_parallel_loader(
         use rayon::prelude::*;
         use std::sync::atomic::Ordering;
 
-        let cpu_count = num_cpus::get();
-        let thread_count = (cpu_count / 2).max(cpu_count.saturating_sub(3)).max(1);
-
-        log::info!(
-            "Starting parallel image loading: {} images with {} threads",
-            paths.len(),
-            thread_count
-        );
+        // Note: Single-threaded loading (1 thread) performs better than multi-core for now
+        log::info!("Starting image loading: {}", paths.len(),);
 
         let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(thread_count)
+            .num_threads(1)
             .build()
             .unwrap();
 

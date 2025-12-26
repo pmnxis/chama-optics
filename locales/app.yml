@@ -85,6 +85,10 @@ theme_preview:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+  generating:
+    en: "Generating preview..."
+    ko: "미리보기 생성 중..."
+    ja: "プレビューを生成しています..."
   preview_placeholder:
     en: "Theme preview will be shown here"
     ko: "테마 미리보기가 여기에 표시됩니다"
@@ -93,6 +97,10 @@ theme_preview:
     en: "Select an image from the gallery above"
     ko: "위의 갤러리에서 이미지를 선택하세요"
     ja: "上のギャラリーから画像を選択してください"
+  no_images:
+    en: "Load images from the Image List tab to preview themes"
+    ko: "이미지 리스트 탭에서 사진을 불러오면 테마 미리보기를 볼 수 있습니다"
+    ja: "画像リストタブから画像を読み込むとテーマをプレビューできます"
   theme_settings:
     en: "Theme Parameters"
     ko: "테마 파라미터"
@@ -103,10 +111,34 @@ settings:
     en: "Version Information"
     ko: "버전 정보"
     ja: "バージョン情報"
+  theme:
+    en: "UI Theme"
+    ko: "UI 색상"
+    ja: "UIテーマ"
   language:
     en: "Language"
     ko: "언어"
     ja: "言語"
+
+progress:
+  loading:
+    in_progress:
+      en: "Loading images"
+      ko: "이미지 불러오는 중"
+      ja: "画像を読み込んでいます"
+    completed:
+      en: "✓ Loading completed"
+      ko: "✓ 불러오기 완료"
+      ja: "✓ 読み込み完了"
+  saving:
+    in_progress:
+      en: "Saving images"
+      ko: "이미지 저장 중"
+      ja: "画像を保存しています"
+    completed:
+      en: "✓ Saving completed"
+      ko: "✓ 저장 완료"
+      ja: "✓ 保存完了"
 
 update:
   not_checked:
