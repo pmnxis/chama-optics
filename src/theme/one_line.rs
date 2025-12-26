@@ -5,6 +5,7 @@
  */
 
 use crate::effect::variable_text::{VariableTextSlot, VariableTextSlotDefault};
+
 use crate::theme::Theme;
 use ab_glyph::{Font, ScaleFont};
 use rust_i18n::t;
@@ -57,9 +58,9 @@ impl core::default::Default for OneLine {
             font_color: egui::Color32::BLACK,
             font_height: DEFAULT_FONT_HEIGHT,
             top_font_height: DEFAULT_TOP_FONT_HEIGHT,
-            left: VariableTextSlot::from_default(&DEFAULT_LEFT),
-            right: VariableTextSlot::from_default(&DEFAULT_RIGHT),
-            top: VariableTextSlot::from_default(&DEFAULT_TOP),
+            left: (&DEFAULT_LEFT).into(),
+            right: (&DEFAULT_RIGHT).into(),
+            top: (&DEFAULT_TOP).into(),
             // width_aligned: true,
             show_hint: false,
         }

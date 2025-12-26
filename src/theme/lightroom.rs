@@ -49,9 +49,9 @@ impl core::default::Default for Lightroom {
             border: DEFAULT_BORDER,
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             font_height: DEFAULT_FONT_HEIGHT,
-            left: VariableTextSlot::from_default(&DEFAULT_LEFT),
-            center: VariableTextSlot::from_default(&DEFAULT_CENTER),
-            right: VariableTextSlot::from_default(&DEFAULT_RIGHT),
+            left: (&DEFAULT_LEFT).into(),
+            center: (&DEFAULT_CENTER).into(),
+            right: (&DEFAULT_RIGHT).into(),
             // width_aligned: true,
             show_hint: false,
         }

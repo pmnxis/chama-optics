@@ -58,9 +58,9 @@ impl core::default::Default for TwoLine {
             font_height: DEFAULT_FONT_HEIGHT,
             top_font_height: DEFAULT_TOP_FONT_HEIGHT,
             bottom_align: crate::fonts::align::TextAlign::Center,
-            first: VariableTextSlot::from_default(&DEFAULT_FIRST),
-            second: VariableTextSlot::from_default(&DEFAULT_SECOND),
-            top: VariableTextSlot::from_default(&DEFAULT_TOP),
+            first: (&DEFAULT_FIRST).into(),
+            second: (&DEFAULT_SECOND).into(),
+            top: (&DEFAULT_TOP).into(),
             // width_aligned: true,
             show_hint: false,
         }

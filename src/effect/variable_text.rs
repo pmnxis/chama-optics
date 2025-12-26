@@ -5,9 +5,200 @@
  */
 
 use crate::fonts::variable_font::*;
-use egui::{self, Align, Ui};
+use egui::{self, Align, TextEdit, Ui};
 use rust_i18n::t;
 use std::borrow::Cow;
+
+/// Available EXIF fields for autocomplete
+const EXIF_FIELDS: &[ExifField] = &[
+    ExifField {
+        name: "camera_mnf",
+        description: "Camera manufacturer",
+        example: "Canon",
+    },
+    ExifField {
+        name: "camera_model",
+        description: "Camera model",
+        example: "EOS R5",
+    },
+    ExifField {
+        name: "lens_mnf",
+        description: "Lens manufacturer",
+        example: "Canon",
+    },
+    ExifField {
+        name: "lens_model",
+        description: "Lens model",
+        example: "RF24-105mm F4 L IS USM",
+    },
+    ExifField {
+        name: "focal",
+        description: "Focal length (mm)",
+        example: "35",
+    },
+    ExifField {
+        name: "fnumber",
+        description: "F-number / Aperture",
+        example: "1.8",
+    },
+    ExifField {
+        name: "exposure",
+        description: "Exposure time",
+        example: "1/125",
+    },
+    ExifField {
+        name: "iso_speed",
+        description: "ISO speed",
+        example: "200",
+    },
+    ExifField {
+        name: "datetime",
+        description: "Date and time",
+        example: "2025-01-15 14:30:00",
+    },
+    #[cfg(feature = "desktop")]
+    ExifField {
+        name: "photo_style",
+        description: "Photo style (Panasonic/Nikon/Sony)",
+        example: "Standard",
+    },
+    #[cfg(feature = "desktop")]
+    ExifField {
+        name: "lut_detail",
+        description: "LUT detail (Panasonic/Nikon/Sony)",
+        example: "V-Log",
+    },
+];
+
+#[derive(Clone)]
+struct ExifField {
+    name: &'static str,
+    description: &'static str,
+    example: &'static str,
+}
+
+/// Autocomplete state for variable text input
+#[derive(Default, Clone)]
+struct AutocompleteState {
+    /// Whether autocomplete popup is visible
+    show_popup: bool,
+    /// Current cursor position in the text
+    cursor_pos: Option<usize>,
+    /// Start position of the current variable being typed
+    variable_start: Option<usize>,
+    /// Current partial variable text (without the opening `{`)
+    partial_variable: String,
+    /// Selected index in the autocomplete list
+    selected_index: usize,
+}
+
+impl AutocompleteState {
+    fn new() -> Self {
+        Self::default()
+    }
+
+    /// Reset autocomplete state
+    fn reset(&mut self) {
+        self.show_popup = false;
+        self.cursor_pos = None;
+        self.variable_start = None;
+        self.partial_variable.clear();
+        self.selected_index = 0;
+    }
+
+    /// Get filtered list of EXIF fields matching the partial input
+    fn get_filtered_fields(&self) -> Vec<&'static ExifField> {
+        if self.partial_variable.is_empty() {
+            EXIF_FIELDS.iter().collect()
+        } else {
+            EXIF_FIELDS
+                .iter()
+                .filter(|field| field.name.starts_with(&self.partial_variable))
+                .collect()
+        }
+    }
+
+    /// Update autocomplete state based on text and cursor position
+    fn update_from_text(&mut self, text: &str, cursor_pos: usize) {
+        self.cursor_pos = Some(cursor_pos);
+
+        // Ensure cursor_pos is a valid char boundary
+        if !text.is_char_boundary(cursor_pos) {
+            self.reset();
+            return;
+        }
+
+        // Find if we're inside a variable (between `{` and `}` or at the end)
+        let before_cursor = &text[..cursor_pos];
+
+        if let Some(last_open) = before_cursor.rfind('{') {
+            // Check if there's a closing brace between the opening brace and cursor
+            let after_open = &before_cursor[last_open + 1..];
+            if !after_open.contains('}') {
+                // We're inside a variable
+                self.show_popup = true;
+                self.variable_start = Some(last_open);
+                self.partial_variable = after_open.to_string();
+
+                // Ensure selected index is within bounds
+                let filtered = self.get_filtered_fields();
+                if self.selected_index >= filtered.len() && !filtered.is_empty() {
+                    self.selected_index = 0;
+                }
+                return;
+            }
+        }
+
+        // Not inside a variable
+        self.reset();
+    }
+
+    /// Insert the selected field at the cursor position
+    fn insert_selected_field(&mut self, text: &mut String) -> bool {
+        if !self.show_popup {
+            return false;
+        }
+
+        let filtered = self.get_filtered_fields();
+        if filtered.is_empty() {
+            return false;
+        }
+
+        if let (Some(start), Some(_cursor)) = (self.variable_start, self.cursor_pos) {
+            // Ensure start is a valid char boundary
+            if !text.is_char_boundary(start) {
+                self.reset();
+                return false;
+            }
+
+            let field = filtered[self.selected_index];
+
+            // Find the end position - either the closing `}` or the cursor position
+            // This allows replacing existing completed variables
+            let after_start = &text[start..];
+            let end = if let Some(close_pos) = after_start.find('}') {
+                start + close_pos + 1 // Include the `}` in the replacement
+            } else {
+                // No closing brace found, use cursor position
+                self.cursor_pos.unwrap_or(text.len())
+            };
+
+            // Ensure end is a valid char boundary
+            if !text.is_char_boundary(end) {
+                self.reset();
+                return false;
+            }
+
+            // Replace from `{` to `}` (or cursor) with the new variable
+            text.replace_range(start..end, &format!("{{{}}}", field.name));
+
+            self.reset();
+            return true;
+        }
+
+        false
+    }
+}
 
 #[rustfmt::skip]
 #[repr(usize)]
@@ -72,12 +263,14 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+                autocomplete_state: AutocompleteState::new(),
             }
         } else {
             Self {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
+                autocomplete_state: AutocompleteState::new(),
             }
         }
     }
@@ -89,12 +282,14 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+                autocomplete_state: AutocompleteState::new(),
             }
         } else {
             Self {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
+                autocomplete_state: AutocompleteState::new(),
             }
         }
     }
@@ -106,6 +301,8 @@ pub struct VariableTextSlot {
     pub weight: u16,
     // todo - future selection variable fonts
     pub font_index: VariableOrNot,
+    #[serde(skip)]
+    autocomplete_state: AutocompleteState,
 }
 
 impl VariableTextSlot {
@@ -115,9 +312,11 @@ impl VariableTextSlot {
             text: default.to_string(),
             weight,
             font_index: VariableOrNot::default(),
+            autocomplete_state: AutocompleteState::new(),
         }
     }
 
+    #[allow(dead_code)]
     pub fn from_default(default: &'static VariableTextSlotDefault) -> Self {
         default.into()
     }
@@ -192,7 +391,6 @@ impl VariableTextSlot {
             ui.label(label.clone());
             ui.add_space(27.0);
         });
-        // let total_width = ui.available_width();
 
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
@@ -222,13 +420,11 @@ impl VariableTextSlot {
                 }
 
                 if let VariableOrNot::Variable(ref mut variable_select) = self.font_index {
-                    // variable_select.update_ui_with_label(ui, label.clone());
                     variable_select.update_ui(ui, label.clone());
 
                     let (start, end) = variable_select.get_font().range();
                     ui.add(egui::Slider::new(&mut self.weight, start..=end).step_by(100.0));
                 } else if let VariableOrNot::Others(ref mut font_select) = self.font_index {
-                    // font_select.update_ui_with_label(ctx, ui, label.clone());
                     font_select.update_ui(ui, label.clone());
                 };
 
@@ -237,15 +433,154 @@ impl VariableTextSlot {
                 }
             });
 
+            // Text edit with autocomplete
             ui.horizontal(|ui| {
-                ui.add_sized(
-                    [(ui.available_width() - 8.0).max(16.0), 23.0],
-                    egui::TextEdit::singleline(&mut self.text).vertical_align(Align::Center),
-                );
-
-                // todo - font selection with variable_font_index
+                let width = (ui.available_width() - 8.0).max(16.0);
+                self.render_text_edit_with_autocomplete(ui, width, &label);
             });
             ui.add_space(4.0);
         });
+    }
+
+    /// Render a text edit with autocomplete functionality
+    fn render_text_edit_with_autocomplete(
+        &mut self,
+        ui: &mut Ui,
+        width: f32,
+        id_salt: impl std::hash::Hash,
+    ) -> egui::Response {
+        let text_edit_id = ui.id().with(&id_salt).with("autocomplete_text_edit");
+
+        let response = ui.add_sized(
+            [width, 23.0],
+            TextEdit::singleline(&mut self.text)
+                .vertical_align(Align::Center)
+                .id(text_edit_id),
+        );
+
+        // Get cursor position from the text edit state
+        if let Some(mut text_edit_state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id)
+            && let Some(cursor_range) = text_edit_state.cursor.char_range()
+        {
+            let cursor_pos = cursor_range.primary.index;
+            self.autocomplete_state
+                .update_from_text(&self.text, cursor_pos);
+
+            // Handle keyboard input when popup is shown
+            if self.autocomplete_state.show_popup {
+                let filtered = self.autocomplete_state.get_filtered_fields();
+
+                if !filtered.is_empty() {
+                    ui.input(|i| {
+                        // Arrow down
+                        if i.key_pressed(egui::Key::ArrowDown) {
+                            self.autocomplete_state.selected_index =
+                                (self.autocomplete_state.selected_index + 1)
+                                    .min(filtered.len() - 1);
+                        }
+                        // Arrow up
+                        if i.key_pressed(egui::Key::ArrowUp) {
+                            self.autocomplete_state.selected_index =
+                                self.autocomplete_state.selected_index.saturating_sub(1);
+                        }
+                        // Tab or Enter to accept
+                        if (i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter))
+                            && self
+                                .autocomplete_state
+                                .insert_selected_field(&mut self.text)
+                        {
+                            // Update cursor position after insertion
+                            if let Some(start) = self.autocomplete_state.variable_start {
+                                let new_cursor_pos = start
+                                    + filtered[self.autocomplete_state.selected_index].name.len()
+                                    + 2; // +2 for `{}`
+                                text_edit_state.cursor.set_char_range(Some(
+                                    egui::text::CCursorRange::one(egui::text::CCursor::new(
+                                        new_cursor_pos,
+                                    )),
+                                ));
+                            }
+                        }
+                        // Escape to close
+                        if i.key_pressed(egui::Key::Escape) {
+                            self.autocomplete_state.reset();
+                        }
+                    });
+                }
+            }
+
+            text_edit_state.store(ui.ctx(), text_edit_id);
+        }
+
+        // Show autocomplete popup
+        if self.autocomplete_state.show_popup {
+            let filtered = self.autocomplete_state.get_filtered_fields();
+
+            if !filtered.is_empty() {
+                // Calculate popup position (below the text edit)
+                let popup_pos = response.rect.left_bottom() + egui::vec2(0.0, 2.0);
+
+                egui::Area::new(ui.id().with(&id_salt).with("autocomplete_popup"))
+                    .fixed_pos(popup_pos)
+                    .order(egui::Order::Foreground)
+                    .show(ui.ctx(), |ui| {
+                        egui::Frame::popup(ui.style()).show(ui, |ui| {
+                            ui.set_min_width(300.0);
+                            ui.set_max_height(200.0);
+
+                            egui::ScrollArea::vertical()
+                                .max_height(200.0)
+                                .show(ui, |ui| {
+                                    for (idx, field) in filtered.iter().enumerate() {
+                                        let is_selected =
+                                            idx == self.autocomplete_state.selected_index;
+
+                                        ui.horizontal(|ui| {
+                                            // Left: Field name (monospace)
+                                            let item_response = ui.selectable_label(
+                                                is_selected,
+                                                egui::RichText::new(field.name).monospace(),
+                                            );
+
+                                            // Check for click first
+                                            let was_clicked = item_response.clicked();
+
+                                            // Show example on hover
+                                            item_response.on_hover_ui(|ui| {
+                                                ui.label(
+                                                    egui::RichText::new(format!(
+                                                        "Example: {}",
+                                                        field.example
+                                                    ))
+                                                    .weak(),
+                                                );
+                                            });
+
+                                            if was_clicked {
+                                                self.autocomplete_state.selected_index = idx;
+                                                self.autocomplete_state
+                                                    .insert_selected_field(&mut self.text);
+                                            }
+
+                                            // Right: Description (always visible)
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::Center),
+                                                |ui| {
+                                                    ui.label(
+                                                        egui::RichText::new(field.description)
+                                                            .small()
+                                                            .weak(),
+                                                    );
+                                                },
+                                            );
+                                        });
+                                    }
+                                });
+                        });
+                    });
+            }
+        }
+
+        response
     }
 }

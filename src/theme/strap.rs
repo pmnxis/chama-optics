@@ -45,10 +45,10 @@ impl core::default::Default for Strap {
             border: DEFAULT_BORDER,
             font_color: egui::Color32::BLACK,
             logo_height: DEFAULT_LOGO_HEIGHT,
-            left_top: VariableTextSlot::from_default(&DEFAULT_LEFT_TOP),
-            left_bot: VariableTextSlot::from_default(&DEFAULT_LEFT_BOT),
-            right_top: VariableTextSlot::from_default(&DEFAULT_RIGHT_TOP),
-            right_bot: VariableTextSlot::from_default(&DEFAULT_RIGHT_BOT),
+            left_top: (&DEFAULT_LEFT_TOP).into(),
+            left_bot: (&DEFAULT_LEFT_BOT).into(),
+            right_top: (&DEFAULT_RIGHT_TOP).into(),
+            right_bot: (&DEFAULT_RIGHT_BOT).into(),
             show_hint: false,
         }
     }

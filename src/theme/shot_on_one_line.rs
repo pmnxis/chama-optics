@@ -50,8 +50,8 @@ impl core::default::Default for ShotOnOneLine {
             font_color: egui::Color32::BLACK,
             font_height: DEFAULT_FONT_HEIGHT,
             top_font_height: DEFAULT_TOP_FONT_HEIGHT,
-            left: VariableTextSlot::from_default(&DEFAULT_LEFT),
-            right: VariableTextSlot::from_default(&DEFAULT_RIGHT),
+            left: (&DEFAULT_LEFT).into(),
+            right: (&DEFAULT_RIGHT).into(),
             show_hint: false,
         }
     }
