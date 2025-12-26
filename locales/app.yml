@@ -67,14 +67,22 @@ tabs:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+  theme_preview_heading:
+    en: "Themes & Preview"
+    ko: "테마 & 미리보기"
+    ja: "テーマ＆プレビュー"
   import_export:
-    en: "Import/Export Settings"
+    en: "Import&Export Settings"
     ko: "입출력 설정"
     ja: "入出力設定"
   settings:
     en: "Settings"
     ko: "설정"
     ja: "設定"
+  misc_heading:
+    en: "Misc"
+    ko: "기타"
+    ja: "その他"
 
 theme_preview:
   select_image:

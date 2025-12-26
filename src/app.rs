@@ -6,12 +6,11 @@
 
 use crate::packed_image::PackedImage;
 use crate::ui_state::ProgressState;
-use rust_i18n::t;
 use std::path::PathBuf;
 
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
-enum MainTab {
+pub enum MainTab {
     #[default]
     ImageList,
     ThemePreview,
@@ -35,15 +34,15 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Selected image index for theme preview tab
-    preview_selected_index: Option<usize>,
+    pub(crate) preview_selected_index: Option<usize>,
 
     #[serde(skip)]
     /// Cached theme preview texture
-    theme_preview_texture: Option<egui::TextureHandle>,
+    pub(crate) theme_preview_texture: Option<egui::TextureHandle>,
 
     #[serde(skip)]
     /// Last theme preview generation params (to detect when to regenerate)
-    theme_preview_cache_key: Option<(usize, String)>, // (image_index, theme_name)
+    pub(crate) theme_preview_cache_key: Option<(usize, String)>, // (image_index, theme_name)
 
     #[serde(skip)]
     /// Background image texture for main screen
@@ -97,17 +96,20 @@ impl ChamaOptics {
             rust_i18n::available_locales!()
         );
 
-        let app: ChamaOptics = cc
+        let mut app: ChamaOptics = cc
             .storage
             .and_then(|s| eframe::get_value(s, eframe::APP_KEY))
             .unwrap_or_default();
+
+        // Always start with ImageList tab
+        app.selected_tab = MainTab::ImageList;
 
         app.lang.update_i18n();
 
         app
     }
 
-    fn save_packed_image_all(&mut self, ui: &mut egui::Ui) {
+    pub(crate) fn save_packed_image_all(&mut self, ui: &mut egui::Ui) {
         use rayon::prelude::*;
         use std::sync::atomic::Ordering;
 
@@ -225,7 +227,7 @@ impl ChamaOptics {
         ui.ctx().request_repaint();
     }
 
-    fn update_packed_image(&mut self, ui: &mut egui::Ui) {
+    pub(crate) fn update_packed_image(&mut self, ui: &mut egui::Ui) {
         let mut remove_index: Option<usize> = None;
 
         for (idx, pi) in self.packed_images.iter_mut().enumerate() {
@@ -243,565 +245,83 @@ impl ChamaOptics {
         }
     }
 
-    /// Render Tab 1: Image List
-    fn render_image_list_tab(&mut self, ui: &mut egui::Ui) {
-        // App heading
-        ui.heading(t!("app.app_name"));
-        ui.separator();
+    /// Handle drag and drop for file paths
+    fn handle_drag_drop(&mut self, ui: &mut egui::Ui) {
+        ui.ctx().input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                let paths: Vec<_> = i
+                    .raw
+                    .dropped_files
+                    .iter()
+                    .filter_map(|f| f.path.clone())
+                    .collect();
 
-        // Image list controls
-        ui.horizontal(|ui| {
-            ui.heading(t!("app.images.list"));
-
-            // File dialog button
-            if ui.button(t!("app.open_files.button")).clicked()
-                && let Some(open_files) = rfd::FileDialog::new().pick_files()
-            {
-                for file in open_files.iter() {
-                    self.pending_paths.push_back(file.to_owned());
+                for path in paths.iter() {
+                    self.pending_paths.push_back(path.clone());
                 }
             }
-
-            // Save all button
-            if ui.button(t!("app.images.save_all")).clicked() {
-                self.save_packed_image_all(ui);
-            }
-
-            // Explorer button
-            crate::export_config::open_explorer::launch_explorer_ui(
-                ui,
-                &self.export_config.output_name.folder,
-            );
-
-            // Remove all button
-            if ui.button(t!("app.images.remove_all")).clicked() {
-                self.packed_images.clear();
-            }
         });
-
-        // Scrollable image list with background hint
-        let available_rect = ui.available_rect_before_wrap();
-
-        if self.packed_images.is_empty() && !self.load_progress.is_active() {
-            ui.painter().text(
-                available_rect.center(),
-                egui::Align2::CENTER_CENTER,
-                t!("app.open_files.drag_drop"),
-                egui::FontId::proportional(42.0),
-                egui::Color32::from_rgba_unmultiplied(200, 200, 200, 50),
-            );
-        }
-
-        ui.allocate_ui_with_layout(
-            egui::vec2(available_rect.width(), available_rect.height().max(200.0)),
-            egui::Layout::top_down(egui::Align::Min),
-            |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false; 2])
-                    .show(ui, |ui| self.update_packed_image(ui));
-            },
-        );
     }
 
-    /// Generate theme preview for the selected image
-    fn generate_theme_preview(&mut self, ui_ctx: &egui::Context) -> Option<()> {
-        let idx = self.preview_selected_index?;
-        let pi = self.packed_images.get(idx)?;
+    /// Load and render background image based on theme
+    fn render_background_image(&mut self, ui: &mut egui::Ui) {
+        // Detect current theme (dark or light)
+        let is_dark_mode = ui.ctx().global_style().visuals.dark_mode;
 
-        // Get current theme name
-        let theme_name = self
-            .export_config
-            .theme_reg
-            .selected_theme_read()
-            .unique_name();
-
-        // Check if we need to regenerate (cache invalidation)
-        let cache_key = (idx, theme_name.to_string());
-        if self.theme_preview_cache_key.as_ref() == Some(&cache_key) {
-            // Cache is still valid
-            return Some(());
+        // Invalidate texture if theme changed
+        if self.last_dark_mode != Some(is_dark_mode) {
+            self.background_texture = None;
+            self.last_dark_mode = Some(is_dark_mode);
         }
 
-        // Generate preview directly in memory (no file I/O, no encode/decode)
-        match self
-            .export_config
-            .theme_reg
-            .selected_theme_read()
-            .apply_to_image(pi, &self.export_config)
-        {
-            Ok(preview_image) => {
-                // Convert DynamicImage to egui ColorImage directly
-                let size = [
-                    preview_image.width() as usize,
-                    preview_image.height() as usize,
-                ];
-                let pixels = preview_image.to_rgba8().into_raw();
-                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+        // Load appropriate background image based on theme
+        if self.background_texture.is_none() {
+            let image_data: &[u8] = if is_dark_mode {
+                include_bytes!("../assets/dark-background.png")
+            } else {
+                include_bytes!("../assets/light-background.png")
+            };
 
-                // Create texture
-                let texture = ui_ctx.load_texture(
-                    format!("theme_preview_{}", idx),
+            if let Ok(image) = image::load_from_memory(image_data) {
+                let size = [image.width() as _, image.height() as _];
+                let image_buffer = image.to_rgba8();
+                let pixels = image_buffer.as_flat_samples();
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+                self.background_texture = Some(ui.ctx().load_texture(
+                    "background",
                     color_image,
                     egui::TextureOptions::LINEAR,
-                );
-
-                // Update cache
-                self.theme_preview_texture = Some(texture);
-                self.theme_preview_cache_key = Some(cache_key);
-
-                Some(())
-            }
-            Err(e) => {
-                log::error!("Failed to apply theme for preview: {:?}", e);
-                None
+                ));
             }
         }
-    }
 
-    /// Render Tab 2: Theme Preview
-    fn render_theme_preview_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("tabs.theme_preview"));
-        ui.separator();
+        // Draw background image with opacity at bottom-right, 25% size
+        if let Some(texture) = &self.background_texture {
+            let available_rect = ui.available_rect_before_wrap();
+            let texture_size = texture.size_vec2();
 
-        // Show image gallery only if images exist
-        if !self.packed_images.is_empty() {
-            // Top: Horizontal scrollable gallery of loaded images
-            ui.label(t!("theme_preview.select_image"));
-            let mut image_to_delete: Option<usize> = None;
+            // Scale to 25% of original size
+            let scaled_size = texture_size * 0.25;
 
-            // Fixed height gallery to prevent layout shift during loading
-            ui.allocate_ui_with_layout(
-                egui::vec2(ui.available_width(), 120.0),
-                egui::Layout::top_down(egui::Align::Min),
-                |ui| {
-                    egui::ScrollArea::horizontal()
-                        .id_salt("theme_gallery")
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                for (idx, pi) in self.packed_images.iter().enumerate() {
-                                    let is_selected = self.preview_selected_index == Some(idx);
-
-                                    // Container for thumbnail + filename (fixed width to prevent layout shift)
-                                    let container_response = ui.allocate_ui_with_layout(
-                                        egui::vec2(80.0, 100.0),
-                                        egui::Layout::top_down(egui::Align::Center),
-                                        |ui| {
-                                            // Thumbnail (80x80) with optional selection frame
-                                            let thumbnail_size = egui::vec2(80.0, 80.0);
-
-                                            let frame = if is_selected {
-                                                egui::Frame::new().stroke(egui::Stroke::new(
-                                                    2.0,
-                                                    egui::Color32::from_rgb(0, 150, 255),
-                                                ))
-                                            } else {
-                                                egui::Frame::NONE
-                                            };
-
-                                            let image_response = frame
-                                                .show(ui, |ui| {
-                                                    ui.add(
-                                                        egui::Image::from_texture(pi.texture.get())
-                                                            .fit_to_exact_size(thumbnail_size)
-                                                            .sense(egui::Sense::click_and_drag()),
-                                                    )
-                                                })
-                                                .inner;
-
-                                            // File name (small text, centered, max width 80px)
-                                            let file_name = pi
-                                                .path
-                                                .file_name()
-                                                .unwrap_or_default()
-                                                .to_string_lossy();
-
-                                            ui.add(
-                                                egui::Label::new(
-                                                    egui::RichText::new(file_name.as_ref())
-                                                        .size(10.0)
-                                                        .color(ui.visuals().weak_text_color()),
-                                                )
-                                                .truncate(),
-                                            )
-                                            .on_hover_text(file_name.as_ref());
-
-                                            image_response
-                                        },
-                                    );
-
-                                    let image_response = container_response.inner;
-                                    let rect = image_response.rect;
-
-                                    // Check if mouse is hovering over image
-                                    let pointer_pos = ui.input(|i| i.pointer.hover_pos());
-                                    let is_hovered = if let Some(pos) = pointer_pos {
-                                        rect.contains(pos)
-                                    } else {
-                                        false
-                                    };
-
-                                    // Delete button on hover (top-right corner)
-                                    if is_hovered {
-                                        let button_size = 20.0;
-                                        let delete_button_rect = egui::Rect::from_min_size(
-                                            rect.right_top() + egui::vec2(-button_size, 0.0),
-                                            egui::vec2(button_size, button_size),
-                                        );
-
-                                        // Draw delete button visuals (red circle with X)
-                                        let center = delete_button_rect.center();
-                                        ui.painter().circle_filled(
-                                            center,
-                                            10.0,
-                                            egui::Color32::from_rgba_premultiplied(
-                                                220, 50, 50, 220,
-                                            ),
-                                        );
-
-                                        // Draw X using lines
-                                        let x_size = 5.0;
-                                        ui.painter().line_segment(
-                                            [
-                                                center + egui::vec2(-x_size, -x_size),
-                                                center + egui::vec2(x_size, x_size),
-                                            ],
-                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                        );
-                                        ui.painter().line_segment(
-                                            [
-                                                center + egui::vec2(x_size, -x_size),
-                                                center + egui::vec2(-x_size, x_size),
-                                            ],
-                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                        );
-
-                                        // Check if delete button was clicked
-                                        if let Some(pos) = pointer_pos {
-                                            if delete_button_rect.contains(pos)
-                                                && image_response.clicked()
-                                            {
-                                                image_to_delete = Some(idx);
-                                            } else if image_response.clicked() {
-                                                self.preview_selected_index = Some(idx);
-                                            }
-                                        }
-                                    } else if image_response.clicked() {
-                                        self.preview_selected_index = Some(idx);
-                                    }
-
-                                    ui.add_space(5.0);
-                                }
-                            });
-                        });
-                },
+            // Position at bottom-right
+            let image_pos = egui::pos2(
+                available_rect.max.x - scaled_size.x,
+                available_rect.max.y - scaled_size.y,
             );
 
-            // Delete image if requested
-            if let Some(idx) = image_to_delete {
-                self.packed_images.remove(idx);
-                // Adjust preview_selected_index if necessary
-                if let Some(selected) = self.preview_selected_index {
-                    if selected == idx {
-                        self.preview_selected_index = None;
-                        self.theme_preview_texture = None;
-                    } else if selected > idx {
-                        self.preview_selected_index = Some(selected - 1);
-                    }
-                }
-            }
+            let image_rect = egui::Rect::from_min_size(image_pos, scaled_size);
 
-            ui.separator();
-
-            // Middle: Preview area (~50% of remaining space)
-            if let Some(idx) = self.preview_selected_index {
-                if idx < self.packed_images.len() {
-                    // Generate preview if needed
-                    self.generate_theme_preview(ui.ctx());
-
-                    ui.vertical(|ui| {
-                        ui.label(t!("theme_preview.preview_label"));
-
-                        let preview_height = ui.available_height() * 0.5;
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(ui.available_width(), preview_height),
-                            egui::Layout::top_down(egui::Align::Center),
-                            |ui| {
-                                // Display the theme preview texture if available
-                                if let Some(texture) = &self.theme_preview_texture {
-                                    let available_size = ui.available_size();
-                                    let texture_size = texture.size_vec2();
-
-                                    // Calculate scaling to fit within available space while maintaining aspect ratio
-                                    let scale = (available_size.x / texture_size.x)
-                                        .min(available_size.y / texture_size.y)
-                                        .min(1.0); // Don't scale up
-
-                                    let display_size = texture_size * scale;
-
-                                    ui.centered_and_justified(|ui| {
-                                        ui.image(egui::ImageSource::Texture(
-                                            egui::load::SizedTexture::new(
-                                                texture.id(),
-                                                display_size,
-                                            ),
-                                        ));
-                                    });
-                                } else {
-                                    // Show loading message
-                                    ui.centered_and_justified(|ui| {
-                                        ui.spinner();
-                                        ui.label(t!("theme_preview.generating"));
-                                    });
-                                }
-                            },
-                        );
-                    });
-
-                    ui.separator();
-                }
-            } else if !self.packed_images.is_empty() {
-                // Auto-select first image if none selected
-                self.preview_selected_index = Some(0);
-            }
-        } else {
-            // Show placeholder when no images loaded
-            ui.vertical_centered(|ui| {
-                ui.add_space(20.0);
-                ui.label(
-                    egui::RichText::new(t!("theme_preview.no_images"))
-                        .size(14.0)
-                        .color(ui.visuals().weak_text_color()),
-                );
-                ui.add_space(10.0);
-            });
-            ui.separator();
+            ui.painter().image(
+                texture.id(),
+                image_rect,
+                egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                egui::Color32::from_white_alpha(100), // ~39% opacity
+            );
         }
-
-        // Always show theme parameters at the bottom
-        egui::ScrollArea::vertical()
-            .id_salt("theme_params")
-            .show(ui, |ui| {
-                ui.label(t!("theme_preview.theme_settings"));
-                self.export_config.theme_reg.update_ui(ui);
-            });
     }
 
-    /// Render Tab 3: Import/Export Config
-    fn render_import_export_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("tabs.import_export"));
-        ui.separator();
-
-        // Import config section
-        self.import_config.update_ui(ui);
-
-        ui.add_space(10.0);
-
-        // Export config section
-        self.export_config.update_ui(ui);
-    }
-
-    /// Render Tab 4: Settings
-    fn render_settings_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("tabs.settings"));
-        ui.separator();
-
-        // Version information
-        ui.group(|ui| {
-            ui.label(t!("settings.version_info"));
-            ui.horizontal(|ui| {
-                ui.label("ChamaOptics");
-                ui.label(format!(
-                    "v{} ({})",
-                    env!("PROJECT_VERSION"),
-                    env!("GIT_COMMIT_SHORT_HASH")
-                ));
-            });
-
-            ui.add_space(10.0);
-            self.update.ui(ui);
-        });
-
-        ui.add_space(10.0);
-
-        // Theme settings
-        ui.group(|ui| {
-            ui.label(t!("settings.theme"));
-            ui.horizontal(|ui| {
-                egui::widgets::global_theme_preference_buttons(ui);
-            });
-        });
-
-        ui.add_space(10.0);
-
-        // Language settings
-        ui.group(|ui| {
-            ui.label(t!("settings.language"));
-            self.lang.update_menu_ui(ui);
-        });
-    }
-}
-
-impl eframe::App for ChamaOptics {
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // Render bottom panel using component
-        crate::ui_components::render_bottom_panel(
-            ui,
-            &mut self.load_progress,
-            &mut self.save_progress,
-            &self.update,
-        );
-
-        // Left sidebar with icon-only tabs
-        egui::Panel::left("tab_sidebar")
-            .resizable(false)
-            .exact_size(50.0) // Narrow for icon-only
-            .show_inside(ui, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space(10.0);
-
-                    // Tab 1: Image List (☰)
-                    if ui
-                        .selectable_label(
-                            self.selected_tab == MainTab::ImageList,
-                            "☰", // Unicode: U+2630 TRIGRAM FOR HEAVEN
-                        )
-                        .on_hover_text(t!("tabs.image_list"))
-                        .clicked()
-                    {
-                        self.selected_tab = MainTab::ImageList;
-                    }
-
-                    ui.add_space(5.0);
-
-                    // Tab 2: Theme Preview (▦)
-                    if ui
-                        .selectable_label(
-                            self.selected_tab == MainTab::ThemePreview,
-                            "▦", // Unicode: U+25A6 SQUARE WITH ORTHOGONAL CROSSHATCH
-                        )
-                        .on_hover_text(t!("tabs.theme_preview"))
-                        .clicked()
-                    {
-                        self.selected_tab = MainTab::ThemePreview;
-                    }
-
-                    ui.add_space(5.0);
-
-                    // Tab 3: Import/Export (⚙)
-                    if ui
-                        .selectable_label(
-                            self.selected_tab == MainTab::ImportExport,
-                            "⚙", // Unicode: U+2699 GEAR
-                        )
-                        .on_hover_text(t!("tabs.import_export"))
-                        .clicked()
-                    {
-                        self.selected_tab = MainTab::ImportExport;
-                    }
-
-                    ui.add_space(5.0);
-
-                    // Tab 4: Settings (⋮)
-                    if ui
-                        .selectable_label(
-                            self.selected_tab == MainTab::Settings,
-                            "⋮", // Unicode: U+22EE VERTICAL ELLIPSIS
-                        )
-                        .on_hover_text(t!("tabs.settings"))
-                        .clicked()
-                    {
-                        self.selected_tab = MainTab::Settings;
-                    }
-                });
-            });
-
-        // Render central panel with tab-based content
-        egui::CentralPanel::default().show_inside(ui, |ui| {
-            // Handle drag and drop for all tabs
-            ui.ctx().input(|i| {
-                if !i.raw.dropped_files.is_empty() {
-                    let paths: Vec<_> = i
-                        .raw
-                        .dropped_files
-                        .iter()
-                        .filter_map(|f| f.path.clone())
-                        .collect();
-
-                    for path in paths.iter() {
-                        self.pending_paths.push_back(path.clone());
-                    }
-                }
-            });
-
-            // Detect current theme (dark or light)
-            let is_dark_mode = ui.ctx().global_style().visuals.dark_mode;
-
-            // Invalidate texture if theme changed
-            if self.last_dark_mode != Some(is_dark_mode) {
-                self.background_texture = None;
-                self.last_dark_mode = Some(is_dark_mode);
-            }
-
-            // Load appropriate background image based on theme
-            if self.background_texture.is_none() {
-                let image_data: &[u8] = if is_dark_mode {
-                    include_bytes!("../assets/dark-background.png")
-                } else {
-                    include_bytes!("../assets/light-background.png")
-                };
-
-                if let Ok(image) = image::load_from_memory(image_data) {
-                    let size = [image.width() as _, image.height() as _];
-                    let image_buffer = image.to_rgba8();
-                    let pixels = image_buffer.as_flat_samples();
-                    let color_image =
-                        egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-                    self.background_texture = Some(ui.ctx().load_texture(
-                        "background",
-                        color_image,
-                        egui::TextureOptions::LINEAR,
-                    ));
-                }
-            }
-
-            // Draw background image with 50% opacity at bottom-right, 25% size
-            if let Some(texture) = &self.background_texture {
-                let available_rect = ui.available_rect_before_wrap();
-                let texture_size = texture.size_vec2();
-
-                // Scale to 25% of original size
-                let scaled_size = texture_size * 0.25;
-
-                // Position at bottom-right
-                let image_pos = egui::pos2(
-                    available_rect.max.x - scaled_size.x,
-                    available_rect.max.y - scaled_size.y,
-                );
-
-                let image_rect = egui::Rect::from_min_size(image_pos, scaled_size);
-
-                ui.painter().image(
-                    texture.id(),
-                    image_rect,
-                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                    egui::Color32::from_white_alpha(128), // 50% opacity (255 * 0.5 = 127.5)
-                );
-            }
-
-            // Render tab content on top of background
-            match self.selected_tab {
-                MainTab::ImageList => self.render_image_list_tab(ui),
-                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
-                MainTab::ImportExport => self.render_import_export_tab(ui),
-                MainTab::Settings => self.render_settings_tab(ui),
-            }
-        });
-
-        // Background image loading logic (below UI rendering)
+    /// Process pending image loading and loaded images
+    fn process_image_loading(&mut self, ui: &mut egui::Ui) {
         // Start parallel loading if there are pending paths and no active loading
         if !self.pending_paths.is_empty() && !self.load_progress.is_active() {
             // Collect ALL pending paths
@@ -842,5 +362,44 @@ impl eframe::App for ChamaOptics {
             }
             log::info!("Total packed_images now: {}", self.packed_images.len());
         }
+    }
+}
+
+impl eframe::App for ChamaOptics {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        // Render bottom panel using component
+        crate::ui_components::render_bottom_panel(
+            ui,
+            &mut self.load_progress,
+            &mut self.save_progress,
+            &self.update,
+        );
+
+        // Left sidebar with icon-only tabs
+        crate::ui_components::render_tab_sidebar(ui, &mut self.selected_tab);
+
+        // Render central panel with tab-based content
+        egui::CentralPanel::default().show_inside(ui, |ui| {
+            // Handle drag and drop for all tabs
+            self.handle_drag_drop(ui);
+
+            // Load and render background image based on theme
+            self.render_background_image(ui);
+
+            // Render tab content on top of background
+            match self.selected_tab {
+                MainTab::ImageList => self.render_image_list_tab(ui),
+                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
+                MainTab::ImportExport => self.render_import_export_tab(ui),
+                MainTab::Settings => self.render_settings_tab(ui),
+            }
+        });
+
+        // Process pending image loading and loaded images
+        self.process_image_loading(ui);
     }
 }

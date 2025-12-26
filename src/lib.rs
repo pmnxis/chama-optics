@@ -12,6 +12,8 @@ mod app;
 #[cfg(feature = "desktop")]
 mod app_state;
 #[cfg(feature = "desktop")]
+mod tabs;
+#[cfg(feature = "desktop")]
 mod ui_components;
 #[cfg(feature = "desktop")]
 mod ui_state;
