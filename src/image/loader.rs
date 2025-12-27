@@ -285,6 +285,7 @@ pub fn create_packed_image_from_data(
         ));
 
         Some(PackedImage {
+            uuid: uuid::Uuid::new_v4(),
             path: data.path,
             src_exif,
             view_exif: data.view_exif,

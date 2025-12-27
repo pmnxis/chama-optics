@@ -4,7 +4,7 @@
 
 [package]
 name = "chama-optics"
-version = "0.1.8-beta"
+version = "0.1.8"
 description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 repository = "https://github.com/pmnxis/chama-optics"
@@ -92,6 +92,7 @@ gcd = "2.3.0"
 env_logger = "0.11.8"
 # todo - nasm_simd and neon feature later on mozjpeg
 rust-i18n = "3.1.5"
+uuid = { version = "1.11", features = ["v4", "serde"] }
 
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }

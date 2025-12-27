@@ -78,8 +78,8 @@ impl ImageGroupConfig {
 /// A group of similar images
 #[derive(Clone, Debug)]
 pub struct ImageGroup {
-    /// Indices of images in this group (references to main packed_images Vec)
-    pub image_indices: Vec<usize>,
+    /// UUIDs of images in this group (stable references independent of Vec position)
+    pub image_uuids: Vec<uuid::Uuid>,
 
     /// Representative datetime for this group (from first image)
     pub datetime: String,
@@ -224,7 +224,7 @@ pub fn group_similar_images(images: &[PackedImage], config: &ImageGroupConfig) -
         }
 
         let mut group = ImageGroup {
-            image_indices: vec![i],
+            image_uuids: vec![images[i].uuid],
             datetime: images[i].view_exif.datetime.clone(),
             camera_model: images[i].view_exif.camera_model.clone(),
             prefix: VariableText::new(),
@@ -311,7 +311,7 @@ pub fn group_similar_images(images: &[PackedImage], config: &ImageGroupConfig) -
             }
 
             if is_similar {
-                group.image_indices.push(j);
+                group.image_uuids.push(images[j].uuid);
                 assigned[j] = true;
             }
         }

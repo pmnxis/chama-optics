@@ -8,6 +8,7 @@ use crate::image::common::*;
 use rust_i18n::t;
 use std::io::Seek;
 use std::path::PathBuf;
+use uuid::Uuid;
 
 use crate::exif_impl::{OriginalExif, SimplifiedExif};
 
@@ -19,6 +20,9 @@ pub enum PackedImageEvent {
 
 #[non_exhaustive]
 pub struct PackedImage {
+    /// Unique identifier for this image (stable across deletions/reordering)
+    pub uuid: Uuid,
+
     /// path of image
     pub path: PathBuf,
 
@@ -169,6 +173,7 @@ impl PackedImage {
             .to_string();
 
         Ok(PackedImage {
+            uuid: uuid::Uuid::new_v4(),
             path: path.clone(),
             src_exif: original_exif,
             view_exif,
@@ -202,6 +207,7 @@ impl PackedImage {
         let view_exif = SimplifiedExif::from(&original_exif);
 
         Ok(Self {
+            uuid: uuid::Uuid::new_v4(),
             path: path.clone(),
             src_exif: original_exif,
             view_exif,

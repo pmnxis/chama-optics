@@ -209,10 +209,14 @@ impl ChamaOptics {
                 // Adjust preview_selected_index if necessary
                 if let Some(selected) = self.preview_selected_index {
                     if selected == idx {
+                        // Deleted the selected image, clear selection and cache
                         self.preview_selected_index = None;
                         self.theme_preview_texture = None;
+                        self.theme_preview_cache_key = None;
                     } else if selected > idx {
+                        // Selected image moved down, update index and invalidate cache
                         self.preview_selected_index = Some(selected - 1);
+                        self.theme_preview_cache_key = None; // Force regeneration
                     }
                 }
             }
@@ -226,7 +230,23 @@ impl ChamaOptics {
                     self.generate_theme_preview(ui.ctx());
 
                     ui.vertical(|ui| {
-                        ui.label(t!("theme_preview.preview_label"));
+                        ui.horizontal(|ui| {
+                            ui.label(t!("theme_preview.preview_label"));
+
+                            // Right-align refresh button in preview area
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    // Add refresh button to force preview regeneration
+                                    if ui.button(t!("theme_preview.refresh_button")).clicked() {
+                                        // Invalidate cache to force regeneration
+                                        self.theme_preview_cache_key = None;
+                                        self.theme_preview_texture = None;
+                                        log::info!("Preview cache invalidated by user");
+                                    }
+                                },
+                            );
+                        });
 
                         let preview_height = ui.available_height() * 0.5;
                         ui.allocate_ui_with_layout(
@@ -289,6 +309,7 @@ impl ChamaOptics {
             .id_salt("theme_params")
             .show(ui, |ui| {
                 ui.label(t!("theme_preview.theme_settings"));
+
                 self.export_config
                     .theme_reg
                     .update_ui(ui, self.show_theme_name_in_english);

@@ -41,21 +41,30 @@ impl ChamaOptics {
                     let current_theme = ui.ctx().options(|o| o.theme_preference);
 
                     if ui
-                        .selectable_label(current_theme == egui::ThemePreference::System, "System")
+                        .selectable_label(
+                            current_theme == egui::ThemePreference::System,
+                            t!("settings.theme_system"),
+                        )
                         .clicked()
                     {
                         ui.ctx()
                             .options_mut(|o| o.theme_preference = egui::ThemePreference::System);
                     }
                     if ui
-                        .selectable_label(current_theme == egui::ThemePreference::Dark, "Dark")
+                        .selectable_label(
+                            current_theme == egui::ThemePreference::Dark,
+                            t!("settings.theme_dark"),
+                        )
                         .clicked()
                     {
                         ui.ctx()
                             .options_mut(|o| o.theme_preference = egui::ThemePreference::Dark);
                     }
                     if ui
-                        .selectable_label(current_theme == egui::ThemePreference::Light, "Light")
+                        .selectable_label(
+                            current_theme == egui::ThemePreference::Light,
+                            t!("settings.theme_light"),
+                        )
                         .clicked()
                     {
                         ui.ctx()
@@ -157,7 +166,7 @@ impl ChamaOptics {
                                 &mut self.image_grouping.time_threshold_secs,
                                 10..=3600,
                             )
-                            .suffix(" sec")
+                            .suffix(t!("app.image_grouping.time_unit"))
                             .logarithmic(true),
                         );
                         ui.end_row();
@@ -229,44 +238,48 @@ impl ChamaOptics {
 
         log::info!("Found {} groups", groups.len());
 
-        // Create reorder map
-        let mut new_order: Vec<usize> = Vec::new();
+        // Collect UUIDs in the desired order
+        let mut new_order_uuids: Vec<uuid::Uuid> = Vec::new();
         for group in groups.iter() {
-            new_order.extend(&group.image_indices);
+            new_order_uuids.extend(&group.image_uuids);
         }
 
-        // Reorder by swapping elements in-place
-        for i in 0..new_order.len() {
-            while new_order[i] != i {
-                let target = new_order[i];
-                self.packed_images.swap(i, target);
-                new_order.swap(i, target);
+        // Reorder packed_images to match the UUID order using swaps
+        // Build a mapping from UUID to desired position
+        let mut uuid_to_target_pos: std::collections::HashMap<uuid::Uuid, usize> =
+            std::collections::HashMap::new();
+        for (target_pos, &uuid) in new_order_uuids.iter().enumerate() {
+            uuid_to_target_pos.insert(uuid, target_pos);
+        }
+
+        // Reorder using cycle-based swapping
+        #[allow(clippy::needless_range_loop)]
+        for target_pos in 0..new_order_uuids.len().min(self.packed_images.len()) {
+            while self.packed_images[target_pos].uuid != new_order_uuids[target_pos] {
+                // Find where the correct image currently is
+                let correct_uuid = new_order_uuids[target_pos];
+                if let Some(current_pos) = self
+                    .packed_images
+                    .iter()
+                    .position(|img| img.uuid == correct_uuid)
+                {
+                    self.packed_images.swap(target_pos, current_pos);
+                } else {
+                    break; // UUID not found, skip
+                }
             }
         }
 
-        // Update group indices to match new order and store in app state
-        let mut updated_groups = Vec::new();
-        let mut current_idx = 0;
-        for group in groups.iter() {
-            let group_size = group.image_indices.len();
-            updated_groups.push(crate::image_group::ImageGroup {
-                image_indices: (current_idx..current_idx + group_size).collect(),
-                datetime: group.datetime.clone(),
-                camera_model: group.camera_model.clone(),
-                prefix: group.prefix.clone(),
-                postfix: group.postfix.clone(),
-                selected: group.selected,
-                use_default: group.use_default,
-            });
-            current_idx += group_size;
-        }
-        self.image_groups = Some(updated_groups);
+        // Groups already have correct UUIDs - no index rebuilding needed!
+        // Just store the groups as-is
+        let groups_len = groups.len();
+        self.image_groups = Some(groups);
 
         ctx.request_repaint();
 
         log::info!(
             "Image grouping applied successfully - {} groups",
-            groups.len()
+            groups_len
         );
     }
 }

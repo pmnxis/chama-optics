@@ -102,6 +102,11 @@ impl Default for ChamaOptics {
 }
 
 impl ChamaOptics {
+    /// Find image index by UUID
+    fn find_image_by_uuid(&self, uuid: uuid::Uuid) -> Option<usize> {
+        self.packed_images.iter().position(|img| img.uuid == uuid)
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         crate::fonts::replace_fonts(&cc.egui_ctx);
 
@@ -180,10 +185,9 @@ impl ChamaOptics {
         let tasks: Vec<SaveTask> = if let Some(ref groups) = self.image_groups {
             self.packed_images
                 .iter()
-                .enumerate()
-                .map(|(img_idx, pi)| {
-                    // Find which group this image belongs to
-                    let group_info = groups.iter().find(|g| g.image_indices.contains(&img_idx));
+                .map(|pi| {
+                    // Find which group this image belongs to (by UUID)
+                    let group_info = groups.iter().find(|g| g.image_uuids.contains(&pi.uuid));
 
                     SaveTask {
                         path: pi.path.clone(),
@@ -291,8 +295,12 @@ impl ChamaOptics {
             if let Some(groups) = &self.image_groups {
                 groups
                     .iter()
-                    .filter(|g| !g.image_indices.is_empty())
-                    .map(|g| g.image_indices[0])
+                    .filter_map(|g| {
+                        // Get first UUID and find its current index
+                        g.image_uuids
+                            .first()
+                            .and_then(|&uuid| self.find_image_by_uuid(uuid))
+                    })
                     .collect()
             } else {
                 std::collections::HashSet::new()
@@ -303,13 +311,17 @@ impl ChamaOptics {
             groups
                 .iter()
                 .map(|group| {
-                    let first_img_idx = group.image_indices.first().copied().unwrap_or(0);
-                    if first_img_idx < self.packed_images.len() {
-                        let exif = &self.packed_images[first_img_idx].view_exif;
-                        (group.suggest_prefix(exif), group.suggest_postfix(exif))
-                    } else {
-                        (String::new(), String::new())
-                    }
+                    // Find first image by UUID
+                    group
+                        .image_uuids
+                        .first()
+                        .and_then(|&uuid| self.find_image_by_uuid(uuid))
+                        .and_then(|idx| self.packed_images.get(idx))
+                        .map(|pi| {
+                            let exif = &pi.view_exif;
+                            (group.suggest_prefix(exif), group.suggest_postfix(exif))
+                        })
+                        .unwrap_or_else(|| (String::new(), String::new()))
                 })
                 .collect()
         } else {
@@ -326,135 +338,168 @@ impl ChamaOptics {
                 }
 
                 // Show group info with controls
-                if let Some(groups) = &mut self.image_groups
-                    && let Some(group_idx) = groups
+                if let Some(groups) = &mut self.image_groups {
+                    // Find group by checking if this idx matches the first UUID's index
+                    let current_image_uuid = pi.uuid;
+                    if let Some(group_idx) = groups
                         .iter()
-                        .position(|g| g.image_indices.first() == Some(&idx))
-                {
-                    let group = &mut groups[group_idx];
+                        .position(|g| g.image_uuids.first() == Some(&current_image_uuid))
+                    {
+                        let group = &mut groups[group_idx];
 
-                    ui.vertical(|ui| {
-                        // Group header with delete button and use default checkboxes
-                        ui.horizontal(|ui| {
-                            // Selection checkbox
-                            ui.checkbox(&mut group.selected, "");
+                        ui.vertical(|ui| {
+                            // Group header with delete button and use default checkboxes
+                            ui.horizontal(|ui| {
+                                // Selection checkbox
+                                ui.checkbox(&mut group.selected, "");
 
-                            // Group label
-                            ui.label(
-                                egui::RichText::new(format!(
-                                    "📁 Group {} ({} images)",
-                                    group_idx + 1,
-                                    group.image_indices.len()
-                                ))
-                                .strong()
-                                .color(ui.visuals().strong_text_color()),
-                            );
-
-                            if !group.datetime.is_empty() {
+                                // Group label - show datetime/camera for Ungrouped, otherwise Group N
+                                let label_text = if group.datetime == "Ungrouped" {
+                                    t!(
+                                        "app.image_grouping.group_label_format",
+                                        name = t!("app.image_grouping.ungrouped_label"),
+                                        count = group.image_uuids.len()
+                                    )
+                                } else {
+                                    t!(
+                                        "app.image_grouping.group_label_format",
+                                        name = format!(
+                                            "{} {}",
+                                            t!("app.default.group"),
+                                            group_idx + 1
+                                        ),
+                                        count = group.image_uuids.len()
+                                    )
+                                };
                                 ui.label(
-                                    egui::RichText::new(format!("📅 {}", group.datetime)).weak(),
+                                    egui::RichText::new(label_text)
+                                        .strong()
+                                        .color(ui.visuals().strong_text_color()),
                                 );
+
+                                // Right-aligned controls on the same line
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        // Delete group button
+                                        if ui
+                                            .button("🗑")
+                                            .on_hover_text(t!("app.default.delete"))
+                                            .clicked()
+                                        {
+                                            remove_group_idx = Some(group_idx);
+                                        }
+
+                                        // Use default prefix/postfix checkbox (applies to both)
+                                        ui.checkbox(
+                                            &mut group.use_default,
+                                            t!("app.image_grouping.use_default"),
+                                        );
+                                    },
+                                );
+                            });
+
+                            // Show datetime and camera_model for non-Ungrouped groups
+                            if group.datetime != "Ungrouped" {
+                                if !group.datetime.is_empty() {
+                                    ui.label(
+                                        egui::RichText::new(format!("📅 {}", group.datetime))
+                                            .weak(),
+                                    );
+                                }
+                                if !group.camera_model.is_empty() {
+                                    ui.label(
+                                        egui::RichText::new(format!("📷 {}", group.camera_model))
+                                            .weak(),
+                                    );
+                                }
                             }
-                            if !group.camera_model.is_empty() {
-                                ui.label(
-                                    egui::RichText::new(format!("📷 {}", group.camera_model))
+
+                            // Prefix and Postfix on one line (left and right)
+                            ui.horizontal(|ui| {
+                                let available_width = ui.available_width();
+                                let label_width = 50.0;
+                                let spacing = ui.spacing().item_spacing.x;
+                                let input_width =
+                                    (available_width - label_width * 2.0 - spacing * 4.0 - 40.0)
+                                        / 2.0; // 40.0 for suggestion buttons
+
+                                // Prefix (left side)
+                                ui.label(t!("app.image_grouping.prefix_label"));
+                                if !group.use_default {
+                                    group.prefix.render_text_edit_with_autocomplete(
+                                        ui,
+                                        input_width,
+                                        format!("group_{}_prefix", group_idx),
+                                    );
+
+                                    // Suggestion button with preview
+                                    if group_idx < group_suggestions.len() {
+                                        let suggested = &group_suggestions[group_idx].0;
+                                        if !suggested.is_empty()
+                                            && ui
+                                                .button("💡")
+                                                .on_hover_text(t!(
+                                                    "app.image_grouping.suggestion_hint",
+                                                    suggestion = suggested
+                                                ))
+                                                .clicked()
+                                        {
+                                            group.prefix.text = suggested.clone();
+                                        }
+                                    }
+                                } else {
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "(default: {})",
+                                            self.export_config.output_name.prefix
+                                        ))
                                         .weak(),
-                                );
-                            }
-
-                            // Right-aligned controls
-                            ui.with_layout(
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    // Delete group button
-                                    if ui
-                                        .button("🗑")
-                                        .on_hover_text(t!("app.default.delete"))
-                                        .clicked()
-                                    {
-                                        remove_group_idx = Some(group_idx);
-                                    }
-
-                                    // Use default prefix/postfix checkbox (applies to both)
-                                    ui.checkbox(&mut group.use_default, "Use default");
-                                },
-                            );
-                        });
-
-                        // Prefix and Postfix on one line (left and right)
-                        ui.horizontal(|ui| {
-                            let available_width = ui.available_width();
-                            let label_width = 50.0;
-                            let spacing = ui.spacing().item_spacing.x;
-                            let input_width =
-                                (available_width - label_width * 2.0 - spacing * 4.0 - 40.0) / 2.0; // 40.0 for suggestion buttons
-
-                            // Prefix (left side)
-                            ui.label("Prefix:");
-                            if !group.use_default {
-                                group.prefix.render_text_edit_with_autocomplete(
-                                    ui,
-                                    input_width,
-                                    format!("group_{}_prefix", group_idx),
-                                );
-
-                                // Suggestion button with preview
-                                if group_idx < group_suggestions.len() {
-                                    let suggested = &group_suggestions[group_idx].0;
-                                    if !suggested.is_empty()
-                                        && ui
-                                            .button("💡")
-                                            .on_hover_text(format!("Suggestion: {}", suggested))
-                                            .clicked()
-                                    {
-                                        group.prefix.text = suggested.clone();
-                                    }
+                                    );
                                 }
-                            } else {
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "(default: {})",
-                                        self.export_config.output_name.prefix
-                                    ))
-                                    .weak(),
-                                );
-                            }
 
-                            // Postfix (right side)
-                            ui.label("Postfix:");
-                            if !group.use_default {
-                                group.postfix.render_text_edit_with_autocomplete(
-                                    ui,
-                                    input_width,
-                                    format!("group_{}_postfix", group_idx),
-                                );
+                                // Postfix (right side)
+                                ui.label(t!("app.image_grouping.postfix_label"));
+                                if !group.use_default {
+                                    group.postfix.render_text_edit_with_autocomplete(
+                                        ui,
+                                        input_width,
+                                        format!("group_{}_postfix", group_idx),
+                                    );
 
-                                // Suggestion button with preview
-                                if group_idx < group_suggestions.len() {
-                                    let suggested = &group_suggestions[group_idx].1;
-                                    if !suggested.is_empty()
-                                        && ui
-                                            .button("💡")
-                                            .on_hover_text(format!("Suggestion: {}", suggested))
-                                            .clicked()
-                                    {
-                                        group.postfix.text = suggested.clone();
+                                    // Suggestion button with preview
+                                    if group_idx < group_suggestions.len() {
+                                        let suggested = &group_suggestions[group_idx].1;
+                                        if !suggested.is_empty()
+                                            && ui
+                                                .button("💡")
+                                                .on_hover_text(t!(
+                                                    "app.image_grouping.suggestion_hint",
+                                                    suggestion = suggested
+                                                ))
+                                                .clicked()
+                                        {
+                                            group.postfix.text = suggested.clone();
+                                        }
                                     }
+                                } else {
+                                    ui.label(
+                                        egui::RichText::new(format!(
+                                            "(default: {})",
+                                            self.export_config.output_name.postfix
+                                        ))
+                                        .weak(),
+                                    );
                                 }
-                            } else {
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "(default: {})",
-                                        self.export_config.output_name.postfix
-                                    ))
-                                    .weak(),
-                                );
-                            }
+                            });
                         });
-                    });
+                    }
                 }
 
-                ui.add_space(5.0);
+                // Add spacing after group header (except for first group)
+                if idx > 0 {
+                    ui.add_space(5.0);
+                }
             }
 
             match pi.update_ui(ui, &self.export_config) {
@@ -467,96 +512,72 @@ impl ChamaOptics {
         }
 
         if let Some(idx) = remove_index {
+            let removed_uuid = self.packed_images[idx].uuid;
             let _ = self.packed_images.remove(idx);
 
-            // Update grouping instead of clearing it
+            // Update grouping: remove UUID from all groups
             if let Some(groups) = &mut self.image_groups {
-                let mut updated_groups = Vec::new();
-
-                for group in groups.iter() {
-                    // Remove the deleted index from this group and adjust indices
-                    let updated_indices: Vec<usize> = group
-                        .image_indices
-                        .iter()
-                        .filter_map(|&i| {
-                            if i == idx {
-                                None // Remove this image from group
-                            } else if i > idx {
-                                Some(i - 1) // Shift down indices after removed image
-                            } else {
-                                Some(i) // Keep indices before removed image
-                            }
-                        })
-                        .collect();
-
-                    // Only keep groups that still have images
-                    if !updated_indices.is_empty() {
-                        updated_groups.push(crate::image_group::ImageGroup {
-                            image_indices: updated_indices,
-                            datetime: group.datetime.clone(),
-                            camera_model: group.camera_model.clone(),
-                            prefix: group.prefix.clone(),
-                            postfix: group.postfix.clone(),
-                            selected: group.selected,
-                            use_default: group.use_default,
-                        });
-                    }
+                // Remove the UUID from all groups
+                for group in groups.iter_mut() {
+                    group.image_uuids.retain(|&uuid| uuid != removed_uuid);
                 }
 
-                // Update or clear grouping based on remaining groups
-                if updated_groups.is_empty() {
+                // Remove empty groups
+                groups.retain(|g| !g.image_uuids.is_empty());
+
+                // Clear grouping if no groups remain
+                if groups.is_empty() {
                     self.image_groups = None;
                     log::info!("All groups removed after image deletion");
                 } else {
-                    self.image_groups = Some(updated_groups);
                     log::info!("Updated grouping after removing image at index {}", idx);
                 }
             }
         }
 
         // Handle group deletion
-        if let Some(group_idx) = remove_group_idx
-            && let Some(groups) = &mut self.image_groups
-            && group_idx < groups.len()
-        {
-            let group = &groups[group_idx];
-            // Remove all images in this group (in reverse order to maintain indices)
-            let mut indices_to_remove: Vec<usize> = group.image_indices.clone();
-            indices_to_remove.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+        if let Some(group_idx) = remove_group_idx {
+            // First, collect UUIDs before borrowing groups mutably
+            let uuids_to_remove: Option<Vec<uuid::Uuid>> = self
+                .image_groups
+                .as_ref()
+                .and_then(|groups| groups.get(group_idx))
+                .map(|group| group.image_uuids.clone());
 
-            for &img_idx in indices_to_remove.iter() {
-                if img_idx < self.packed_images.len() {
-                    self.packed_images.remove(img_idx);
+            if let Some(uuids) = uuids_to_remove {
+                // Convert UUIDs to current indices (in reverse order for safe deletion)
+                let mut indices_to_remove: Vec<usize> = uuids
+                    .iter()
+                    .filter_map(|&uuid| self.find_image_by_uuid(uuid))
+                    .collect();
+                indices_to_remove.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+
+                let total_removed = indices_to_remove.len();
+
+                // Remove images from packed_images Vec
+                for &img_idx in indices_to_remove.iter() {
+                    if img_idx < self.packed_images.len() {
+                        self.packed_images.remove(img_idx);
+                    }
                 }
-            }
 
-            // Remove the group and update all indices
-            groups.remove(group_idx);
+                // Now borrow groups mutably to remove the group itself
+                if let Some(groups) = &mut self.image_groups {
+                    groups.remove(group_idx);
 
-            // Rebuild group indices after deletion
-            let total_removed = indices_to_remove.len();
-            for group in groups.iter_mut() {
-                let mut new_indices = Vec::new();
-                for &old_idx in group.image_indices.iter() {
-                    // Count how many removed indices were before this one
-                    let shift = indices_to_remove
-                        .iter()
-                        .filter(|&&removed| removed < old_idx)
-                        .count();
-                    new_indices.push(old_idx - shift);
+                    // No need to rebuild indices - UUIDs are stable!
+                    // Just verify groups aren't empty after deletion
+                    if groups.is_empty() {
+                        self.image_groups = None;
+                        log::info!("All groups removed");
+                    } else {
+                        log::info!(
+                            "Removed group {} with {} images",
+                            group_idx + 1,
+                            total_removed
+                        );
+                    }
                 }
-                group.image_indices = new_indices;
-            }
-
-            if groups.is_empty() {
-                self.image_groups = None;
-                log::info!("All groups removed");
-            } else {
-                log::info!(
-                    "Removed group {} with {} images",
-                    group_idx + 1,
-                    total_removed
-                );
             }
         }
     }
@@ -788,20 +809,51 @@ impl ChamaOptics {
             log::info!("Transferring {} loaded images to UI", queue.len());
 
             // Process all loaded images from the queue
+            let mut new_image_indices: Vec<uuid::Uuid> = Vec::new();
             for loaded_data in queue.drain(..) {
                 log::info!("Creating packed image for {:?}", loaded_data.path);
                 match crate::image::loader::create_packed_image_from_data(loaded_data, ui.ctx()) {
                     Some(packed_image) => {
                         log::info!("Successfully created packed image");
+                        let new_uuid = packed_image.uuid;
                         self.packed_images.push(packed_image);
-                        // Note: Keep existing grouping when new images are added
-                        // New images will appear ungrouped at the end of the list
+                        new_image_indices.push(new_uuid);
                     }
                     None => {
                         log::error!("Failed to create packed image");
                     }
                 }
             }
+
+            // Add new images to "Ungrouped" group if grouping is active
+            if !new_image_indices.is_empty() && self.image_groups.is_some() {
+                log::info!(
+                    "Adding {} new images to Ungrouped group",
+                    new_image_indices.len()
+                );
+
+                if let Some(groups) = &mut self.image_groups {
+                    // Find or create "Ungrouped" group
+                    let ungrouped_idx = groups.iter().position(|g| g.datetime == "Ungrouped");
+
+                    if let Some(idx) = ungrouped_idx {
+                        // Append to existing Ungrouped group
+                        groups[idx].image_uuids.extend(new_image_indices);
+                    } else {
+                        // Create new Ungrouped group
+                        groups.push(crate::image_group::ImageGroup {
+                            image_uuids: new_image_indices,
+                            datetime: "Ungrouped".to_string(),
+                            camera_model: "Ungrouped".to_string(),
+                            prefix: crate::effect::variable_text::VariableText::new(),
+                            postfix: crate::effect::variable_text::VariableText::new(),
+                            selected: true,
+                            use_default: false,
+                        });
+                    }
+                }
+            }
+
             log::info!("Total packed_images now: {}", self.packed_images.len());
         }
     }

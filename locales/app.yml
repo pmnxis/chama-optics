@@ -57,6 +57,39 @@ app:
       en: "✏Edit"
       ko: "✏수정"
       ja: "✏編集"
+    group:
+      en: "Group"
+      ko: "그룹"
+      ja: "グループ"
+  image_grouping:
+    use_default:
+      en: "Use default"
+      ko: "기본값 사용"
+      ja: "デフォルトを使用"
+    prefix_label:
+      en: "Prefix:"
+      ko: "접두어:"
+      ja: "プレフィックス:"
+    postfix_label:
+      en: "Postfix:"
+      ko: "접미어:"
+      ja: "サフィックス:"
+    suggestion_hint:
+      en: "Suggestion: %{suggestion}"
+      ko: "제안: %{suggestion}"
+      ja: "提案: %{suggestion}"
+    ungrouped_label:
+      en: "Ungrouped"
+      ko: "그룹 없음"
+      ja: "未グループ"
+    group_label_format:
+      en: "📁 %{name} (%{count} images)"
+      ko: "📁 %{name} (%{count}개)"
+      ja: "📁 %{name} (%{count}枚)"
+    time_unit:
+      en: " sec"
+      ko: " 초"
+      ja: " 秒"
 
 tabs:
   image_list:
@@ -113,6 +146,10 @@ theme_preview:
     en: "Theme Parameters"
     ko: "테마 파라미터"
     ja: "テーマパラメータ"
+  refresh_button:
+    en: "🔄 Refresh Preview"
+    ko: "🔄 미리보기 새로고침"
+    ja: "🔄 プレビュー更新"
 
 settings:
   version_info:
@@ -127,6 +164,18 @@ settings:
     en: "Language"
     ko: "언어"
     ja: "言語"
+  theme_system:
+    en: "System"
+    ko: "시스템"
+    ja: "システム"
+  theme_dark:
+    en: "Dark"
+    ko: "다크"
+    ja: "ダーク"
+  theme_light:
+    en: "Light"
+    ko: "라이트"
+    ja: "ライト"
   theme_name_display:
     en: "Theme Name Display"
     ko: "테마 이름 표시"
@@ -226,7 +275,7 @@ update:
     ja: "リリースはまだ確認されていません"
   checking:
     en: "Checking for updates..."
-    ko: "アップデートを確認中..."
+    ko: "업데이트 확인중..."
     ja: "アップデートを確認中..."
   label:
     en: "New version available:"

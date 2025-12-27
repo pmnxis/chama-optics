@@ -12,13 +12,17 @@ use rust_i18n::t;
 impl ChamaOptics {
     /// Render Tab 1: Image List
     pub(crate) fn render_image_list_tab(&mut self, ui: &mut egui::Ui) {
+        // Reduce default spacing for this tab
+        ui.spacing_mut().item_spacing.y = 4.0; // Reduced from default ~8.0
+
         // Tab heading
         ui.heading(t!("tabs.image_list"));
+
         ui.separator();
 
-        // Image list controls
+        // Image list controls (no extra heading to reduce spacing)
         ui.horizontal(|ui| {
-            ui.heading(t!("app.images.list"));
+            ui.strong(t!("app.images.list"));
 
             // File dialog button
             #[cfg(feature = "desktop")]
@@ -70,7 +74,6 @@ impl ChamaOptics {
                 {
                     self.image_groups = None;
                     ui.ctx().request_repaint();
-                    log::info!("Image grouping cleared");
                 }
             }
         });
@@ -88,14 +91,13 @@ impl ChamaOptics {
             );
         }
 
-        ui.allocate_ui_with_layout(
-            egui::vec2(available_rect.width(), available_rect.height().max(200.0)),
-            egui::Layout::top_down(egui::Align::Min),
-            |ui| {
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false; 2])
-                    .show(ui, |ui| self.update_packed_image(ui));
-            },
-        );
+        // Use Frame::NONE to remove default padding
+        egui::Frame::NONE.show(ui, |ui| {
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    self.update_packed_image(ui);
+                });
+        });
     }
 }
