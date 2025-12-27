@@ -63,6 +63,7 @@ pub fn download_file(filename: &str, data: &[u8], mime_type: &str) -> Result<(),
 
 /// Desktop version - not used in WASM
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)]
 pub fn download_file(_filename: &str, _data: &[u8], _mime_type: &str) -> Result<(), String> {
     Err("download_file is only available in WASM".to_string())
 }

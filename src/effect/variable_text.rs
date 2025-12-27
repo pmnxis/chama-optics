@@ -10,7 +10,7 @@ use rust_i18n::t;
 use std::borrow::Cow;
 
 /// Available EXIF fields for autocomplete
-const EXIF_FIELDS: &[ExifField] = &[
+pub const EXIF_FIELDS: &[ExifField] = &[
     ExifField {
         name: "camera_mnf",
         description: "Camera manufacturer",
@@ -71,14 +71,53 @@ const EXIF_FIELDS: &[ExifField] = &[
 ];
 
 #[derive(Clone)]
-struct ExifField {
-    name: &'static str,
-    description: &'static str,
-    example: &'static str,
+pub struct ExifField {
+    pub name: &'static str,
+    pub description: &'static str,
+    pub example: &'static str,
+}
+
+/// Simple variable text for filename patterns (without font information)
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
+pub struct VariableText {
+    pub text: String,
+    #[serde(skip)]
+    autocomplete_state: AutocompleteState,
+}
+
+impl VariableText {
+    pub fn new() -> Self {
+        Self {
+            text: String::new(),
+            autocomplete_state: AutocompleteState::new(),
+        }
+    }
+
+    /// Render a text edit with autocomplete functionality
+    pub fn render_text_edit_with_autocomplete(
+        &mut self,
+        ui: &mut egui::Ui,
+        width: f32,
+        id_salt: impl std::hash::Hash,
+    ) -> egui::Response {
+        render_text_edit_autocomplete_impl(
+            &mut self.text,
+            &mut self.autocomplete_state,
+            ui,
+            width,
+            id_salt,
+        )
+    }
+}
+
+impl Default for VariableText {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Autocomplete state for variable text input
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug, PartialEq)]
 struct AutocompleteState {
     /// Whether autocomplete popup is visible
     show_popup: bool,
@@ -443,144 +482,160 @@ impl VariableTextSlot {
     }
 
     /// Render a text edit with autocomplete functionality
-    fn render_text_edit_with_autocomplete(
+    pub fn render_text_edit_with_autocomplete(
         &mut self,
         ui: &mut Ui,
         width: f32,
         id_salt: impl std::hash::Hash,
     ) -> egui::Response {
-        let text_edit_id = ui.id().with(&id_salt).with("autocomplete_text_edit");
+        render_text_edit_autocomplete_impl(
+            &mut self.text,
+            &mut self.autocomplete_state,
+            ui,
+            width,
+            id_salt,
+        )
+    }
+}
 
-        let response = ui.add_sized(
-            [width, 23.0],
-            TextEdit::singleline(&mut self.text)
-                .vertical_align(Align::Center)
-                .id(text_edit_id),
-        );
+/// Shared implementation for text edit with autocomplete
+fn render_text_edit_autocomplete_impl(
+    text: &mut String,
+    autocomplete_state: &mut AutocompleteState,
+    ui: &mut Ui,
+    width: f32,
+    id_salt: impl std::hash::Hash,
+) -> egui::Response {
+    let text_edit_id = ui.id().with(&id_salt).with("autocomplete_text_edit");
 
-        // Get cursor position from the text edit state
-        if let Some(mut text_edit_state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id)
-            && let Some(cursor_range) = text_edit_state.cursor.char_range()
-        {
-            let cursor_pos = cursor_range.primary.index;
-            self.autocomplete_state
-                .update_from_text(&self.text, cursor_pos);
+    let response = ui.add_sized(
+        [width, 23.0],
+        TextEdit::singleline(text)
+            .vertical_align(Align::Center)
+            .id(text_edit_id),
+    );
 
-            // Handle keyboard input when popup is shown
-            if self.autocomplete_state.show_popup {
-                let filtered = self.autocomplete_state.get_filtered_fields();
+    // Only show autocomplete when the text field has focus
+    if !response.has_focus() {
+        autocomplete_state.reset();
+        return response;
+    }
 
-                if !filtered.is_empty() {
-                    ui.input(|i| {
-                        // Arrow down
-                        if i.key_pressed(egui::Key::ArrowDown) {
-                            self.autocomplete_state.selected_index =
-                                (self.autocomplete_state.selected_index + 1)
-                                    .min(filtered.len() - 1);
-                        }
-                        // Arrow up
-                        if i.key_pressed(egui::Key::ArrowUp) {
-                            self.autocomplete_state.selected_index =
-                                self.autocomplete_state.selected_index.saturating_sub(1);
-                        }
-                        // Tab or Enter to accept
-                        if (i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter))
-                            && self
-                                .autocomplete_state
-                                .insert_selected_field(&mut self.text)
-                        {
-                            // Update cursor position after insertion
-                            if let Some(start) = self.autocomplete_state.variable_start {
-                                let new_cursor_pos = start
-                                    + filtered[self.autocomplete_state.selected_index].name.len()
-                                    + 2; // +2 for `{}`
-                                text_edit_state.cursor.set_char_range(Some(
-                                    egui::text::CCursorRange::one(egui::text::CCursor::new(
-                                        new_cursor_pos,
-                                    )),
-                                ));
-                            }
-                        }
-                        // Escape to close
-                        if i.key_pressed(egui::Key::Escape) {
-                            self.autocomplete_state.reset();
-                        }
-                    });
-                }
-            }
+    // Get cursor position from the text edit state
+    if let Some(mut text_edit_state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id)
+        && let Some(cursor_range) = text_edit_state.cursor.char_range()
+    {
+        let cursor_pos = cursor_range.primary.index;
+        autocomplete_state.update_from_text(text, cursor_pos);
 
-            text_edit_state.store(ui.ctx(), text_edit_id);
-        }
-
-        // Show autocomplete popup
-        if self.autocomplete_state.show_popup {
-            let filtered = self.autocomplete_state.get_filtered_fields();
+        // Handle keyboard input when popup is shown
+        if autocomplete_state.show_popup {
+            let filtered = autocomplete_state.get_filtered_fields();
 
             if !filtered.is_empty() {
-                // Calculate popup position (below the text edit)
-                let popup_pos = response.rect.left_bottom() + egui::vec2(0.0, 2.0);
-
-                egui::Area::new(ui.id().with(&id_salt).with("autocomplete_popup"))
-                    .fixed_pos(popup_pos)
-                    .order(egui::Order::Foreground)
-                    .show(ui.ctx(), |ui| {
-                        egui::Frame::popup(ui.style()).show(ui, |ui| {
-                            ui.set_min_width(300.0);
-                            ui.set_max_height(200.0);
-
-                            egui::ScrollArea::vertical()
-                                .max_height(200.0)
-                                .show(ui, |ui| {
-                                    for (idx, field) in filtered.iter().enumerate() {
-                                        let is_selected =
-                                            idx == self.autocomplete_state.selected_index;
-
-                                        ui.horizontal(|ui| {
-                                            // Left: Field name (monospace)
-                                            let item_response = ui.selectable_label(
-                                                is_selected,
-                                                egui::RichText::new(field.name).monospace(),
-                                            );
-
-                                            // Check for click first
-                                            let was_clicked = item_response.clicked();
-
-                                            // Show example on hover
-                                            item_response.on_hover_ui(|ui| {
-                                                ui.label(
-                                                    egui::RichText::new(format!(
-                                                        "Example: {}",
-                                                        field.example
-                                                    ))
-                                                    .weak(),
-                                                );
-                                            });
-
-                                            if was_clicked {
-                                                self.autocomplete_state.selected_index = idx;
-                                                self.autocomplete_state
-                                                    .insert_selected_field(&mut self.text);
-                                            }
-
-                                            // Right: Description (always visible)
-                                            ui.with_layout(
-                                                egui::Layout::right_to_left(egui::Align::Center),
-                                                |ui| {
-                                                    ui.label(
-                                                        egui::RichText::new(field.description)
-                                                            .small()
-                                                            .weak(),
-                                                    );
-                                                },
-                                            );
-                                        });
-                                    }
-                                });
-                        });
-                    });
+                ui.input(|i| {
+                    // Arrow down
+                    if i.key_pressed(egui::Key::ArrowDown) {
+                        autocomplete_state.selected_index =
+                            (autocomplete_state.selected_index + 1).min(filtered.len() - 1);
+                    }
+                    // Arrow up
+                    if i.key_pressed(egui::Key::ArrowUp) {
+                        autocomplete_state.selected_index =
+                            autocomplete_state.selected_index.saturating_sub(1);
+                    }
+                    // Tab or Enter to accept
+                    if (i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter))
+                        && autocomplete_state.insert_selected_field(text)
+                    {
+                        // Update cursor position after insertion
+                        if let Some(start) = autocomplete_state.variable_start {
+                            let new_cursor_pos =
+                                start + filtered[autocomplete_state.selected_index].name.len() + 2; // +2 for `{}`
+                            text_edit_state.cursor.set_char_range(Some(
+                                egui::text::CCursorRange::one(egui::text::CCursor::new(
+                                    new_cursor_pos,
+                                )),
+                            ));
+                        }
+                    }
+                    // Escape to close
+                    if i.key_pressed(egui::Key::Escape) {
+                        autocomplete_state.reset();
+                    }
+                });
             }
         }
 
-        response
+        text_edit_state.store(ui.ctx(), text_edit_id);
     }
+
+    // Show autocomplete popup
+    if autocomplete_state.show_popup {
+        let filtered = autocomplete_state.get_filtered_fields();
+
+        if !filtered.is_empty() {
+            // Calculate popup position (below the text edit)
+            let popup_pos = response.rect.left_bottom() + egui::vec2(0.0, 2.0);
+
+            egui::Area::new(ui.id().with(&id_salt).with("autocomplete_popup"))
+                .fixed_pos(popup_pos)
+                .order(egui::Order::Foreground)
+                .show(ui.ctx(), |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        ui.set_min_width(300.0);
+                        ui.set_max_height(200.0);
+
+                        egui::ScrollArea::vertical()
+                            .max_height(200.0)
+                            .show(ui, |ui| {
+                                for (idx, field) in filtered.iter().enumerate() {
+                                    let is_selected = idx == autocomplete_state.selected_index;
+
+                                    ui.horizontal(|ui| {
+                                        // Left: Field name (monospace)
+                                        let item_response = ui.selectable_label(
+                                            is_selected,
+                                            egui::RichText::new(field.name).monospace(),
+                                        );
+
+                                        // Check for click first
+                                        let was_clicked = item_response.clicked();
+
+                                        // Show example on hover
+                                        item_response.on_hover_ui(|ui| {
+                                            ui.label(
+                                                egui::RichText::new(format!(
+                                                    "Example: {}",
+                                                    field.example
+                                                ))
+                                                .weak(),
+                                            );
+                                        });
+
+                                        if was_clicked {
+                                            autocomplete_state.selected_index = idx;
+                                            autocomplete_state.insert_selected_field(text);
+                                        }
+
+                                        // Right: Description (always visible)
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::Center),
+                                            |ui| {
+                                                ui.label(
+                                                    egui::RichText::new(field.description)
+                                                        .small()
+                                                        .weak(),
+                                                );
+                                            },
+                                        );
+                                    });
+                                }
+                            });
+                    });
+                });
+        }
+    }
+
+    response
 }

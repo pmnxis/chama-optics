@@ -51,6 +51,28 @@ impl ChamaOptics {
             if ui.button(t!("app.images.remove_all")).clicked() {
                 self.packed_images.clear();
             }
+
+            // Show grouping buttons if any grouping feature is enabled
+            if self.image_grouping.is_any_enabled() {
+                // Apply grouping button
+                if ui
+                    .button(t!("laboratory.group_similar.apply_grouping"))
+                    .clicked()
+                {
+                    self.apply_image_grouping(ui.ctx());
+                }
+
+                // Clear grouping button (only show if grouping is active)
+                if self.image_groups.is_some()
+                    && ui
+                        .button(t!("laboratory.group_similar.clear_grouping"))
+                        .clicked()
+                {
+                    self.image_groups = None;
+                    ui.ctx().request_repaint();
+                    log::info!("Image grouping cleared");
+                }
+            }
         });
 
         // Scrollable image list with background hint

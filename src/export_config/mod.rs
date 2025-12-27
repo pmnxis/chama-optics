@@ -40,7 +40,7 @@ impl core::default::Default for ExportConfig {
 }
 
 impl ExportConfig {
-    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui, show_theme_name_in_english: bool) {
         ui.group(|ui| {
             ui.heading(t!("export_config.label"));
             ui.separator();
@@ -54,7 +54,7 @@ impl ExportConfig {
                 self.watermark.update_ui(ui);
             });
             ui.separator();
-            self.theme_reg.update_ui(ui);
+            self.theme_reg.update_ui(ui, show_theme_name_in_english);
         });
     }
 

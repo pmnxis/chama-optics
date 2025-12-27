@@ -47,6 +47,8 @@ pub(crate) use image::{exif_impl, packed_image};
 pub mod art;
 #[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod effect;
+#[cfg(any(feature = "desktop", feature = "web"))]
+pub(crate) mod image_group;
 
 #[cfg(feature = "desktop")]
 pub mod test_helper;

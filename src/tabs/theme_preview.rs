@@ -289,7 +289,9 @@ impl ChamaOptics {
             .id_salt("theme_params")
             .show(ui, |ui| {
                 ui.label(t!("theme_preview.theme_settings"));
-                self.export_config.theme_reg.update_ui(ui);
+                self.export_config
+                    .theme_reg
+                    .update_ui(ui, self.show_theme_name_in_english);
             });
     }
 }

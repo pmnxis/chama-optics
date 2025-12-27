@@ -320,15 +320,39 @@ impl ThemeRegistry {
         self.themes[self.selected].read().unwrap()
     }
 
-    pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+    pub fn update_ui(&mut self, ui: &mut egui::Ui, show_english_name: bool) {
         ui.vertical(|ui| {
             ui.label(t!("theme.selector"));
+
+            let selected_text = if show_english_name {
+                // Temporarily switch to English locale to get English label
+                let current_locale = rust_i18n::locale();
+                rust_i18n::set_locale("en");
+                let label = self.themes[self.selected].read().unwrap().label();
+                rust_i18n::set_locale(&current_locale);
+                label
+            } else {
+                self.themes[self.selected].read().unwrap().label()
+            };
+
             egui::ComboBox::from_id_salt("theme_selector")
-                .selected_text(self.themes[self.selected].read().unwrap().label())
+                .selected_text(selected_text)
                 .show_ui(ui, |ui| {
                     for (i, theme) in self.themes.iter().enumerate() {
+                        let theme_guard = theme.read().unwrap();
+                        let display_name = if show_english_name {
+                            // Temporarily switch to English locale to get English label
+                            let current_locale = rust_i18n::locale();
+                            rust_i18n::set_locale("en");
+                            let label = theme_guard.label();
+                            rust_i18n::set_locale(&current_locale);
+                            label
+                        } else {
+                            theme_guard.label()
+                        };
+
                         if ui
-                            .selectable_label(i == self.selected, theme.read().unwrap().label())
+                            .selectable_label(i == self.selected, display_name)
                             .clicked()
                         {
                             self.selected = i;

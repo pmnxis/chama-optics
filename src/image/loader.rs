@@ -24,10 +24,58 @@ pub struct LoadedImageData {
     /// Store original image bytes for non-desktop platforms (WASM, iOS)
     #[cfg(not(feature = "desktop"))]
     pub image_bytes: Option<Vec<u8>>,
+
+    /// Perceptual hash calculated from thumbnail
+    pub perceptual_hash: Option<u64>,
 }
 
 /// Shared queue for loaded images waiting for texture creation
 pub type LoadedImageQueue = Arc<Mutex<Vec<LoadedImageData>>>;
+
+/// Calculate perceptual hash from ColorImage (8x8 average hash)
+fn calculate_perceptual_hash_from_thumbnail(thumbnail: &egui::ColorImage) -> Option<u64> {
+    // Convert ColorImage to grayscale 8x8
+    let width = thumbnail.size[0];
+    let height = thumbnail.size[1];
+
+    if width == 0 || height == 0 {
+        return None;
+    }
+
+    // Resize to 8x8 using simple nearest neighbor
+    let mut gray_8x8 = [0u8; 64];
+    for y in 0..8 {
+        for x in 0..8 {
+            let src_x = (x * width) / 8;
+            let src_y = (y * height) / 8;
+            let pixel_idx = src_y * width + src_x;
+
+            if pixel_idx < thumbnail.pixels.len() {
+                let pixel = thumbnail.pixels[pixel_idx];
+                // Convert RGBA to grayscale: 0.299*R + 0.587*G + 0.114*B
+                let gray = ((pixel.r() as f32 * 0.299
+                    + pixel.g() as f32 * 0.587
+                    + pixel.b() as f32 * 0.114)
+                    * 255.0) as u8;
+                gray_8x8[y * 8 + x] = gray;
+            }
+        }
+    }
+
+    // Calculate average
+    let sum: u32 = gray_8x8.iter().map(|&v| v as u32).sum();
+    let avg = (sum / 64) as u8;
+
+    // Create hash: 1 if pixel > average, 0 otherwise
+    let mut hash: u64 = 0;
+    for (i, &pixel) in gray_8x8.iter().enumerate() {
+        if pixel > avg {
+            hash |= 1 << i;
+        }
+    }
+
+    Some(hash)
+}
 
 /// Load a single image in a background thread (EXIF + image data only)
 /// Returns LoadedImageData that can be used to create PackedImage in UI thread
@@ -72,6 +120,9 @@ pub fn load_image_data(
     // Generate thumbnail immediately (CPU-bound, can be parallelized)
     let thumbnail = crate::image::common::gen_thumbnail(dyn_image, orientation)?;
 
+    // Calculate perceptual hash from thumbnail for efficient grouping
+    let perceptual_hash = calculate_perceptual_hash_from_thumbnail(&thumbnail);
+
     Ok(LoadedImageData {
         path: path.clone(),
         view_exif,
@@ -79,6 +130,7 @@ pub fn load_image_data(
         orientation,
         #[cfg(not(feature = "desktop"))]
         image_bytes: None, // Desktop doesn't need to store bytes
+        perceptual_hash,
     })
 }
 
@@ -130,6 +182,9 @@ pub fn load_image_from_memory(
     // Generate thumbnail immediately
     let thumbnail = crate::image::common::gen_thumbnail(dyn_image, orientation)?;
 
+    // Calculate perceptual hash from thumbnail for efficient grouping
+    let perceptual_hash = calculate_perceptual_hash_from_thumbnail(&thumbnail);
+
     Ok(LoadedImageData {
         path: pseudo_path,
         view_exif,
@@ -137,6 +192,7 @@ pub fn load_image_from_memory(
         orientation,
         #[cfg(not(feature = "desktop"))]
         image_bytes: Some(bytes.to_vec()),
+        perceptual_hash,
     })
 }
 
@@ -236,6 +292,7 @@ pub fn create_packed_image_from_data(
             texture,
             #[cfg(not(feature = "desktop"))]
             image_bytes: data.image_bytes,
+            perceptual_hash: data.perceptual_hash,
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

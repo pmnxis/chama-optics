@@ -39,6 +39,10 @@ pub struct PackedImage {
     /// (WASM, iOS sandboxed environments)
     #[cfg(not(feature = "desktop"))]
     pub image_bytes: Option<Vec<u8>>,
+
+    /// Perceptual hash for image similarity comparison (64-bit average hash)
+    /// Calculated once during image loading for efficient grouping
+    pub perceptual_hash: Option<u64>,
 }
 
 impl PackedImage {
@@ -176,6 +180,7 @@ impl PackedImage {
             )),
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // Desktop uses file system, doesn't need bytes in memory
+            perceptual_hash: None, // Not calculated for manually loaded images
         })
     }
 
@@ -204,6 +209,7 @@ impl PackedImage {
             texture: PackedTexture::dummy(),
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // CLI mode is desktop-only, doesn't need bytes in memory
+            perceptual_hash: None, // CLI mode doesn't calculate hash
         })
     }
 
@@ -220,20 +226,48 @@ impl PackedImage {
         &self,
         export_config: &crate::export_config::ExportConfig,
     ) -> String {
+        self.prepostfixed_filename_with_override(export_config, None, None)
+    }
+
+    pub fn prepostfixed_filename_with_override(
+        &self,
+        export_config: &crate::export_config::ExportConfig,
+        prefix_override: Option<&str>,
+        postfix_override: Option<&str>,
+    ) -> String {
         let ext = export_config.output_format.extension();
-        let postfix = &export_config.output_name.postfix;
-        let prefix = &export_config.output_name.prefix;
+
+        // Use override if provided, otherwise use export_config
+        let prefix = prefix_override.unwrap_or(&export_config.output_name.prefix);
+        let postfix = postfix_override.unwrap_or(&export_config.output_name.postfix);
 
         let stem = self.path.file_stem().unwrap_or_default().to_string_lossy();
 
-        format!("{prefix}{stem}{postfix}.{ext}")
+        // Format variables using EXIF data
+        let formatted_prefix = self.view_exif.format_custom(prefix);
+        let formatted_postfix = self.view_exif.format_custom(postfix);
+
+        format!("{formatted_prefix}{stem}{formatted_postfix}.{ext}")
     }
 
     pub fn bulk_path(
         &self,
         export_config: &crate::export_config::ExportConfig,
     ) -> std::path::PathBuf {
-        let file_name = self.prepostfixed_filename(export_config);
+        self.bulk_path_with_override(export_config, None, None)
+    }
+
+    pub fn bulk_path_with_override(
+        &self,
+        export_config: &crate::export_config::ExportConfig,
+        prefix_override: Option<&str>,
+        postfix_override: Option<&str>,
+    ) -> std::path::PathBuf {
+        let file_name = self.prepostfixed_filename_with_override(
+            export_config,
+            prefix_override,
+            postfix_override,
+        );
         let mut path = export_config.output_name.folder.clone();
         path.push(file_name);
         path

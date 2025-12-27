@@ -21,6 +21,7 @@ impl ChamaOptics {
         ui.add_space(10.0);
 
         // Export config section
-        self.export_config.update_ui(ui);
+        self.export_config
+            .update_ui(ui, self.show_theme_name_in_english);
     }
 }

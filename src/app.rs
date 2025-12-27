@@ -6,6 +6,7 @@
 
 use crate::packed_image::PackedImage;
 use crate::ui_state::ProgressState;
+use rust_i18n::t;
 use std::path::PathBuf;
 
 /// Main tab selection for the left sidebar
@@ -26,11 +27,21 @@ pub struct ChamaOptics {
     pub export_config: crate::export_config::ExportConfig,
     pub lang: crate::langs::Language,
 
+    /// Image grouping configuration (experimental feature)
+    pub image_grouping: crate::image_group::ImageGroupConfig,
+
+    /// Show theme names in English (unique_name) instead of localized labels
+    pub show_theme_name_in_english: bool,
+
     /// Currently selected tab in the sidebar
     selected_tab: MainTab,
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
+
+    #[serde(skip)]
+    /// Active image groups (if grouping has been applied)
+    pub image_groups: Option<Vec<crate::image_group::ImageGroup>>,
 
     #[serde(skip)]
     /// Selected image index for theme preview tab
@@ -72,8 +83,11 @@ impl Default for ChamaOptics {
             import_config: crate::import_config::ImportConfig::default(),
             export_config: crate::export_config::ExportConfig::default(),
             lang: crate::langs::Language::get_system(),
+            image_grouping: crate::image_group::ImageGroupConfig::default(),
+            show_theme_name_in_english: true, // Default: show English names
             selected_tab: MainTab::default(),
             packed_images: vec![],
+            image_groups: None,
             preview_selected_index: None,
             theme_preview_texture: None,
             theme_preview_cache_key: None,
@@ -117,6 +131,8 @@ impl ChamaOptics {
         struct SaveTask {
             path: std::path::PathBuf,
             view_exif: crate::exif_impl::SimplifiedExif,
+            prefix: Option<String>,
+            postfix: Option<String>,
         }
 
         // save each
@@ -134,7 +150,12 @@ impl ChamaOptics {
                 ..pi
             };
 
-            let new_path = pi_with_view.bulk_path(export_config);
+            // Use group-specific prefix/postfix if available
+            let new_path = pi_with_view.bulk_path_with_override(
+                export_config,
+                task.prefix.as_deref(),
+                task.postfix.as_deref(),
+            );
 
             export_config.theme_reg.selected_theme_read().apply(
                 &pi_with_view,
@@ -155,14 +176,48 @@ impl ChamaOptics {
         }
 
         // Convert PackedImages to SaveTasks for parallel processing
-        let tasks: Vec<SaveTask> = self
-            .packed_images
-            .iter()
-            .map(|pi| SaveTask {
-                path: pi.path.clone(),
-                view_exif: pi.view_exif.clone(),
-            })
-            .collect();
+        // If grouping is active, use group-specific prefix/postfix
+        let tasks: Vec<SaveTask> = if let Some(ref groups) = self.image_groups {
+            self.packed_images
+                .iter()
+                .enumerate()
+                .map(|(img_idx, pi)| {
+                    // Find which group this image belongs to
+                    let group_info = groups.iter().find(|g| g.image_indices.contains(&img_idx));
+
+                    SaveTask {
+                        path: pi.path.clone(),
+                        view_exif: pi.view_exif.clone(),
+                        // Use group prefix/postfix only if not using default
+                        prefix: group_info.and_then(|g| {
+                            if g.use_default {
+                                None
+                            } else {
+                                Some(g.prefix.text.clone())
+                            }
+                        }),
+                        postfix: group_info.and_then(|g| {
+                            if g.use_default {
+                                None
+                            } else {
+                                Some(g.postfix.text.clone())
+                            }
+                        }),
+                    }
+                })
+                .collect()
+        } else {
+            // No grouping - use default config
+            self.packed_images
+                .iter()
+                .map(|pi| SaveTask {
+                    path: pi.path.clone(),
+                    view_exif: pi.view_exif.clone(),
+                    prefix: None,
+                    postfix: None,
+                })
+                .collect()
+        };
 
         let total = tasks.len();
 
@@ -229,8 +284,179 @@ impl ChamaOptics {
 
     pub(crate) fn update_packed_image(&mut self, ui: &mut egui::Ui) {
         let mut remove_index: Option<usize> = None;
+        let mut remove_group_idx: Option<usize> = None;
+
+        // Determine group boundaries if grouping is active
+        let group_starts: std::collections::HashSet<usize> =
+            if let Some(groups) = &self.image_groups {
+                groups
+                    .iter()
+                    .filter(|g| !g.image_indices.is_empty())
+                    .map(|g| g.image_indices[0])
+                    .collect()
+            } else {
+                std::collections::HashSet::new()
+            };
+
+        // Pre-calculate suggestions for all groups to avoid borrow checker issues
+        let group_suggestions: Vec<(String, String)> = if let Some(ref groups) = self.image_groups {
+            groups
+                .iter()
+                .map(|group| {
+                    let first_img_idx = group.image_indices.first().copied().unwrap_or(0);
+                    if first_img_idx < self.packed_images.len() {
+                        let exif = &self.packed_images[first_img_idx].view_exif;
+                        (group.suggest_prefix(exif), group.suggest_postfix(exif))
+                    } else {
+                        (String::new(), String::new())
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         for (idx, pi) in self.packed_images.iter_mut().enumerate() {
+            // Show group separator and header for each group
+            if group_starts.contains(&idx) {
+                // Add separator before group (except for very first group)
+                if idx > 0 {
+                    ui.add_space(10.0);
+                    ui.separator();
+                }
+
+                // Show group info with controls
+                if let Some(groups) = &mut self.image_groups
+                    && let Some(group_idx) = groups
+                        .iter()
+                        .position(|g| g.image_indices.first() == Some(&idx))
+                {
+                    let group = &mut groups[group_idx];
+
+                    ui.vertical(|ui| {
+                        // Group header with delete button and use default checkboxes
+                        ui.horizontal(|ui| {
+                            // Selection checkbox
+                            ui.checkbox(&mut group.selected, "");
+
+                            // Group label
+                            ui.label(
+                                egui::RichText::new(format!(
+                                    "📁 Group {} ({} images)",
+                                    group_idx + 1,
+                                    group.image_indices.len()
+                                ))
+                                .strong()
+                                .color(ui.visuals().strong_text_color()),
+                            );
+
+                            if !group.datetime.is_empty() {
+                                ui.label(
+                                    egui::RichText::new(format!("📅 {}", group.datetime)).weak(),
+                                );
+                            }
+                            if !group.camera_model.is_empty() {
+                                ui.label(
+                                    egui::RichText::new(format!("📷 {}", group.camera_model))
+                                        .weak(),
+                                );
+                            }
+
+                            // Right-aligned controls
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    // Delete group button
+                                    if ui
+                                        .button("🗑")
+                                        .on_hover_text(t!("app.default.delete"))
+                                        .clicked()
+                                    {
+                                        remove_group_idx = Some(group_idx);
+                                    }
+
+                                    // Use default prefix/postfix checkbox (applies to both)
+                                    ui.checkbox(&mut group.use_default, "Use default");
+                                },
+                            );
+                        });
+
+                        // Prefix and Postfix on one line (left and right)
+                        ui.horizontal(|ui| {
+                            let available_width = ui.available_width();
+                            let label_width = 50.0;
+                            let spacing = ui.spacing().item_spacing.x;
+                            let input_width =
+                                (available_width - label_width * 2.0 - spacing * 4.0 - 40.0) / 2.0; // 40.0 for suggestion buttons
+
+                            // Prefix (left side)
+                            ui.label("Prefix:");
+                            if !group.use_default {
+                                group.prefix.render_text_edit_with_autocomplete(
+                                    ui,
+                                    input_width,
+                                    format!("group_{}_prefix", group_idx),
+                                );
+
+                                // Suggestion button with preview
+                                if group_idx < group_suggestions.len() {
+                                    let suggested = &group_suggestions[group_idx].0;
+                                    if !suggested.is_empty()
+                                        && ui
+                                            .button("💡")
+                                            .on_hover_text(format!("Suggestion: {}", suggested))
+                                            .clicked()
+                                    {
+                                        group.prefix.text = suggested.clone();
+                                    }
+                                }
+                            } else {
+                                ui.label(
+                                    egui::RichText::new(format!(
+                                        "(default: {})",
+                                        self.export_config.output_name.prefix
+                                    ))
+                                    .weak(),
+                                );
+                            }
+
+                            // Postfix (right side)
+                            ui.label("Postfix:");
+                            if !group.use_default {
+                                group.postfix.render_text_edit_with_autocomplete(
+                                    ui,
+                                    input_width,
+                                    format!("group_{}_postfix", group_idx),
+                                );
+
+                                // Suggestion button with preview
+                                if group_idx < group_suggestions.len() {
+                                    let suggested = &group_suggestions[group_idx].1;
+                                    if !suggested.is_empty()
+                                        && ui
+                                            .button("💡")
+                                            .on_hover_text(format!("Suggestion: {}", suggested))
+                                            .clicked()
+                                    {
+                                        group.postfix.text = suggested.clone();
+                                    }
+                                }
+                            } else {
+                                ui.label(
+                                    egui::RichText::new(format!(
+                                        "(default: {})",
+                                        self.export_config.output_name.postfix
+                                    ))
+                                    .weak(),
+                                );
+                            }
+                        });
+                    });
+                }
+
+                ui.add_space(5.0);
+            }
+
             match pi.update_ui(ui, &self.export_config) {
                 crate::packed_image::PackedImageEvent::None => { /* Nothing */ }
                 crate::packed_image::PackedImageEvent::Remove => {
@@ -242,6 +468,96 @@ impl ChamaOptics {
 
         if let Some(idx) = remove_index {
             let _ = self.packed_images.remove(idx);
+
+            // Update grouping instead of clearing it
+            if let Some(groups) = &mut self.image_groups {
+                let mut updated_groups = Vec::new();
+
+                for group in groups.iter() {
+                    // Remove the deleted index from this group and adjust indices
+                    let updated_indices: Vec<usize> = group
+                        .image_indices
+                        .iter()
+                        .filter_map(|&i| {
+                            if i == idx {
+                                None // Remove this image from group
+                            } else if i > idx {
+                                Some(i - 1) // Shift down indices after removed image
+                            } else {
+                                Some(i) // Keep indices before removed image
+                            }
+                        })
+                        .collect();
+
+                    // Only keep groups that still have images
+                    if !updated_indices.is_empty() {
+                        updated_groups.push(crate::image_group::ImageGroup {
+                            image_indices: updated_indices,
+                            datetime: group.datetime.clone(),
+                            camera_model: group.camera_model.clone(),
+                            prefix: group.prefix.clone(),
+                            postfix: group.postfix.clone(),
+                            selected: group.selected,
+                            use_default: group.use_default,
+                        });
+                    }
+                }
+
+                // Update or clear grouping based on remaining groups
+                if updated_groups.is_empty() {
+                    self.image_groups = None;
+                    log::info!("All groups removed after image deletion");
+                } else {
+                    self.image_groups = Some(updated_groups);
+                    log::info!("Updated grouping after removing image at index {}", idx);
+                }
+            }
+        }
+
+        // Handle group deletion
+        if let Some(group_idx) = remove_group_idx
+            && let Some(groups) = &mut self.image_groups
+            && group_idx < groups.len()
+        {
+            let group = &groups[group_idx];
+            // Remove all images in this group (in reverse order to maintain indices)
+            let mut indices_to_remove: Vec<usize> = group.image_indices.clone();
+            indices_to_remove.sort_by(|a, b| b.cmp(a)); // Sort in descending order
+
+            for &img_idx in indices_to_remove.iter() {
+                if img_idx < self.packed_images.len() {
+                    self.packed_images.remove(img_idx);
+                }
+            }
+
+            // Remove the group and update all indices
+            groups.remove(group_idx);
+
+            // Rebuild group indices after deletion
+            let total_removed = indices_to_remove.len();
+            for group in groups.iter_mut() {
+                let mut new_indices = Vec::new();
+                for &old_idx in group.image_indices.iter() {
+                    // Count how many removed indices were before this one
+                    let shift = indices_to_remove
+                        .iter()
+                        .filter(|&&removed| removed < old_idx)
+                        .count();
+                    new_indices.push(old_idx - shift);
+                }
+                group.image_indices = new_indices;
+            }
+
+            if groups.is_empty() {
+                self.image_groups = None;
+                log::info!("All groups removed");
+            } else {
+                log::info!(
+                    "Removed group {} with {} images",
+                    group_idx + 1,
+                    total_removed
+                );
+            }
         }
     }
 
@@ -478,6 +794,8 @@ impl ChamaOptics {
                     Some(packed_image) => {
                         log::info!("Successfully created packed image");
                         self.packed_images.push(packed_image);
+                        // Note: Keep existing grouping when new images are added
+                        // New images will appear ungrouped at the end of the list
                     }
                     None => {
                         log::error!("Failed to create packed image");

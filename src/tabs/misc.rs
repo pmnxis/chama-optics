@@ -82,6 +82,191 @@ impl ChamaOptics {
                     }
                 });
                 ui.end_row();
+
+                // Theme Name Display
+                ui.label(t!("settings.theme_name_display"));
+                ui.checkbox(
+                    &mut self.show_theme_name_in_english,
+                    t!("settings.show_theme_name_in_english"),
+                );
+                ui.end_row();
             });
+
+        ui.add_space(20.0);
+        ui.separator();
+
+        // 🧪 Laboratory (Experimental Features)
+        ui.heading(t!("laboratory.heading"));
+        ui.label(
+            egui::RichText::new(t!("laboratory.warning"))
+                .color(ui.visuals().warn_fg_color)
+                .italics(),
+        );
+        ui.add_space(10.0);
+
+        // Group Similar Images
+        egui::CollapsingHeader::new(t!("laboratory.group_similar.title"))
+            .default_open(false)
+            .show(ui, |ui| {
+                egui::Grid::new("laboratory_grouping_grid")
+                    .num_columns(2)
+                    .spacing([20.0, 10.0])
+                    .striped(true)
+                    .show(ui, |ui| {
+                        // Group by date
+                        ui.label(t!("laboratory.group_similar.group_by_date"));
+                        ui.checkbox(&mut self.image_grouping.group_by_date, "");
+                        ui.end_row();
+
+                        // Group by time
+                        ui.label(t!("laboratory.group_similar.group_by_time"));
+                        ui.checkbox(&mut self.image_grouping.group_by_time, "");
+                        ui.end_row();
+
+                        // Group by camera manufacturer
+                        ui.label(t!("laboratory.group_similar.group_by_camera_mnf"));
+                        ui.checkbox(&mut self.image_grouping.group_by_camera_mnf, "");
+                        ui.end_row();
+
+                        // Group by camera model
+                        ui.label(t!("laboratory.group_similar.group_by_camera"));
+                        ui.checkbox(&mut self.image_grouping.group_by_camera, "");
+                        ui.end_row();
+
+                        // Group by lens model
+                        ui.label(t!("laboratory.group_similar.group_by_lens"));
+                        ui.checkbox(&mut self.image_grouping.group_by_lens, "");
+                        ui.end_row();
+
+                        // Group by similarity (with warning)
+                        ui.horizontal(|ui| {
+                            ui.label(t!("laboratory.group_similar.group_by_similarity"));
+                            ui.label(
+                                egui::RichText::new("⚠")
+                                    .color(egui::Color32::from_rgb(255, 180, 0)),
+                            )
+                            .on_hover_text(t!("laboratory.group_similar.similarity_warning"));
+                        });
+                        ui.checkbox(&mut self.image_grouping.group_by_similarity, "");
+                        ui.end_row();
+
+                        // Time threshold
+                        ui.label(t!("laboratory.group_similar.time_threshold"));
+                        ui.add(
+                            egui::Slider::new(
+                                &mut self.image_grouping.time_threshold_secs,
+                                10..=3600,
+                            )
+                            .suffix(" sec")
+                            .logarithmic(true),
+                        );
+                        ui.end_row();
+
+                        // Similarity threshold
+                        ui.label(t!("laboratory.group_similar.similarity_threshold"));
+                        ui.add(
+                            egui::Slider::new(
+                                &mut self.image_grouping.similarity_threshold,
+                                0.0..=1.0,
+                            )
+                            .step_by(0.05),
+                        );
+                        ui.end_row();
+                    });
+
+                ui.add_space(10.0);
+
+                ui.horizontal(|ui| {
+                    // Apply grouping button
+                    if ui
+                        .button(t!("laboratory.group_similar.apply_grouping"))
+                        .clicked()
+                    {
+                        self.apply_image_grouping(ui.ctx());
+                    }
+
+                    // Clear grouping button (only show if grouping is active)
+                    if self.image_groups.is_some()
+                        && ui
+                            .button(t!("laboratory.group_similar.clear_grouping"))
+                            .clicked()
+                    {
+                        self.image_groups = None;
+                        ui.ctx().request_repaint();
+                        log::info!("Image grouping cleared");
+                    }
+                });
+
+                // Show current grouping status
+                if let Some(groups) = &self.image_groups {
+                    ui.add_space(5.0);
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "✓ {} {}",
+                            groups.len(),
+                            t!("laboratory.group_similar.groups_found")
+                        ))
+                        .color(ui.visuals().strong_text_color()),
+                    );
+                }
+            });
+    }
+
+    /// Apply image grouping and reorder the images in the list
+    pub(crate) fn apply_image_grouping(&mut self, ctx: &egui::Context) {
+        if self.packed_images.is_empty() {
+            log::info!("No images to group");
+            return;
+        }
+
+        log::info!(
+            "Applying image grouping with config: {:?}",
+            self.image_grouping
+        );
+
+        let groups =
+            crate::image_group::group_similar_images(&self.packed_images, &self.image_grouping);
+
+        log::info!("Found {} groups", groups.len());
+
+        // Create reorder map
+        let mut new_order: Vec<usize> = Vec::new();
+        for group in groups.iter() {
+            new_order.extend(&group.image_indices);
+        }
+
+        // Reorder by swapping elements in-place
+        for i in 0..new_order.len() {
+            while new_order[i] != i {
+                let target = new_order[i];
+                self.packed_images.swap(i, target);
+                new_order.swap(i, target);
+            }
+        }
+
+        // Update group indices to match new order and store in app state
+        let mut updated_groups = Vec::new();
+        let mut current_idx = 0;
+        for group in groups.iter() {
+            let group_size = group.image_indices.len();
+            updated_groups.push(crate::image_group::ImageGroup {
+                image_indices: (current_idx..current_idx + group_size).collect(),
+                datetime: group.datetime.clone(),
+                camera_model: group.camera_model.clone(),
+                prefix: group.prefix.clone(),
+                postfix: group.postfix.clone(),
+                selected: group.selected,
+                use_default: group.use_default,
+            });
+            current_idx += group_size;
+        }
+        self.image_groups = Some(updated_groups);
+
+        ctx.request_repaint();
+
+        log::info!(
+            "Image grouping applied successfully - {} groups",
+            groups.len()
+        );
     }
 }
