@@ -46,16 +46,11 @@ desktop = [
     "libheif-rs",
 ]
 # Web features (WASM target) - no native file dialogs or libheif
-web = [
-    "egui",
-    "eframe",
-    "eframe/web_screen_reader",
-    "egui-file-dialog",
-]
+web = ["egui", "eframe", "eframe/web_screen_reader", "egui-file-dialog"]
 # Mobile UI optimizations (larger touch targets, simplified layouts)
 mobile_ui = []
-# iOS-specific features (Photos library, Share extension) - minimal deps, no GUI
-ios_integration = ["mobile_ui"]
+# iOS-specific features (Photos library, Share extension) - core library only, no GUI
+ios_integration = []
 
 [dependencies]
 # egui = "^0.33.3"
@@ -122,8 +117,10 @@ reqwest = { version = "0.12.28", features = [
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
 oxipng = "10"
-libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"], optional = true }
-font-kit = "0.14"
+libheif-rs = { version = "2.5", default-features = false, features = [
+    "v1_18",
+], optional = true }
+font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a" }
 
 # Web-specific dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
