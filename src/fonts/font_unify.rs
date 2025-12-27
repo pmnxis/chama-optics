@@ -7,9 +7,7 @@
 use ab_glyph::FontArc;
 use eframe::egui;
 #[cfg(not(target_arch = "wasm32"))]
-use font_kit::handle::Handle;
-#[cfg(all(not(target_arch = "wasm32"), not(target_os = "macos")))]
-use font_kit::source::SystemSource;
+use font_kit::{handle::Handle, source::SystemSource};
 use std::sync::{Arc, RwLock};
 #[cfg(not(target_arch = "wasm32"))]
 use std::thread;
@@ -143,34 +141,18 @@ impl FontsUnify {
 
         thread::spawn(move || {
             let before_start = std::time::Instant::now();
-            let ret;
+            let mut ret = Vec::new();
+            let sys_src = SystemSource::new();
 
-            // On macOS, skip system font enumeration entirely to save 1.4GB memory
-            // font_kit's all_fonts() loads all font files into memory internally
-            #[cfg(not(target_os = "macos"))]
-            {
-                let sys_src = SystemSource::new();
-                let mut ret_vec = Vec::new();
-
-                if let Ok(result) = sys_src.all_fonts() {
-                    for handle in result {
-                        if let Ok(font) = handle.load() {
-                            ret_vec.push(SystemFont {
-                                name: font.family_name(),
-                                handle: handle.clone(),
-                            });
-                        }
+            if let Ok(result) = sys_src.all_fonts() {
+                for handle in result {
+                    if let Ok(font) = handle.load() {
+                        ret.push(SystemFont {
+                            name: font.family_name(),
+                            handle: handle.clone(),
+                        });
                     }
                 }
-                ret = ret_vec;
-            }
-
-            #[cfg(target_os = "macos")]
-            {
-                // On macOS, we skip system fonts to avoid 1.4GB memory usage
-                // Users can use built-in fonts instead
-                log::info!("Skipping system font enumeration on macOS to save memory");
-                ret = Vec::new();
             }
 
             *thread_ref.write().unwrap() = ret;
