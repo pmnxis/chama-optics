@@ -58,6 +58,7 @@ impl core::default::Default for OutputFormat {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn save_jpeg_moz<P: AsRef<Path>>(
     img: image::RgbImage,
     path: P,
@@ -78,6 +79,26 @@ fn save_jpeg_moz<P: AsRef<Path>>(
     Ok(())
 }
 
+#[cfg(target_arch = "wasm32")]
+fn save_jpeg_moz<P: AsRef<Path>>(
+    img: image::RgbImage,
+    path: P,
+    quality: u8,
+) -> Result<(), image::ImageError> {
+    // WASM: Use basic JPEG encoder from image crate
+    use image::codecs::jpeg::JpegEncoder;
+    let file = std::fs::File::create(path)?;
+    let mut encoder = JpegEncoder::new_with_quality(&file, quality);
+    encoder.encode(
+        &img,
+        img.width(),
+        img.height(),
+        image::ExtendedColorType::Rgb8,
+    )?;
+    Ok(())
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn save_webp<P: AsRef<Path>>(
     img: image::RgbImage,
     path: P,
@@ -88,6 +109,23 @@ fn save_webp<P: AsRef<Path>>(
     let webp_data = encoder.encode(quality as f32);
     std::fs::write(path, &*webp_data)?;
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+fn save_webp<P: AsRef<Path>>(
+    _img: image::RgbImage,
+    _path: P,
+    _quality: u8,
+) -> Result<(), image::ImageError> {
+    // WASM: WebP not supported, fallback to JPEG
+    Err(image::ImageError::Unsupported(
+        image::error::UnsupportedError::from_format_and_kind(
+            image::error::ImageFormatHint::Unknown,
+            image::error::UnsupportedErrorKind::GenericFeature(
+                "WebP encoding not available in WASM".to_string(),
+            ),
+        ),
+    ))
 }
 
 fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> Result<(), image::ImageError> {

@@ -21,12 +21,19 @@ impl ChamaOptics {
             ui.heading(t!("app.images.list"));
 
             // File dialog button
+            #[cfg(feature = "desktop")]
             if ui.button(t!("app.open_files.button")).clicked()
                 && let Some(open_files) = rfd::FileDialog::new().pick_files()
             {
                 for file in open_files.iter() {
                     self.pending_paths.push_back(file.to_owned());
                 }
+            }
+
+            // Web file picker button
+            #[cfg(all(target_arch = "wasm32", feature = "web"))]
+            if ui.button(t!("app.open_files.button")).clicked() {
+                self.trigger_file_picker();
             }
 
             // Save all button

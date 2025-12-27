@@ -20,6 +20,10 @@ pub struct LoadedImageData {
     pub view_exif: SimplifiedExif,
     pub thumbnail: Option<egui::ColorImage>, // Pre-generated thumbnail
     pub orientation: image::metadata::Orientation,
+
+    /// Store original image bytes for non-desktop platforms (WASM, iOS)
+    #[cfg(not(feature = "desktop"))]
+    pub image_bytes: Option<Vec<u8>>,
 }
 
 /// Shared queue for loaded images waiting for texture creation
@@ -73,6 +77,66 @@ pub fn load_image_data(
         view_exif,
         thumbnail: Some(thumbnail),
         orientation,
+        #[cfg(not(feature = "desktop"))]
+        image_bytes: None, // Desktop doesn't need to store bytes
+    })
+}
+
+/// Load image from memory buffer (for WASM file picker)
+#[cfg(target_arch = "wasm32")]
+pub fn load_image_from_memory(
+    bytes: &[u8],
+    filename: &str,
+    get_alt_fnumber: bool,
+) -> Result<LoadedImageData, image::ImageError> {
+    use std::io::{Cursor, Seek};
+
+    let mut cursor = Cursor::new(bytes);
+
+    // Parse EXIF
+    let original_exif =
+        OriginalExif::new(match exif::Reader::new().read_from_container(&mut cursor) {
+            Ok(exif) => Some(exif),
+            Err(e) => {
+                log::error!("Failed to parse EXIF from {}: {e:?}", filename);
+                None
+            }
+        });
+
+    let mut view_exif = SimplifiedExif::from(&original_exif);
+    if get_alt_fnumber {
+        view_exif.replace_with_fnumber_alt_when_invalid();
+    }
+
+    cursor
+        .seek(std::io::SeekFrom::Start(0))
+        .expect("Failed to reset cursor");
+
+    // Create a pseudo-path for web
+    let pseudo_path = PathBuf::from(format!("web://{}", filename));
+
+    // Load image data from memory
+    let dyn_image = image::load_from_memory(bytes)?;
+
+    // WASM doesn't need orientation from file format
+    let need_orientation = true;
+
+    let orientation = if need_orientation {
+        original_exif.orientation()
+    } else {
+        image::metadata::Orientation::NoTransforms
+    };
+
+    // Generate thumbnail immediately
+    let thumbnail = crate::image::common::gen_thumbnail(dyn_image, orientation)?;
+
+    Ok(LoadedImageData {
+        path: pseudo_path,
+        view_exif,
+        thumbnail: Some(thumbnail),
+        orientation,
+        #[cfg(not(feature = "desktop"))]
+        image_bytes: Some(bytes.to_vec()),
     })
 }
 
@@ -125,19 +189,29 @@ pub fn create_packed_image_from_data(
     data: LoadedImageData,
     ctx: &egui::Context,
 ) -> Option<PackedImage> {
-    // Re-parse EXIF in UI thread (since OriginalExif is not Clone)
-    let file = std::fs::File::open(&data.path).ok()?;
-    let mut buf_reader = std::io::BufReader::new(file);
+    #[cfg(not(target_arch = "wasm32"))]
+    let src_exif = {
+        // Re-parse EXIF in UI thread (since OriginalExif is not Clone)
+        let file = std::fs::File::open(&data.path).ok()?;
+        let mut buf_reader = std::io::BufReader::new(file);
 
-    let src_exif = OriginalExif::new(
-        match exif::Reader::new().read_from_container(&mut buf_reader) {
-            Ok(exif) => Some(exif),
-            Err(e) => {
-                log::warn!("Failed to re-parse EXIF for {:?}: {e:?}", data.path);
-                None
-            }
-        },
-    );
+        OriginalExif::new(
+            match exif::Reader::new().read_from_container(&mut buf_reader) {
+                Ok(exif) => Some(exif),
+                Err(e) => {
+                    log::warn!("Failed to re-parse EXIF for {:?}: {e:?}", data.path);
+                    None
+                }
+            },
+        )
+    };
+
+    #[cfg(target_arch = "wasm32")]
+    let src_exif = {
+        // WASM: Cannot re-read file, use empty EXIF
+        // The view_exif already has all the data we need
+        OriginalExif::new(None)
+    };
 
     // Use pre-generated thumbnail
     if let Some(thumbnail) = data.thumbnail {
@@ -160,6 +234,8 @@ pub fn create_packed_image_from_data(
             view_exif: data.view_exif,
             editable: false,
             texture,
+            #[cfg(not(feature = "desktop"))]
+            image_bytes: data.image_bytes,
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

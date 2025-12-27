@@ -34,14 +34,35 @@ pub struct PackedImage {
     /// texture internally for egui framework
     /// but in testing environment, it would be Dummy enum
     pub texture: PackedTexture,
+
+    /// Store original image bytes in memory for platforms without file system access
+    /// (WASM, iOS sandboxed environments)
+    #[cfg(not(feature = "desktop"))]
+    pub image_bytes: Option<Vec<u8>>,
 }
 
 impl PackedImage {
     /// image::DynamicImage and is orientation required or not with boolean signal
     pub fn get_image(&self) -> Result<(image::DynamicImage, bool), image::ImageError> {
-        let file = std::fs::File::open(self.path.clone())?;
-        let mut buf_reader = std::io::BufReader::new(file);
-        __load_image(&self.path, &mut buf_reader)
+        #[cfg(feature = "desktop")]
+        {
+            let file = std::fs::File::open(self.path.clone())?;
+            let mut buf_reader = std::io::BufReader::new(file);
+            __load_image(&self.path, &mut buf_reader)
+        }
+
+        #[cfg(not(feature = "desktop"))]
+        {
+            // For non-desktop platforms (WASM, iOS), load from memory
+            if let Some(bytes) = &self.image_bytes {
+                __load_image_from_vec(&self.path, bytes.clone())
+            } else {
+                Err(image::ImageError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "Image bytes not available for non-desktop platform",
+                )))
+            }
+        }
     }
 
     pub fn with_scale_and_orientation(
@@ -153,6 +174,8 @@ impl PackedImage {
                 thumbnail,
                 egui::TextureOptions::NEAREST,
             )),
+            #[cfg(not(feature = "desktop"))]
+            image_bytes: None, // Desktop uses file system, doesn't need bytes in memory
         })
     }
 
@@ -179,6 +202,8 @@ impl PackedImage {
             view_exif,
             editable: false,
             texture: PackedTexture::dummy(),
+            #[cfg(not(feature = "desktop"))]
+            image_bytes: None, // CLI mode is desktop-only, doesn't need bytes in memory
         })
     }
 
@@ -264,6 +289,7 @@ impl PackedImage {
                     if !self.editable {
                         ui.horizontal(|ui| {
                             ui.horizontal(|ui| {
+                                #[cfg(feature = "desktop")]
                                 if ui
                                     .add(
                                         egui::Button::new(t!("app.default.save"))

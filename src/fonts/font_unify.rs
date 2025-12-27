@@ -6,8 +6,10 @@
 
 use ab_glyph::FontArc;
 use eframe::egui;
+#[cfg(not(target_arch = "wasm32"))]
 use font_kit::{handle::Handle, source::SystemSource};
 use std::sync::{Arc, RwLock};
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
 use crate::fonts::FONTS_UNIFY;
@@ -48,12 +50,20 @@ pub struct FontSelection {
     pub default: BuiltinFontIndex,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct SystemFont {
     pub name: String,
     pub(crate) handle: Handle,
 }
 
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone)]
+pub struct SystemFont {
+    pub name: String,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
     if let Handle::Path {
         path,
@@ -67,6 +77,7 @@ fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
 }
 
 // read font directly from path
+#[cfg(not(target_arch = "wasm32"))]
 fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, FontError> {
     let data = std::fs::read(&path).map_err(|e| {
         log::error!("Cannot find font file. : {e}");
@@ -77,6 +88,7 @@ fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, Fon
         .map_err(|_| FontError::FailedToLoad(path.as_ref().to_string_lossy().to_string()))
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<FontArc, FontError> {
     match handle {
         Handle::Memory { bytes, .. } => FontArc::try_from_vec(bytes.to_vec())
@@ -86,8 +98,15 @@ fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<Fon
 }
 
 impl SystemFont {
+    #[cfg(not(target_arch = "wasm32"))]
     fn get_path(&self) -> Option<std::path::PathBuf> {
         __get_path_from_handle(&self.handle)
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn get_path(&self) -> Option<std::path::PathBuf> {
+        // WASM: No system fonts, no paths
+        None
     }
 }
 
@@ -115,6 +134,7 @@ pub struct FontsUnify {
 }
 
 impl FontsUnify {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         let system_fonts = Arc::new(RwLock::new(Vec::new()));
         let thread_ref = system_fonts.clone();
@@ -142,6 +162,22 @@ impl FontsUnify {
                 (std::time::Instant::now() - before_start).as_millis()
             );
         });
+
+        Self {
+            builtin_fonts: [
+                &crate::fonts::FONT_D2CODING,
+                &crate::fonts::FONT_SHSANS,
+                &crate::fonts::FONT_DIGITAL_7,
+                &crate::fonts::FONT_DIGITAL_7_ITALIC,
+            ],
+            system_fonts,
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> Self {
+        // WASM: No system fonts available, only builtin fonts
+        let system_fonts = Arc::new(RwLock::new(Vec::new()));
 
         Self {
             builtin_fonts: [
@@ -192,6 +228,7 @@ impl FontsUnify {
     //     }
     // }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         fn get_with_matching_name<'a>(
             read: &'a std::sync::RwLockReadGuard<'_, Vec<SystemFont>>,
@@ -276,6 +313,26 @@ impl FontsUnify {
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
+    pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
+        // WASM: Only builtin fonts available
+        let name = &select.name;
+        if let Some(index) = self.builtin_fonts.iter().position(|item| item.name == name) {
+            return Ok(FontSearchResult::Found {
+                found: FontIndex {
+                    sort: FontSort::Builtin,
+                    index,
+                    path: None,
+                },
+                font: FontArc::try_from_slice(self.builtin_fonts[index].data)
+                    .map_err(|_| FontError::FailedToGet(name.clone()))?,
+            });
+        }
+
+        // Fallback to default builtin font
+        Err(FontError::NonRecoverSelectedFont)
+    }
+
     #[allow(dead_code)]
     pub fn search_mut(&'static self, select: &mut FontSelection) -> Result<FontArc, FontError> {
         match self.deep_get(select) {
@@ -308,6 +365,7 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         let prev_idx = select.select.index;
         match select.select.sort {
@@ -332,6 +390,19 @@ impl FontsUnify {
             } // Not use FontSort::None anymore
               // TBD
         }
+    }
+
+    #[allow(dead_code)]
+    #[cfg(target_arch = "wasm32")]
+    pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
+        // WASM: Only builtin fonts
+        let prev_idx = select.select.index;
+        let font = self
+            .builtin_fonts
+            .get(prev_idx)
+            .ok_or(FontError::InvalidIndex(prev_idx))?;
+        FontArc::try_from_slice(font.data)
+            .map_err(|_| FontError::FailedToGet(font.name.to_string()))
     }
 }
 

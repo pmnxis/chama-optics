@@ -136,24 +136,31 @@ pub(crate) fn __load_image(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    if img_format.is_none() {
-                        crate::image::heic::load_heif(path)
-                            .map(|img| (img, false))
-                            .map_err(|e| {
-                                image::error::ImageError::Unsupported(
-                                    image::error::UnsupportedError::from_format_and_kind(
-                                        image::error::ImageFormatHint::PathExtension(
-                                            path.to_path_buf(),
-                                        ),
-                                        image::error::UnsupportedErrorKind::GenericFeature(
-                                            format!(
-                                                "libheif internal error {e} and unsp_e : {unsp_e}"
+                    #[cfg(feature = "desktop")]
+                    {
+                        if img_format.is_none() {
+                            crate::image::heic::load_heif(path)
+                                .map(|img| (img, false))
+                                .map_err(|e| {
+                                    image::error::ImageError::Unsupported(
+                                        image::error::UnsupportedError::from_format_and_kind(
+                                            image::error::ImageFormatHint::PathExtension(
+                                                path.to_path_buf(),
+                                            ),
+                                            image::error::UnsupportedErrorKind::GenericFeature(
+                                                format!(
+                                                    "libheif internal error {e} and unsp_e : {unsp_e}"
+                                                ),
                                             ),
                                         ),
-                                    ),
-                                )
-                            })
-                    } else {
+                                    )
+                                })
+                        } else {
+                            Err(image::error::ImageError::Unsupported(unsp_e))
+                        }
+                    }
+                    #[cfg(not(feature = "desktop"))]
+                    {
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
                 }
@@ -193,24 +200,31 @@ pub(crate) fn __load_image_from_vec(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    if img_format.is_none() {
-                        crate::image::heic::load_heif(path)
-                            .map(|img| (img, false))
-                            .map_err(|e| {
-                                image::error::ImageError::Unsupported(
-                                    image::error::UnsupportedError::from_format_and_kind(
-                                        image::error::ImageFormatHint::PathExtension(
-                                            path.to_path_buf(),
-                                        ),
-                                        image::error::UnsupportedErrorKind::GenericFeature(
-                                            format!(
-                                                "libheif internal error {e} and unsp_e : {unsp_e}"
+                    #[cfg(feature = "desktop")]
+                    {
+                        if img_format.is_none() {
+                            crate::image::heic::load_heif(path)
+                                .map(|img| (img, false))
+                                .map_err(|e| {
+                                    image::error::ImageError::Unsupported(
+                                        image::error::UnsupportedError::from_format_and_kind(
+                                            image::error::ImageFormatHint::PathExtension(
+                                                path.to_path_buf(),
+                                            ),
+                                            image::error::UnsupportedErrorKind::GenericFeature(
+                                                format!(
+                                                    "libheif internal error {e} and unsp_e : {unsp_e}"
+                                                ),
                                             ),
                                         ),
-                                    ),
-                                )
-                            })
-                    } else {
+                                    )
+                                })
+                        } else {
+                            Err(image::error::ImageError::Unsupported(unsp_e))
+                        }
+                    }
+                    #[cfg(not(feature = "desktop"))]
+                    {
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
                 }

@@ -27,6 +27,7 @@ pub enum Language {
 
 impl Language {
     // get system locale but if there's nothing return default
+    #[cfg(feature = "desktop")]
     pub fn get_system() -> Self {
         let sys_loc = sys_locale::get_locale().unwrap_or_else(|| String::from("en-US"));
 
@@ -35,6 +36,12 @@ impl Language {
         } else {
             Self::default()
         }
+    }
+
+    #[cfg(not(feature = "desktop"))]
+    pub fn get_system() -> Self {
+        // WASM/iOS: Default to English
+        Self::default()
     }
 
     pub fn into_str(self) -> &'static str {

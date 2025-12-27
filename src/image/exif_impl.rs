@@ -119,7 +119,7 @@ impl OriginalExif {
     }
 
     // this is initial implement
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn make_note(&self) -> Option<SimplifiedMakeNote> {
         self.0.as_ref().map(|exif| SimplifiedMakeNote {
             photo_style: crate::image::make_note::MakePhotoStyle::from_exif(exif),
@@ -170,7 +170,7 @@ pub struct SimplifiedExif {
     pub exposure: String,
     pub iso_speed: Option<u32>,
     pub datetime: String, // Option<DateTime>,
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub make_note: Option<SimplifiedMakeNote>,
 
     #[serde(skip)]
@@ -189,7 +189,7 @@ impl core::default::Default for SimplifiedExif {
             exposure: String::new(),
             iso_speed: None,
             datetime: String::new(),
-            #[cfg(feature = "desktop")]
+            #[cfg(any(feature = "desktop", feature = "web"))]
             make_note: None,
             orientation: image::metadata::Orientation::NoTransforms,
         }
@@ -238,7 +238,7 @@ impl From<&OriginalExif> for SimplifiedExif {
             exposure: value.exposure(),
             iso_speed: value.iso_speed(),
             datetime: value.datetime(),
-            #[cfg(feature = "desktop")]
+            #[cfg(any(feature = "desktop", feature = "web"))]
             make_note: value.make_note(),
             orientation: value.orientation(),
         }
@@ -246,10 +246,10 @@ impl From<&OriginalExif> for SimplifiedExif {
 }
 
 // UI dependencies - only needed for desktop
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 use egui::{RichText, TextEdit, TextStyle};
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 use crate::image::make_note::SimplifiedMakeNote;
 
 impl SimplifiedExif {
@@ -321,17 +321,17 @@ impl SimplifiedExif {
         self.iso_speed.map(|x| x.to_string())
     }
 
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn get_ps_main(&self) -> Option<String> {
         self.make_note.as_ref()?.photo_style.main_name()
     }
 
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn get_lut_detail(&self) -> Option<String> {
         self.make_note.as_ref()?.photo_style.lut_detail()
     }
 
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         let small_text = |text: &str| RichText::new(text).text_style(TextStyle::Small);
 

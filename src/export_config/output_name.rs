@@ -28,28 +28,48 @@ impl core::default::Default for OutputName {
 
 impl OutputName {
     fn default_path() -> std::path::PathBuf {
-        dirs::home_dir().expect("Failed to get home directory")
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            dirs::home_dir().expect("Failed to get home directory")
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            // WASM: No file system access, return dummy path
+            // File downloads will be handled via browser download API
+            std::path::PathBuf::from("/downloads")
+        }
     }
 
     pub fn check_folder_available(&self, create_if_missing: bool) -> bool {
-        let folder = &self.folder;
-
-        if folder.exists() {
-            if !folder.is_dir() {
-                log::error!("Path exists but is not a directory: {}", folder.display());
-                return false;
-            }
-        } else if create_if_missing {
-            if let Err(e) = std::fs::create_dir_all(folder) {
-                log::error!("Failed to create folder {}: {}", folder.display(), e);
-                return false;
-            }
-        } else {
-            log::error!("Folder does not exist: {}", folder.display());
-            return false;
+        #[cfg(target_arch = "wasm32")]
+        {
+            // WASM: No file system, always return true
+            // Downloads will be handled by browser
+            let _ = create_if_missing; // suppress unused warning
+            true
         }
 
-        true
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let folder = &self.folder;
+
+            if folder.exists() {
+                if !folder.is_dir() {
+                    log::error!("Path exists but is not a directory: {}", folder.display());
+                    return false;
+                }
+            } else if create_if_missing {
+                if let Err(e) = std::fs::create_dir_all(folder) {
+                    log::error!("Failed to create folder {}: {}", folder.display(), e);
+                    return false;
+                }
+            } else {
+                log::error!("Folder does not exist: {}", folder.display());
+                return false;
+            }
+
+            true
+        }
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
@@ -57,6 +77,7 @@ impl OutputName {
             ui.label(t!("export_config.output_name.save_directory"));
 
             #[allow(clippy::collapsible_if)]
+            #[cfg(feature = "desktop")]
             if ui
                 .button(t!("export_config.output_name.select_directory"))
                 .clicked()

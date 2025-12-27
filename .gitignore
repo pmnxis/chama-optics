@@ -8,6 +8,10 @@ target
 target_rareu
 target_wasm
 bak
+
+# Web / WASM build output
+dist/
+.trunk/
 assets/download
 assets/auto_generated
 Cargo.lock

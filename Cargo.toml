@@ -45,6 +45,13 @@ desktop = [
     "sys-locale",
     "libheif-rs",
 ]
+# Web features (WASM target) - no native file dialogs or libheif
+web = [
+    "egui",
+    "eframe",
+    "eframe/web_screen_reader",
+    "egui-file-dialog",
+]
 # Mobile UI optimizations (larger touch targets, simplified layouts)
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - minimal deps, no GUI
@@ -90,20 +97,14 @@ gcd = "2.3.0"
 env_logger = "0.11.8"
 # todo - nasm_simd and neon feature later on mozjpeg
 rust-i18n = "3.1.5"
-mozjpeg = { version = "0.10.13" }
-webp = "0.3.1"
-oxipng = "10"
+
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 sys-locale = { version = "0.3.2", optional = true }
-libheif-rs = { version = "2.5", default-features = false, features = [
-    "v1_18",
-], optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
 clap = { version = "4.5.53", features = ["derive"] }
 chrono = { version = "0.4.42", features = ["serde"] }
-font-kit = "0.14.3"
 resvg = "0.45.1"
 tiny-skia = "0.11.4"
 rayon = "1.10"
@@ -115,6 +116,37 @@ reqwest = { version = "0.12.28", features = [
     "rustls-tls",
     "json",
 ], default-features = false }
+
+# Native-only dependencies (not available in WASM)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+mozjpeg = { version = "0.10.13" }
+webp = "0.3.1"
+oxipng = "10"
+libheif-rs = { version = "2.5", default-features = false, features = ["v1_18"], optional = true }
+font-kit = "0.14"
+
+# Web-specific dependencies
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "File",
+    "FileList",
+    "FileReader",
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+    "HtmlInputElement",
+    "HtmlAnchorElement",
+    "HtmlCanvasElement",
+    "HtmlBodyElement",
+    "Element",
+    "CssStyleDeclaration",
+    "Window",
+    "Document",
+    "Node",
+] }
+js-sys = "0.3"
 
 [profile.release]
 opt-level = 3

@@ -8,16 +8,16 @@
 #[cfg(feature = "desktop")]
 pub(crate) mod heic;
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 #[allow(dead_code)]
 pub(crate) mod common;
 
 // Always compile exif_impl as it's needed by core
 pub(crate) mod exif_impl;
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod loader;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod make_note;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod packed_image;

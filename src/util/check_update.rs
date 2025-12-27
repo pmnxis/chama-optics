@@ -5,10 +5,12 @@
  */
 
 use chrono::{DateTime, Utc};
+#[cfg(not(target_arch = "wasm32"))]
 use reqwest::blocking::Client;
 use rust_i18n::t;
 use serde::Deserialize;
 use std::sync::{Arc, RwLock};
+#[cfg(not(target_arch = "wasm32"))]
 use std::thread;
 
 #[derive(Deserialize, Debug)]
@@ -34,6 +36,7 @@ pub struct CheckRelease {
     pub new_version: Arc<RwLock<Option<(String, String)>>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn get_latest_stable_release() -> Option<(String, String)> {
     let repo_url = env!("CARGO_PKG_REPOSITORY");
     let build_time_str = env!("BUILD_TIME");
@@ -100,6 +103,7 @@ impl Default for CheckRelease {
 }
 
 impl CheckRelease {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn new() -> Self {
         let status: Arc<RwLock<CheckGithubReleaseState>> =
             Arc::new(RwLock::new(CheckGithubReleaseState::Checking));
@@ -131,6 +135,15 @@ impl CheckRelease {
         Self {
             status,
             new_version,
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn new() -> Self {
+        // WASM: No background thread for update checking
+        Self {
+            status: Arc::new(RwLock::new(CheckGithubReleaseState::NotChecked)),
+            new_version: Arc::new(RwLock::new(None)),
         }
     }
 

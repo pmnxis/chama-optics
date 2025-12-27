@@ -7,44 +7,45 @@
 rust_i18n::i18n!("locales");
 
 // Conditional compilation based on features
-#[cfg(feature = "desktop")]
+// GUI modules available for both desktop and web
+#[cfg(any(feature = "desktop", feature = "web"))]
 mod app;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 mod app_state;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 mod tabs;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 mod ui_components;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 mod ui_state;
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub mod export_config;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod fonts;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod import_config;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) use export_config::scale_config;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod langs;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) use art::ART_UNIFY;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) use fonts::FONTS_UNIFY;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 
 // Image module - shared between desktop and iOS
 pub(crate) mod image;
-#[cfg(not(feature = "desktop"))]
+#[cfg(not(any(feature = "desktop", feature = "web")))]
 pub(crate) use image::exif_impl;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) use image::{exif_impl, packed_image};
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub mod art;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod effect;
 
 #[cfg(feature = "desktop")]
@@ -52,7 +53,7 @@ pub mod test_helper;
 
 mod util;
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub mod theme;
 
 // Mobile UI optimizations
@@ -65,11 +66,11 @@ pub mod core;
 #[cfg(any(target_os = "ios", feature = "ios_integration"))]
 pub mod ffi;
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub use app::ChamaOptics;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub use app_state::AppState;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 pub use ui_state::UiState;
 
 #[macro_use]
