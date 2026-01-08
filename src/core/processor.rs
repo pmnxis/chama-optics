@@ -106,6 +106,58 @@ impl ImageProcessor {
         Ok(())
     }
 
+    /// Apply a theme trait object directly to an image and save to file
+    /// This is used when we have an already-configured theme instance with custom parameters
+    pub fn apply_theme_direct(
+        &self,
+        image_index: usize,
+        theme: &dyn crate::theme::Theme,
+        output_path: &Path,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use crate::image::packed_image::PackedImage;
+        use uuid::Uuid;
+
+        // Get the CoreImage from processor
+        let core_image = self
+            .images
+            .get(image_index)
+            .ok_or("Image index out of bounds")?;
+
+        log::info!(
+            "Applying theme {} to {:?} -> {:?}",
+            theme.unique_name(),
+            core_image.path,
+            output_path
+        );
+
+        // Create a temporary PackedImage with just the fields needed for apply_to_image
+        // We can't clone OriginalExif, so we create a minimal PackedImage for the theme
+        let packed_image = PackedImage {
+            uuid: Uuid::new_v4(),
+            path: core_image.path.clone(),
+            src_exif: crate::exif_impl::OriginalExif::new(None), // Empty EXIF, theme uses view_exif
+            view_exif: core_image.view_exif.clone(),
+            editable: core_image.editable,
+            texture: crate::image::common::PackedTexture::Dummy,
+            #[cfg(not(feature = "desktop"))]
+            image_bytes: None,
+            perceptual_hash: None,
+        };
+
+        // Use ExportConfig for theme application
+        let export_config = crate::export_config::ExportConfig::default();
+
+        // Apply theme to get the themed image
+        let mut themed_image = theme.apply_to_image(&packed_image, &export_config)?;
+
+        // Save the themed image
+        export_config.save_image(&mut themed_image, None, output_path)?;
+
+        log::info!("Successfully saved themed image to {:?}", output_path);
+
+        Ok(())
+    }
+
     /// Apply theme to all loaded images
     pub fn apply_theme_to_all(
         &self,

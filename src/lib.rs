@@ -64,9 +64,13 @@ pub mod mobile;
 // Headless core library (no GUI dependencies)
 pub mod core;
 
-// FFI for iOS/Swift integration
-#[cfg(any(target_os = "ios", feature = "ios_integration"))]
+// FFI for iOS/macOS Swift integration
+#[cfg(any(target_os = "ios", target_os = "macos", feature = "ios_integration"))]
 pub mod ffi;
+
+// Metal renderer for iOS/macOS egui integration
+#[cfg(feature = "metal_rendering")]
+pub mod metal_renderer;
 
 #[cfg(any(feature = "desktop", feature = "web"))]
 pub use app::ChamaOptics;

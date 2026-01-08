@@ -6,21 +6,80 @@
 
 use crate::effect::variable_text::{VariableTextSlot, VariableTextSlotDefault};
 use crate::theme::Theme;
+use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct ShotOnTwoLine {
-    border: crate::effect::border::Border,
+    #[param(
+        border,
+        label_key = "theme.border",
+        default_border = "DEFAULT_BORDER",
+        default_limit = "DEFAULT_LIMIT"
+    )]
+    pub border: crate::effect::border::Border,
+
+    #[param(color, label_key = "theme.font_color", default = "BLACK")]
     pub font_color: egui::Color32,
-    first_font_height: u32,
-    second_font_height: u32,
-    top_font_height: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_height_ratio.label",
+        hint_key = "theme.font_height_ratio.hint",
+        min = 5,
+        max = 50,
+        default_const = "DEFAULT_BOTTOM1_FONT_HEIGHT"
+    )]
+    pub first_font_height: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_height_ratio.label",
+        hint_key = "theme.font_height_ratio.hint",
+        min = 5,
+        max = 50,
+        default_const = "DEFAULT_BOTTOM2_FONT_HEIGHT"
+    )]
+    pub second_font_height: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_height_ratio.label",
+        hint_key = "theme.font_height_ratio.hint",
+        min = 5,
+        max = 90,
+        default_const = "DEFAULT_TOP_FONT_HEIGHT"
+    )]
+    pub top_font_height: u32,
+
     pub bottom_align: crate::fonts::align::TextAlign,
+
+    #[param(
+        text,
+        label_key = "theme.bottom1",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_FIRST"
+    )]
     pub first: VariableTextSlot,
+
+    #[param(
+        text,
+        label_key = "theme.bottom2",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_SECOND"
+    )]
     pub second: VariableTextSlot,
+
+    #[param(
+        text,
+        label_key = "theme.exif_center_top",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_TOP"
+    )]
     pub top: VariableTextSlot,
-    show_hint: bool,
+
+    pub show_hint: bool,
 }
 
 // bottom1 + bottom2 should be under 80
@@ -227,80 +286,17 @@ impl Theme for ShotOnTwoLine {
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {
-        self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
+        self.auto_ui_config(ui);
 
+        // Custom bottom_align UI and hint
         ui.vertical(|ui| {
-            // Padding configuration
             ui.add_space(4.0);
-
-            // Own configuration
-            egui::Grid::new("shot_on_two_line_config_grid")
+            egui::Grid::new("shot_on_two_line_custom")
                 .num_columns(2)
                 .spacing([4.0, 3.0])
                 .show(ui, |ui| {
-                    ui.label(t!("theme.exif_center_top") + " " + t!("theme.font_color"));
-                    egui::widgets::color_picker::color_edit_button_srgba(
-                        ui,
-                        &mut self.font_color,
-                        egui::color_picker::Alpha::Opaque,
-                    );
-                    ui.end_row();
-
-                    // for top
-                    ui.label(
-                        t!("theme.exif_center_top") + " " + t!("theme.font_height_ratio.label"),
-                    )
-                    .on_hover_text(t!("theme.font_height_ratio.hint"));
-                    ui.horizontal(|ui| {
-                        ui.add(egui::Slider::new(&mut self.top_font_height, 5..=90).step_by(1.0));
-                        ui.label("% ");
-                        if ui.button("↺").clicked() {
-                            self.top_font_height = DEFAULT_TOP_FONT_HEIGHT;
-                        }
-                    });
-                    ui.end_row();
-
-                    // todo - WARN when tt is under the 10
-                    self.top.ui(ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
-                    ui.end_row();
-
-                    // for bottom
                     ui.label(t!("text_align.bottom_text_align"));
                     self.bottom_align.update_ui(ui);
-                    ui.end_row();
-
-                    // bottom 1
-                    self.first.ui(ui, t!("theme.bottom1"), &DEFAULT_FIRST);
-                    ui.end_row();
-
-                    ui.label(t!("theme.font_height_ratio.first"))
-                        .on_hover_text(t!("theme.font_height_ratio.hint"));
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::Slider::new(&mut self.first_font_height, 10..=40).step_by(1.0),
-                        );
-                        ui.label("% ");
-                        if ui.button("↺").clicked() {
-                            self.first_font_height = DEFAULT_BOTTOM1_FONT_HEIGHT;
-                        }
-                    });
-                    ui.end_row();
-
-                    // bottom 2
-                    self.second.ui(ui, t!("theme.bottom2"), &DEFAULT_SECOND);
-                    ui.end_row();
-
-                    ui.label(t!("theme.font_height_ratio.second"))
-                        .on_hover_text(t!("theme.font_height_ratio.hint"));
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            egui::Slider::new(&mut self.second_font_height, 5..=30).step_by(1.0),
-                        );
-                        ui.label("% ");
-                        if ui.button("↺").clicked() {
-                            self.second_font_height = DEFAULT_BOTTOM2_FONT_HEIGHT;
-                        }
-                    });
                     ui.end_row();
                 });
 
@@ -322,4 +318,10 @@ impl Theme for ShotOnTwoLine {
     fn is_ui_config_available(&self) -> bool {
         true
     }
+
+    fn get_parameters_json(&self) -> String {
+        self.auto_get_parameters_json()
+    }
 }
+
+// ThemeParameters implementation is now auto-generated by #[derive(ThemeParameters)]

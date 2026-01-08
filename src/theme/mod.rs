@@ -7,6 +7,8 @@
 
 //! collection of themes
 
+pub mod parameter_schema;
+
 pub(crate) mod film;
 pub(crate) mod film_date;
 pub(crate) mod film_glow;
@@ -187,7 +189,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
     }
 }
 
-pub trait Theme: Send + Sync {
+pub trait Theme: Send + Sync + std::any::Any {
     /// return unique name of theme
     fn unique_name(&self) -> &'static str;
 
@@ -219,6 +221,13 @@ pub trait Theme: Send + Sync {
     fn ui_config(&mut self, ui: &mut egui::Ui);
 
     fn is_ui_config_available(&self) -> bool;
+
+    /// Get parameters as JSON string for FFI
+    /// Returns JSON describing available parameters and their current values
+    /// Default implementation returns empty parameters
+    fn get_parameters_json(&self) -> String {
+        r#"{"parameters": []}"#.to_string()
+    }
 
     // todo - the trait reset some value when UI is selected
 }

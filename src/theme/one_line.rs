@@ -5,21 +5,69 @@
  */
 
 use crate::effect::variable_text::{VariableTextSlot, VariableTextSlotDefault};
-
 use crate::theme::Theme;
+use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct OneLine {
-    border: crate::effect::border::Border,
+    #[param(
+        border,
+        label_key = "theme.border",
+        default_border = "DEFAULT_BORDER",
+        default_limit = "DEFAULT_LIMIT"
+    )]
+    pub border: crate::effect::border::Border,
+
+    #[param(color, label_key = "theme.font_color", default = "BLACK")]
     pub font_color: egui::Color32,
-    font_height: u32,
-    top_font_height: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_height_ratio.label",
+        hint_key = "theme.font_height_ratio.hint",
+        min = 5,
+        max = 80,
+        default_const = "DEFAULT_FONT_HEIGHT"
+    )]
+    pub font_height: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_height_ratio.label",
+        hint_key = "theme.font_height_ratio.hint",
+        min = 5,
+        max = 90,
+        default_const = "DEFAULT_TOP_FONT_HEIGHT"
+    )]
+    pub top_font_height: u32,
+
+    #[param(
+        text,
+        label_key = "theme.exif_left_bot",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_LEFT"
+    )]
     pub left: VariableTextSlot,
+
+    #[param(
+        text,
+        label_key = "theme.exif_right_bot",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_RIGHT"
+    )]
     pub right: VariableTextSlot,
+
+    #[param(
+        text,
+        label_key = "theme.exif_center_top",
+        hint_key = "theme.template_format_hint.description",
+        default_const = "DEFAULT_TOP"
+    )]
     pub top: VariableTextSlot,
-    show_hint: bool,
+
+    pub show_hint: bool,
 }
 
 const DEFAULT_FONT_HEIGHT: u32 = 30;
@@ -249,69 +297,10 @@ impl Theme for OneLine {
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {
-        self.border.ui_config(ui, &DEFAULT_BORDER, &DEFAULT_LIMIT);
+        self.auto_ui_config(ui);
 
+        // Custom hint toggle UI
         ui.vertical(|ui| {
-            // Padding configuration
-            ui.add_space(4.0);
-
-            // Own configuration
-            egui::Grid::new("one_line_config_grid")
-                .num_columns(2)
-                .spacing([4.0, 3.0])
-                .show(ui, |ui| {
-                    ui.label(t!("theme.exif_center_top") + " " + t!("theme.font_color"));
-                    egui::widgets::color_picker::color_edit_button_srgba(
-                        ui,
-                        &mut self.font_color,
-                        egui::color_picker::Alpha::Opaque,
-                    );
-                    ui.end_row();
-
-                    // for top
-                    ui.label(
-                        t!("theme.exif_center_top") + " " + t!("theme.font_height_ratio.label"),
-                    )
-                    .on_hover_text(t!("theme.font_height_ratio.hint"));
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.top_font_height, 5..=90).step_by(1.0),
-                        );
-                        ui.label("% ");
-                        if ui.button("↺").clicked() {
-                            self.top_font_height = DEFAULT_TOP_FONT_HEIGHT;
-                        }
-                    });
-                    ui.end_row();
-
-                    // todo - WARN when tt is under the 10
-                    self.top.ui(ui, t!("theme.exif_center_top"), &DEFAULT_TOP);
-                    ui.end_row();
-
-                    // for bottom
-                    ui.label(t!("theme.font_height_ratio.label"))
-                        .on_hover_text(t!("theme.font_height_ratio.hint"));
-                    ui.horizontal(|ui| {
-                        ui.add(
-                            // [slider_width, 23.0],
-                            egui::Slider::new(&mut self.font_height, 5..=80).step_by(1.0),
-                        );
-                        ui.label("% ");
-                        if ui.button("↺").clicked() {
-                            self.font_height = DEFAULT_FONT_HEIGHT;
-                        }
-                    });
-                    ui.end_row();
-
-                    self.left.ui(ui, t!("theme.exif_left_bot"), &DEFAULT_LEFT);
-                    ui.end_row();
-
-                    self.right
-                        .ui(ui, t!("theme.exif_right_bot"), &DEFAULT_RIGHT);
-                    ui.end_row();
-                });
-
             ui.horizontal(|ui| {
                 ui.label(t!("theme.template_format_hint.title"));
                 if ui.button("?").clicked() {
@@ -329,5 +318,26 @@ impl Theme for OneLine {
 
     fn is_ui_config_available(&self) -> bool {
         true
+    }
+
+    fn get_parameters_json(&self) -> String {
+        self.auto_get_parameters_json()
+    }
+}
+
+// ThemeParameters implementation is now auto-generated by #[derive(ThemeParameters)]
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_one_line_serialization() {
+        let theme = OneLine::default();
+        let json = theme.get_parameters_json();
+        println!("OneLine JSON: {}", json);
+        assert!(json.contains("border"));
+        assert!(json.contains("font_color"));
+        assert!(!json.contains("parameters")); // Should NOT contain the old format
     }
 }

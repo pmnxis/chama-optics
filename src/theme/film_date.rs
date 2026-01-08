@@ -5,25 +5,48 @@
  */
 
 use crate::theme::Theme;
+use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmDate {
-    font: crate::FontSelection,
-    font_date: crate::FontSelection,
-    font_color: egui::Color32,
-    glow_color: egui::Color32,
-    font_size: f32,
-    glow_gain: f32,
-    hide_camera_exif: bool,
-    show_ps: bool,
+    pub font: crate::FontSelection,
+    pub font_date: crate::FontSelection,
+
+    #[param(color, label_key = "theme.font_color", default = "rgb(255, 138, 0)")]
+    pub font_color: egui::Color32,
+
+    #[param(color, label_key = "theme.glow_color", default = "rgb(238, 140, 128)")]
+    pub glow_color: egui::Color32,
+
+    #[param(
+        slider,
+        label_key = "theme.font_size",
+        min = 10,
+        max = 100,
+        default_const = "DEFAULT_FONT_SIZE"
+    )]
+    pub font_size: u32,
+
+    #[param(
+        slider,
+        label_key = "theme.glow_gain",
+        min = 0,
+        max = 20,
+        default_const = "DEFAULT_GLOW_GAIN"
+    )]
+    pub glow_gain: u32,
+
+    pub hide_camera_exif: bool,
+    pub show_ps: bool,
 }
 
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
 const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
+const DEFAULT_GLOW_GAIN: u32 = 8;
 
 impl core::default::Default for FilmDate {
     fn default() -> Self {
@@ -34,8 +57,8 @@ impl core::default::Default for FilmDate {
             font_date: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7Italic),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
-            font_size: DEFAULT_FONT_SIZE as f32,
-            glow_gain: 8.0,
+            font_size: DEFAULT_FONT_SIZE,
+            glow_gain: DEFAULT_GLOW_GAIN,
             hide_camera_exif: true,
             show_ps: false,
         }
@@ -48,7 +71,7 @@ impl FilmDate {
         size: F,
         dyn_wh: G,
     ) -> f32 {
-        size.as_() * (self.font_size / (DEFAULT_FONT_SIZE as f32)) * (dyn_wh.as_() / 4000.0)
+        size.as_() * (self.font_size as f32 / (DEFAULT_FONT_SIZE as f32)) * (dyn_wh.as_() / 4000.0)
     }
 
     fn rel_scale<F: Copy + num_traits::AsPrimitive<f32>, G: Copy + num_traits::AsPrimitive<f32>>(
@@ -161,7 +184,7 @@ impl Theme for FilmDate {
             &luma_text,
             color,
             glow_color,
-            self.rel_size(self.glow_gain, dyn_wh),
+            self.rel_size(self.glow_gain as f32, dyn_wh),
         );
 
         Ok(dyn_image)
@@ -185,52 +208,37 @@ impl Theme for FilmDate {
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui) {
-        ui.checkbox(
-            &mut self.hide_camera_exif,
-            t!("theme.film_config.hide_camera_exif.label"),
-        )
-        .on_hover_text(t!("theme.film_config.hide_camera_exif.description"));
+        self.auto_ui_config(ui);
 
-        ui.add_space(1.0);
-        ui.checkbox(
-            &mut self.show_ps,
-            t!("theme.film_config.show_photo_style.label"),
-        )
-        .on_hover_text(t!("theme.film_config.show_photo_style.description"));
+        // Custom UI for font selection and checkboxes
+        ui.vertical(|ui| {
+            ui.checkbox(
+                &mut self.hide_camera_exif,
+                t!("theme.film_config.hide_camera_exif.label"),
+            )
+            .on_hover_text(t!("theme.film_config.hide_camera_exif.description"));
 
-        self.font.update_ui_with_default_label(ui);
-
-        self.font_date
-            .update_ui_with_label(ui, t!("theme.date_config.date_font_select"));
-
-        ui.horizontal(|ui| {
-            egui::color_picker::color_edit_button_srgba(
-                ui,
-                &mut self.font_color,
-                egui::color_picker::Alpha::Opaque,
-            );
             ui.add_space(1.0);
-            ui.add(egui::Slider::new(&mut self.font_size, 1.0..=100.0).text(t!("theme.font_size")))
-                .on_hover_text(t!(
-                    "theme.font_size_description",
-                    default = DEFAULT_FONT_SIZE
-                ));
-        });
-        ui.horizontal(|ui| {
-            egui::color_picker::color_edit_button_srgba(
-                ui,
-                &mut self.glow_color,
-                egui::color_picker::Alpha::Opaque,
-            );
-            ui.add_space(1.0);
-            ui.add(
-                egui::Slider::new(&mut self.glow_gain, 1.0..=30.0)
-                    .text(t!("theme.film_config.glow_range")),
-            );
+            ui.checkbox(
+                &mut self.show_ps,
+                t!("theme.film_config.show_photo_style.label"),
+            )
+            .on_hover_text(t!("theme.film_config.show_photo_style.description"));
+
+            self.font.update_ui_with_default_label(ui);
+
+            self.font_date
+                .update_ui_with_label(ui, t!("theme.date_config.date_font_select"));
         });
     }
 
     fn is_ui_config_available(&self) -> bool {
         true
     }
+
+    fn get_parameters_json(&self) -> String {
+        self.auto_get_parameters_json()
+    }
 }
+
+// ThemeParameters implementation is now auto-generated by #[derive(ThemeParameters)]

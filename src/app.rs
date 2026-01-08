@@ -727,7 +727,7 @@ impl ChamaOptics {
     /// Load and render background image based on theme
     fn render_background_image(&mut self, ui: &mut egui::Ui) {
         // Detect current theme (dark or light)
-        let is_dark_mode = ui.ctx().global_style().visuals.dark_mode;
+        let is_dark_mode = ui.ctx().style().visuals.dark_mode;
 
         // Invalidate texture if theme changed
         if self.last_dark_mode != Some(is_dark_mode) {
@@ -864,7 +864,15 @@ impl eframe::App for ChamaOptics {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            self.ui_impl(ui, _frame);
+        });
+    }
+}
+
+impl ChamaOptics {
+    fn ui_impl(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Render bottom panel using component
         crate::ui_components::render_bottom_panel(
             ui,

@@ -51,13 +51,21 @@ web = ["egui", "eframe", "eframe/web_screen_reader", "egui-file-dialog"]
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = []
+# Metal rendering for iOS/macOS integration
+metal_rendering = ["egui", "wgpu", "egui-wgpu", "swift-bridge", "futures"]
 
 [dependencies]
+chama-optics-macros = { path = "macros" }
+
+wgpu = { version = "23.0", optional = true }
+egui-wgpu = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true }
+swift-bridge = { version = "0.1", optional = true }
+futures = { version = "0.3", optional = true }
 # egui = "^0.33.3"
 # 661d5f917392e88b34e00b26ab92d5accd9c6cb9 = https://github.com/emilk/egui/pull/7790 + 1.88->1.92
-egui = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b26ab92d5accd9c6cb9", optional = true }
+egui = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true }
 # eframe = { version = "^0.33.3", default-features = false, features = [
-eframe = { git = "https://github.com/emilk/egui", rev = "661d5f917392e88b34e00b26ab92d5accd9c6cb9", default-features = false, features = [
+eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
     # "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
     "default_fonts", # Embed the default egui fonts.
     "glow",          # Use the glow rendering backend. Alternative: "wgpu".
@@ -81,9 +89,9 @@ image = { version = "0.25.9", features = ["serde"] }
 # zune-jpeg 0.5.6 has critical bugs, force version to 0.5.7 or below
 zune-jpeg = "0.5.8"
 base64 = "0.22.1"
-rfd = { version = "0.16.0", optional = true }
+rfd = { version = "0.17.1", optional = true }
 egui-file-dialog = { version = "0.12.0", optional = true }
-imageproc = "0.25"
+imageproc = "0.26"
 anyhow = "1.0"
 ab_glyph = "0.2.32"
 fast_image_resize = "5.4.0"
@@ -92,21 +100,21 @@ gcd = "2.3.0"
 env_logger = "0.11.8"
 # todo - nasm_simd and neon feature later on mozjpeg
 rust-i18n = "3.1.5"
-uuid = { version = "1.11", features = ["v4", "serde"] }
+uuid = { version = "1.19", features = ["v4", "serde"] }
 
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = { version = "0.27.2" }
 sys-locale = { version = "0.3.2", optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
-clap = { version = "4.5.53", features = ["derive"] }
+clap = { version = "4.5.54", features = ["derive"] }
 chrono = { version = "0.4.42", features = ["serde"] }
 resvg = "0.45.1"
 tiny-skia = "0.11.4"
 rayon = "1.10"
 num_cpus = "1.16"
 
-reqwest = { version = "0.12.28", features = [
+reqwest = { version = "0.12", features = [
     "gzip",
     "blocking",
     "rustls-tls",
@@ -203,3 +211,4 @@ cargo_metadata = "0.23"
 winres = "0.1"
 csv = "1.4"
 chrono = { version = "0.4.42", features = ["serde"] }
+swift-bridge-build = "0.1"
