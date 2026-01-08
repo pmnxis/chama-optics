@@ -8,7 +8,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Lit, Meta, parse_macro_input};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit, Meta};
 
 /// Derive macro for automatic ThemeParameters trait implementation
 ///
