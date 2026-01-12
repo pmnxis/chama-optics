@@ -4,7 +4,7 @@
 
 [package]
 name = "chama-optics"
-version = "0.1.8"
+version = "0.1.9-alpha"
 description = "The tool load and save photo quickly considering EXIF and user preset"
 authors = ["Jinwoo Park <pmnxis@gmail.com>"]
 repository = "https://github.com/pmnxis/chama-optics"
@@ -22,7 +22,6 @@ all-features = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [package.metadata.bundle]
-# this related to `target/release/bundle/osx/{name}.app`
 name = "Chama Optics"
 icon = ["chama-optics-x256.ico", "assets/mac-icon.png"]
 identifier = "com.github.pmnxis.chamaoptics"
@@ -35,8 +34,7 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 [features]
-default = ["desktop"]
-# Desktop features with GUI
+default = ["desktop", "face_detection_insightface"]
 desktop = [
     "egui",
     "eframe",
@@ -45,65 +43,58 @@ desktop = [
     "sys-locale",
     "libheif-rs",
 ]
-# Web features (WASM target) - no native file dialogs or libheif
 web = ["egui", "eframe", "eframe/web_screen_reader", "egui-file-dialog"]
-# Mobile UI optimizations (larger touch targets, simplified layouts)
 mobile_ui = []
-# iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = []
-# Metal rendering for iOS/macOS integration
 metal_rendering = ["egui", "wgpu", "egui-wgpu", "swift-bridge", "futures"]
+face_detection_visionkit = []
+face_detection_insightface = [
+    "candle-core",
+    "candle-nn",
+    "metal-candle",
+    "half",
+    "ndarray",
+    "ort",
+]
+build_assets = []
 
 [dependencies]
 chama-optics-macros = { path = "macros" }
-
 wgpu = { version = "23.0", optional = true }
 egui-wgpu = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true }
 swift-bridge = { version = "0.1", optional = true }
 futures = { version = "0.3", optional = true }
-# egui = "^0.33.3"
-# 661d5f917392e88b34e00b26ab92d5accd9c6cb9 = https://github.com/emilk/egui/pull/7790 + 1.88->1.92
 egui = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true }
-# eframe = { version = "^0.33.3", default-features = false, features = [
 eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
-    # "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
-    "default_fonts", # Embed the default egui fonts.
-    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
-    "persistence",   # Enable restoring app state when restarting the app.
-    "wayland",       # To support Linux (and CI)
-    "x11",           # To support older Linux distributions (restores one of the default features),
-    # "winit",
+    "default_fonts",
+    "glow",
+    "persistence",
+    "wayland",
+    "x11",
 ], optional = true }
 log = "0.4.29"
-
-# You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
-# todo - replace to 0.6.2 or 0.7 when once released (https://github.com/kamadak/exif-rs/pull/51)
 exif = { git = "https://github.com/pmnxis/exif-rs", rev = "c6f30cbca14d8d31e1aa7ed66e0b2d2cf7d0d73c", features = [
     "make_note",
     "mpf",
 ] }
-# kamadak-exif = "0.6.1"
 image = { version = "0.25.9", features = ["serde"] }
-# zune-jpeg 0.5.6 has critical bugs, force version to 0.5.7 or below
 zune-jpeg = "0.5.8"
 base64 = "0.22.1"
 rfd = { version = "0.17.1", optional = true }
 egui-file-dialog = { version = "0.12.0", optional = true }
-imageproc = "0.26"
+imageproc = { version = "0.26" }
 anyhow = "1.0"
 ab_glyph = "0.2.32"
 fast_image_resize = "5.4.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = "0.11.8"
-# todo - nasm_simd and neon feature later on mozjpeg
 rust-i18n = "3.1.5"
 uuid = { version = "1.19", features = ["v4", "serde"] }
-
 strum = { version = "0.27.2", features = ["std", "derive"] }
-strum_macros = { version = "0.27.2" }
+strum_macros = "0.27.2"
 sys-locale = { version = "0.3.2", optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
@@ -113,7 +104,12 @@ resvg = "0.45.1"
 tiny-skia = "0.11.4"
 rayon = "1.10"
 num_cpus = "1.16"
-
+ndarray = { version = "0.16", optional = true }
+ort = { git = "https://github.com/pykeio/ort", version = "2.0.0-rc.11", optional = true }
+candle-core = { version = "0.9.1", optional = true }
+candle-nn = { version = "0.9.1", optional = true }
+metal-candle = { version = "1.3.0", optional = true }
+half = { version = "2.4", optional = true, default-features = false }
 reqwest = { version = "0.12", features = [
     "gzip",
     "blocking",
@@ -121,7 +117,6 @@ reqwest = { version = "0.12", features = [
     "json",
 ], default-features = false }
 
-# Native-only dependencies (not available in WASM)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
@@ -131,7 +126,6 @@ libheif-rs = { version = "2.5", default-features = false, features = [
 ], optional = true }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a" }
 
-# Web-specific dependencies
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
@@ -160,11 +154,6 @@ lto = "fat"
 debug = false
 strip = true
 codegen-units = 1
-# panic = "abort"
-
-# Optimize all dependencies even in debug builds:
-[profile.dev.package."*"]
-opt-level = 2
 
 [profile.dev.package."libheif-rs"]
 opt-level = 3
@@ -177,8 +166,6 @@ opt-level = 3
 [profile.dev.package."webp"]
 opt-level = 3
 
-
-# Test specific operation
 [profile.test]
 inherits = "dev"
 opt-level = 0
@@ -188,15 +175,7 @@ lto = true
 [profile.test.package."*"]
 opt-level = 2
 
-
 [patch.crates-io]
-# If you want to use the bleeding edge version of egui and eframe:
-# egui = { git = "https://github.com/emilk/egui", branch = "master" }
-# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
-
-# If you fork https://github.com/emilk/egui you can test with:
-# egui = { path = "../egui/crates/egui" }
-# eframe = { path = "../egui/crates/eframe" }
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }

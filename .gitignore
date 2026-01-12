@@ -38,6 +38,14 @@ test_image
 libheif
 .cargo/config.toml
 
+# Fort testing
+face_detection_output/
+face_detection_output/**
+face_detection_test/
+face_detection_test/**
+examples/
+examples/**
+
 # iOS / Xcode
 ios/ChamaOptics/ChamaOptics.xcodeproj/project.xcworkspace/xcuserdata/
 ios/ChamaOptics/ChamaOptics.xcodeproj/xcuserdata/

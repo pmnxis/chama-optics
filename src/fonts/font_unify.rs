@@ -219,7 +219,7 @@ impl FontsUnify {
     //                 .get(font_index.index)
     //                 .ok_or_else(|| FontError::InvalidIndex(font_index.index))?
     //                 .clone(); // copy small handle struct
-    //             drop(sys_lock); // ✅ release read lock early
+    //             drop(sys_lock); // [PASS] release read lock early
 
     //             __get_fontarc_from_handle(&sf.handle, &sf.name)
     //         } // Not use FontSort::None anymore
@@ -384,7 +384,7 @@ impl FontsUnify {
                     .get(prev_idx)
                     .ok_or(FontError::InvalidIndex(prev_idx))?
                     .clone(); // copy small handle struct
-                drop(sys_lock); // ✅ release read lock early
+                drop(sys_lock); // [PASS] release read lock early
 
                 __get_fontarc_from_handle(&sf.handle, &sf.name)
             } // Not use FontSort::None anymore

@@ -162,11 +162,59 @@ impl ChamaOptics {
                 task.postfix.as_deref(),
             );
 
-            export_config.theme_reg.selected_theme_read().apply(
-                &pi_with_view,
-                export_config,
-                &new_path,
-            )?;
+            // Detect faces on ORIGINAL image BEFORE theming (macOS only)
+            #[cfg(target_os = "macos")]
+            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> =
+                if export_config.face_detection.is_enabled {
+                    log::info!(
+                        "🎯 [Face Detection] Pre-detecting faces on original image: {:?}",
+                        task.path
+                    );
+
+                    let faces = match &export_config.face_detection.engine {
+                        #[cfg(feature = "face_detection_visionkit")]
+                        crate::effect::face_detection::FaceDetectionEngine::VisionKit => {
+                            export_config.detect_visionkit(&task.path)
+                        }
+
+                        #[cfg(feature = "face_detection_insightface")]
+                        crate::effect::face_detection::FaceDetectionEngine::InsightFace => {
+                            // Load original image dimensions
+                            let orig_img = image::open(&task.path)?;
+                            let img_width = orig_img.width();
+                            let img_height = orig_img.height();
+
+                            let detector =
+                                crate::effect::insightface_detector::InsightFaceDetector::new(
+                                    export_config.face_detection.speed_mode,
+                                    export_config.face_detection.provider,
+                                );
+                            export_config
+                                .run_detection(&detector, &task.path, img_width, img_height)
+                        }
+                    };
+
+                    if !faces.is_empty() {
+                        log::info!(
+                            "[PASS] [Face Detection] Pre-detected {} face(s) on original image",
+                            faces.len()
+                        );
+                        Some(faces)
+                    } else {
+                        log::info!("[INFO][Face Detection] No faces detected on original image");
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            #[cfg(not(target_os = "macos"))]
+            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> = None;
+
+            export_config
+                .theme_reg
+                .selected_theme_read()
+                .apply_with_faces(&pi_with_view, export_config, &new_path, pre_detected_faces)?;
 
             log::info!("Bulk saved with EXIF overlay to {idx} {new_path:?}");
             Ok(())

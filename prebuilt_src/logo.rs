@@ -195,7 +195,7 @@ pub fn write_if_changed<P: AsRef<std::path::Path>>(path: P, new_content: &str) {
     if let Some(old) = old_content
         && old == new_content
     {
-        println!("✅ No change detected in {}", path.display());
+        println!("[PASS] No change detected in {}", path.display());
         return;
     }
 

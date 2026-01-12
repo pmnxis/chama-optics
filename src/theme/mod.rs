@@ -210,12 +210,66 @@ pub trait Theme: Send + Sync + std::any::Any {
         export_config: &crate::export_config::ExportConfig,
         output_path: &std::path::Path,
     ) -> Result<(), image::ImageError> {
-        // Default implementation: apply theme and save
+        self.apply_with_faces(pi, export_config, output_path, None)
+    }
+
+    /// Apply theme with pre-detected faces and save to file
+    fn apply_with_faces(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+        output_path: &std::path::Path,
+        pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>>,
+    ) -> Result<(), image::ImageError> {
+        // Get original image dimensions before theming
+        let orig_img = image::open(&pi.path)?;
+        let orig_width = orig_img.width();
+        let orig_height = orig_img.height();
+
+        // Apply theme (may resize the image)
         let mut dyn_image = self.apply_to_image(pi, export_config)?;
+
+        // Scale face coordinates if the image was resized
+        let scaled_faces = if let Some(faces) = pre_detected_faces {
+            let new_width = dyn_image.width();
+            let new_height = dyn_image.height();
+
+            if new_width != orig_width || new_height != orig_height {
+                let scale_x = new_width as f32 / orig_width as f32;
+                let scale_y = new_height as f32 / orig_height as f32;
+
+                log::info!(
+                    "Scaling face coordinates from {}×{} to {}×{} (scale: {:.3}×{:.3})",
+                    orig_width,
+                    orig_height,
+                    new_width,
+                    new_height,
+                    scale_x,
+                    scale_y
+                );
+
+                Some(
+                    faces
+                        .into_iter()
+                        .map(|(x, y, w, h)| {
+                            let scaled_x = (x as f32 * scale_x) as i32;
+                            let scaled_y = (y as f32 * scale_y) as i32;
+                            let scaled_w = (w as f32 * scale_x) as u32;
+                            let scaled_h = (h as f32 * scale_y) as u32;
+                            (scaled_x, scaled_y, scaled_w, scaled_h)
+                        })
+                        .collect(),
+                )
+            } else {
+                Some(faces)
+            }
+        } else {
+            None
+        };
 
         // Get margin from the theme (if applicable)
         // For now, use None as default - themes can override this method if needed
-        export_config.save_image(&mut dyn_image, None, output_path)
+        export_config.save_image_with_faces(&mut dyn_image, None, output_path, scaled_faces)
     }
 
     fn ui_config(&mut self, ui: &mut egui::Ui);

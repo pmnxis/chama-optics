@@ -11,6 +11,19 @@ use builtin_fonts::*;
 use std::env;
 use std::path::PathBuf;
 
+/// Build assets for face detection models
+#[allow(unused)]
+pub const BUILTIN_FACE_MODELS: [BuildAsset; 1] = [BuildAsset {
+    // InsightFace buffalo_l model (v0.7)
+    // Source: https://github.com/deepinsight/insightface/releases/tag/v0.7
+    url: "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip",
+    expected_md5: "6c0e929fd3b6ab517170b732ced18c68", // MD5 for buffalo_l.zip
+    file_name: Some("buffalo_l.zip"),
+    unzip: true,
+    extract_file_names: Some(&["det_10g.onnx"]),
+    env_keys: Some(&["INSIGHTFACE_MODEL_PATH"]),
+}];
+
 fn get_git_commit_hash(short: bool) -> Option<String> {
     let args = if short {
         vec!["rev-parse", "--short", "HEAD"]
@@ -103,6 +116,10 @@ fn main() {
     // Enable only build-script logic in build_asset.rs
     for asset in BUILTIN_FONTS {
         asset.load(&out_dir);
+    }
+
+    for asset in BUILTIN_FACE_MODELS {
+        asset.load(&tmp_dir);
     }
 
     // Logo related

@@ -39,6 +39,23 @@ impl ImageProcessor {
         Ok(self.images.len() - 1)
     }
 
+    /// Load an image directly without storing in the processor
+    /// This is used for FFI functions where we need to apply effects and save immediately
+    pub fn load_image_direct(&self, path: &Path) -> Result<image::DynamicImage, image::ImageError> {
+        CoreImage::load_image_direct(path)
+    }
+
+    /// Save an image directly to a path
+    /// This is used for FFI functions where we need to apply effects and save immediately
+    pub fn save_image_direct(
+        &self,
+        dyn_image: &image::DynamicImage,
+        path: &Path,
+    ) -> Result<(), image::ImageError> {
+        dyn_image.save(path)?;
+        Ok(())
+    }
+
     /// Get the number of loaded images
     pub fn image_count(&self) -> usize {
         self.images.len()

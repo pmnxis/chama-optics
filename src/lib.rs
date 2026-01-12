@@ -45,8 +45,11 @@ pub(crate) use image::{exif_impl, packed_image};
 
 #[cfg(any(feature = "desktop", feature = "web"))]
 pub mod art;
-#[cfg(any(feature = "desktop", feature = "web"))]
-pub(crate) mod effect;
+
+// Effect modules - available for desktop, web, and iOS integration
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+pub mod effect;
+
 #[cfg(any(feature = "desktop", feature = "web"))]
 pub(crate) mod image_group;
 
@@ -69,7 +72,7 @@ pub mod core;
 pub mod ffi;
 
 // Metal renderer for iOS/macOS egui integration
-#[cfg(feature = "metal_rendering")]
+#[cfg(any(feature = "metal_rendering", target_os = "macos", target_os = "ios"))]
 pub mod metal_renderer;
 
 #[cfg(any(feature = "desktop", feature = "web"))]

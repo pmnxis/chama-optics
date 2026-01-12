@@ -202,28 +202,28 @@ struct ContentView: View {
 
             do {
                 try jpegData.write(to: tempInputURL)
-                print("✅ Wrote \(jpegData.count) bytes to temp file")
+                print("[PASS] Wrote \(jpegData.count) bytes to temp file")
 
                 // Create processor and apply theme
                 guard let proc = RustBridge() else {
-                    print("❌ Failed to create RustBridge processor")
+                    print("[FAIL]Failed to create RustBridge processor")
                     await MainActor.run {
                         statusMessage = "Failed to create processor"
                     }
                     return
                 }
-                print("✅ Created processor")
+                print("[PASS] Created processor")
 
                 let loadSuccess = proc.loadImage(path: tempInputURL.path)
                 print("Load result: \(loadSuccess)")
                 guard loadSuccess else {
-                    print("❌ Failed to load image in Rust")
+                    print("[FAIL]Failed to load image in Rust")
                     await MainActor.run {
                         statusMessage = "Failed to load image in Rust"
                     }
                     return
                 }
-                print("✅ Image loaded in Rust")
+                print("[PASS] Image loaded in Rust")
 
                 let themeSuccess = proc.applyTheme(
                     themeName: themeName,
@@ -232,33 +232,33 @@ struct ContentView: View {
                 print("Theme apply result: \(themeSuccess)")
 
                 if themeSuccess {
-                    print("✅ Theme applied, checking output file...")
+                    print("[PASS] Theme applied, checking output file...")
 
                     if FileManager.default.fileExists(atPath: tempOutputURL.path) {
                         let fileSize = try? FileManager.default.attributesOfItem(atPath: tempOutputURL.path)[.size] as? Int
-                        print("✅ Output file exists, size: \(fileSize ?? 0) bytes")
+                        print("[PASS] Output file exists, size: \(fileSize ?? 0) bytes")
 
                         if let outputData = try? Data(contentsOf: tempOutputURL),
                            let outputImage = UIImage(data: outputData) {
-                            print("✅ Successfully decoded output image")
+                            print("[PASS] Successfully decoded output image")
                             await MainActor.run {
                                 processedImage = outputImage
                                 statusMessage = "Theme '\(themeName)' applied! (\(outputData.count) bytes)"
                             }
                         } else {
-                            print("❌ Failed to decode output image")
+                            print("[FAIL]Failed to decode output image")
                             await MainActor.run {
                                 statusMessage = "Failed to decode output image"
                             }
                         }
                     } else {
-                        print("❌ Output file doesn't exist")
+                        print("[FAIL]Output file doesn't exist")
                         await MainActor.run {
                             statusMessage = "Output file not created"
                         }
                     }
                 } else {
-                    print("❌ Theme application returned false")
+                    print("[FAIL]Theme application returned false")
                     await MainActor.run {
                         statusMessage = "Theme '\(themeName)' failed"
                     }
@@ -270,7 +270,7 @@ struct ContentView: View {
                 print("🧹 Cleaned up temp files")
 
             } catch {
-                print("❌ Exception: \(error)")
+                print("[FAIL]Exception: \(error)")
                 await MainActor.run {
                     statusMessage = "Error: \(error.localizedDescription)"
                 }
