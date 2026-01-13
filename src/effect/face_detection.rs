@@ -10,15 +10,30 @@ use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
 
-#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug)]
 pub enum FaceDetectionEngine {
     #[cfg(feature = "face_detection_visionkit")]
     VisionKit,
     #[cfg(feature = "face_detection_insightface")]
-    #[default]
     InsightFace,
 }
 
+impl Default for FaceDetectionEngine {
+    fn default() -> Self {
+        #[cfg(feature = "face_detection_visionkit")]
+        {
+            Self::VisionKit
+        }
+        #[cfg(feature = "face_detection_insightface")]
+        {
+            Self::InsightFace
+        }
+        #[cfg(not(any(feature = "face_detection_visionkit", feature = "face_detection_insightface")))]
+        {
+            compile_error!("At least one face detection engine must be enabled");
+        }
+    }
+}
 impl FaceDetectionEngine {
     /// Get display name for engine
     pub fn display_name(&self) -> &'static str {
