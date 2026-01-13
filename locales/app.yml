@@ -184,6 +184,14 @@ settings:
     en: "Show theme names in English"
     ko: "테마 이름을 영어로 표시"
     ja: "テーマ名を英語で表示"
+  temp_dir:
+    en: "Temporary Directory"
+    ko: "임시 디렉토리"
+    ja: "一時ディレクトリ"
+  temp_dir_hint:
+    en: "Directory for intermediate processing files"
+    ko: "중간 처리 파일을 위한 디렉토리"
+    ja: "中間処理ファイル用のディレクトリ"
 
 laboratory:
   heading:

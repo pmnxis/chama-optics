@@ -99,6 +99,25 @@ impl ChamaOptics {
                     t!("settings.show_theme_name_in_english"),
                 );
                 ui.end_row();
+
+                // Temporary Directory (iOS only)
+                #[cfg(target_os = "ios")]
+                {
+                    ui.label(t!("settings.temp_dir"))
+                        .on_hover_text(t!("settings.temp_dir_hint"));
+                    ui.horizontal(|ui| {
+                        use crate::app_state::TempDir;
+                        for temp_dir in [TempDir::Tmp, TempDir::VarTmp] {
+                            if ui
+                                .selectable_label(self.temp_dir == temp_dir, temp_dir.label())
+                                .clicked()
+                            {
+                                self.temp_dir = temp_dir;
+                            }
+                        }
+                    });
+                    ui.end_row();
+                }
             });
 
         ui.add_space(20.0);

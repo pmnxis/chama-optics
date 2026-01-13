@@ -138,6 +138,16 @@ impl CoreImage {
         Ok(dyn_image)
     }
 
+    /// Load an image directly from a path without any CoreImage metadata
+    /// This is a static method used for FFI functions where we need to apply effects and save immediately
+    pub fn load_image_direct(
+        path: &std::path::Path,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        use image::ImageReader;
+        let dyn_image = ImageReader::open(path)?.decode()?;
+        Ok(dyn_image)
+    }
+
     /// Get thumbnail data (RGBA8, width, height)
     pub fn get_thumbnail(&mut self) -> Result<(Vec<u8>, u32, u32), image::ImageError> {
         // If thumbnail is already cached, return a clone

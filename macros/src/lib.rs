@@ -8,7 +8,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, Lit, Meta, parse_macro_input};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, Lit, Meta};
 
 /// Derive macro for automatic ThemeParameters trait implementation
 ///
@@ -371,7 +371,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     quote! { #default }
                 };
 
-                // For text fields, we need to access the .text subfield
+                // For text fields, we need to access .text subfield
                 let text_field_access = quote! { #field_access.text };
 
                 schema_params.push(quote! {
@@ -395,6 +395,52 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     #field_access.ui(ui, #label_expr, &#default_ident);
                     ui.end_row();
                 });
+            }
+            "font" => {
+                // Use label_key to generate t!() or use literal label
+                let label_expr = if let Some(ref key) = label_key {
+                    quote! { rust_i18n::t!(#key) }
+                } else {
+                    quote! { #label }
+                };
+
+                // Use hint_key to generate t!() or use literal hint
+                let hint_expr = if let Some(ref key) = hint_key {
+                    quote! { rust_i18n::t!(#key) }
+                } else if let Some(ref h) = hint {
+                    quote! { #h }
+                } else {
+                    return syn::Error::new_spanned(
+                        param_attr,
+                        "font requires 'hint' or 'hint_key' attribute",
+                    )
+                    .to_compile_error()
+                    .into();
+                };
+
+                // Use default_const if provided
+                let default_val = if let Some(ref const_name) = default_const {
+                    let ident = syn::Ident::new(const_name, field_name.span());
+                    quote! { #ident }
+                } else {
+                    quote! { #default }
+                };
+
+                schema_params.push(quote! {
+                    crate::param_font!(
+                        #param_key,
+                        #label_expr,
+                        #hint_expr,
+                        #default_val,
+                        #field_access
+                    )
+                });
+
+                update_arms.push(quote! {
+                    #param_key => (#field_access, string)
+                });
+
+                // No UI for Rust - Swift will handle font selection
             }
             _ => {
                 return syn::Error::new_spanned(

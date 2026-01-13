@@ -11,6 +11,19 @@ use builtin_fonts::*;
 use std::env;
 use std::path::PathBuf;
 
+/// Build assets for face detection models
+#[allow(unused)]
+pub const BUILTIN_FACE_MODELS: [BuildAsset; 1] = [BuildAsset {
+    // InsightFace buffalo_l model (v0.7)
+    // Source: https://github.com/deepinsight/insightface/releases/tag/v0.7
+    url: "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip",
+    expected_md5: "6c0e929fd3b6ab517170b732ced18c68", // MD5 for buffalo_l.zip
+    file_name: Some("buffalo_l.zip"),
+    unzip: true,
+    extract_file_names: Some(&["det_10g.onnx"]),
+    env_keys: Some(&["INSIGHTFACE_MODEL_PATH"]),
+}];
+
 fn get_git_commit_hash(short: bool) -> Option<String> {
     let args = if short {
         vec!["rev-parse", "--short", "HEAD"]
@@ -105,6 +118,10 @@ fn main() {
         asset.load(&out_dir);
     }
 
+    for asset in BUILTIN_FACE_MODELS {
+        asset.load(&tmp_dir);
+    }
+
     // Logo related
     std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
     let generated_dir = PathBuf::from("assets/auto_generated");
@@ -144,4 +161,13 @@ fn main() {
 
     let now = chrono::Utc::now().to_rfc3339();
     println!("cargo:rustc-env=BUILD_TIME={now}");
+
+    // Generate swift-bridge code for Metal rendering (iOS/macOS only)
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(feature = "metal_rendering")]
+    {
+        let bridge_files = vec!["src/metal_renderer/ffi_bridge.rs"];
+        swift_bridge_build::parse_bridges(bridge_files)
+            .write_all_concatenated(out_dir, env!("CARGO_PKG_NAME"));
+    }
 }

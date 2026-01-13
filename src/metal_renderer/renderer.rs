@@ -14,7 +14,6 @@ type Device = egui_wgpu::wgpu::Device;
 type Queue = egui_wgpu::wgpu::Queue;
 type Surface = egui_wgpu::wgpu::Surface<'static>;
 type SurfaceConfiguration = egui_wgpu::wgpu::SurfaceConfiguration;
-type CommandEncoder = egui_wgpu::wgpu::CommandEncoder;
 
 pub struct Renderer {
     // wgpu components

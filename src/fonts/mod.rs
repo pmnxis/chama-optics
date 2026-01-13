@@ -6,16 +6,15 @@
 
 //! Add or replace fonts from this code
 
-use eframe::egui;
-
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) mod align;
 pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
 pub(crate) mod variable_font;
 
-struct BuiltInFonts {
-    pub(crate) name: &'static str,
-    pub(crate) data: &'static [u8],
+pub struct BuiltInFonts {
+    pub name: &'static str,
+    pub data: &'static [u8],
 }
 
 const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
@@ -37,6 +36,7 @@ const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
     name: "Digital 7",
     data: include_bytes!(env!("DIGITAL_7_FONT_PATH")),
 };
+
 const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     name: "Digital 7 Italic",
     data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
@@ -45,11 +45,13 @@ const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
 lazy_static::lazy_static! {
     pub static ref FONTS_UNIFY: crate::fonts::font_unify::FontsUnify = crate::fonts::font_unify::FontsUnify::new();
 
-    pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
-    pub static ref FONT_DIGITS_ITALIC: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH"))).expect("Cannot init font.");
+    // Digital 7 fonts not currently available
+    // pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
+    // pub static ref FONT_DIGITS_ITALIC: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH"))).expect("Cannot init font.");
 }
 
 // Demonstrates how to replace all fonts.
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) fn replace_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();

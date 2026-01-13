@@ -12,7 +12,10 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
-use crate::core::{ImageProcessor, ThemeType};
+use crate::core::ImageProcessor;
+
+#[cfg(any(feature = "desktop", feature = "web"))]
+use crate::core::ThemeType;
 
 /// C-compatible theme metadata
 #[repr(C)]
@@ -29,13 +32,30 @@ pub struct CThemeList {
     pub count: usize,
 }
 
+/// C-compatible face rectangle
+#[repr(C)]
+pub struct CFaceRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Array of face rectangles
+#[repr(C)]
+pub struct CFaceRectList {
+    pub faces: *mut CFaceRect,
+    pub count: usize,
+}
+
 /// Initialize the Chama Optics library
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_init() {
     // Force debug level logging for iOS
-    env_logger::Builder::from_default_env()
+    // Use try_init to avoid panic if already initialized
+    let _ = env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Debug)
-        .init();
+        .try_init();
     log::info!("Chama Optics library initialized with DEBUG logging");
 }
 
@@ -57,9 +77,24 @@ pub extern "C" fn chama_optics_free_string(ptr: *mut c_char) {
     }
 }
 
+/// Free a face rectangle list
+#[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_free_face_rect_list(list: *mut CFaceRectList) {
+    if list.is_null() {
+        return;
+    }
+
+    unsafe {
+        let list_box = Box::from_raw(list);
+        let _ = Vec::from_raw_parts(list_box.faces, list_box.count, list_box.count);
+    }
+}
+
 /// Opaque pointer to ChamaOptics instance (now using headless core)
 pub struct ChamaOpticsHandle {
     processor: ImageProcessor,
+    #[cfg(any(feature = "desktop", feature = "web"))]
     theme_registry: crate::theme::ThemeRegistry,
 }
 
@@ -67,10 +102,19 @@ pub struct ChamaOpticsHandle {
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_create() -> *mut ChamaOpticsHandle {
     log::info!("Creating ChamaOptics instance");
-    Box::into_raw(Box::new(ChamaOpticsHandle {
-        processor: ImageProcessor::new(),
-        theme_registry: crate::theme::ThemeRegistry::new(),
-    }))
+    #[cfg(any(feature = "desktop", feature = "web"))]
+    {
+        Box::into_raw(Box::new(ChamaOpticsHandle {
+            processor: ImageProcessor::new(),
+            theme_registry: crate::theme::ThemeRegistry::new(),
+        }))
+    }
+    #[cfg(not(any(feature = "desktop", feature = "web")))]
+    {
+        Box::into_raw(Box::new(ChamaOpticsHandle {
+            processor: ImageProcessor::new(),
+        }))
+    }
 }
 
 /// Destroy a ChamaOptics instance
@@ -116,6 +160,213 @@ pub extern "C" fn chama_optics_load_image(
             Err(e) => {
                 log::error!("Failed to load image {}: {}", path_str, e);
                 false
+            }
+        }
+    }
+}
+
+// Face detection FFI functions (for iOS and macOS)
+#[cfg(any(
+    feature = "desktop",
+    feature = "ios_integration",
+    feature = "metal_rendering"
+))]
+mod face_detection_ffi {
+    use super::*;
+
+    /// Detect faces in an image using VisionKit
+    /// Returns a list of face rectangles
+    /// The returned list must be freed with chama_optics_free_face_rect_list
+    #[cfg(all(target_os = "ios", feature = "face_detection_visionkit"))]
+    #[unsafe(no_mangle)]
+    pub extern "C" fn chama_optics_detect_faces_ios(
+        _handle: *mut ChamaOpticsHandle,
+        _image_path: *const c_char,
+    ) -> *mut CFaceRectList {
+        // This is a placeholder - actual implementation will be in Swift
+        // The Swift side will call VisionKit and return face rectangles
+        // For now, return empty list
+        log::info!("Face detection placeholder called on iOS");
+        let faces: Vec<CFaceRect> = vec![];
+        let mut faces = faces.into_boxed_slice();
+        let list = Box::new(CFaceRectList {
+            faces: faces.as_mut_ptr(),
+            count: faces.len(),
+        });
+        std::mem::forget(faces);
+        Box::into_raw(list)
+    }
+
+    /// Apply face detection rectangles to an image
+    /// This function takes face rectangles from VisionKit and applies them to the image
+    #[unsafe(no_mangle)]
+    pub extern "C" fn chama_optics_apply_face_detection(
+        handle: *mut ChamaOpticsHandle,
+        face_rects: *const CFaceRect,
+        face_count: usize,
+        image_path: *const c_char,
+        output_path: *const c_char,
+        engine_type: u32, // 0 = VisionKit, 3 = InsightFace
+        border_color_r: u8,
+        border_color_g: u8,
+        border_color_b: u8,
+        border_color_a: u8,
+        border_thickness: u32,
+        mask_faces: bool,
+        mask_blur_radius: f32,
+        speed_mode: u32, // 0 = Fastest, 1 = Fast, 2 = Normal, 3 = Slow, 4 = Slowest
+    ) -> bool {
+        if handle.is_null() || image_path.is_null() || output_path.is_null() {
+            return false;
+        }
+
+        unsafe {
+            let image_str = match CStr::from_ptr(image_path).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    log::error!("Invalid UTF-8 in image path");
+                    return false;
+                }
+            };
+
+            let output_str = match CStr::from_ptr(output_path).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    log::error!("Invalid UTF-8 in output path");
+                    return false;
+                }
+            };
+
+            let handle_ref = &mut *handle;
+
+            // Load the image
+            let path_buf = std::path::PathBuf::from(image_str);
+            let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+                Ok(img) => img,
+                Err(e) => {
+                    log::error!("Failed to load image {}: {}", image_str, e);
+                    return false;
+                }
+            };
+
+            // Collect face rectangles
+            let mut face_rectangles = vec![];
+            if !face_rects.is_null() && face_count > 0 {
+                for i in 0..face_count {
+                    let face_rect = &*face_rects.add(i);
+                    face_rectangles.push((
+                        face_rect.x,
+                        face_rect.y,
+                        face_rect.width,
+                        face_rect.height,
+                    ));
+                }
+            }
+
+            // Create FaceDetection config with engine
+            let border_color = egui::Color32::from_rgba_unmultiplied(
+                border_color_r,
+                border_color_g,
+                border_color_b,
+                border_color_a,
+            );
+
+            #[cfg(feature = "face_detection_insightface")]
+            let speed_mode = match speed_mode {
+                0 => crate::effect::insightface_detector::SpeedMode::Fastest,
+                1 => crate::effect::insightface_detector::SpeedMode::Fast,
+                2 => crate::effect::insightface_detector::SpeedMode::Normal,
+                3 => crate::effect::insightface_detector::SpeedMode::Slow,
+                4 => crate::effect::insightface_detector::SpeedMode::Slowest,
+                _ => {
+                    log::warn!("Invalid speed_mode {}, using Normal", speed_mode);
+                    crate::effect::insightface_detector::SpeedMode::Normal
+                }
+            };
+
+            let engine = match engine_type {
+                3 => {
+                    #[cfg(feature = "face_detection_insightface")]
+                    {
+                        crate::effect::face_detection::FaceDetectionEngine::InsightFace
+                    }
+                    #[cfg(not(feature = "face_detection_insightface"))]
+                    {
+                        log::warn!("InsightFace requested but feature not enabled");
+                        #[cfg(feature = "face_detection_visionkit")]
+                        {
+                            crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                        }
+                        #[cfg(not(feature = "face_detection_visionkit"))]
+                        {
+                            log::error!("No face detection engine available!");
+                            return false;
+                        }
+                    }
+                }
+                _ => {
+                    #[cfg(feature = "face_detection_visionkit")]
+                    {
+                        crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                    }
+                    #[cfg(not(feature = "face_detection_visionkit"))]
+                    {
+                        log::warn!("VisionKit requested but feature not enabled");
+                        #[cfg(feature = "face_detection_insightface")]
+                        {
+                            crate::effect::face_detection::FaceDetectionEngine::InsightFace
+                        }
+                        #[cfg(not(feature = "face_detection_insightface"))]
+                        {
+                            log::error!("No face detection engine available!");
+                            return false;
+                        }
+                    }
+                }
+            };
+
+            let face_detection = crate::effect::face_detection::FaceDetection {
+                engine,
+                is_enabled: true,
+                border_color,
+                border_thickness,
+                mask_faces,
+                mask_blur_radius,
+                #[cfg(feature = "face_detection_insightface")]
+                speed_mode,
+                #[cfg(feature = "face_detection_insightface")]
+                provider:
+                    crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
+                recursive_detection: false,
+                recursive_min_size: 64,
+                recursive_max_depth: 4,
+                recursive_overlap: true,
+                recursive_overlap_ratio: 0.25,
+            };
+
+            // Apply face detection
+            if let Err(e) = face_detection.apply(&mut dyn_image, face_rectangles) {
+                log::error!("Failed to apply face detection: {}", e);
+                return false;
+            }
+
+            // Save the image
+            let output_path_buf = std::path::PathBuf::from(output_str);
+            match handle_ref
+                .processor
+                .save_image_direct(&dyn_image, &output_path_buf)
+            {
+                Ok(_) => {
+                    log::info!(
+                        "Successfully applied face detection and saved to {}",
+                        output_str
+                    );
+                    true
+                }
+                Err(e) => {
+                    log::error!("Failed to save image: {}", e);
+                    false
+                }
             }
         }
     }

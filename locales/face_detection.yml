@@ -1,0 +1,123 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+face_detection:
+  is_enabled:
+    en: "Enabled face detection"
+    ko: "얼굴 감지 활성화"
+    ja: "顔検出有効化"
+  engine:
+    en: "Detection engine"
+    ko: "감지 엔진"
+    ja: "検出エンジン"
+  speed_mode:
+    en: "Detection speed mode"
+    ko: "감지 속도 모드"
+    ja: "検出速度モード"
+  speed_mode_hint:
+    en: "Balance between speed and accuracy (affects processing depth)"
+    ko: "속도와 정확도 사이의 균형 (처리 깊이에 영향)"
+    ja: "速度と精度のバランス（処理深度に影響）"
+  speed_mode_fastest:
+    en: "Fastest (0.5s, ~95 faces)"
+    ko: "최고속 (0.5초, ~95개 얼굴)"
+    ja: "最速（0.5秒、約95個）"
+  speed_mode_fast:
+    en: "Fast (0.6s, ~95 faces)"
+    ko: "빠름 (0.6초, ~95개 얼굴)"
+    ja: "高速（0.6秒、約95個）"
+  speed_mode_normal:
+    en: "Normal (7s, ~325 faces)"
+    ko: "보통 (7초, ~325개 얼굴)"
+    ja: "標準（7秒、約325個）"
+  speed_mode_slow:
+    en: "Slow (13s, ~385 faces)"
+    ko: "느림 (13초, ~385개 얼굴)"
+    ja: "低速（13秒、約385個）"
+  speed_mode_slowest:
+    en: "Slowest (28s, ~398 faces)"
+    ko: "최저속 (28초, ~398개 얼굴)"
+    ja: "最低速（28秒、約398個）"
+  execution_provider:
+    en: "Execution provider"
+    ko: "실행 제공자"
+    ja: "実行プロバイダー"
+  execution_provider_hint:
+    en: "Hardware acceleration backend (CPU/CUDA/CoreML/TensorRT)"
+    ko: "하드웨어 가속 백엔드 (CPU/CUDA/CoreML/TensorRT)"
+    ja: "ハードウェアアクセラレーションバックエンド（CPU/CUDA/CoreML/TensorRT）"
+  provider_cpu:
+    en: "CPU (universal)"
+    ko: "CPU (호환성 좋음)"
+    ja: "CPU（互換性あり）"
+  provider_cuda:
+    en: "CUDA (NVIDIA GPU)"
+    ko: "CUDA (NVIDIA GPU)"
+    ja: "CUDA（NVIDIA GPU）"
+  provider_coreml:
+    en: "CoreML (Apple Silicon)"
+    ko: "CoreML (Apple Silicon)"
+    ja: "CoreML（Apple Silicon）"
+  provider_tensorrt:
+    en: "TensorRT (NVIDIA optimized)"
+    ko: "TensorRT (NVIDIA 최적화)"
+    ja: "TensorRT（NVIDIA最適化）"
+  recursive_detection:
+    en: "Recursive face detection"
+    ko: "재귀적 얼굴 감지"
+    ja: "再帰的顔検出"
+  recursive_min_size:
+    en: "Minimum region size"
+    ko: "최소 영역 크기"
+    ja: "最小領域サイズ"
+  recursive_min_size_hint:
+    en: "Minimum size of a region to search recursively (32-256 pixels)"
+    ko: "재귀적으로 검색할 영역의 최소 크기 (32-256 픽셀)"
+    ja: "再帰的に検索する領域の最小サイズ（32-256ピクセル）"
+  recursive_overlap:
+    en: "Overlap search"
+    ko: "중복 검색"
+    ja: "重複検索"
+  recursive_overlap_ratio:
+    en: "Overlap ratio"
+    ko: "중복 비율"
+    ja: "重複比率"
+  recursive_percentage:
+    en: "%"
+    ko: "%"
+    ja: "%"
+  recursive_overlap_ratio_hint:
+    en: "Overlap percentage for region division (0-50%)"
+    ko: "영역 분할 시 중복 퍼센트 (0-50%)"
+    ja: "領域分割時の重複パーセンテージ（0-50%）"
+  mask_faces:
+    en: "Mask faces (blur)"
+    ko: "얼굴 마스킹 (블러)"
+    ja: "顔をマスキング（ぼかし）"
+  mask_blur_radius:
+    en: "Blur radius"
+    ko: "블러 반경"
+    ja: "ぼかし半径"
+  mask_blur_radius_hint:
+    en: "Strength of the blur effect applied to detected faces (1-100 pixels)"
+    ko: "감지된 얼굴에 적용할 블러 효과의 강도 (1-100 픽셀)"
+    ja: "検出された顔に適用するぼかし効果の強度（1-100ピクセル）"
+  border_color:
+    en: "Border color"
+    ko: "테두리 색상"
+    ja: "枠線の色"
+  border_thickness:
+    en: "Border thickness"
+    ko: "테두리 두께"
+    ja: "枠線の太さ"
+  border_thickness_hint:
+    en: "Thickness of the face detection rectangle border in pixels"
+    ko: "얼굴 감지 사각형 테두리의 두께 (픽셀 단위)"
+    ja: "顔検出矩形の枠線の太さ（ピクセル単位）"
+  pixels:
+    en: "px"
+    ko: "픽셀"
+    ja: "ピクセル"

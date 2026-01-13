@@ -14,3 +14,6 @@ pub mod ffi_bridge;
 
 #[cfg(feature = "metal_rendering")]
 pub mod input_output;
+
+#[cfg(any(feature = "metal_rendering", target_os = "macos"))]
+pub mod face_detection_macos;
