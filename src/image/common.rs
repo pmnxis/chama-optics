@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 use egui::ColorImage;
 use fast_image_resize as fr;
 
@@ -11,15 +12,18 @@ pub const THUMBNAIL_MAX_WIDTH: u32 = 330 * 2;
 pub const THUMBNAIL_MAX_HEIGHT: u32 = 220 * 2;
 pub const THUMBNAIL_MAX_WIDTH_AS_F32: f32 = 110.0; // considering retina display
 pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 165.0; // considering retina display
+#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 pub const THUMBNAIL_DIMM: egui::Vec2 =
     egui::Vec2::new(THUMBNAIL_MAX_HEIGHT_AS_F32, THUMBNAIL_MAX_WIDTH_AS_F32);
 
-pub const THUMBMANIL_SCALE: crate::scale_config::ScaleConfig = crate::scale_config::ScaleConfig {
-    mode: crate::scale_config::ScaleMode::ResizeAndCrop,
-    value: THUMBNAIL_MAX_WIDTH,
-    sub_value: THUMBNAIL_MAX_HEIGHT,
-    scale_value: 2.0, // Don't care
-};
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+pub const THUMBMANIL_SCALE: crate::export_config::scale_config::ScaleConfig =
+    crate::export_config::scale_config::ScaleConfig {
+        mode: crate::export_config::scale_config::ScaleMode::ResizeAndCrop,
+        value: THUMBNAIL_MAX_WIDTH,
+        sub_value: THUMBNAIL_MAX_HEIGHT,
+        scale_value: 2.0, // Don't care
+    };
 
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 pub enum PackedImageEvent {
@@ -66,6 +70,7 @@ pub(crate) fn resize_image(
     Ok(dst_image)
 }
 
+#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 pub(crate) fn gen_thumbnail(
     decoded_image: image::DynamicImage,
     orientation: image::metadata::Orientation,
@@ -235,12 +240,14 @@ pub(crate) fn __load_image_from_vec(
     )
 }
 
+#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 #[derive(PartialEq, Eq, Clone)]
 pub enum PackedTexture {
     Real { texture: egui::TextureHandle },
     Dummy,
 }
 
+#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 impl PackedTexture {
     pub fn get(&self) -> &egui::TextureHandle {
         #[cfg(test)]
@@ -258,6 +265,7 @@ impl PackedTexture {
         }
     }
 
+    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
     pub fn new(texture: egui::TextureHandle) -> PackedTexture {
         Self::Real { texture }
     }

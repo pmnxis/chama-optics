@@ -6,8 +6,7 @@
 
 //! Add or replace fonts from this code
 
-use eframe::egui;
-
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) mod align;
 pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
@@ -52,6 +51,7 @@ lazy_static::lazy_static! {
 }
 
 // Demonstrates how to replace all fonts.
+#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) fn replace_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();

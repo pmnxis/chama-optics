@@ -450,3 +450,23 @@ impl ThemeRegistry {
         }
     }
 }
+
+/// Create a theme by name (for FFI)
+///
+/// This function is used by FFI layer to create theme instances.
+pub fn create_theme(name: &str) -> Option<Box<dyn Theme>> {
+    match name {
+        "just_frame" => Some(Box::new(just_frame::JustFrame::default())),
+        "one_line" => Some(Box::new(one_line::OneLine::default())),
+        "two_line" => Some(Box::new(two_line::TwoLine::default())),
+        "shot_on_one_line" => Some(Box::new(shot_on_one_line::ShotOnOneLine::default())),
+        "shot_on_two_line" => Some(Box::new(shot_on_two_line::ShotOnTwoLine::default())),
+        "strap" => Some(Box::new(strap::Strap::default())),
+        "monitor" => Some(Box::new(monitor::Monitor::default())),
+        "lightroom" => Some(Box::new(lightroom::Lightroom::default())),
+        "film" => Some(Box::new(film::Film::default())),
+        "film_date" => Some(Box::new(film_date::FilmDate::default())),
+        "film_glow" => Some(Box::new(film_glow::FilmGlow::default())),
+        _ => None,
+    }
+}

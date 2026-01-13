@@ -288,6 +288,23 @@ macro_rules! param_text {
     };
 }
 
+#[macro_export]
+macro_rules! param_font {
+    ($name:expr, $label:expr, $hint:expr, $default:expr, $current:expr) => {
+        $crate::theme::parameter_schema::ParameterMeta {
+            name: $name.to_string(),
+            label: $label.to_string(),
+            hint: Some($hint.to_string()),
+            param_type: $crate::theme::parameter_schema::ParameterType::Font,
+            min: None,
+            max: None,
+            default: serde_json::json!($default),
+            current: serde_json::json!($current),
+            exif_fields: None,
+        }
+    };
+}
+
 /// Macro to implement ThemeParameters trait for a struct
 ///
 /// This provides a derive-like experience without needing a procedural macro.

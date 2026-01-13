@@ -125,6 +125,7 @@ impl ImageProcessor {
 
     /// Apply a theme trait object directly to an image and save to file
     /// This is used when we have an already-configured theme instance with custom parameters
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn apply_theme_direct(
         &self,
         image_index: usize,

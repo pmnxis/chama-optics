@@ -161,4 +161,13 @@ fn main() {
 
     let now = chrono::Utc::now().to_rfc3339();
     println!("cargo:rustc-env=BUILD_TIME={now}");
+
+    // Generate swift-bridge code for Metal rendering (iOS/macOS only)
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(feature = "metal_rendering")]
+    {
+        let bridge_files = vec!["src/metal_renderer/ffi_bridge.rs"];
+        swift_bridge_build::parse_bridges(bridge_files)
+            .write_all_concatenated(out_dir, env!("CARGO_PKG_NAME"));
+    }
 }
