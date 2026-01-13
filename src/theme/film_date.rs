@@ -104,7 +104,7 @@ impl Theme for FilmDate {
         let mut dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
-        let dyn_wh = dyn_w.max(dyn_h);
+        let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
         let font = crate::FONTS_UNIFY.search(&self.font)?;
         let font_date = crate::FONTS_UNIFY.search(&self.font_date)?;
 
@@ -139,10 +139,10 @@ impl Theme for FilmDate {
                     if !ps_sub.is_empty() {
                         format!("{ps_main} = {ps_sub}")
                     } else {
-                        ps_main
+                        ps_main.to_string()
                     }
                 } else {
-                    ps_main
+                    ps_main.to_string()
                 })
             }
 
@@ -199,7 +199,7 @@ impl Theme for FilmDate {
         let scale_config = &export_config.scale_config;
         let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
-        let dyn_wh = dyn_w.max(dyn_h);
+        let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
 
         let margin = self.rel_size(120, dyn_wh).trunc() as i32;
 

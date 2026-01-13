@@ -96,9 +96,17 @@ pub struct InsightFaceDetector {
     provider: ExecutionProvider,
 }
 
+impl core::default::Default for InsightFaceDetector {
+    /// Create detector with default settings (Normal speed, CPU provider)
+    fn default() -> Self {
+        Self::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider)
+    }
+}
+
 #[cfg(feature = "face_detection_insightface")]
 impl InsightFaceDetector {
     /// Create detector with specified speed mode and execution provider
+    /// On macOS/iOS, automatically uses CoreML for hardware acceleration
     pub fn new(speed_mode: SpeedMode, provider: ExecutionProvider) -> Self {
         log::info!("Loading InsightFace ONNX model...");
         log::info!(
@@ -107,51 +115,82 @@ impl InsightFaceDetector {
             provider.as_str()
         );
 
+        // On macOS/iOS, automatically use CoreML for hardware acceleration
+        #[cfg(any(target_os = "macos", target_os = "ios"))]
+        let actual_provider = {
+            if matches!(provider, ExecutionProvider::CPUExecutionProvider) {
+                log::info!(
+                    "Auto-selecting CoreML Execution Provider for hardware acceleration on Apple platform"
+                );
+                ExecutionProvider::CoreMLExecutionProvider
+            } else {
+                provider
+            }
+        };
+
+        #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+        let actual_provider = provider;
+
         // Load InsightFace face detection model (det_10g.onnx)
-        // First try the download path from build script, then fallback to models directory
-        let model_path_str = std::env::var("INSIGHTFACE_MODEL_PATH")
-            .unwrap_or_else(|_| "assets/download/det_10g.onnx".to_string());
-        let model_path = Path::new(&model_path_str);
+        // Try multiple paths in order:
+        // 1. Environment variable INSIGHTFACE_MODEL_PATH
+        // 2. assets/download/det_10g.onnx (for macOS/desktop builds)
+        // 3. models/buffalo_l/det_10g.onnx (alternative path)
+        let model_path = if let Ok(env_path) = std::env::var("INSIGHTFACE_MODEL_PATH") {
+            log::info!("Using model from INSIGHTFACE_MODEL_PATH: {}", env_path);
+            Path::new(&env_path).to_path_buf()
+        } else if Path::new("assets/download/det_10g.onnx").exists() {
+            log::info!("Using model from assets/download/det_10g.onnx");
+            Path::new("assets/download/det_10g.onnx").to_path_buf()
+        } else if Path::new("models/buffalo_l/det_10g.onnx").exists() {
+            log::info!("Using model from models/buffalo_l/det_10g.onnx");
+            Path::new("models/buffalo_l/det_10g.onnx").to_path_buf()
+        } else {
+            // Model not found - provide helpful error message
+            let error_msg = "InsightFace model file not found. Searched paths:\n\
+                 1. INSIGHTFACE_MODEL_PATH environment variable\n\
+                 2. assets/download/det_10g.onnx\n\
+                 3. models/buffalo_l/det_10g.onnx\n\n\
+                 To download the model, build with: cargo build --features build_assets\n\
+                 Or download manually and place in one of the paths above."
+                .to_string();
+            log::error!("{}", error_msg);
+            panic!("{}", error_msg);
+        };
 
         if !model_path.exists() {
-            // Try alternative path
-            let fallback_path = Path::new("models/buffalo_l/det_10g.onnx");
-            if fallback_path.exists() {
-                log::info!("Using fallback model path: {:?}", fallback_path);
-                let model_bytes = std::fs::read(fallback_path)
-                    .expect("Failed to read InsightFace model from fallback path");
-                let session = Session::builder()
-                    .unwrap_or_else(|e| panic!("Failed to create session builder: {}", e))
-                    .commit_from_memory(&model_bytes)
-                    .expect("Failed to load ONNX model");
-                log::info!("InsightFace ONNX model loaded successfully from fallback path");
-
-                return Self {
-                    session: RwLock::new(session),
-                    max_depth: speed_mode.max_depth(),
-                    window_size: 640,
-                    overlap_ratio: 0.1,
-                    speed_mode,
-                    provider,
-                };
-            } else {
-                log::error!("InsightFace model not found at: {:?}", model_path);
-                log::error!(
-                    "InsightFace model not found at fallback path: {:?}",
-                    fallback_path
-                );
-                panic!(
-                    "InsightFace model file not found. Please build with --features build_assets to download the model."
-                );
-            }
+            let error_msg = format!("InsightFace model path does not exist: {:?}", model_path);
+            log::error!("{}", error_msg);
+            panic!("{}", error_msg);
         }
+
+        log::info!("Loading InsightFace ONNX model from: {:?}", model_path);
 
         // Read model file and load into ONNX Runtime
         let model_bytes = std::fs::read(model_path).expect("Failed to read InsightFace model file");
 
         // Create ONNX Runtime session with specified provider
-        let session = Session::builder()
-            .unwrap_or_else(|e| panic!("Failed to create session builder: {}", e))
+        let session_builder = Session::builder()
+            .unwrap_or_else(|e| panic!("Failed to create session builder: {}", e));
+
+        // Configure execution provider
+        let session = match actual_provider {
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            ExecutionProvider::CoreMLExecutionProvider => {
+                log::info!("Enabling CoreML Execution Provider for hardware acceleration");
+                session_builder
+                    .with_execution_providers([
+                        ort::execution_providers::CoreMLExecutionProvider::default().build(),
+                        ort::execution_providers::CPUExecutionProvider::default().build(),
+                    ])
+                    .unwrap_or_else(|e| {
+                        panic!("Failed to configure CoreML execution provider: {}", e)
+                    })
+            }
+            _ => session_builder,
+        };
+
+        let session = session
             .commit_from_memory(&model_bytes)
             .expect("Failed to load ONNX model");
 
@@ -165,11 +204,6 @@ impl InsightFaceDetector {
             speed_mode,
             provider,
         }
-    }
-
-    /// Create detector with default settings (Normal speed, CPU provider)
-    pub fn default() -> Self {
-        Self::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider)
     }
 
     /// Preprocess image for InsightFace model
@@ -251,8 +285,8 @@ impl InsightFaceDetector {
         let h = y2 - y1;
 
         // Clamp to valid ranges (0 to 640)
-        let x = x.max(0.0).min(640.0);
-        let y = y.max(0.0).min(640.0);
+        let x = x.clamp(0.0, 640.0);
+        let y = y.clamp(0.0, 640.0);
         let w = w.max(1.0).min(640.0 - x);
         let h = h.max(1.0).min(640.0 - y);
 
@@ -842,17 +876,16 @@ impl super::face_detectors::FaceDetector for InsightFaceDetector {
 mod tests {
     use super::*;
 
-    #[test]
-    #[cfg(feature = "face_detection_")]
-    fn test_insightface_detector() {
-        let detector =
-            InsightFaceDetector::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider);
-        assert_eq!(detector.engine_name(), "InsightFace (ONNX)");
-        assert_eq!(detector.max_depth, 1); // Normal mode has max_depth 1
-        assert_eq!(detector.window_size, 640);
-        assert_eq!(detector.speed_mode, SpeedMode::Normal);
-        assert_eq!(detector.provider, ExecutionProvider::CPUExecutionProvider);
-    }
+    // #[test]
+    // fn test_insightface_detector() {
+    //     let detector =
+    //         InsightFaceDetector::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider);
+    //     assert_eq!(detector.engine_name(), "InsightFace (ONNX)");
+    //     assert_eq!(detector.max_depth, 1); // Normal mode has max_depth 1
+    //     assert_eq!(detector.window_size, 640);
+    //     assert_eq!(detector.speed_mode, SpeedMode::Normal);
+    //     assert_eq!(detector.provider, ExecutionProvider::CPUExecutionProvider);
+    // }
 
     #[test]
     #[cfg(feature = "face_detection_insightface")]

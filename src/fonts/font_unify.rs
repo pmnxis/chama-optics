@@ -5,6 +5,7 @@
  */
 
 use ab_glyph::FontArc;
+#[cfg(feature = "desktop")]
 use eframe::egui;
 #[cfg(not(target_arch = "wasm32"))]
 use font_kit::{handle::Handle, source::SystemSource};
@@ -427,6 +428,7 @@ impl From<FontError> for image::ImageError {
 }
 
 impl FontSelection {
+    #[cfg(feature = "desktop")]
     /// use `crate::FONTS_UNIFY.builtin_select(` instead
     #[deprecated]
     #[allow(dead_code)]
@@ -438,83 +440,75 @@ impl FontSelection {
         }
     }
 
+    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
     pub fn update_ui<S: Into<egui::WidgetText>>(&mut self, ui: &mut egui::Ui, label: S) {
-        let current_font_label = match self.select.sort {
-            FontSort::Builtin => FONTS_UNIFY
-                .builtin_fonts
-                .get(self.select.index)
-                .map(|f| {
-                    if self.default as usize == self.select.index {
-                        format!("{} [{}]", f.name, t!("fonts_selector.default"))
-                    } else {
-                        f.name.to_string()
-                    }
-                })
-                .unwrap_or_else(|| "<Invalid builtin font>".to_string()),
-
-            FontSort::System => {
-                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
-                sys_lock
-                    .get(self.select.index)
-                    .map(|sf| sf.name.clone())
-                    .unwrap_or_else(|| t!("fonts_selector.system_fonts_loading").to_string())
-            } // Not use FontSort::None anymore
-              // TBD
-              // FontSort::None => "Select a font".to_string(),
+        // Tab selection state
+        let mut selected_tab = match self.select.sort {
+            FontSort::Builtin => 0,
+            FontSort::System => 1,
         };
 
         egui::ComboBox::from_id_salt(label.into().text())
-            .selected_text(current_font_label)
+            .selected_text(self.name.clone())
             .show_ui(ui, |ui| {
-                ui.label(t!("fonts_selector.builtin_fonts"));
-                for (i, font) in FONTS_UNIFY.builtin_fonts.iter().enumerate() {
-                    let selected = self.select.sort == FontSort::Builtin && self.select.index == i;
-
-                    let is_clicked = if self.default as usize == i {
-                        ui.selectable_label(
-                            selected,
-                            format!("{} [{}]", font.name, t!("fonts_selector.default")),
-                        )
-                    } else {
-                        ui.selectable_label(selected, font.name)
-                    }
-                    .clicked();
-
-                    if is_clicked {
-                        self.select = FontIndex {
-                            sort: FontSort::Builtin,
-                            index: i,
-                            path: None,
-                        };
-                        self.name = font.name.to_string();
-                    }
-                }
+                // Tab buttons at the top
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut selected_tab, 0, t!("fonts_selector.builtin_fonts"));
+                    ui.selectable_value(&mut selected_tab, 1, t!("fonts_selector.system_fonts"));
+                });
 
                 ui.separator();
-                ui.label(t!("fonts_selector.system_fonts"));
 
-                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
-                if sys_lock.is_empty() {
-                    ui.label(t!("fonts_selector.system_fonts_loading"));
-                    ui.ctx()
-                        .request_repaint_after(std::time::Duration::from_millis(200));
-                } else {
-                    for (i, sf) in sys_lock.iter().enumerate() {
+                // Show fonts based on selected tab
+                if selected_tab == 0 {
+                    // Built-in fonts tab
+                    for (i, font) in FONTS_UNIFY.builtin_fonts.iter().enumerate() {
                         let selected =
-                            self.select.sort == FontSort::System && self.select.index == i;
-                        if ui.selectable_label(selected, &sf.name).clicked() {
+                            self.select.sort == FontSort::Builtin && self.select.index == i;
+
+                        let label_text = if self.default as usize == i {
+                            format!("{} [{}]", font.name, t!("fonts_selector.default"))
+                        } else {
+                            font.name.to_string()
+                        };
+
+                        if ui.selectable_label(selected, label_text).clicked() {
                             self.select = FontIndex {
-                                sort: FontSort::System,
+                                sort: FontSort::Builtin,
                                 index: i,
-                                path: sf.get_path(),
+                                path: None,
                             };
-                            self.name = sf.name.clone();
+                            self.name = font.name.to_string();
+                        }
+                    }
+                } else {
+                    // System fonts tab
+                    let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
+
+                    if sys_lock.is_empty() {
+                        ui.label(t!("fonts_selector.system_fonts_loading"));
+                        ui.ctx()
+                            .request_repaint_after(std::time::Duration::from_millis(200));
+                    } else {
+                        for (i, sf) in sys_lock.iter().enumerate() {
+                            let selected =
+                                self.select.sort == FontSort::System && self.select.index == i;
+
+                            if ui.selectable_label(selected, &sf.name).clicked() {
+                                self.select = FontIndex {
+                                    sort: FontSort::System,
+                                    index: i,
+                                    path: sf.get_path(),
+                                };
+                                self.name = sf.name.clone();
+                            }
                         }
                     }
                 }
             });
     }
 
+    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
     pub fn update_ui_with_label<S: Into<egui::WidgetText> + Clone>(
         &mut self,
         ui: &mut egui::Ui,
@@ -526,6 +520,7 @@ impl FontSelection {
         });
     }
 
+    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
     pub fn update_ui_with_default_label(&mut self, ui: &mut egui::Ui) {
         let label = t!("fonts_selector.select_a_font");
         ui.horizontal(|ui| {

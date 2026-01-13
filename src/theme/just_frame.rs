@@ -50,7 +50,7 @@ impl Theme for JustFrame {
         let scale_config = &export_config.scale_config;
         let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
-        let dyn_wh = dyn_w.max(dyn_h);
+        let dyn_wh: u32 = dyn_w.max(dyn_h);
 
         let new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
 

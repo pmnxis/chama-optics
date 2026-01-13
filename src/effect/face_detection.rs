@@ -10,12 +10,12 @@ use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
 
-#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug, Default)]
 pub enum FaceDetectionEngine {
     #[cfg(feature = "face_detection_visionkit")]
-    #[default]
     VisionKit,
     #[cfg(feature = "face_detection_insightface")]
+    #[default]
     InsightFace,
 }
 
@@ -26,11 +26,6 @@ impl FaceDetectionEngine {
             #[cfg(feature = "face_detection_visionkit")]
             Self::VisionKit => "VisionKit",
             #[cfg(feature = "face_detection_insightface")]
-            Self::InsightFace => "InsightFace",
-            #[cfg(all(
-                feature = "face_detection_visionkit",
-                feature = "face_detection_insightface"
-            ))]
             Self::InsightFace => "InsightFace",
         }
     }
@@ -269,6 +264,7 @@ impl FaceDetection {
     }
 
     /// Recursively search a region for faces
+    #[allow(clippy::too_many_arguments)]
     fn search_region_recursive<D: super::face_detectors::FaceDetector>(
         &self,
         detector: &D,
@@ -400,6 +396,7 @@ impl FaceDetection {
     }
 
     /// Divide region into subregions and recurse
+    #[allow(clippy::too_many_arguments)]
     fn divide_and_recurse<D: super::face_detectors::FaceDetector>(
         &self,
         detector: &D,
@@ -477,6 +474,7 @@ impl FaceDetection {
     }
 
     /// Search uncovered subregions within a region
+    #[allow(clippy::too_many_arguments)]
     fn search_uncovered_subregions<D: super::face_detectors::FaceDetector>(
         &self,
         detector: &D,
@@ -567,6 +565,7 @@ impl FaceDetection {
     }
 
     /// Calculate intersection over union for two rectangles
+    #[allow(clippy::too_many_arguments)]
     fn calculate_iou(
         &self,
         x1: i32,
@@ -599,6 +598,7 @@ impl FaceDetection {
     }
 
     /// Calculate overlap area between two rectangles
+    #[allow(clippy::too_many_arguments)]
     fn calculate_overlap_area(
         &self,
         x1: i32,
@@ -764,7 +764,6 @@ impl FaceDetection {
                         )
                         .on_hover_text("CPU execution - compatible with all platforms");
 
-                        #[cfg(feature = "cuda")]
                         ui.selectable_value(
                             &mut self.provider,
                             ExecutionProvider::CUDAExecutionProvider,
@@ -780,7 +779,6 @@ impl FaceDetection {
                         )
                         .on_hover_text("Apple Silicon acceleration - macOS only");
 
-                        #[cfg(feature = "tensorrt")]
                         ui.selectable_value(
                             &mut self.provider,
                             ExecutionProvider::TensorRTExecutionProvider,

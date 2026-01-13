@@ -52,9 +52,10 @@ pub struct CFaceRectList {
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_init() {
     // Force debug level logging for iOS
-    env_logger::Builder::from_default_env()
+    // Use try_init to avoid panic if already initialized
+    let _ = env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Debug)
-        .init();
+        .try_init();
     log::info!("Chama Optics library initialized with DEBUG logging");
 }
 
@@ -78,6 +79,7 @@ pub extern "C" fn chama_optics_free_string(ptr: *mut c_char) {
 
 /// Free a face rectangle list
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn chama_optics_free_face_rect_list(list: *mut CFaceRectList) {
     if list.is_null() {
         return;
@@ -212,6 +214,7 @@ mod face_detection_ffi {
         border_thickness: u32,
         mask_faces: bool,
         mask_blur_radius: f32,
+        speed_mode: u32, // 0 = Fastest, 1 = Fast, 2 = Normal, 3 = Slow, 4 = Slowest
     ) -> bool {
         if handle.is_null() || image_path.is_null() || output_path.is_null() {
             return false;
@@ -267,6 +270,20 @@ mod face_detection_ffi {
                 border_color_b,
                 border_color_a,
             );
+
+            #[cfg(feature = "face_detection_insightface")]
+            let speed_mode = match speed_mode {
+                0 => crate::effect::insightface_detector::SpeedMode::Fastest,
+                1 => crate::effect::insightface_detector::SpeedMode::Fast,
+                2 => crate::effect::insightface_detector::SpeedMode::Normal,
+                3 => crate::effect::insightface_detector::SpeedMode::Slow,
+                4 => crate::effect::insightface_detector::SpeedMode::Slowest,
+                _ => {
+                    log::warn!("Invalid speed_mode {}, using Normal", speed_mode);
+                    crate::effect::insightface_detector::SpeedMode::Normal
+                }
+            };
+
             let engine = match engine_type {
                 3 => {
                     #[cfg(feature = "face_detection_insightface")]
@@ -307,6 +324,7 @@ mod face_detection_ffi {
                     }
                 }
             };
+
             let face_detection = crate::effect::face_detection::FaceDetection {
                 engine,
                 is_enabled: true,
@@ -315,7 +333,7 @@ mod face_detection_ffi {
                 mask_faces,
                 mask_blur_radius,
                 #[cfg(feature = "face_detection_insightface")]
-                speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
+                speed_mode,
                 #[cfg(feature = "face_detection_insightface")]
                 provider:
                     crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,

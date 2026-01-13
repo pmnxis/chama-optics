@@ -33,7 +33,10 @@ pub struct ChamaOptics {
     /// Show theme names in English (unique_name) instead of localized labels
     pub show_theme_name_in_english: bool,
 
-    /// Currently selected tab in the sidebar
+    /// Temporary directory location for intermediate files
+    pub temp_dir: crate::app_state::TempDir,
+
+    /// Currently selected tab in sidebar
     selected_tab: MainTab,
 
     #[serde(skip)]
@@ -85,6 +88,7 @@ impl Default for ChamaOptics {
             lang: crate::langs::Language::get_system(),
             image_grouping: crate::image_group::ImageGroupConfig::default(),
             show_theme_name_in_english: true, // Default: show English names
+            temp_dir: crate::app_state::TempDir::default(),
             selected_tab: MainTab::default(),
             packed_images: vec![],
             image_groups: None,

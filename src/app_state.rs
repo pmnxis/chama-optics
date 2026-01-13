@@ -9,8 +9,37 @@
 use crate::export_config::ExportConfig;
 use crate::import_config::ImportConfig;
 use crate::packed_image::PackedImage;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Temporary directory location for intermediate files
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TempDir {
+    /// Use /tmp directory (default on Unix-like systems)
+    #[default]
+    Tmp,
+    /// Use /var/tmp directory (more persistent on some systems)
+    VarTmp,
+}
+
+impl TempDir {
+    /// Get the path for temporary directory
+    pub fn path(&self) -> &'static str {
+        match self {
+            TempDir::Tmp => "/tmp",
+            TempDir::VarTmp => "/var/tmp",
+        }
+    }
+
+    /// Get display label
+    pub fn label(&self) -> &'static str {
+        match self {
+            TempDir::Tmp => "/tmp",
+            TempDir::VarTmp => "/var/tmp",
+        }
+    }
+}
 
 /// Core application state containing business logic only
 /// This struct is UI-framework independent and can be tested without egui
@@ -32,6 +61,9 @@ pub struct AppState {
 
     /// Language selection
     pub lang: crate::langs::Language,
+
+    /// Temporary directory location for intermediate files
+    pub temp_dir: TempDir,
 }
 
 impl Default for AppState {
@@ -42,6 +74,7 @@ impl Default for AppState {
             import_config: ImportConfig::default(),
             export_config: ExportConfig::default(),
             lang: crate::langs::Language::get_system(),
+            temp_dir: TempDir::default(),
         }
     }
 }
@@ -90,6 +123,11 @@ impl AppState {
     /// Get immutable reference to packed images
     pub fn images(&self) -> &[PackedImage] {
         &self.packed_images
+    }
+
+    /// Get temporary directory path for intermediate files
+    pub fn temp_dir_path(&self) -> &Path {
+        Path::new(self.temp_dir.path())
     }
 
     /// Create save tasks for all loaded images

@@ -71,6 +71,12 @@ xcuserdata/
 *.xcscmblueprint
 Pods/
 Carthage/Build/
+*.a
 
 # iOS static libraries (optional - uncomment if you don't want to track them)
 ios/ChamaOptics/ChamaOptics/libs/**/*.a
+
+# Xcode configuration files (for local developer settings)
+*.xcconfig
+ios/ChamaOptics/Config.xcconfig
+swift/ChamaOptics/Config.xcconfig

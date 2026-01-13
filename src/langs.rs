@@ -5,9 +5,11 @@
  */
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use strum::{EnumIter, IntoEnumIterator};
 use strum_macros::{EnumString, IntoStaticStr};
+
+#[cfg(feature = "desktop")]
+use std::str::FromStr;
 
 #[rustfmt::skip]
 #[derive(
@@ -52,6 +54,7 @@ impl Language {
         rust_i18n::set_locale(self.into_str());
     }
 
+    #[cfg(feature = "desktop")]
     pub fn update_menu_ui(&mut self, ui: &mut egui::Ui) {
         ui.menu_button(t!("language.label"), |ui| {
             ui.set_width_range(105.00..=130.00);
