@@ -24,6 +24,10 @@ mod builtin_fonts {
 
             let zip_path = out_dir.join(file_name);
 
+            // Ensure out_dir exists
+            if !out_dir.exists() {
+                fs::create_dir_all(out_dir).expect("failed to create out_dir");
+            }
             println!("cargo:rerun-if-changed=build.rs");
 
             // Download
