@@ -10,6 +10,9 @@ pub(crate) mod draw_with_transparency;
 pub(crate) mod face_detection;
 pub mod face_detectors;
 pub(crate) mod glow;
+pub(crate) mod mosaic;
+pub(crate) mod sticker;
+pub(crate) mod stroke;
 pub(crate) mod variable_text;
 pub(crate) mod watermark;
 

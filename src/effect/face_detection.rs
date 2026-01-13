@@ -28,7 +28,10 @@ impl Default for FaceDetectionEngine {
         {
             Self::InsightFace
         }
-        #[cfg(not(any(feature = "face_detection_visionkit", feature = "face_detection_insightface")))]
+        #[cfg(not(any(
+            feature = "face_detection_visionkit",
+            feature = "face_detection_insightface"
+        )))]
         {
             compile_error!("At least one face detection engine must be enabled");
         }
