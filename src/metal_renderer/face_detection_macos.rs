@@ -26,11 +26,11 @@ impl MacFaceDetector {
 
     /// Detect faces using selected engine
     pub fn detect_faces(&self, _image_path: &Path) -> Vec<(i32, i32, u32, u32)> {
+        #[cfg(feature = "face_detection_visionkit")]
+        use crate::effect::face_detectors::FaceDetector;
+
         match self.engine {
-            #[cfg(all(
-                any(target_os = "ios", target_os = "macos"),
-                feature = "face_detection_visionkit"
-            ))]
+            #[cfg(feature = "face_detection_visionkit")]
             FaceDetectionEngine::VisionKit => {
                 let detector = crate::effect::face_detectors::VisionKitDetector::new();
                 detector.detect_faces(_image_path)

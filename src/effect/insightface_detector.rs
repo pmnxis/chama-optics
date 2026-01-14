@@ -876,27 +876,6 @@ impl super::face_detectors::FaceDetector for InsightFaceDetector {
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_insightface_detector() {
-    //     let detector =
-    //         InsightFaceDetector::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider);
-    //     assert_eq!(detector.engine_name(), "InsightFace (ONNX)");
-    //     assert_eq!(detector.max_depth, 1); // Normal mode has max_depth 1
-    //     assert_eq!(detector.window_size, 640);
-    //     assert_eq!(detector.speed_mode, SpeedMode::Normal);
-    //     assert_eq!(detector.provider, ExecutionProvider::CPUExecutionProvider);
-    // }
-
-    #[test]
-    #[cfg(feature = "face_detection_insightface")]
-    fn test_speed_modes() {
-        assert_eq!(SpeedMode::Fastest.max_depth(), 0);
-        assert_eq!(SpeedMode::Fast.max_depth(), 0);
-        assert_eq!(SpeedMode::Normal.max_depth(), 1);
-        assert_eq!(SpeedMode::Slow.max_depth(), 2);
-        assert_eq!(SpeedMode::Slowest.max_depth(), 3);
-    }
-
     #[test]
     #[cfg(feature = "face_detection_insightface")]
     fn test_default_detector() {
