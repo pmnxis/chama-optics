@@ -9,8 +9,6 @@
 
 use image::DynamicImage;
 use image::GenericImage;
-use image::GenericImageView;
-use imageproc::drawing::Canvas;
 
 /// Stroke effect configuration
 #[derive(Debug, Clone)]
@@ -32,6 +30,7 @@ impl Default for StrokeEffect {
 
 impl StrokeEffect {
     /// Create a new stroke effect
+    #[allow(dead_code)]
     pub fn new(thickness: u32, color: (u8, u8, u8, u8)) -> Self {
         Self { thickness, color }
     }

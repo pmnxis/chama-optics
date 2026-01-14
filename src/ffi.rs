@@ -84,6 +84,7 @@ pub extern "C" fn chama_optics_version() -> *const c_char {
 
 /// Free a string allocated by Rust
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn chama_optics_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
@@ -490,15 +491,15 @@ mod face_detection_ffi {
 }
 
 // Face Effect FFI Functions
+/// Apply Mosaic effect to detected face areas
 #[cfg(any(
     feature = "desktop",
     feature = "ios_integration",
     feature = "metal_rendering"
 ))]
-
-/// Apply Mosaic effect to detected face areas
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn chama_optics_apply_mosaic(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
@@ -595,6 +596,7 @@ pub extern "C" fn chama_optics_apply_mosaic(
 /// Apply Stroke effect to detected face areas
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn chama_optics_apply_stroke(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
@@ -703,6 +705,7 @@ pub extern "C" fn chama_optics_apply_stroke(
 /// This is a placeholder for future sticker storage functionality
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn chama_optics_apply_sticker(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,

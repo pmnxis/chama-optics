@@ -18,6 +18,7 @@ pub struct MosaicEffect {
     /// Block size for mosaic (in pixels)
     pub block_size: u32,
     /// Blend intensity (0.0 = full mosaic, 1.0 = no effect)
+    #[allow(dead_code)]
     pub intensity: f32,
 }
 
@@ -32,6 +33,7 @@ impl Default for MosaicEffect {
 
 impl MosaicEffect {
     /// Create a new mosaic effect
+    #[allow(dead_code)]
     pub fn new(block_size: u32, intensity: f32) -> Self {
         Self {
             block_size,
@@ -70,7 +72,7 @@ impl MosaicEffect {
                 continue;
             }
 
-            let block_size = config.block_size.max(1) as u32;
+            let block_size = config.block_size.max(1);
 
             for block_y in (start_y..start_y + face_height).step_by(block_size as usize) {
                 for block_x in (start_x..start_x + face_width).step_by(block_size as usize) {

@@ -15,7 +15,7 @@ pub enum MainTab {
     #[default]
     ImageList,
     ThemePreview,
-    Detection,
+    // Detection,
     ImportExport,
     Settings,
 }
@@ -949,7 +949,7 @@ impl ChamaOptics {
             match self.selected_tab {
                 MainTab::ImageList => self.render_image_list_tab(ui),
                 MainTab::ThemePreview => self.render_theme_preview_tab(ui),
-                MainTab::Detection => self.render_detection_tab(ui),
+                // MainTab::Detection => self.render_detection_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),
             }

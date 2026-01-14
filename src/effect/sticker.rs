@@ -69,9 +69,7 @@ fn create_sticker(sticker_id: &str, size: u32) -> RgbaImage {
 
     // Create different shapes based on sticker ID
     match sticker_id {
-        id if id.contains("heart") || id.contains("emoji_heart") => {
-            draw_heart(&mut sticker, size)
-        }
+        id if id.contains("heart") || id.contains("emoji_heart") => draw_heart(&mut sticker, size),
         id if id.contains("star") => draw_star(&mut sticker, size),
         id if id.contains("smile") => draw_smile(&mut sticker, size),
         _ => draw_circle(&mut sticker, size, Rgba([255, 200, 0, 220])), // Default: yellow circle
@@ -166,12 +164,9 @@ fn overlay_sticker(base: &mut DynamicImage, sticker: &RgbaImage, center_x: i32, 
                     let inv_alpha = 1.0 - alpha;
 
                     let blended = Rgba([
-                        (sticker_pixel[0] as f32 * alpha + base_pixel[0] as f32 * inv_alpha)
-                            as u8,
-                        (sticker_pixel[1] as f32 * alpha + base_pixel[1] as f32 * inv_alpha)
-                            as u8,
-                        (sticker_pixel[2] as f32 * alpha + base_pixel[2] as f32 * inv_alpha)
-                            as u8,
+                        (sticker_pixel[0] as f32 * alpha + base_pixel[0] as f32 * inv_alpha) as u8,
+                        (sticker_pixel[1] as f32 * alpha + base_pixel[1] as f32 * inv_alpha) as u8,
+                        (sticker_pixel[2] as f32 * alpha + base_pixel[2] as f32 * inv_alpha) as u8,
                         255,
                     ]);
 
