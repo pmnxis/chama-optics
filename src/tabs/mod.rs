@@ -6,8 +6,9 @@
 
 //! Tab UI modules
 
-// pub mod detection;
+pub mod detection;
 pub mod image_list;
 pub mod import_export;
 pub mod misc;
+pub mod sticker;
 pub mod theme_preview;

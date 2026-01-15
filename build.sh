@@ -1,4 +1,7 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+# SPDX-License-Identifier: MIT
+
 set -e
 cd "$(dirname "$0")"
 

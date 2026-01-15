@@ -15,9 +15,35 @@ pub enum MainTab {
     #[default]
     ImageList,
     ThemePreview,
-    // Detection,
+    Detection,
+    Sticker,
     ImportExport,
     Settings,
+}
+
+/// Interaction state for face rectangle editing in preview
+#[derive(Debug, Clone, Default)]
+pub enum FaceInteractionState {
+    #[default]
+    Idle,
+    Dragging {
+        face_index: usize,
+        start_pos: egui::Pos2,
+    },
+    Resizing {
+        face_index: usize,
+        corner: ResizeCorner,
+        start_pos: egui::Pos2,
+        original_rect: (i32, i32, u32, u32),
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ResizeCorner {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -40,6 +66,12 @@ pub struct ChamaOptics {
     /// Currently selected tab in sidebar
     selected_tab: MainTab,
 
+    /// Sticker storage for custom sticker images
+    pub sticker_storage: crate::effect::sticker_storage::StickerStorage,
+
+    /// Sticker application config (scale, offset)
+    pub sticker_config: crate::effect::sticker_storage::StickerConfig,
+
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
 
@@ -58,6 +90,69 @@ pub struct ChamaOptics {
     #[serde(skip)]
     /// Last theme preview generation params (to detect when to regenerate)
     pub(crate) theme_preview_cache_key: Option<(usize, String)>, // (image_index, theme_name)
+
+    #[serde(skip)]
+    /// Cached detection preview texture
+    pub(crate) detection_preview_texture: Option<egui::TextureHandle>,
+
+    #[serde(skip)]
+    /// Last detection preview cache key
+    pub(crate) detection_preview_cache_key: Option<(usize, usize)>, // (image_index, face_count)
+
+    #[serde(skip)]
+    /// Detected faces for the current image (editable)
+    pub(crate) detected_faces: Vec<crate::effect::sticker_storage::FaceWithSticker>,
+
+    #[serde(skip)]
+    /// Selected face index for editing
+    pub(crate) selected_face_index: Option<usize>,
+
+    #[serde(skip)]
+    /// Interaction state for face rectangle editing
+    pub(crate) face_interaction_state: FaceInteractionState,
+
+    #[serde(skip)]
+    /// Zoom level for detection preview (1.0 = 100%)
+    pub(crate) detection_zoom: f32,
+
+    #[serde(skip)]
+    /// Pan offset for detection preview
+    pub(crate) detection_pan: egui::Vec2,
+
+    #[serde(skip)]
+    /// Whether user is panning detection preview
+    pub(crate) detection_is_panning: bool,
+
+    #[serde(skip)]
+    /// Pan start position
+    pub(crate) detection_pan_start: egui::Vec2,
+
+    #[serde(skip)]
+    /// Progress tracking for face detection
+    pub detection_progress: ProgressState,
+
+    #[serde(skip)]
+    /// Queue for storing preview image data from background thread
+    pub preview_texture_queue:
+        std::sync::Arc<std::sync::Mutex<Option<(egui::ColorImage, uuid::Uuid, (u32, u32))>>>,
+
+    #[serde(skip)]
+    /// Original image size for detection preview (width, height)
+    pub(crate) detection_preview_original_size: Option<(u32, u32)>,
+
+    #[serde(skip)]
+    /// Queue for face detection results from background thread
+    pub detection_results_queue:
+        std::sync::Arc<std::sync::Mutex<Option<(Vec<(i32, i32, u32, u32)>, uuid::Uuid)>>>,
+
+    #[serde(skip)]
+    /// Cached InsightFace detector for reuse
+    #[cfg(feature = "face_detection_insightface")]
+    pub insightface_detector: std::sync::Arc<
+        std::sync::Mutex<
+            Option<std::sync::Arc<crate::effect::insightface_detector::InsightFaceDetector>>,
+        >,
+    >,
 
     #[serde(skip)]
     /// Background image texture for main screen
@@ -91,11 +186,28 @@ impl Default for ChamaOptics {
             show_theme_name_in_english: true, // Default: show English names
             temp_dir: crate::app_state::TempDir::default(),
             selected_tab: MainTab::default(),
+            sticker_storage: crate::effect::sticker_storage::StickerStorage::new(),
+            sticker_config: crate::effect::sticker_storage::StickerConfig::default(),
             packed_images: vec![],
             image_groups: None,
             preview_selected_index: None,
             theme_preview_texture: None,
             theme_preview_cache_key: None,
+            detection_preview_texture: None,
+            detection_preview_cache_key: None,
+            detected_faces: vec![],
+            selected_face_index: None,
+            face_interaction_state: FaceInteractionState::default(),
+            detection_zoom: 1.0,
+            detection_pan: egui::Vec2::ZERO,
+            detection_is_panning: false,
+            detection_pan_start: egui::Vec2::ZERO,
+            detection_progress: ProgressState::new(),
+            preview_texture_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            detection_preview_original_size: None,
+            detection_results_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            #[cfg(feature = "face_detection_insightface")]
+            insightface_detector: std::sync::Arc::new(std::sync::Mutex::new(None)),
             background_texture: None,
             last_dark_mode: None,
             update: crate::util::check_update::CheckRelease::new(),
@@ -949,7 +1061,8 @@ impl ChamaOptics {
             match self.selected_tab {
                 MainTab::ImageList => self.render_image_list_tab(ui),
                 MainTab::ThemePreview => self.render_theme_preview_tab(ui),
-                // MainTab::Detection => self.render_detection_tab(ui),
+                MainTab::Detection => self.render_detection_tab(ui),
+                MainTab::Sticker => self.render_sticker_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),
             }
@@ -957,5 +1070,11 @@ impl ChamaOptics {
 
         // Process pending image loading and loaded images
         self.process_image_loading(ui);
+
+        // Process face detection results from background thread
+        self.process_detection_results();
+
+        // Process preview texture from background thread
+        self.process_preview_texture(ui);
     }
 }

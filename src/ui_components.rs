@@ -165,7 +165,31 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
 
                 ui.add_space(5.0);
 
-                // Tab 3: Import&Export (⚙)
+                // Tab 3: Face Detection (👤)
+                render_tab_button(
+                    ui,
+                    selected_tab,
+                    MainTab::Detection,
+                    "👤",
+                    "Detect",
+                    &t!("tabs.detection", default = "Face Detection"),
+                );
+
+                ui.add_space(5.0);
+
+                // Tab 4: Sticker (🎭)
+                render_tab_button(
+                    ui,
+                    selected_tab,
+                    MainTab::Sticker,
+                    "🎭",
+                    "Sticker",
+                    &t!("tabs.sticker", default = "Sticker Storage"),
+                );
+
+                ui.add_space(5.0);
+
+                // Tab 5: Import&Export (⚙)
                 render_tab_button(
                     ui,
                     selected_tab,

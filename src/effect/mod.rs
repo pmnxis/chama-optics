@@ -12,6 +12,7 @@ pub mod face_detectors;
 pub(crate) mod glow;
 pub(crate) mod mosaic;
 pub(crate) mod sticker;
+pub mod sticker_storage;
 pub(crate) mod stroke;
 pub(crate) mod variable_text;
 pub(crate) mod watermark;

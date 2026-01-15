@@ -104,6 +104,14 @@ tabs:
     en: "Themes & Preview"
     ko: "테마 & 미리보기"
     ja: "テーマ＆プレビュー"
+  detection:
+    en: "Face Detection"
+    ko: "얼굴 인식"
+    ja: "顔認識"
+  sticker:
+    en: "Sticker Storage"
+    ko: "스티커 저장소"
+    ja: "ステッカー保存"
   import_export:
     en: "Import&Export Settings"
     ko: "입출력 설정"

@@ -1,0 +1,67 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+detection:
+  title:
+    en: "Face Detection"
+    ko: "얼굴 인식"
+    ja: "顔認識"
+  no_images:
+    en: "No images loaded. Go to Image List tab to add images."
+    ko: "이미지가 로드되지 않았습니다. 이미지 리스트 탭으로 이동하여 이미지를 추가하세요."
+    ja: "画像が読み込まれていません。画像リストタブに移動して画像を追加してください。"
+  select_image:
+    en: "Select Image:"
+    ko: "이미지 선택:"
+    ja: "画像選択:"
+  detect_faces:
+    en: "🔍 Detect Faces"
+    ko: "🔍 얼굴 인식"
+    ja: "🔍 顔認識"
+  faces_found:
+    en: "face(s) found"
+    ko: "개 얼굴 발견"
+    ja: "件の顔が見つかりました"
+  clear_all:
+    en: "🗑 Clear All"
+    ko: "🗑 전체 삭제"
+    ja: "🗑 すべてクリア"
+  reset_view:
+    en: "Reset view"
+    ko: "보기 초기화"
+    ja: "表示をリセット"
+  preview:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
+  select_image_first:
+    en: "Select an image to preview"
+    ko: "미리보기할 이미지를 선택하세요"
+    ja: "プレビューする画像を選択してください"
+  faces_and_stickers:
+    en: "Faces & Stickers"
+    ko: "얼굴 & 스티커"
+    ja: "顔＆ステッカー"
+  no_faces:
+    en: "No faces detected yet. Click 'Detect Faces' to start."
+    ko: "아직 인식된 얼굴이 없습니다. '얼굴 인식'을 클릭하여 시작하세요."
+    ja: "まだ顔が認識されていません。「顔認識」をクリックして開始してください。"
+  face_label_format:
+    en: "Face #%{n1} (%{n2}x%{n3})"
+    ko: "얼굴 #%{n1} (%{n2}x%{n3})"
+    ja: "顔 #%{n1} (%{n2}x%{n3})"
+  selected_face:
+    en: "Selected Face #%{n}"
+    ko: "선택된 얼굴 #%{n}"
+    ja: "選択された顔 #%{n}"
+  assign_sticker:
+    en: "Sticker:"
+    ko: "스티커:"
+    ja: "ステッカー:"
+  sticker_hint:
+    en: "💡 Add stickers in Sticker tab (🎭)"
+    ko: "💡 스티커 탭에서 스티커를 추가하세요 (🎭)"
+    ja: "💡 スティッカータブでステッカーを追加してください（🎭）"
