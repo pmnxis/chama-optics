@@ -10,12 +10,11 @@ use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
 
-#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug, Default)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug)]
 pub enum FaceDetectionEngine {
     #[cfg(feature = "face_detection_visionkit")]
     VisionKit,
     #[cfg(feature = "face_detection_insightface")]
-    #[default]
     InsightFace,
 }
 
