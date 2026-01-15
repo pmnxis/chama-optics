@@ -240,3 +240,216 @@ fn render_tab_button(
         ui.label(egui::RichText::new(label).size(9.0).color(text_color));
     });
 }
+
+/// Common horizontal scrollable gallery component for image selection
+///
+/// # Type Parameters
+/// * `T` - The type of item being displayed (e.g., PackedImage, Sticker)
+/// * `ID` - The ID type (e.g., usize, Uuid)
+///
+/// # Callbacks
+/// * `items` - Iterator over items to display
+/// * `get_id` - Function to extract ID from item
+/// * `get_name` - Function to extract display name from item
+/// * `get_texture` - Function to get texture handle from item (returns None if not loaded yet)
+/// * `is_selected` - Function to check if item is currently selected
+/// * `is_default` - Optional function to check if item is marked as default (shows ⭐)
+/// * `show_warning` - Optional function to show warning icons (❌/⚠️)
+/// * `on_select` - Callback when an item is clicked
+/// * `on_delete` - Optional callback when delete button is clicked on hover
+///
+/// # Returns
+/// * `Option<ID>` - The ID of item to delete (if any delete button was clicked)
+#[allow(clippy::too_many_arguments)]
+pub fn render_horizontal_gallery<T, ID, F, G, H, I, J, K>(
+    ui: &mut egui::Ui,
+    items: impl IntoIterator<Item = T>,
+    get_id: F,
+    get_name: G,
+    get_texture: H,
+    is_selected: I,
+    is_default: Option<J>,
+    show_warning: Option<K>,
+    on_select: &mut impl FnMut(ID),
+    on_delete: Option<&mut dyn FnMut(ID)>,
+) -> Option<ID>
+where
+    T: Clone,
+    ID: Copy + std::fmt::Debug,
+    F: Fn(&T) -> ID,
+    G: Fn(&T) -> String,
+    H: Fn(&egui::Context, &T) -> Option<egui::TextureHandle>,
+    I: Fn(ID) -> bool,
+    J: Fn(&T) -> bool,
+    K: Fn(&T) -> Option<(bool, bool)>, // Returns (file_missing, hash_mismatch)
+{
+    let mut item_to_delete: Option<ID> = None;
+
+    // Fixed height gallery to prevent layout shift during loading
+    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), 120.0),
+        egui::Layout::top_down(egui::Align::Min),
+        |ui| {
+            egui::ScrollArea::horizontal()
+                .id_salt("horizontal_gallery")
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        for item in items {
+                            let id = get_id(&item);
+                            let is_sel = is_selected(id);
+
+                            // Container for thumbnail + filename (fixed width to prevent layout shift)
+                            let container_response = ui.allocate_ui_with_layout(
+                                egui::vec2(80.0, 100.0),
+                                egui::Layout::top_down(egui::Align::Center),
+                                |ui| {
+                                    // Thumbnail (80x80) with optional selection frame
+                                    let thumbnail_size = egui::vec2(80.0, 80.0);
+
+                                    let frame = if is_sel {
+                                        egui::Frame::new().stroke(egui::Stroke::new(
+                                            2.0,
+                                            egui::Color32::from_rgb(0, 150, 255),
+                                        ))
+                                    } else {
+                                        egui::Frame::NONE
+                                    };
+
+                                    let image_response = if let Some(texture) =
+                                        get_texture(ui.ctx(), &item)
+                                    {
+                                        frame
+                                            .show(ui, |ui| {
+                                                ui.add(
+                                                    egui::Image::from_texture(&texture)
+                                                        .fit_to_exact_size(thumbnail_size)
+                                                        .sense(egui::Sense::click_and_drag()),
+                                                )
+                                            })
+                                            .inner
+                                    } else {
+                                        // Placeholder for not-yet-loaded items
+                                        let (response, _painter) = ui
+                                            .allocate_painter(thumbnail_size, egui::Sense::click());
+                                        ui.painter().text(
+                                            response.rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            "📷",
+                                            egui::FontId::proportional(32.0),
+                                            ui.visuals().weak_text_color(),
+                                        );
+                                        response
+                                    };
+
+                                    // File name (small text, centered, max width 80px)
+                                    let name = get_name(&item);
+                                    ui.add(
+                                        egui::Label::new(
+                                            egui::RichText::new(&name)
+                                                .size(10.0)
+                                                .color(ui.visuals().weak_text_color()),
+                                        )
+                                        .truncate(),
+                                    )
+                                    .on_hover_text(&name);
+
+                                    // Show default indicator if applicable
+                                    if let Some(ref is_def) = is_default
+                                        && is_def(&item)
+                                    {
+                                        ui.label(
+                                            egui::RichText::new("⭐")
+                                                .small()
+                                                .color(ui.visuals().warn_fg_color),
+                                        );
+                                    }
+
+                                    // Show warnings if applicable
+                                    if let Some(ref show_warn) = show_warning
+                                        && let Some((missing, modified)) = show_warn(&item)
+                                    {
+                                        if missing {
+                                            ui.label(
+                                                egui::RichText::new("❌")
+                                                    .size(12.0)
+                                                    .color(ui.visuals().error_fg_color),
+                                            );
+                                        } else if modified {
+                                            ui.label(
+                                                egui::RichText::new("⚠️")
+                                                    .size(12.0)
+                                                    .color(ui.visuals().warn_fg_color),
+                                            );
+                                        }
+                                    }
+
+                                    image_response
+                                },
+                            );
+
+                            let image_response = container_response.inner;
+                            let rect = image_response.rect;
+
+                            // Check if mouse is hovering over image
+                            let pointer_pos = ui.input(|i| i.pointer.hover_pos());
+                            let is_hovered = if let Some(pos) = pointer_pos {
+                                rect.contains(pos)
+                            } else {
+                                false
+                            };
+
+                            // Delete button on hover (top-right corner)
+                            if is_hovered && on_delete.is_some() {
+                                let button_size = 20.0;
+                                let delete_button_rect = egui::Rect::from_min_size(
+                                    rect.right_top() + egui::vec2(-button_size, 0.0),
+                                    egui::vec2(button_size, button_size),
+                                );
+
+                                // Draw delete button visuals (red circle with X)
+                                let center = delete_button_rect.center();
+                                ui.painter().circle_filled(
+                                    center,
+                                    10.0,
+                                    egui::Color32::from_rgba_premultiplied(220, 50, 50, 220),
+                                );
+
+                                // Draw X using lines
+                                let x_size = 5.0;
+                                ui.painter().line_segment(
+                                    [
+                                        center + egui::vec2(-x_size, -x_size),
+                                        center + egui::vec2(x_size, x_size),
+                                    ],
+                                    egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                );
+                                ui.painter().line_segment(
+                                    [
+                                        center + egui::vec2(x_size, -x_size),
+                                        center + egui::vec2(-x_size, x_size),
+                                    ],
+                                    egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                );
+
+                                // Check if delete button was clicked
+                                if let Some(pos) = pointer_pos {
+                                    if delete_button_rect.contains(pos) && image_response.clicked()
+                                    {
+                                        item_to_delete = Some(id);
+                                    } else if image_response.clicked() {
+                                        on_select(id);
+                                    }
+                                }
+                            } else if image_response.clicked() {
+                                on_select(id);
+                            }
+
+                            ui.add_space(5.0);
+                        }
+                    });
+                });
+        },
+    );
+
+    item_to_delete
+}

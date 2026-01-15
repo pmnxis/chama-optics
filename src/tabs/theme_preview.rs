@@ -74,152 +74,31 @@ impl ChamaOptics {
         if !self.packed_images.is_empty() {
             // Top: Horizontal scrollable gallery of loaded images
             ui.label(t!("theme_preview.select_image"));
-            let mut image_to_delete: Option<usize> = None;
 
-            // Fixed height gallery to prevent layout shift during loading
-            ui.allocate_ui_with_layout(
-                egui::vec2(ui.available_width(), 120.0),
-                egui::Layout::top_down(egui::Align::Min),
-                |ui| {
-                    egui::ScrollArea::horizontal()
-                        .id_salt("theme_gallery")
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                for (idx, pi) in self.packed_images.iter().enumerate() {
-                                    let is_selected = self.preview_selected_index == Some(idx);
+            let current_selected = self.preview_selected_index;
 
-                                    // Container for thumbnail + filename (fixed width to prevent layout shift)
-                                    let container_response = ui.allocate_ui_with_layout(
-                                        egui::vec2(80.0, 100.0),
-                                        egui::Layout::top_down(egui::Align::Center),
-                                        |ui| {
-                                            // Thumbnail (80x80) with optional selection frame
-                                            let thumbnail_size = egui::vec2(80.0, 80.0);
+            use crate::ui_components::render_horizontal_gallery;
 
-                                            let frame = if is_selected {
-                                                egui::Frame::new().stroke(egui::Stroke::new(
-                                                    2.0,
-                                                    egui::Color32::from_rgb(0, 150, 255),
-                                                ))
-                                            } else {
-                                                egui::Frame::NONE
-                                            };
-
-                                            let image_response = frame
-                                                .show(ui, |ui| {
-                                                    ui.add(
-                                                        egui::Image::from_texture(pi.texture.get())
-                                                            .fit_to_exact_size(thumbnail_size)
-                                                            .sense(egui::Sense::click_and_drag()),
-                                                    )
-                                                })
-                                                .inner;
-
-                                            // File name (small text, centered, max width 80px)
-                                            let file_name = pi
-                                                .path
-                                                .file_name()
-                                                .unwrap_or_default()
-                                                .to_string_lossy();
-
-                                            ui.add(
-                                                egui::Label::new(
-                                                    egui::RichText::new(file_name.as_ref())
-                                                        .size(10.0)
-                                                        .color(ui.visuals().weak_text_color()),
-                                                )
-                                                .truncate(),
-                                            )
-                                            .on_hover_text(file_name.as_ref());
-
-                                            image_response
-                                        },
-                                    );
-
-                                    let image_response = container_response.inner;
-                                    let rect = image_response.rect;
-
-                                    // Check if mouse is hovering over image
-                                    let pointer_pos = ui.input(|i| i.pointer.hover_pos());
-                                    let is_hovered = if let Some(pos) = pointer_pos {
-                                        rect.contains(pos)
-                                    } else {
-                                        false
-                                    };
-
-                                    // Delete button on hover (top-right corner)
-                                    if is_hovered {
-                                        let button_size = 20.0;
-                                        let delete_button_rect = egui::Rect::from_min_size(
-                                            rect.right_top() + egui::vec2(-button_size, 0.0),
-                                            egui::vec2(button_size, button_size),
-                                        );
-
-                                        // Draw delete button visuals (red circle with X)
-                                        let center = delete_button_rect.center();
-                                        ui.painter().circle_filled(
-                                            center,
-                                            10.0,
-                                            egui::Color32::from_rgba_premultiplied(
-                                                220, 50, 50, 220,
-                                            ),
-                                        );
-
-                                        // Draw X using lines
-                                        let x_size = 5.0;
-                                        ui.painter().line_segment(
-                                            [
-                                                center + egui::vec2(-x_size, -x_size),
-                                                center + egui::vec2(x_size, x_size),
-                                            ],
-                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                        );
-                                        ui.painter().line_segment(
-                                            [
-                                                center + egui::vec2(x_size, -x_size),
-                                                center + egui::vec2(-x_size, x_size),
-                                            ],
-                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                        );
-
-                                        // Check if delete button was clicked
-                                        if let Some(pos) = pointer_pos {
-                                            if delete_button_rect.contains(pos)
-                                                && image_response.clicked()
-                                            {
-                                                image_to_delete = Some(idx);
-                                            } else if image_response.clicked() {
-                                                self.preview_selected_index = Some(idx);
-                                            }
-                                        }
-                                    } else if image_response.clicked() {
-                                        self.preview_selected_index = Some(idx);
-                                    }
-
-                                    ui.add_space(5.0);
-                                }
-                            });
-                        });
+            let _image_to_delete = render_horizontal_gallery(
+                ui,
+                self.packed_images.iter().enumerate(),
+                |(idx, _img)| *idx,
+                |(_idx, img)| {
+                    img.path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string()
                 },
+                |_ctx, (_idx, img)| Some(img.texture.get().clone()),
+                |idx| current_selected == Some(idx),
+                None::<fn(&_) -> bool>,
+                None::<fn(&_) -> Option<(bool, bool)>>,
+                &mut |idx| {
+                    self.preview_selected_index = Some(idx);
+                },
+                None, // No delete in theme preview tab
             );
-
-            // Delete image if requested
-            if let Some(idx) = image_to_delete {
-                self.packed_images.remove(idx);
-                // Adjust preview_selected_index if necessary
-                if let Some(selected) = self.preview_selected_index {
-                    if selected == idx {
-                        // Deleted the selected image, clear selection and cache
-                        self.preview_selected_index = None;
-                        self.theme_preview_texture = None;
-                        self.theme_preview_cache_key = None;
-                    } else if selected > idx {
-                        // Selected image moved down, update index and invalidate cache
-                        self.preview_selected_index = Some(selected - 1);
-                        self.theme_preview_cache_key = None; // Force regeneration
-                    }
-                }
-            }
 
             ui.separator();
 

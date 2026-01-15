@@ -73,6 +73,10 @@ pub struct ChamaOptics {
     pub sticker_config: crate::effect::sticker_storage::StickerConfig,
 
     #[serde(skip)]
+    /// Selected sticker ID for sticker preview tab
+    pub(crate) selected_sticker_id: Option<uuid::Uuid>,
+
+    #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
 
     #[serde(skip)]
@@ -188,6 +192,7 @@ impl Default for ChamaOptics {
             selected_tab: MainTab::default(),
             sticker_storage: crate::effect::sticker_storage::StickerStorage::new(),
             sticker_config: crate::effect::sticker_storage::StickerConfig::default(),
+            selected_sticker_id: None,
             packed_images: vec![],
             image_groups: None,
             preview_selected_index: None,
@@ -758,8 +763,33 @@ impl ChamaOptics {
                     .filter_map(|f| f.path.clone())
                     .collect();
 
-                for path in paths.iter() {
-                    self.pending_paths.push_back(path.clone());
+                // Handle differently based on current tab
+                match self.selected_tab {
+                    MainTab::Sticker => {
+                        // Add as stickers
+                        for path in paths.iter() {
+                            let name = path
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("Sticker")
+                                .to_string();
+
+                            match self.sticker_storage.add_sticker(name.clone(), path) {
+                                Ok(_) => {
+                                    log::info!("Added sticker: {}", name);
+                                }
+                                Err(e) => {
+                                    log::error!("Failed to add sticker {}: {:?}", name, e);
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // Add as images (default behavior)
+                        for path in paths.iter() {
+                            self.pending_paths.push_back(path.clone());
+                        }
+                    }
                 }
             }
         });

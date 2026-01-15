@@ -22,42 +22,43 @@ impl ChamaOptics {
             return;
         }
 
-        // Image selector dropdown
-        ui.horizontal(|ui| {
-            ui.label(t!("detection.select_image"));
+        // Horizontal image gallery
+        ui.label(t!("detection.select_image"));
+        use crate::ui_components::render_horizontal_gallery;
 
-            let current_name = self
-                .preview_selected_index
-                .and_then(|idx| self.packed_images.get(idx))
-                .and_then(|img| img.path.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("Select...");
+        let current_selected = self.preview_selected_index;
 
-            egui::ComboBox::from_id_salt("detection_image_select")
-                .selected_text(current_name)
-                .show_ui(ui, |ui| {
-                    for (idx, img) in self.packed_images.iter().enumerate() {
-                        let img_name = img
-                            .path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .unwrap_or("Unknown");
-                        if ui
-                            .selectable_label(self.preview_selected_index == Some(idx), img_name)
-                            .clicked()
-                        {
-                            self.preview_selected_index = Some(idx);
-                            // Reset zoom and pan when image changes
-                            self.detection_zoom = 1.0;
-                            self.detection_pan = egui::Vec2::ZERO;
-                            self.detection_preview_texture = None;
-                            self.detection_preview_cache_key = None;
-                            self.detected_faces.clear();
-                            self.selected_face_index = None;
-                        }
-                    }
-                });
-        });
+        let mut on_select = |idx| {
+            if current_selected != Some(idx) {
+                self.preview_selected_index = Some(idx);
+                // Reset zoom and pan when image changes
+                self.detection_zoom = 1.0;
+                self.detection_pan = egui::Vec2::ZERO;
+                self.detection_preview_texture = None;
+                self.detection_preview_cache_key = None;
+                self.detected_faces.clear();
+                self.selected_face_index = None;
+            }
+        };
+
+        let _image_to_delete = render_horizontal_gallery(
+            ui,
+            self.packed_images.iter().enumerate(),
+            |(idx, _img)| *idx, // Use index as ID (dereference)
+            |(_idx, img)| {
+                img.path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("Unknown")
+                    .to_string()
+            },
+            |_ctx, (_idx, img)| Some(img.texture.get().clone()),
+            |idx| current_selected == Some(idx),
+            None::<fn(&_) -> bool>, // No default concept for images
+            None::<fn(&_) -> Option<(bool, bool)>>, // No warnings for images
+            &mut on_select,
+            None, // No delete for images in detection tab
+        );
 
         ui.separator();
 
@@ -995,7 +996,6 @@ impl ChamaOptics {
         let cache_key = (idx, self.detected_faces.len());
         let texture_queue = self.preview_texture_queue.clone();
         let image_path = image_path.to_path_buf();
-        let image_uuid = image_uuid;
 
         // Update cache key immediately to prevent duplicate requests
         self.detection_preview_cache_key = Some(cache_key);

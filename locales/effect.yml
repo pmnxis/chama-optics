@@ -116,6 +116,10 @@ effect:
       en: "Sticker Preview"
       ko: "스티커 미리보기"
       ja: "ステッカープレビュー"
+    selected_sticker:
+      en: "Selected Sticker:"
+      ko: "선택된 스티커:"
+      ja: "選択されたステッカー:"
     hash_warning:
       en: "⚠️ Some sticker files have been modified since they were added. Please verify or re-add them."
       ko: "⚠️ 일부 스티커 파일이 추가된 후 수정되었습니다. 확인하거나 다시 추가하세요."
