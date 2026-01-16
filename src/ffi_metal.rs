@@ -979,41 +979,49 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match CStr::from_ptr(image_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
+    let image_path_str = unsafe {
+        match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
     };
 
     // Use image_path as EXIF source if exif_source_path is null
     let exif_source_str = if exif_source_path.is_null() {
         image_path_str
     } else {
-        match CStr::from_ptr(exif_source_path).to_str() {
-            Ok(s) => s,
-            Err(_) => image_path_str,
+        unsafe {
+            match CStr::from_ptr(exif_source_path).to_str() {
+                Ok(s) => s,
+                Err(_) => image_path_str,
+            }
         }
     };
 
-    let output_path_str = match CStr::from_ptr(output_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
+    let output_path_str = unsafe {
+        match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
     };
 
-    let theme_name_str = match CStr::from_ptr(theme_name).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidTheme,
+    let theme_name_str = unsafe {
+        match CStr::from_ptr(theme_name).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidTheme,
+        }
     };
 
     let params_json_str = if params_json.is_null() {
         "{}"
     } else {
-        CStr::from_ptr(params_json).to_str().unwrap_or("{}")
+        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
     };
 
     let font_path_str = if font_path.is_null() {
         ""
     } else {
-        CStr::from_ptr(font_path).to_str().unwrap_or("")
+        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
     };
 
     log::info!("Applying theme with separate EXIF source:");
@@ -1129,17 +1137,21 @@ pub unsafe extern "C" fn chama_export_combined(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match CStr::from_ptr(image_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
+    let image_path_str = unsafe {
+        match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
     };
 
-    let output_path_str = match CStr::from_ptr(output_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
+    let output_path_str = unsafe {
+        match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
     };
 
-    let config_ref = &*config;
+    let config_ref = unsafe { &*config };
 
     log::info!("Combined export pipeline started:");
     log::info!("  Input: {}", image_path_str);
@@ -1165,7 +1177,7 @@ pub unsafe extern "C" fn chama_export_combined(
     {
         let mut face_areas: Vec<(i32, i32, u32, u32)> = Vec::with_capacity(face_count);
         for i in 0..face_count {
-            let face = *face_rects.add(i);
+            let face = unsafe { *face_rects.add(i) };
             face_areas.push((face.x, face.y, face.width, face.height));
         }
 
@@ -1210,14 +1222,15 @@ pub unsafe extern "C" fn chama_export_combined(
             CFaceEffectType::Sticker => {
                 // Load sticker path
                 let sticker_config = if !config_ref.sticker_image_path.is_null() {
-                    let sticker_path_str =
+                    let sticker_path_str = unsafe {
                         match CStr::from_ptr(config_ref.sticker_image_path).to_str() {
                             Ok(s) => s,
                             Err(_) => {
                                 log::error!("Invalid sticker path");
                                 return ChamaError::InvalidPath;
                             }
-                        };
+                        }
+                    };
                     crate::effect::sticker::StickerConfig::with_image_path(
                         std::path::PathBuf::from(sticker_path_str),
                         config_ref.sticker_scale,
@@ -1242,12 +1255,14 @@ pub unsafe extern "C" fn chama_export_combined(
 
     // Step 3: Apply theme (if theme_name provided)
     if !config_ref.theme_name.is_null() {
-        let theme_name_str = match CStr::from_ptr(config_ref.theme_name).to_str() {
-            Ok(s) if !s.is_empty() => s,
-            _ => {
-                log::info!("  No theme specified, skipping theme application");
-                // Skip theme if empty string
-                ""
+        let theme_name_str = unsafe {
+            match CStr::from_ptr(config_ref.theme_name).to_str() {
+                Ok(s) if !s.is_empty() => s,
+                _ => {
+                    log::info!("  No theme specified, skipping theme application");
+                    // Skip theme if empty string
+                    ""
+                }
             }
         };
 
@@ -1255,15 +1270,17 @@ pub unsafe extern "C" fn chama_export_combined(
             log::info!("  Applying theme: {}", theme_name_str);
 
             let params_json = if !config_ref.theme_params_json.is_null() {
-                CStr::from_ptr(config_ref.theme_params_json)
-                    .to_str()
-                    .unwrap_or("{}")
+                unsafe {
+                    CStr::from_ptr(config_ref.theme_params_json)
+                        .to_str()
+                        .unwrap_or("{}")
+                }
             } else {
                 "{}"
             };
 
             let font_path = if !config_ref.font_path.is_null() {
-                CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("")
+                unsafe { CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("") }
             } else {
                 ""
             };

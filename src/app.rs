@@ -12,7 +12,12 @@ use std::sync::{Arc, Mutex};
 
 /// Type alias for preview texture queue data
 /// Contains: (ColorImage, UUID, dimensions, optional DynamicImage)
-type PreviewTextureData = (egui::ColorImage, uuid::Uuid, (u32, u32), Option<image::DynamicImage>);
+type PreviewTextureData = (
+    egui::ColorImage,
+    uuid::Uuid,
+    (u32, u32),
+    Option<image::DynamicImage>,
+);
 
 /// Type alias for thread-safe preview texture queue
 type PreviewTextureQueue = Arc<Mutex<Option<PreviewTextureData>>>;
