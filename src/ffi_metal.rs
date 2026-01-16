@@ -233,6 +233,29 @@ fn export_final_impl(
     font_path: &str,
     font_weight: u32,
 ) -> Result<(), PreviewError> {
+    export_final_impl_with_exif_source(
+        image_path,
+        image_path, // Use same path for EXIF source by default
+        output_path,
+        theme_name,
+        params_json,
+        font_path,
+        font_weight,
+    )
+}
+
+/// Export with theme, allowing separate EXIF source
+/// This is useful when the image has been modified (e.g., stickers applied)
+/// but we want to read EXIF from the original image
+fn export_final_impl_with_exif_source(
+    image_path: &str,
+    exif_source_path: &str,
+    output_path: &str,
+    theme_name: &str,
+    params_json: &str,
+    font_path: &str,
+    font_weight: u32,
+) -> Result<(), PreviewError> {
     // For final export, always load full resolution
     let _dyn_image = image::open(image_path).map_err(PreviewError::ImageLoad)?;
 
@@ -242,15 +265,20 @@ fn export_final_impl(
         _dyn_image.height()
     );
 
-    // The rest is the same as preview generation
-    // 2. Parse EXIF for metadata
+    // Parse EXIF from the original source (not the modified image)
     let exif = {
-        let file = std::fs::File::open(image_path).map_err(PreviewError::IoError)?;
+        let file = std::fs::File::open(exif_source_path).map_err(PreviewError::IoError)?;
         let mut buf_reader = std::io::BufReader::new(file);
         exif::Reader::new()
             .read_from_container(&mut buf_reader)
             .ok()
     };
+
+    if exif.is_some() {
+        log::info!("✅ Loaded EXIF from: {}", exif_source_path);
+    } else {
+        log::warn!("⚠️ No EXIF data found in: {}", exif_source_path);
+    }
 
     let original_exif = crate::image::exif_impl::OriginalExif::new(exif);
     let view_exif = crate::image::exif_impl::SimplifiedExif::from(&original_exif);
@@ -924,6 +952,100 @@ pub unsafe extern "C" fn chama_optics_apply_theme(
     unsafe { chama_generate_preview(image_path, output_path, &config) }
 }
 
+/// Apply theme to image with separate EXIF source
+///
+/// This function is useful when the image has been modified (e.g., stickers applied)
+/// but we want to read EXIF metadata from the original image file.
+///
+/// # Parameters
+/// - `image_path`: Path to the image to apply theme to (may be modified)
+/// - `exif_source_path`: Path to the original image for reading EXIF data
+/// - `output_path`: Path for the output file
+/// - `theme_name`: Name of the theme to apply
+/// - `params_json`: Theme parameters as JSON string
+/// - `font_path`: Path to the font file
+/// - `font_weight`: Font weight (100-900)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
+    image_path: *const c_char,
+    exif_source_path: *const c_char,
+    output_path: *const c_char,
+    theme_name: *const c_char,
+    params_json: *const c_char,
+    font_path: *const c_char,
+    font_weight: u32,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = match CStr::from_ptr(image_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    // Use image_path as EXIF source if exif_source_path is null
+    let exif_source_str = if exif_source_path.is_null() {
+        image_path_str
+    } else {
+        match CStr::from_ptr(exif_source_path).to_str() {
+            Ok(s) => s,
+            Err(_) => image_path_str,
+        }
+    };
+
+    let output_path_str = match CStr::from_ptr(output_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let theme_name_str = match CStr::from_ptr(theme_name).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidTheme,
+    };
+
+    let params_json_str = if params_json.is_null() {
+        "{}"
+    } else {
+        CStr::from_ptr(params_json).to_str().unwrap_or("{}")
+    };
+
+    let font_path_str = if font_path.is_null() {
+        ""
+    } else {
+        CStr::from_ptr(font_path).to_str().unwrap_or("")
+    };
+
+    log::info!("Applying theme with separate EXIF source:");
+    log::info!("  Image: {}", image_path_str);
+    log::info!("  EXIF source: {}", exif_source_str);
+    log::info!("  Theme: {}", theme_name_str);
+
+    match export_final_impl_with_exif_source(
+        image_path_str,
+        exif_source_str,
+        output_path_str,
+        theme_name_str,
+        params_json_str,
+        font_path_str,
+        font_weight,
+    ) {
+        Ok(_) => {
+            log::info!("✅ Theme applied successfully with EXIF from original");
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to apply theme: {}", e);
+            match e {
+                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
+                PreviewError::InvalidFont => ChamaError::InvalidFont,
+                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
+                _ => ChamaError::ImageProcessError,
+            }
+        }
+    }
+}
+
 // ============================================================================
 // Combined Export Pipeline (Face Effects + Theme + Export Quality)
 // ============================================================================
@@ -1156,9 +1278,11 @@ pub unsafe extern "C" fn chama_export_combined(
                 return ChamaError::ImageProcessError;
             }
 
-            // Apply theme to temp image
-            let theme_result = export_final_impl(
-                &temp_path,
+            // Apply theme to temp image, but read EXIF from original image
+            // (temp file doesn't have EXIF data after sticker/mosaic processing)
+            let theme_result = export_final_impl_with_exif_source(
+                &temp_path,     // Image with face effects
+                image_path_str, // Original image for EXIF data
                 output_path_str,
                 theme_name_str,
                 params_json,

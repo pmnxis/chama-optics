@@ -10,21 +10,6 @@
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
 use std::path::PathBuf;
 
-/// Source of the sticker image
-#[derive(Debug, Clone)]
-pub enum StickerSource {
-    /// Built-in procedural sticker identified by name (heart, star, smile, etc.)
-    BuiltIn(String),
-    /// Custom sticker loaded from an image file path
-    ImagePath(PathBuf),
-}
-
-impl Default for StickerSource {
-    fn default() -> Self {
-        StickerSource::BuiltIn("heart".to_string())
-    }
-}
-
 /// Configuration for sticker effect
 #[derive(Debug, Clone)]
 pub struct StickerConfig {
@@ -69,15 +54,6 @@ impl StickerConfig {
             scale,
             offset_x,
             offset_y,
-        }
-    }
-
-    /// Get the sticker source based on configuration
-    pub fn get_source(&self) -> StickerSource {
-        if let Some(ref path) = self.sticker_path {
-            StickerSource::ImagePath(path.clone())
-        } else {
-            StickerSource::BuiltIn(self.sticker_id.clone())
         }
     }
 }

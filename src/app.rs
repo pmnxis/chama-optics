@@ -8,6 +8,21 @@ use crate::packed_image::PackedImage;
 use crate::ui_state::ProgressState;
 use rust_i18n::t;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+/// Type alias for preview texture queue data
+/// Contains: (ColorImage, UUID, dimensions, optional DynamicImage)
+type PreviewTextureData = (egui::ColorImage, uuid::Uuid, (u32, u32), Option<image::DynamicImage>);
+
+/// Type alias for thread-safe preview texture queue
+type PreviewTextureQueue = Arc<Mutex<Option<PreviewTextureData>>>;
+
+/// Type alias for face detection results
+/// Contains: (Vec of face rectangles as (x, y, width, height), UUID)
+type DetectionResultsData = (Vec<(i32, i32, u32, u32)>, uuid::Uuid);
+
+/// Type alias for thread-safe detection results queue
+type DetectionResultsQueue = Arc<Mutex<Option<DetectionResultsData>>>;
 
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
@@ -142,16 +157,7 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Queue for storing preview image data from background thread
-    pub preview_texture_queue: std::sync::Arc<
-        std::sync::Mutex<
-            Option<(
-                egui::ColorImage,
-                uuid::Uuid,
-                (u32, u32),
-                Option<image::DynamicImage>,
-            )>,
-        >,
-    >,
+    pub preview_texture_queue: PreviewTextureQueue,
 
     #[serde(skip)]
     /// Original image size for detection preview (width, height)
@@ -159,8 +165,7 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Queue for face detection results from background thread
-    pub detection_results_queue:
-        std::sync::Arc<std::sync::Mutex<Option<(Vec<(i32, i32, u32, u32)>, uuid::Uuid)>>>,
+    pub detection_results_queue: DetectionResultsQueue,
 
     #[serde(skip)]
     /// Cached InsightFace detector for reuse
