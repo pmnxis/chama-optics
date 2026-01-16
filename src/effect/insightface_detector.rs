@@ -296,7 +296,8 @@ impl InsightFaceDetector {
     /// Run ONNX inference and decode outputs
     /// Returns detections as Vec<(x, y, w, h, score)>
     fn run_inference(&self, input_data: Vec<f32>) -> Vec<(f32, f32, f32, f32, f32)> {
-        log::debug!("Running ONNX inference...");
+        // TODO-as conditional
+        // log::debug!("Running ONNX inference...");
 
         // Get session write lock for inference
         let mut session = self.session.write().unwrap();
@@ -317,17 +318,19 @@ impl InsightFaceDetector {
             .run(ort::inputs![&input_tensor])
             .expect("ONNX inference failed");
 
-        log::debug!("Number of outputs: {}", outputs.len());
+        // TODO-as conditional
+        // log::debug!("Number of outputs: {}", outputs.len());
 
         // Convert outputs to Vec for easier indexing
         let output_values: Vec<ort::value::Value> = outputs.into_iter().map(|(_, v)| v).collect();
 
         // Log output shapes for debugging
-        for (i, output) in output_values.iter().enumerate() {
-            if let Ok((shape, _)) = output.try_extract_tensor::<f32>() {
-                log::debug!("Output {}: shape = {:?}", i, shape);
-            }
-        }
+        // TODO-as conditional
+        // for (i, output) in output_values.iter().enumerate() {
+        //     if let Ok((shape, _)) = output.try_extract_tensor::<f32>() {
+        //         log::debug!("Output {}: shape = {:?}", i, shape);
+        //     }
+        // }
 
         // InsightFace det_10g outputs 9 tensors grouped by type:
         // Outputs 0-2: scores for stride 8, 16, 32
@@ -411,7 +414,8 @@ impl InsightFaceDetector {
                 continue;
             }
 
-            log::debug!("Stride {} has {} detections", stride_idx, num_dets);
+            // TODO-as conditional
+            // log::debug!("Stride {} has {} detections", stride_idx, num_dets);
 
             // Log first few high-confidence detections for debugging
             let mut logged_count = 0;
@@ -464,10 +468,8 @@ impl InsightFaceDetector {
             }
         }
 
-        log::debug!(
-            "Total detections across all strides: {}",
-            all_detections.len()
-        );
+        // TODO-as conditional
+        // log::debug!("Total detections across all strides: {}",all_detections.len());
         all_detections
     }
 
@@ -481,7 +483,8 @@ impl InsightFaceDetector {
     ) -> Vec<(i32, i32, u32, u32)> {
         let mut faces = vec![];
 
-        log::debug!("Processing {} detections", detections.len());
+        // TODO-as conditional
+        // log::debug!("Processing {} detections", detections.len());
 
         // Extract high-confidence faces
         let mut candidate_faces: Vec<(f32, f32, f32, f32, f32)> = Vec::new();
@@ -491,7 +494,9 @@ impl InsightFaceDetector {
             }
         }
 
-        log::debug!("Found {} faces above threshold", candidate_faces.len());
+        if !candidate_faces.is_empty() {
+            log::debug!("Found {} faces above threshold", candidate_faces.len());
+        }
 
         // Apply NMS
         let nms_faces = self.nms_float(candidate_faces);
@@ -675,7 +680,8 @@ impl InsightFaceDetector {
         orig_width: u32,
         orig_height: u32,
     ) -> Vec<(i32, i32, u32, u32)> {
-        log::debug!("Running single detection...");
+        // TODO-as conditional
+        // log::debug!("Running single detection...");
 
         // Preprocess image
         let input_data = self.preprocess_image(img);

@@ -200,11 +200,16 @@ impl ChamaOptics {
                             }
 
                             // Remove faces (in reverse order to preserve indices)
+                            let faces_deleted = !faces_to_remove.is_empty();
                             for idx in faces_to_remove.into_iter().rev() {
                                 self.detected_faces.remove(idx);
                                 if self.selected_face_index == Some(idx) {
                                     self.selected_face_index = None;
                                 }
+                            }
+                            // Invalidate preview cache if faces were deleted
+                            if faces_deleted {
+                                self.detection_preview_cache_key = None;
                             }
                         });
 
@@ -238,6 +243,8 @@ impl ChamaOptics {
                                         .clicked()
                                     {
                                         self.detected_faces[selected_idx].sticker_id = None;
+                                        // Invalidate preview cache to regenerate with updated sticker
+                                        self.detection_preview_cache_key = None;
                                     }
 
                                     // Sticker options
@@ -252,6 +259,8 @@ impl ChamaOptics {
                                         {
                                             self.detected_faces[selected_idx].sticker_id =
                                                 Some(sticker.id);
+                                            // Invalidate preview cache to regenerate with updated sticker
+                                            self.detection_preview_cache_key = None;
                                         }
                                     }
                                 });
@@ -498,8 +507,11 @@ impl ChamaOptics {
         let texture_to_orig = texture_size.x / orig_w as f32;
         let total_scale = screen_to_texture * texture_to_orig; // screen -> original
 
-        // Handle mouse release - reset to Idle state
+        // Handle mouse release - reset to Idle state and regenerate preview
         if response.drag_stopped() {
+            // Invalidate preview cache to trigger regeneration with updated face positions
+            self.detection_preview_cache_key = None;
+            log::info!("Preview cache invalidated - manual face edit completed");
             self.face_interaction_state = FaceInteractionState::Idle;
             return;
         }
@@ -669,6 +681,8 @@ impl ChamaOptics {
                     {
                         self.selected_face_index = Some(s - 1);
                     }
+                    // Invalidate preview cache when face is deleted
+                    self.detection_preview_cache_key = None;
                     return;
                 }
             }
@@ -714,6 +728,8 @@ impl ChamaOptics {
 
                 self.detected_faces.push(new_face);
                 self.selected_face_index = Some(self.detected_faces.len() - 1);
+                // Invalidate preview cache when new face is added
+                self.detection_preview_cache_key = None;
             }
         }
     }
@@ -936,6 +952,7 @@ impl ChamaOptics {
     /// Process face detection results from background thread
     pub(crate) fn process_detection_results(&mut self) {
         // Check if there are results in the queue
+        let mut faces_processed = false;
         if let Ok(mut queue) = self.detection_results_queue.try_lock()
             && let Some((faces, image_uuid)) = queue.take()
         {
@@ -961,6 +978,8 @@ impl ChamaOptics {
                         } else {
                             Some(0)
                         };
+
+                        faces_processed = true;
                     } else {
                         log::warn!("Detection results are for different image, ignoring");
                     }
@@ -970,17 +989,21 @@ impl ChamaOptics {
             }
         }
 
-        // Update progress
-        if self.detection_progress.is_active() {
-            if self.detection_progress.current() < self.detection_progress.total() {
-                // Increment progress
-                let _ = self
-                    .detection_progress
-                    .counter()
-                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            }
+        // Update progress - increment counter when faces are processed
+        if faces_processed {
+            // Increment progress when we receive and process detection results
+            let _ = self
+                .detection_progress
+                .counter()
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-            if self.detection_progress.is_complete() {
+            // Mark as complete when we receive results
+            self.detection_progress.mark_complete();
+        }
+
+        if self.detection_progress.is_active() {
+            // Check if we should mark as complete due to timeout or other conditions
+            if self.detection_progress.current() >= self.detection_progress.total() {
                 self.detection_progress.mark_complete();
             }
         }
@@ -997,6 +1020,11 @@ impl ChamaOptics {
         let texture_queue = self.preview_texture_queue.clone();
         let image_path = image_path.to_path_buf();
 
+        // Clone sticker data for background thread
+        let detected_faces = self.detected_faces.clone();
+        let sticker_storage = self.sticker_storage.clone_for_thread();
+        let sticker_config = self.sticker_config.clone();
+
         // Update cache key immediately to prevent duplicate requests
         self.detection_preview_cache_key = Some(cache_key);
 
@@ -1008,12 +1036,17 @@ impl ChamaOptics {
             );
 
             // Load and process image
-            let color_image = Self::generate_detection_preview_sync(&image_path);
+            let color_image = Self::generate_detection_preview_sync(
+                &image_path,
+                &detected_faces,
+                &sticker_storage,
+                &sticker_config,
+            );
 
-            if let Some((color_image, orig_size)) = color_image {
-                // Send color image AND original size to queue
+            if let Some((color_image, orig_size, sticker_processed)) = color_image {
+                // Send color image, original size, and sticker-processed image to queue
                 if let Ok(mut queue) = texture_queue.lock() {
-                    *queue = Some((color_image, image_uuid, orig_size));
+                    *queue = Some((color_image, image_uuid, orig_size, sticker_processed));
                     log::info!("Preview generated successfully");
                 }
             } else {
@@ -1022,34 +1055,107 @@ impl ChamaOptics {
         });
     }
 
-    /// Generate a preview image (without rectangles) - synchronous version
+    /// Generate a preview image (with stickers applied) - synchronous version
     fn generate_detection_preview_sync(
         image_path: &std::path::Path,
-    ) -> Option<(egui::ColorImage, (u32, u32))> {
+        detected_faces: &[crate::effect::sticker_storage::FaceWithSticker],
+        sticker_storage: &crate::effect::sticker_storage::StickerStorage,
+        sticker_config: &crate::effect::sticker_storage::StickerConfig,
+    ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         // Load original image
-        let mut dyn_image = image::open(image_path).ok()?;
+        let dyn_image = image::open(image_path).ok()?;
 
         // Get original dimensions BEFORE scaling
         let orig_w = dyn_image.width();
         let orig_h = dyn_image.height();
 
+        // Apply stickers to the image if faces are detected
+        let sticker_processed_image = if !detected_faces.is_empty() {
+            let mut img_with_stickers = dyn_image.clone();
+
+            for face in detected_faces {
+                if let Some(sticker_id) = face.sticker_id
+                    && let Some(sticker_img) = sticker_storage.get_sticker_image(sticker_id)
+                {
+                    // Calculate sticker size maintaining aspect ratio
+                    let sticker_aspect = sticker_img.width() as f32 / sticker_img.height() as f32;
+                    let face_aspect = face.width as f32 / face.height as f32;
+
+                    // Apply scale factor to face dimensions
+                    let scaled_face_w = face.width as f32 * sticker_config.scale;
+                    let scaled_face_h = face.height as f32 * sticker_config.scale;
+
+                    // Calculate sticker size to fit within scaled face rectangle while maintaining aspect ratio
+                    let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
+                        // Sticker is wider than face - fit to width
+                        (
+                            scaled_face_w as u32,
+                            (scaled_face_w / sticker_aspect) as u32,
+                        )
+                    } else {
+                        // Sticker is taller than face - fit to height
+                        (
+                            (scaled_face_h * sticker_aspect) as u32,
+                            scaled_face_h as u32,
+                        )
+                    };
+
+                    // Resize sticker to calculated dimensions (maintains aspect ratio)
+                    let resized_sticker = sticker_img.resize(
+                        sticker_w,
+                        sticker_h,
+                        image::imageops::FilterType::Lanczos3,
+                    );
+
+                    // Calculate center position of face rectangle (with offset applied to center)
+                    let face_center_x = face.x as f32 + face.width as f32 / 2.0;
+                    let face_center_y = face.y as f32 + face.height as f32 / 2.0;
+
+                    // Apply offset to center position
+                    let sticker_center_x = face_center_x + sticker_config.offset_x as f32;
+                    let sticker_center_y = face_center_y + sticker_config.offset_y as f32;
+
+                    // Calculate top-left position to center the sticker
+                    let sticker_x = (sticker_center_x - sticker_w as f32 / 2.0) as i64;
+                    let sticker_y = (sticker_center_y - sticker_h as f32 / 2.0) as i64;
+
+                    // Apply sticker with alpha blending
+                    image::imageops::overlay(
+                        &mut img_with_stickers,
+                        &resized_sticker,
+                        sticker_x,
+                        sticker_y,
+                    );
+                }
+            }
+            Some(img_with_stickers)
+        } else {
+            None
+        };
+
+        // Use sticker-processed image for preview if available
+        let preview_source = sticker_processed_image.as_ref().unwrap_or(&dyn_image);
+
         // Scale down for preview if needed
         let max_preview_size = 800u32;
-        let (w, h) = (orig_w, orig_h);
-        if w > max_preview_size || h > max_preview_size {
+        let (w, h) = (preview_source.width(), preview_source.height());
+        let preview_image = if w > max_preview_size || h > max_preview_size {
             let scale = max_preview_size as f32 / w.max(h) as f32;
             let new_w = (w as f32 * scale) as u32;
             let new_h = (h as f32 * scale) as u32;
-            dyn_image = dyn_image.resize(new_w, new_h, image::imageops::FilterType::Triangle);
-        }
+            preview_source.resize(new_w, new_h, image::imageops::FilterType::Triangle)
+        } else {
+            preview_source.clone()
+        };
 
-        // Convert to ColorImage (no rectangles drawn)
-        let rgba_image = dyn_image.to_rgba8();
+        // Convert to ColorImage
+        let rgba_image = preview_image.to_rgba8();
         let size = [rgba_image.width() as usize, rgba_image.height() as usize];
         let pixels = rgba_image.into_raw();
         Some((
             egui::ColorImage::from_rgba_unmultiplied(size, &pixels),
             (orig_w, orig_h),
+            sticker_processed_image,
         ))
     }
 
@@ -1057,7 +1163,7 @@ impl ChamaOptics {
     pub(crate) fn process_preview_texture(&mut self, ui: &mut egui::Ui) {
         // Check if there's a preview texture ready
         if let Ok(mut queue) = self.preview_texture_queue.try_lock()
-            && let Some((color_image, image_uuid, orig_size)) = queue.take()
+            && let Some((color_image, image_uuid, orig_size, sticker_processed)) = queue.take()
         {
             // Verify this is for the currently selected image
             if let Some(selected_idx) = self.preview_selected_index
@@ -1072,7 +1178,61 @@ impl ChamaOptics {
                 );
                 self.detection_preview_texture = Some(texture);
                 self.detection_preview_original_size = Some(orig_size);
-                log::info!("Preview texture loaded, original size: {:?}", orig_size);
+
+                // Convert sticker-processed image to bytes and store in PackedImage
+                let sticker_bytes = sticker_processed.as_ref().and_then(|img| {
+                    // Convert DynamicImage to bytes using the same format as the original image
+                    let original_ext = selected_image
+                        .path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("jpg");
+
+                    // Use JPEG for best compatibility with original images
+                    let format = match original_ext.to_lowercase().as_str() {
+                        "png" => image::ImageFormat::Png,
+                        "heic" | "heif" => image::ImageFormat::Jpeg, // Convert HEIC to JPEG
+                        _ => image::ImageFormat::Jpeg,
+                    };
+
+                    let mut bytes = Vec::new();
+                    if img
+                        .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+                        .is_ok()
+                    {
+                        Some(bytes)
+                    } else {
+                        None
+                    }
+                });
+
+                // Save sticker-processed image to HashMap (keep for backward compatibility)
+                self.sticker_processed_images
+                    .insert(image_uuid, sticker_processed.clone());
+
+                // Store sticker bytes in the PackedImage struct using selected index
+                if let Some(selected_idx) = self.preview_selected_index
+                    && let Some(packed_image) = self.packed_images.get_mut(selected_idx)
+                {
+                    packed_image.sticker_bytes = sticker_bytes.clone();
+                    log::info!(
+                        "Updated sticker_bytes in PackedImage[{}]: {} bytes",
+                        selected_idx,
+                        sticker_bytes.as_ref().map(|b| b.len()).unwrap_or(0)
+                    );
+                }
+
+                let has_sticker = sticker_bytes.is_some();
+
+                log::info!(
+                    "Preview texture loaded, original size: {:?}, sticker processed: {}, saved sticker as Option: {:?}",
+                    orig_size,
+                    has_sticker,
+                    sticker_bytes
+                        .as_ref()
+                        .map(|b| format!("Some(Vec<u8>, {} bytes)", b.len()))
+                        .unwrap_or("None".to_string())
+                );
             }
         }
     }

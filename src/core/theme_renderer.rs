@@ -33,6 +33,7 @@ fn create_packed_image_from_dynamic(
         texture: crate::image::common::PackedTexture::dummy(),
         #[cfg(not(feature = "desktop"))]
         image_bytes: None,
+        sticker_bytes: None,
         perceptual_hash: None,
     })
 }

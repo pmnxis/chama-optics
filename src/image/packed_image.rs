@@ -44,6 +44,10 @@ pub struct PackedImage {
     #[cfg(not(feature = "desktop"))]
     pub image_bytes: Option<Vec<u8>>,
 
+    /// Store sticker-processed image in memory (for all platforms)
+    /// This allows theme preview and export to use stickers without temporary files
+    pub sticker_bytes: Option<Vec<u8>>,
+
     /// Perceptual hash for image similarity comparison (64-bit average hash)
     /// Calculated once during image loading for efficient grouping
     pub perceptual_hash: Option<u64>,
@@ -52,6 +56,14 @@ pub struct PackedImage {
 impl PackedImage {
     /// image::DynamicImage and is orientation required or not with boolean signal
     pub fn get_image(&self) -> Result<(image::DynamicImage, bool), image::ImageError> {
+        // Check sticker-processed image first (for all platforms)
+        if let Some(sticker_bytes) = &self.sticker_bytes
+            && let Ok(sticker_img) = image::load_from_memory(sticker_bytes)
+        {
+            log::info!("Loading sticker-processed image from sticker_bytes field");
+            return Ok((sticker_img, true));
+        }
+
         #[cfg(feature = "desktop")]
         {
             let file = std::fs::File::open(self.path.clone())?;
@@ -185,6 +197,7 @@ impl PackedImage {
             )),
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // Desktop uses file system, doesn't need bytes in memory
+            sticker_bytes: None,   // No sticker data for manually loaded images
             perceptual_hash: None, // Not calculated for manually loaded images
         })
     }
@@ -215,6 +228,7 @@ impl PackedImage {
             texture: PackedTexture::dummy(),
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // CLI mode is desktop-only, doesn't need bytes in memory
+            sticker_bytes: None, // CLI mode doesn't have sticker-processed images
             perceptual_hash: None, // CLI mode doesn't calculate hash
         })
     }

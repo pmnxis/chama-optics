@@ -149,16 +149,17 @@ impl ImageProcessor {
         );
 
         // Create a temporary PackedImage with just the fields needed for apply_to_image
-        // We can't clone OriginalExif, so we create a minimal PackedImage for the theme
+        // Theme will use view_exif from CoreImage
         let packed_image = PackedImage {
             uuid: Uuid::new_v4(),
             path: core_image.path.clone(),
-            src_exif: crate::exif_impl::OriginalExif::new(None), // Empty EXIF, theme uses view_exif
+            src_exif: crate::exif_impl::OriginalExif::new(None),
             view_exif: core_image.view_exif.clone(),
             editable: core_image.editable,
             texture: crate::image::common::PackedTexture::Dummy,
             #[cfg(not(feature = "desktop"))]
             image_bytes: None,
+            sticker_bytes: None,
             perceptual_hash: None,
         };
 

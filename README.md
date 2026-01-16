@@ -27,6 +27,9 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Read Panasonic lumix LUT/PhotoStyle and Nikon Picture Control names
 - [ ] More themes
 - [ ] Save photos with EXIF
+- [x] Face Detection with CPU
+- [x] Face Detection with neural engine in macOS.
+- [ ] Face Detection utilize NPU or GPU in Windows / Linux (Optional)
 - [x] Multi core usage
 - [x] Utilize camera maker logo
 - [x] Watermark feature

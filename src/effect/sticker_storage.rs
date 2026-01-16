@@ -230,6 +230,22 @@ impl StickerStorage {
         None
     }
 
+    /// Get sticker image by ID (for background threads)
+    pub fn get_sticker_image(&self, id: Uuid) -> Option<DynamicImage> {
+        self.get_sticker(id).and_then(|s| s.load_image())
+    }
+
+    /// Clone for use in background threads (excludes egui-specific fields)
+    pub fn clone_for_thread(&self) -> Self {
+        Self {
+            stickers: self.stickers.clone(),
+            default_sticker_id: self.default_sticker_id,
+            storage_directory: self.storage_directory.clone(),
+            #[cfg(feature = "egui")]
+            texture_cache: HashMap::new(),
+        }
+    }
+
     /// Verify all stickers and update hash mismatch flags
     pub fn verify_all_stickers(&mut self) {
         for sticker in &mut self.stickers {

@@ -153,19 +153,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
 
                 ui.add_space(5.0);
 
-                // Tab 2: Theme Preview (▦)
-                render_tab_button(
-                    ui,
-                    selected_tab,
-                    MainTab::ThemePreview,
-                    "▦",
-                    "Theme",
-                    &t!("tabs.theme_preview"),
-                );
-
-                ui.add_space(5.0);
-
-                // Tab 3: Face Detection (👤)
+                // Tab 2: Face Detection (👤)
                 render_tab_button(
                     ui,
                     selected_tab,
@@ -173,6 +161,18 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     "👤",
                     "Detect",
                     &t!("tabs.detection", default = "Face Detection"),
+                );
+
+                ui.add_space(5.0);
+
+                // Tab 3: Theme Preview (▦)
+                render_tab_button(
+                    ui,
+                    selected_tab,
+                    MainTab::ThemePreview,
+                    "▦",
+                    "Theme",
+                    &t!("tabs.theme_preview"),
                 );
 
                 ui.add_space(5.0);

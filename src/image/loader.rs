@@ -14,7 +14,7 @@ use std::sync::{Arc, Mutex};
 
 /// Intermediate loaded image data (before texture creation)
 /// Note: We don't store OriginalExif here because exif::Exif is not Clone
-/// Instead, we re-parse it in the UI thread if needed
+/// Instead, we re-parse it in UI thread if needed
 pub struct LoadedImageData {
     pub path: PathBuf,
     pub view_exif: SimplifiedExif,
@@ -146,7 +146,7 @@ pub fn load_image_from_memory(
     let mut cursor = Cursor::new(bytes);
 
     // Parse EXIF
-    let original_exif =
+    let original_exif: OriginalExif =
         OriginalExif::new(match exif::Reader::new().read_from_container(&mut cursor) {
             Ok(exif) => Some(exif),
             Err(e) => {
@@ -197,7 +197,7 @@ pub fn load_image_from_memory(
 }
 
 /// Spawn a background thread pool to load images in parallel
-/// Images are loaded in order and placed in the queue
+/// Images are loaded in order and placed in queue
 pub fn spawn_parallel_loader(
     paths: Vec<PathBuf>,
     get_alt_fnumber: bool,
@@ -210,7 +210,7 @@ pub fn spawn_parallel_loader(
         use std::sync::atomic::Ordering;
 
         // Note: Single-threaded loading (1 thread) performs better than multi-core for now
-        log::info!("Starting image loading: {}", paths.len(),);
+        log::info!("Starting image loading: {}", paths.len());
 
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(1)
@@ -245,32 +245,12 @@ pub fn create_packed_image_from_data(
     data: LoadedImageData,
     ctx: &egui::Context,
 ) -> Option<PackedImage> {
-    #[cfg(not(target_arch = "wasm32"))]
-    let src_exif = {
-        // Re-parse EXIF in UI thread (since OriginalExif is not Clone)
-        let file = std::fs::File::open(&data.path).ok()?;
-        let mut buf_reader = std::io::BufReader::new(file);
+    // Extract data first to avoid scoping issues
+    let view_exif = &data.view_exif;
+    let perceptual_hash = &data.perceptual_hash;
 
-        OriginalExif::new(
-            match exif::Reader::new().read_from_container(&mut buf_reader) {
-                Ok(exif) => Some(exif),
-                Err(e) => {
-                    log::warn!("Failed to re-parse EXIF for {:?}: {e:?}", data.path);
-                    None
-                }
-            },
-        )
-    };
-
-    #[cfg(target_arch = "wasm32")]
-    let src_exif = {
-        // WASM: Cannot re-read file, use empty EXIF
-        // The view_exif already has all the data we need
-        OriginalExif::new(None)
-    };
-
-    // Use pre-generated thumbnail
-    if let Some(thumbnail) = data.thumbnail {
+    // Use pre-generated thumbnail if available
+    if let Some(thumbnail) = &data.thumbnail {
         let file_name = data
             .path
             .file_name()
@@ -278,22 +258,27 @@ pub fn create_packed_image_from_data(
             .to_string_lossy()
             .to_string();
 
+        // thumbnail is already egui::ColorImage, use it directly
         let texture = crate::image::common::PackedTexture::new(ctx.load_texture(
             file_name,
-            thumbnail,
+            thumbnail.clone(),
             egui::TextureOptions::NEAREST,
         ));
 
+        // src_exif is not available in LoadedImageData, create empty OriginalExif
+        let src_exif = crate::exif_impl::OriginalExif::new(None);
+
         Some(PackedImage {
             uuid: uuid::Uuid::new_v4(),
-            path: data.path,
+            path: data.path.clone(),
             src_exif,
-            view_exif: data.view_exif,
+            view_exif: view_exif.clone(),
             editable: false,
             texture,
             #[cfg(not(feature = "desktop"))]
             image_bytes: data.image_bytes,
-            perceptual_hash: data.perceptual_hash,
+            sticker_bytes: None, // No sticker data from loader
+            perceptual_hash: *perceptual_hash,
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

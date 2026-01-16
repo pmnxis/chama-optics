@@ -14,8 +14,8 @@ use std::path::PathBuf;
 pub enum MainTab {
     #[default]
     ImageList,
-    ThemePreview,
     Detection,
+    ThemePreview,
     Sticker,
     ImportExport,
     Settings,
@@ -100,6 +100,11 @@ pub struct ChamaOptics {
     pub(crate) detection_preview_texture: Option<egui::TextureHandle>,
 
     #[serde(skip)]
+    /// Sticker-processed images (one per packed image) - result of Detection tab
+    pub(crate) sticker_processed_images:
+        std::collections::HashMap<uuid::Uuid, Option<image::DynamicImage>>,
+
+    #[serde(skip)]
     /// Last detection preview cache key
     pub(crate) detection_preview_cache_key: Option<(usize, usize)>, // (image_index, face_count)
 
@@ -137,8 +142,16 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Queue for storing preview image data from background thread
-    pub preview_texture_queue:
-        std::sync::Arc<std::sync::Mutex<Option<(egui::ColorImage, uuid::Uuid, (u32, u32))>>>,
+    pub preview_texture_queue: std::sync::Arc<
+        std::sync::Mutex<
+            Option<(
+                egui::ColorImage,
+                uuid::Uuid,
+                (u32, u32),
+                Option<image::DynamicImage>,
+            )>,
+        >,
+    >,
 
     #[serde(skip)]
     /// Original image size for detection preview (width, height)
@@ -199,6 +212,7 @@ impl Default for ChamaOptics {
             theme_preview_texture: None,
             theme_preview_cache_key: None,
             detection_preview_texture: None,
+            sticker_processed_images: std::collections::HashMap::new(),
             detection_preview_cache_key: None,
             detected_faces: vec![],
             selected_face_index: None,
@@ -260,6 +274,7 @@ impl ChamaOptics {
             view_exif: crate::exif_impl::SimplifiedExif,
             prefix: Option<String>,
             postfix: Option<String>,
+            sticker_bytes: Option<Vec<u8>>,
         }
 
         // save each
@@ -267,18 +282,71 @@ impl ChamaOptics {
             idx: usize,
             task: &SaveTask,
             export_config: &crate::export_config::ExportConfig,
+            sticker_processed_images: &std::collections::HashMap<
+                uuid::Uuid,
+                Option<image::DynamicImage>,
+            >,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
-            let pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
+            let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
 
-            // Use the saved view_exif instead of reconstructed one
-            let pi_with_view = crate::packed_image::PackedImage {
-                view_exif: task.view_exif.clone(),
-                ..pi
-            };
+            // Use saved view_exif instead of reconstructed one
+            pi.view_exif = task.view_exif.clone();
 
-            // Use group-specific prefix/postfix if available
-            let new_path = pi_with_view.bulk_path_with_override(
+            // Use sticker_bytes from task if available (prioritize over HashMap)
+            pi.sticker_bytes = task.sticker_bytes.clone();
+
+            // Use sticker-processed image from HashMap as fallback
+            let temp_path =
+                if let Some(Some(sticker_image)) = sticker_processed_images.get(&pi.uuid) {
+                    log::info!(
+                        "Using sticker-processed image from HashMap for image {}",
+                        idx
+                    );
+
+                    // Create temporary file with sticker-processed image
+                    let temp_dir = std::env::temp_dir();
+                    let temp_file_name = format!(
+                        "chama_optics_sticker_{}{}",
+                        idx,
+                        task.path
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("png")
+                    );
+                    let temp_path = temp_dir.join(&temp_file_name);
+
+                    // Save sticker-processed image to temporary file
+                    if let Err(e) = sticker_image.save(&temp_path) {
+                        log::error!("Failed to save temp sticker image: {:?}", e);
+                        None
+                    } else {
+                        log::info!("Successfully saved temp sticker image: {:?}", temp_path);
+                        Some(temp_path)
+                    }
+                } else {
+                    None
+                };
+
+            // Use sticker-processed image directly if available
+            // NOTE: We keep pi.path pointing to original file to avoid format errors
+            // The theme system will apply stickers from sticker_bytes field
+
+            let sticker_available =
+                task.sticker_bytes.is_some() || sticker_processed_images.get(&pi.uuid).is_some();
+
+            log::info!(
+                "Export: Image {} - sticker_available={}, temp_path.is_some={}, task.sticker_bytes.len={:?}, lookup_found={:?}",
+                idx,
+                sticker_available,
+                temp_path.is_some(),
+                task.sticker_bytes.as_ref().map(|b| b.len()),
+                sticker_processed_images.get(&pi.uuid).is_some()
+            );
+
+            // Generate output path with export config (prefix, postfix, format, etc.)
+            // NOTE: Always use original path, NOT the temp file path
+            let new_path = pi.bulk_path_with_override(
                 export_config,
                 task.prefix.as_deref(),
                 task.postfix.as_deref(),
@@ -336,9 +404,7 @@ impl ChamaOptics {
             export_config
                 .theme_reg
                 .selected_theme_read()
-                .apply_with_faces(&pi_with_view, export_config, &new_path, pre_detected_faces)?;
-
-            log::info!("Bulk saved with EXIF overlay to {idx} {new_path:?}");
+                .apply_with_faces(&pi, export_config, &new_path, pre_detected_faces)?;
             Ok(())
         }
 
@@ -377,6 +443,7 @@ impl ChamaOptics {
                                 Some(g.postfix.text.clone())
                             }
                         }),
+                        sticker_bytes: pi.sticker_bytes.clone(),
                     }
                 })
                 .collect()
@@ -389,6 +456,7 @@ impl ChamaOptics {
                     view_exif: pi.view_exif.clone(),
                     prefix: None,
                     postfix: None,
+                    sticker_bytes: pi.sticker_bytes.clone(),
                 })
                 .collect()
         };
@@ -405,7 +473,17 @@ impl ChamaOptics {
         let export_config = self.export_config.clone();
         log::info!("ExportConfig clone took {:?}", clone_start.elapsed());
 
-        // Clone the progress counter for use in parallel threads
+        // Clone sticker_processed_images for the background thread
+        let sticker_processed_images = self.sticker_processed_images.clone();
+        log::info!(
+            "Export: sticker_processed_images HashMap has {} entries",
+            sticker_processed_images.len()
+        );
+        for (uuid, val) in sticker_processed_images.iter() {
+            log::info!("  - UUID {:?}: has image = {}", uuid, val.is_some());
+        }
+
+        // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
 
         // Get egui context for requesting repaint from background thread
@@ -431,7 +509,7 @@ impl ChamaOptics {
                 tasks.par_iter().enumerate().for_each(|(idx, task)| {
                     log::info!("Processing image {}", idx);
 
-                    match __save_bulk_each(idx, task, &export_config) {
+                    match __save_bulk_each(idx, task, &export_config, &sticker_processed_images) {
                         Ok(_) => {
                             log::info!("Successfully saved image {}", idx);
                         }
@@ -1090,8 +1168,8 @@ impl ChamaOptics {
             // Render tab content on top of background
             match self.selected_tab {
                 MainTab::ImageList => self.render_image_list_tab(ui),
-                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
                 MainTab::Detection => self.render_detection_tab(ui),
+                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
                 MainTab::Sticker => self.render_sticker_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),
