@@ -206,6 +206,7 @@ fn generate_preview_impl(
         texture: PackedTexture::Dummy,
         #[cfg(not(feature = "desktop"))]
         image_bytes: std::fs::read(image_path).ok(),
+        sticker_bytes: None,
         perceptual_hash: None,
     };
 
@@ -287,6 +288,7 @@ fn export_final_impl(
         texture: PackedTexture::Dummy,
         #[cfg(not(feature = "desktop"))]
         image_bytes: std::fs::read(image_path).ok(),
+        sticker_bytes: None,
         perceptual_hash: None,
     };
 
@@ -920,6 +922,314 @@ pub unsafe extern "C" fn chama_optics_apply_theme(
 
     // Call preview generation function
     unsafe { chama_generate_preview(image_path, output_path, &config) }
+}
+
+// ============================================================================
+// Combined Export Pipeline (Face Effects + Theme + Export Quality)
+// ============================================================================
+
+/// Face effect type for combined export
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CFaceEffectType {
+    None = 0,
+    Mosaic = 1,
+    Stroke = 2,
+    Sticker = 3,
+}
+
+/// Output format for export
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum COutputFormat {
+    Jpeg = 0,
+    Png = 1,
+    Webp = 2,
+}
+
+/// Configuration for combined export pipeline
+#[repr(C)]
+pub struct CombinedExportConfig {
+    /// Face effect type (None, Mosaic, Stroke, Sticker)
+    pub face_effect_type: CFaceEffectType,
+
+    // Mosaic settings
+    pub mosaic_block_size: u32,
+    pub mosaic_intensity: f32,
+
+    // Stroke settings
+    pub stroke_color_r: u8,
+    pub stroke_color_g: u8,
+    pub stroke_color_b: u8,
+    pub stroke_color_a: u8,
+    pub stroke_thickness: u32,
+
+    // Sticker settings (path to sticker image)
+    pub sticker_image_path: *const c_char,
+    pub sticker_scale: f32,
+    pub sticker_offset_x: i32,
+    pub sticker_offset_y: i32,
+
+    // Theme settings (NULL if no theme)
+    pub theme_name: *const c_char,
+    pub theme_params_json: *const c_char,
+    pub font_path: *const c_char,
+    pub font_weight: u32,
+
+    // Export settings
+    pub output_format: COutputFormat,
+    pub quality: u8, // 1-100 for JPEG/WebP
+}
+
+/// Combined export: Face Effects → Theme → Save with Quality
+///
+/// This is the recommended function for iOS to handle the full export pipeline
+/// in a single call, minimizing file I/O and providing atomic operations.
+///
+/// # Pipeline
+/// 1. Load original image
+/// 2. Apply face effects (if faces provided and effect != None)
+/// 3. Apply theme (if theme_name provided)
+/// 4. Save with specified format and quality
+///
+/// # Safety
+/// - All C string pointers must be valid null-terminated strings or NULL
+/// - face_rects must point to a valid array of CFaceRect with face_count elements
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_export_combined(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    face_rects: *const crate::ffi::CFaceRect,
+    face_count: usize,
+    config: *const CombinedExportConfig,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || config.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = match CStr::from_ptr(image_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let output_path_str = match CStr::from_ptr(output_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let config_ref = &*config;
+
+    log::info!("Combined export pipeline started:");
+    log::info!("  Input: {}", image_path_str);
+    log::info!("  Output: {}", output_path_str);
+    log::info!("  Face effect: {:?}", config_ref.face_effect_type);
+    log::info!("  Face count: {}", face_count);
+
+    // Step 1: Load original image
+    let mut dyn_image = match image::open(image_path_str) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Failed to load image: {}", e);
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    log::info!("  Image size: {}x{}", dyn_image.width(), dyn_image.height());
+
+    // Step 2: Apply face effects (if faces provided and effect != None)
+    if !face_rects.is_null()
+        && face_count > 0
+        && config_ref.face_effect_type != CFaceEffectType::None
+    {
+        let mut face_areas: Vec<(i32, i32, u32, u32)> = Vec::with_capacity(face_count);
+        for i in 0..face_count {
+            let face = *face_rects.add(i);
+            face_areas.push((face.x, face.y, face.width, face.height));
+        }
+
+        log::info!("  Applying face effect to {} faces...", face_areas.len());
+
+        match config_ref.face_effect_type {
+            CFaceEffectType::Mosaic => {
+                let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                    block_size: config_ref.mosaic_block_size,
+                    intensity: config_ref.mosaic_intensity,
+                };
+                if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &mosaic_config,
+                ) {
+                    log::error!("Failed to apply mosaic: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+                log::info!("  Mosaic applied successfully");
+            }
+            CFaceEffectType::Stroke => {
+                let stroke_config = crate::effect::stroke::StrokeEffect {
+                    thickness: config_ref.stroke_thickness,
+                    color: (
+                        config_ref.stroke_color_r,
+                        config_ref.stroke_color_g,
+                        config_ref.stroke_color_b,
+                        config_ref.stroke_color_a,
+                    ),
+                };
+                if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &stroke_config,
+                ) {
+                    log::error!("Failed to apply stroke: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+                log::info!("  Stroke applied successfully");
+            }
+            CFaceEffectType::Sticker => {
+                // Load sticker path
+                let sticker_config = if !config_ref.sticker_image_path.is_null() {
+                    let sticker_path_str =
+                        match CStr::from_ptr(config_ref.sticker_image_path).to_str() {
+                            Ok(s) => s,
+                            Err(_) => {
+                                log::error!("Invalid sticker path");
+                                return ChamaError::InvalidPath;
+                            }
+                        };
+                    crate::effect::sticker::StickerConfig::with_image_path(
+                        std::path::PathBuf::from(sticker_path_str),
+                        config_ref.sticker_scale,
+                        config_ref.sticker_offset_x,
+                        config_ref.sticker_offset_y,
+                    )
+                } else {
+                    crate::effect::sticker::StickerConfig::with_builtin(
+                        "heart".to_string(),
+                        config_ref.sticker_scale,
+                        config_ref.sticker_offset_x,
+                        config_ref.sticker_offset_y,
+                    )
+                };
+                dyn_image =
+                    crate::effect::sticker::apply_sticker(dyn_image, face_areas, &sticker_config);
+                log::info!("  Sticker applied successfully");
+            }
+            CFaceEffectType::None => {}
+        }
+    }
+
+    // Step 3: Apply theme (if theme_name provided)
+    if !config_ref.theme_name.is_null() {
+        let theme_name_str = match CStr::from_ptr(config_ref.theme_name).to_str() {
+            Ok(s) if !s.is_empty() => s,
+            _ => {
+                log::info!("  No theme specified, skipping theme application");
+                // Skip theme if empty string
+                ""
+            }
+        };
+
+        if !theme_name_str.is_empty() {
+            log::info!("  Applying theme: {}", theme_name_str);
+
+            let params_json = if !config_ref.theme_params_json.is_null() {
+                CStr::from_ptr(config_ref.theme_params_json)
+                    .to_str()
+                    .unwrap_or("{}")
+            } else {
+                "{}"
+            };
+
+            let font_path = if !config_ref.font_path.is_null() {
+                CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("")
+            } else {
+                ""
+            };
+
+            // Save intermediate image to temp file, apply theme, load back
+            // This is necessary because theme application uses PackedImage
+            let temp_path = format!("{}.temp_face_effect.jpg", output_path_str);
+
+            // Save face-effected image to temp
+            if let Err(e) = dyn_image.save(&temp_path) {
+                log::error!("Failed to save temp image: {}", e);
+                return ChamaError::ImageProcessError;
+            }
+
+            // Apply theme to temp image
+            let theme_result = export_final_impl(
+                &temp_path,
+                output_path_str,
+                theme_name_str,
+                params_json,
+                font_path,
+                config_ref.font_weight,
+            );
+
+            // Clean up temp file
+            let _ = std::fs::remove_file(&temp_path);
+
+            match theme_result {
+                Ok(_) => {
+                    log::info!("  Theme applied successfully");
+                    // Theme already saved to output_path, we're done
+                    log::info!("✅ Combined export completed successfully");
+                    return ChamaError::Success;
+                }
+                Err(e) => {
+                    log::error!("Failed to apply theme: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            }
+        }
+    }
+
+    // Step 4: Save with specified format and quality (if no theme was applied)
+    log::info!(
+        "  Saving with format: {:?}, quality: {}",
+        config_ref.output_format,
+        config_ref.quality
+    );
+
+    let save_result = match config_ref.output_format {
+        COutputFormat::Jpeg => {
+            use image::codecs::jpeg::JpegEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut encoder = JpegEncoder::new_with_quality(file, config_ref.quality);
+            encoder.encode_image(&dyn_image)
+        }
+        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
+        COutputFormat::Webp => {
+            // WebP support via image crate
+            use image::ImageFormat;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut buf_writer = std::io::BufWriter::new(file);
+            dyn_image.write_to(&mut buf_writer, ImageFormat::WebP)
+        }
+    };
+
+    match save_result {
+        Ok(_) => {
+            log::info!("✅ Combined export completed successfully");
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to save image: {}", e);
+            ChamaError::ImageProcessError
+        }
+    }
 }
 
 #[cfg(test)]

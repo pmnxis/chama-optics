@@ -3,15 +3,35 @@
 
 //! Sticker effect module - applies emoji/sticker overlays to detected faces
 //!
-//! This is a simplified placeholder implementation that draws colored shapes.
-//! Full sticker functionality with PNG assets is planned for future implementation.
+//! Supports two modes:
+//! - Built-in procedural stickers (heart, star, smile shapes)
+//! - Custom image stickers loaded from file paths (PNG, JPG, etc.)
 
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
+use std::path::PathBuf;
+
+/// Source of the sticker image
+#[derive(Debug, Clone)]
+pub enum StickerSource {
+    /// Built-in procedural sticker identified by name (heart, star, smile, etc.)
+    BuiltIn(String),
+    /// Custom sticker loaded from an image file path
+    ImagePath(PathBuf),
+}
+
+impl Default for StickerSource {
+    fn default() -> Self {
+        StickerSource::BuiltIn("heart".to_string())
+    }
+}
 
 /// Configuration for sticker effect
 #[derive(Debug, Clone)]
 pub struct StickerConfig {
+    /// Sticker ID for built-in stickers (legacy, for backward compatibility)
     pub sticker_id: String,
+    /// Optional image path for custom stickers (takes precedence over sticker_id)
+    pub sticker_path: Option<PathBuf>,
     pub scale: f32,
     pub offset_x: i32,
     pub offset_y: i32,
@@ -21,9 +41,43 @@ impl Default for StickerConfig {
     fn default() -> Self {
         Self {
             sticker_id: "heart".to_string(),
+            sticker_path: None,
             scale: 1.0,
             offset_x: 0,
             offset_y: 0,
+        }
+    }
+}
+
+impl StickerConfig {
+    /// Create a new config with an image path (for iOS)
+    pub fn with_image_path(path: PathBuf, scale: f32, offset_x: i32, offset_y: i32) -> Self {
+        Self {
+            sticker_id: String::new(),
+            sticker_path: Some(path),
+            scale,
+            offset_x,
+            offset_y,
+        }
+    }
+
+    /// Create a new config with a built-in sticker ID
+    pub fn with_builtin(sticker_id: String, scale: f32, offset_x: i32, offset_y: i32) -> Self {
+        Self {
+            sticker_id,
+            sticker_path: None,
+            scale,
+            offset_x,
+            offset_y,
+        }
+    }
+
+    /// Get the sticker source based on configuration
+    pub fn get_source(&self) -> StickerSource {
+        if let Some(ref path) = self.sticker_path {
+            StickerSource::ImagePath(path.clone())
+        } else {
+            StickerSource::BuiltIn(self.sticker_id.clone())
         }
     }
 }
@@ -42,22 +96,61 @@ pub fn apply_sticker(
     face_areas: Vec<(i32, i32, u32, u32)>,
     config: &StickerConfig,
 ) -> DynamicImage {
+    // Load sticker image once (either from path or create built-in)
+    let sticker_source = load_sticker_source(config);
+
     for (x, y, width, height) in face_areas {
         // Calculate sticker size based on face size and scale
-        let sticker_size = ((width as f32 * config.scale) as u32).max(20);
+        let target_size = ((width as f32 * config.scale) as u32).max(20);
 
         // Calculate center of face
         let center_x = x + (width as i32 / 2) + config.offset_x;
         let center_y = y + (height as i32 / 2) + config.offset_y;
 
-        // Create sticker based on sticker_id
-        let sticker = create_sticker(&config.sticker_id, sticker_size);
+        // Get or create sticker at the right size
+        let sticker = match &sticker_source {
+            Some(source_img) => {
+                // Resize the loaded image to target size
+                let resized = source_img.resize(
+                    target_size,
+                    target_size,
+                    image::imageops::FilterType::Lanczos3,
+                );
+                resized.to_rgba8()
+            }
+            None => {
+                // Fall back to built-in sticker
+                create_sticker(&config.sticker_id, target_size)
+            }
+        };
 
         // Overlay sticker at face location
         overlay_sticker(&mut image, &sticker, center_x, center_y);
     }
 
     image
+}
+
+/// Load sticker source image from path or return None for built-in
+fn load_sticker_source(config: &StickerConfig) -> Option<DynamicImage> {
+    if let Some(ref path) = config.sticker_path {
+        match image::open(path) {
+            Ok(img) => {
+                log::info!("Loaded sticker from path: {:?}", path);
+                Some(img)
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to load sticker from {:?}: {}, falling back to built-in",
+                    path,
+                    e
+                );
+                None
+            }
+        }
+    } else {
+        None
+    }
 }
 
 /// Create a sticker image based on sticker ID

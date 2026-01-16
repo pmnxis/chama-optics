@@ -701,8 +701,8 @@ pub extern "C" fn chama_optics_apply_stroke(
     }
 }
 
-/// Apply Sticker to detected face areas
-/// This is a placeholder for future sticker storage functionality
+/// Apply Sticker to detected face areas using built-in sticker ID
+/// For custom image stickers, use chama_optics_apply_sticker_from_path instead
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -776,13 +776,13 @@ pub extern "C" fn chama_optics_apply_sticker(
             face_areas.len()
         );
 
-        // Apply sticker effect
-        let config = crate::effect::sticker::StickerConfig {
-            sticker_id: sticker_str.to_string(),
-            scale: sticker_scale,
-            offset_x: sticker_offset_x,
-            offset_y: sticker_offset_y,
-        };
+        // Apply sticker effect with built-in sticker
+        let config = crate::effect::sticker::StickerConfig::with_builtin(
+            sticker_str.to_string(),
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+        );
 
         dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
 
@@ -795,6 +795,117 @@ pub extern "C" fn chama_optics_apply_sticker(
             Ok(_) => {
                 log::info!(
                     "Successfully applied Sticker effect and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
+        }
+    }
+}
+
+/// Apply Sticker to detected face areas using a custom image path
+/// This is the preferred method for iOS which loads sticker images from file paths
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_apply_sticker_from_path(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    sticker_image_path: *const c_char, // Path to sticker image file (PNG, JPG, etc.)
+    sticker_scale: f32,                // Scale factor for sticker
+    sticker_offset_x: i32,             // X offset from face center
+    sticker_offset_y: i32,             // Y offset from face center
+) -> bool {
+    if handle.is_null()
+        || image_path.is_null()
+        || output_path.is_null()
+        || sticker_image_path.is_null()
+    {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let sticker_path_str = match CStr::from_ptr(sticker_image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in sticker image path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        log::info!(
+            "Applying Sticker from path: {}, scale={}, offset=({}, {}), {} faces",
+            sticker_path_str,
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+            face_areas.len()
+        );
+
+        // Apply sticker effect with image path
+        let sticker_path_buf = std::path::PathBuf::from(sticker_path_str);
+        let config = crate::effect::sticker::StickerConfig::with_image_path(
+            sticker_path_buf,
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+        );
+
+        dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied Sticker from path and saved to {}",
                     output_str
                 );
                 true
