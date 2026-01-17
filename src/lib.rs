@@ -73,7 +73,7 @@ pub mod mobile;
 pub mod core;
 
 // FFI for iOS/macOS Swift integration
-#[cfg(any(target_os = "ios", target_os = "macos", feature = "ios_integration"))]
+#[cfg(any(target_os = "ios", feature = "ios_integration"))]
 pub mod ffi;
 
 // Metal FFI for iOS Swift integration (full theme support)

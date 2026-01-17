@@ -365,7 +365,7 @@ impl ChamaOptics {
             // Detect faces on ORIGINAL image BEFORE theming (macOS only)
             #[cfg(target_os = "macos")]
             let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> =
-                if export_config.face_detection.is_enabled {
+                {
                     log::info!(
                         "🎯 [Face Detection] Pre-detecting faces on original image: {:?}",
                         task.path
@@ -404,8 +404,6 @@ impl ChamaOptics {
                         log::info!("[INFO][Face Detection] No faces detected on original image");
                         None
                     }
-                } else {
-                    None
                 };
 
             #[cfg(not(target_os = "macos"))]
