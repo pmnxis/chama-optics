@@ -51,7 +51,8 @@ fn main() {
     println!("cargo:rerun-if-changed=locales");
     println!("cargo:rerun-if-changed={}", logo_csv_path.display());
 
-    if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    {
         let mut res = winres::WindowsResource::new();
         res.set_icon("assets/chama-optics-x256.ico");
         _ = res.compile();

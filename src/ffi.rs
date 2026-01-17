@@ -445,7 +445,6 @@ mod face_detection_ffi {
 
             let face_detection = crate::effect::face_detection::FaceDetection {
                 engine,
-                is_enabled: true,
                 border_color,
                 border_thickness,
                 mask_faces,
