@@ -16,16 +16,62 @@ pub enum FaceDetectionEngine {
     VisionKit,
     #[cfg(feature = "face_detection_insightface")]
     InsightFace,
+    #[cfg(not(any(
+        feature = "face_detection_visionkit",
+        feature = "face_detection_insightface"
+    )))]
+    NoOp,
 }
 
+#[cfg(all(
+    feature = "face_detection_visionkit",
+    feature = "face_detection_insightface"
+))]
 impl FaceDetectionEngine {
     /// Get display name for engine
     pub fn display_name(&self) -> &'static str {
         match self {
-            #[cfg(feature = "face_detection_visionkit")]
             Self::VisionKit => "VisionKit",
-            #[cfg(feature = "face_detection_insightface")]
             Self::InsightFace => "InsightFace",
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "face_detection_visionkit",
+    not(feature = "face_detection_insightface")
+))]
+impl FaceDetectionEngine {
+    /// Get display name for engine
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::VisionKit => "VisionKit",
+        }
+    }
+}
+
+#[cfg(all(
+    feature = "face_detection_insightface",
+    not(feature = "face_detection_visionkit")
+))]
+impl FaceDetectionEngine {
+    /// Get display name for engine
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::InsightFace => "InsightFace",
+        }
+    }
+}
+
+#[cfg(not(any(
+    feature = "face_detection_visionkit",
+    feature = "face_detection_insightface"
+)))]
+impl FaceDetectionEngine {
+    /// Get display name for engine
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::NoOp => "NoOp",
         }
     }
 }
@@ -126,7 +172,7 @@ impl core::default::Default for FaceDetection {
         )))]
         {
             Self {
-                engine: FaceDetectionEngine::VisionKit,
+                engine: FaceDetectionEngine::NoOp,
                 is_enabled: false,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
@@ -208,7 +254,7 @@ impl FaceDetection {
     }
 
     /// Run recursive face detection on an image region
-    /// This method divides the image into sub-regions and recursively searches for faces
+    /// This method divides image into sub-regions and recursively searches for faces
     /// until all faces are found or minimum size is reached
     pub fn detect_faces_recursive<D: super::face_detectors::FaceDetector>(
         &self,
@@ -765,10 +811,10 @@ impl FaceDetection {
 
                         ui.selectable_value(
                             &mut self.provider,
-                            ExecutionProvider::CUDAExecutionProvider,
-                            t!("face_detection.provider_cuda"),
+                            ExecutionProvider::OnnxAuto,
+                            t!("face_detection.provider_onnx_auto"),
                         )
-                        .on_hover_text("NVIDIA GPU acceleration - requires CUDA");
+                        .on_hover_text("Auto-detect best available provider");
 
                         #[cfg(target_os = "macos")]
                         ui.selectable_value(
@@ -777,13 +823,6 @@ impl FaceDetection {
                             t!("face_detection.provider_coreml"),
                         )
                         .on_hover_text("Apple Silicon acceleration - macOS only");
-
-                        ui.selectable_value(
-                            &mut self.provider,
-                            ExecutionProvider::TensorRTExecutionProvider,
-                            t!("face_detection.provider_tensorrt"),
-                        )
-                        .on_hover_text("NVIDIA optimized - requires TensorRT");
                     });
 
                 ui.separator();

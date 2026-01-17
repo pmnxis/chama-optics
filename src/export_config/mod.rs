@@ -54,8 +54,6 @@ impl ExportConfig {
                 self.output_name.update_ui(ui);
                 ui.separator();
                 self.watermark.update_ui(ui);
-                ui.separator();
-                self.face_detection.update_ui(ui);
             });
             ui.separator();
             self.theme_reg.update_ui(ui, show_theme_name_in_english);
@@ -106,9 +104,9 @@ impl ExportConfig {
             // iOS: Handled via FFI bridge in Swift code
         }
 
-        #[cfg(target_os = "macos")]
+        #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
         {
-            // macOS: Support multiple detection engines
+            // Desktop platforms (Windows, Linux, macOS): Support multiple detection engines
             if self.face_detection.is_enabled {
                 // Use pre-detected faces if available, otherwise detect on themed image
                 let faces = if let Some(pre_faces) = pre_detected_faces {
@@ -142,6 +140,18 @@ impl ExportConfig {
                                     self.face_detection.provider,
                                 );
                             self.run_detection(&detector, path.as_ref(), _img_width, _img_height)
+                        }
+
+                        #[cfg(not(any(
+                            feature = "face_detection_visionkit",
+                            feature = "face_detection_insightface"
+                        )))]
+                        _ => {
+                            log::warn!(
+                                "[Face Detection] Engine {:?} not available on this platform or not compiled with required features",
+                                self.face_detection.engine
+                            );
+                            vec![]
                         }
                     }
                 };

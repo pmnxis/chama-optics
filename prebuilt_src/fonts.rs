@@ -92,8 +92,10 @@ mod builtin_fonts {
                         fs::write(&out_path, extracted).expect("failed to write extracted file");
                     }
 
-                    // Export environment variable per file
-                    println!("cargo:rustc-env={}={}", env_key, out_path.display());
+                    // Export environment variable per file (use absolute path)
+                    let abs_path = fs::canonicalize(&out_path)
+                        .unwrap_or_else(|_| out_path.clone());
+                    println!("cargo:rustc-env={}={}", env_key, abs_path.display());
                 }
             } else {
                 // If not unzip, assign directly

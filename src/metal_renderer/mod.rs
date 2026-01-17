@@ -5,15 +5,25 @@
  */
 
 //! Metal rendering backend for egui integration with iOS/macOS
+//! This module is only available on macOS/iOS or when metal_rendering feature is enabled
 
-#[cfg(feature = "metal_rendering")]
+#[cfg(all(
+    feature = "metal_rendering",
+    any(target_os = "macos", target_os = "ios")
+))]
 pub mod renderer;
 
-#[cfg(feature = "metal_rendering")]
+#[cfg(all(
+    feature = "metal_rendering",
+    any(target_os = "macos", target_os = "ios")
+))]
 pub mod ffi_bridge;
 
-#[cfg(feature = "metal_rendering")]
+#[cfg(all(
+    feature = "metal_rendering",
+    any(target_os = "macos", target_os = "ios")
+))]
 pub mod input_output;
 
-#[cfg(any(feature = "metal_rendering", target_os = "macos"))]
+#[cfg(target_os = "macos")]
 pub mod face_detection_macos;

@@ -46,25 +46,21 @@ face_detection:
     ko: "실행 제공자"
     ja: "実行プロバイダー"
   execution_provider_hint:
-    en: "Hardware acceleration backend (CPU/CUDA/CoreML/TensorRT)"
-    ko: "하드웨어 가속 백엔드 (CPU/CUDA/CoreML/TensorRT)"
-    ja: "ハードウェアアクセラレーションバックエンド（CPU/CUDA/CoreML/TensorRT）"
+    en: "Hardware acceleration backend (CPU/OnnxAuto/CoreML)"
+    ko: "하드웨어 가속 백엔드 (CPU/OnnxAuto/CoreML)"
+    ja: "ハードウェアアクセラレーションバックエンド（CPU/OnnxAuto/CoreML）"
   provider_cpu:
     en: "CPU (universal)"
     ko: "CPU (호환성 좋음)"
     ja: "CPU（互換性あり）"
-  provider_cuda:
-    en: "CUDA (NVIDIA GPU)"
-    ko: "CUDA (NVIDIA GPU)"
-    ja: "CUDA（NVIDIA GPU）"
+  provider_onnx_auto:
+    en: "OnnxAuto (auto-detect)"
+    ko: "OnnxAuto (자동 감지)"
+    ja: "OnnxAuto（自動検出）"
   provider_coreml:
     en: "CoreML (Apple Silicon)"
     ko: "CoreML (Apple Silicon)"
     ja: "CoreML（Apple Silicon）"
-  provider_tensorrt:
-    en: "TensorRT (NVIDIA optimized)"
-    ko: "TensorRT (NVIDIA 최적화)"
-    ja: "TensorRT（NVIDIA最適化）"
   recursive_detection:
     en: "Recursive face detection"
     ko: "재귀적 얼굴 감지"

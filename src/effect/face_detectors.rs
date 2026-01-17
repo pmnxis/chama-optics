@@ -30,6 +30,7 @@ impl Default for VisionKitDetector {
     }
 }
 
+#[cfg(any(target_os = "ios", target_os = "macos"))]
 impl VisionKitDetector {
     pub fn new() -> Self {
         Self
@@ -145,6 +146,17 @@ pub struct NoOpDetector;
 impl NoOpDetector {
     pub fn new() -> Self {
         Self
+    }
+}
+
+#[cfg(not(any(
+    target_os = "ios",
+    target_os = "macos",
+    feature = "face_detection_insightface"
+)))]
+impl Default for NoOpDetector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

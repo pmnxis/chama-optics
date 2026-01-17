@@ -10,13 +10,12 @@
 //! Implements multi-stage slicing algorithm with configurable speed modes and providers
 
 #[cfg(feature = "face_detection_insightface")]
-use ort::session::Session;
+use ort::{session::Session, value::Tensor};
 #[cfg(feature = "face_detection_insightface")]
-use ort::value::Tensor;
+use std::{path::Path, sync::RwLock};
+
 #[cfg(feature = "face_detection_insightface")]
-use std::path::Path;
-#[cfg(feature = "face_detection_insightface")]
-use std::sync::RwLock;
+static MODEL_BYTES: &[u8] = include_bytes!(env!("INSIGHTFACE_MODEL_PATH"));
 
 /// Detection speed modes based on Python test results
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -61,14 +60,12 @@ impl SpeedMode {
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "face_detection_insightface")]
 pub enum ExecutionProvider {
-    /// CPU-only execution
+    /// CPU-only execution (macOS + Windows + Linux all arch should support)
     CPUExecutionProvider,
-    /// CUDA GPU acceleration
-    CUDAExecutionProvider,
-    /// Metal Performance Shaders (macOS)
+    /// Auto-detect best available provider (macOS + Windows + Linux)
+    OnnxAuto,
+    /// Metal Performance Shaders (macOS only)
     CoreMLExecutionProvider,
-    /// TensorRT (NVIDIA)
-    TensorRTExecutionProvider,
 }
 
 #[cfg(feature = "face_detection_insightface")]
@@ -76,9 +73,8 @@ impl ExecutionProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             ExecutionProvider::CPUExecutionProvider => "CPUExecutionProvider",
-            ExecutionProvider::CUDAExecutionProvider => "CUDAExecutionProvider",
+            ExecutionProvider::OnnxAuto => "OnnxAuto",
             ExecutionProvider::CoreMLExecutionProvider => "CoreMLExecutionProvider",
-            ExecutionProvider::TensorRTExecutionProvider => "TensorRTExecutionProvider",
         }
     }
 }
@@ -123,6 +119,11 @@ impl InsightFaceDetector {
                     "Auto-selecting CoreML Execution Provider for hardware acceleration on Apple platform"
                 );
                 ExecutionProvider::CoreMLExecutionProvider
+            } else if matches!(provider, ExecutionProvider::OnnxAuto) {
+                log::info!(
+                    "OnnxAuto: Using CoreML Execution Provider for hardware acceleration on Apple platform"
+                );
+                ExecutionProvider::CoreMLExecutionProvider
             } else {
                 provider
             }
@@ -131,43 +132,12 @@ impl InsightFaceDetector {
         #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         let actual_provider = provider;
 
-        // Load InsightFace face detection model (det_10g.onnx)
-        // Try multiple paths in order:
-        // 1. Environment variable INSIGHTFACE_MODEL_PATH
-        // 2. assets/download/det_10g.onnx (for macOS/desktop builds)
-        // 3. models/buffalo_l/det_10g.onnx (alternative path)
-        let model_path = if let Ok(env_path) = std::env::var("INSIGHTFACE_MODEL_PATH") {
-            log::info!("Using model from INSIGHTFACE_MODEL_PATH: {}", env_path);
-            Path::new(&env_path).to_path_buf()
-        } else if Path::new("assets/download/det_10g.onnx").exists() {
-            log::info!("Using model from assets/download/det_10g.onnx");
-            Path::new("assets/download/det_10g.onnx").to_path_buf()
-        } else if Path::new("models/buffalo_l/det_10g.onnx").exists() {
-            log::info!("Using model from models/buffalo_l/det_10g.onnx");
-            Path::new("models/buffalo_l/det_10g.onnx").to_path_buf()
-        } else {
-            // Model not found - provide helpful error message
-            let error_msg = "InsightFace model file not found. Searched paths:\n\
-                 1. INSIGHTFACE_MODEL_PATH environment variable\n\
-                 2. assets/download/det_10g.onnx\n\
-                 3. models/buffalo_l/det_10g.onnx\n\n\
-                 To download the model, build with: cargo build --features build_assets\n\
-                 Or download manually and place in one of the paths above."
-                .to_string();
-            log::error!("{}", error_msg);
-            panic!("{}", error_msg);
-        };
-
-        if !model_path.exists() {
-            let error_msg = format!("InsightFace model path does not exist: {:?}", model_path);
-            log::error!("{}", error_msg);
-            panic!("{}", error_msg);
-        }
-
-        log::info!("Loading InsightFace ONNX model from: {:?}", model_path);
-
-        // Read model file and load into ONNX Runtime
-        let model_bytes = std::fs::read(model_path).expect("Failed to read InsightFace model file");
+        // Load InsightFace face detection model from path set by build.rs (INSIGHTFACE_MODEL_PATH)
+        let model_bytes = MODEL_BYTES.to_vec();
+        log::info!(
+            "Using InsightFace model from INSIGHTFACE_MODEL_PATH ({} bytes)",
+            model_bytes.len()
+        );
 
         // Create ONNX Runtime session with specified provider
         let session_builder = Session::builder()
@@ -192,9 +162,9 @@ impl InsightFaceDetector {
 
         let session = session
             .commit_from_memory(&model_bytes)
-            .expect("Failed to load ONNX model");
+            .expect("Failed to load ONNX model from embedded bytes");
 
-        log::info!("InsightFace ONNX model loaded successfully");
+        log::info!("InsightFace ONNX model loaded successfully from embedded bytes");
 
         Self {
             session: RwLock::new(session),

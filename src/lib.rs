@@ -81,7 +81,10 @@ pub mod ffi;
 pub mod ffi_metal;
 
 // Metal renderer for iOS/macOS egui integration
-#[cfg(any(feature = "metal_rendering", target_os = "macos", target_os = "ios"))]
+#[cfg(all(
+    feature = "metal_rendering",
+    any(target_os = "macos", target_os = "ios")
+))]
 pub mod metal_renderer;
 
 #[cfg(any(feature = "desktop", feature = "web"))]

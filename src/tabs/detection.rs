@@ -886,7 +886,7 @@ impl ChamaOptics {
         self.detection_progress.start(1);
 
         // Clone necessary data for background thread
-        let image_path = packed_image.path.clone();
+        let _image_path = packed_image.path.clone();
         let image_uuid = packed_image.uuid;
         let results_queue = self.detection_results_queue.clone();
 
