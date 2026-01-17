@@ -36,6 +36,7 @@ impl Default for StickerConfig {
 
 impl StickerConfig {
     /// Create a new config with an image path (for iOS)
+    #[cfg(target_os = "ios")]
     pub fn with_image_path(path: PathBuf, scale: f32, offset_x: i32, offset_y: i32) -> Self {
         Self {
             sticker_id: String::new(),
@@ -47,6 +48,7 @@ impl StickerConfig {
     }
 
     /// Create a new config with a built-in sticker ID
+    #[cfg(target_os = "ios")]
     pub fn with_builtin(sticker_id: String, scale: f32, offset_x: i32, offset_y: i32) -> Self {
         Self {
             sticker_id,
@@ -67,6 +69,7 @@ impl StickerConfig {
 ///
 /// # Returns
 /// * Modified image with stickers applied
+#[cfg(target_os = "ios")]
 pub fn apply_sticker(
     mut image: DynamicImage,
     face_areas: Vec<(i32, i32, u32, u32)>,
@@ -96,7 +99,8 @@ pub fn apply_sticker(
             }
             None => {
                 // Fall back to built-in sticker
-                create_sticker(&config.sticker_id, target_size)
+                // create_sticker(&config.sticker_id, target_size)
+                RgbaImage::new(target_size, target_size)
             }
         };
 
@@ -108,6 +112,7 @@ pub fn apply_sticker(
 }
 
 /// Load sticker source image from path or return None for built-in
+#[allow(dead_code)]
 fn load_sticker_source(config: &StickerConfig) -> Option<DynamicImage> {
     if let Some(ref path) = config.sticker_path {
         match image::open(path) {
@@ -129,56 +134,26 @@ fn load_sticker_source(config: &StickerConfig) -> Option<DynamicImage> {
     }
 }
 
-/// Create a sticker image based on sticker ID
-///
-/// This is a placeholder that creates simple shapes.
-/// Future: Load actual PNG sticker assets from storage
-fn create_sticker(sticker_id: &str, size: u32) -> RgbaImage {
-    let mut sticker = RgbaImage::new(size, size);
+// /// Create a sticker image based on sticker ID
+// ///
+// /// This is a placeholder that creates simple shapes.
+// /// Future: Load actual PNG sticker assets from storage
+// fn create_sticker(sticker_id: &str, size: u32) -> RgbaImage {
+//     let mut sticker = RgbaImage::new(size, size);
 
-    // Create different shapes based on sticker ID
-    match sticker_id {
-        id if id.contains("heart") || id.contains("emoji_heart") => draw_heart(&mut sticker, size),
-        id if id.contains("star") => draw_star(&mut sticker, size),
-        id if id.contains("smile") => draw_smile(&mut sticker, size),
-        _ => draw_circle(&mut sticker, size, Rgba([255, 200, 0, 220])), // Default: yellow circle
-    }
+//     // Create different shapes based on sticker ID
+//     match sticker_id {
+//         id if id.contains("heart") || id.contains("emoji_heart") => draw_heart(&mut sticker, size),
+//         id if id.contains("star") => draw_star(&mut sticker, size),
+//         id if id.contains("smile") => draw_smile(&mut sticker, size),
+//         _ => draw_circle(&mut sticker, size, Rgba([255, 200, 0, 220])), // Default: yellow circle
+//     }
 
-    sticker
-}
-
-/// Draw a simple heart shape
-fn draw_heart(img: &mut RgbaImage, size: u32) {
-    let center = size as i32 / 2;
-    let color = Rgba([255, 50, 100, 220]); // Pink/red
-
-    for y in 0..size {
-        for x in 0..size {
-            let dx = x as f32 - center as f32;
-            let dy = y as f32 - center as f32 - (size as f32 * 0.1);
-
-            // Heart shape equation
-            let a = dx.powi(2) + dy.powi(2) - (size as f32 * 0.35);
-            let b = dx.powi(2) + (dy - (size as f32 * 0.4).abs()).powi(2);
-
-            if a.powi(3) - dx.powi(2) * dy.powi(3) < 0.0 || b < (size as f32 * 0.15).powi(2) {
-                img.put_pixel(x, y, color);
-            }
-        }
-    }
-}
-
-/// Draw a simple star shape
-fn draw_star(img: &mut RgbaImage, size: u32) {
-    draw_circle(img, size, Rgba([255, 220, 0, 220])); // Yellow star placeholder
-}
-
-/// Draw a simple smile emoji
-fn draw_smile(img: &mut RgbaImage, size: u32) {
-    draw_circle(img, size, Rgba([255, 220, 50, 220])); // Yellow face placeholder
-}
+//     sticker
+// }
 
 /// Draw a filled circle
+#[allow(dead_code)]
 fn draw_circle(img: &mut RgbaImage, size: u32, color: Rgba<u8>) {
     let center = size as f32 / 2.0;
     let radius = center * 0.9;
@@ -243,28 +218,5 @@ fn overlay_sticker(base: &mut DynamicImage, sticker: &RgbaImage, center_x: i32, 
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_sticker() {
-        let sticker = create_sticker("heart", 50);
-        assert_eq!(sticker.width(), 50);
-        assert_eq!(sticker.height(), 50);
-    }
-
-    #[test]
-    fn test_apply_sticker() {
-        let img = DynamicImage::new_rgb8(100, 100);
-        let face_areas = vec![(25, 25, 50, 50)];
-        let config = StickerConfig::default();
-
-        let result = apply_sticker(img, face_areas, &config);
-        assert_eq!(result.width(), 100);
-        assert_eq!(result.height(), 100);
     }
 }

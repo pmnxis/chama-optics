@@ -54,6 +54,8 @@ impl ExportConfig {
                 self.output_name.update_ui(ui);
                 ui.separator();
                 self.watermark.update_ui(ui);
+                ui.separator();
+                self.face_detection.update_ui(ui);
             });
             ui.separator();
             self.theme_reg.update_ui(ui, show_theme_name_in_english);
@@ -107,70 +109,68 @@ impl ExportConfig {
         #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
         {
             // Desktop platforms (Windows, Linux, macOS): Support multiple detection engines
-            if self.face_detection.is_enabled {
-                // Use pre-detected faces if available, otherwise detect on themed image
-                let faces = if let Some(pre_faces) = pre_detected_faces {
-                    log::info!(
-                        "[PASS] [Face Detection] Using {} pre-detected face(s) from original image",
-                        pre_faces.len()
-                    );
-                    pre_faces
-                } else {
-                    log::info!(
-                        "🎯 [Face Detection] Engine: {}, Detecting faces on themed image: {:?}",
-                        self.face_detection.engine,
-                        path.as_ref()
-                    );
+            // Use pre-detected faces if available, otherwise detect on themed image
+            let faces = if let Some(pre_faces) = pre_detected_faces {
+                log::info!(
+                    "[PASS] [Face Detection] Using {} pre-detected face(s) from original image",
+                    pre_faces.len()
+                );
+                pre_faces
+            } else {
+                log::info!(
+                    "🎯 [Face Detection] Engine: {}, Detecting faces on themed image: {:?}",
+                    self.face_detection.engine,
+                    path.as_ref()
+                );
 
-                    // Get image dimensions for recursive detection
-                    let _img_width = dyn_image.width();
-                    let _img_height = dyn_image.height();
+                // Get image dimensions for recursive detection
+                let _img_width = dyn_image.width();
+                let _img_height = dyn_image.height();
 
-                    match &self.face_detection.engine {
-                        #[cfg(feature = "face_detection_visionkit")]
-                        crate::effect::face_detection::FaceDetectionEngine::VisionKit => {
-                            self.detect_visionkit(path.as_ref())
-                        }
-
-                        #[cfg(feature = "face_detection_insightface")]
-                        crate::effect::face_detection::FaceDetectionEngine::InsightFace => {
-                            let detector =
-                                crate::effect::insightface_detector::InsightFaceDetector::new(
-                                    self.face_detection.speed_mode,
-                                    self.face_detection.provider,
-                                );
-                            self.run_detection(&detector, path.as_ref(), _img_width, _img_height)
-                        }
-
-                        #[cfg(not(any(
-                            feature = "face_detection_visionkit",
-                            feature = "face_detection_insightface"
-                        )))]
-                        _ => {
-                            log::warn!(
-                                "[Face Detection] Engine {:?} not available on this platform or not compiled with required features",
-                                self.face_detection.engine
-                            );
-                            vec![]
-                        }
+                match &self.face_detection.engine {
+                    #[cfg(feature = "face_detection_visionkit")]
+                    crate::effect::face_detection::FaceDetectionEngine::VisionKit => {
+                        self.detect_visionkit(path.as_ref())
                     }
-                };
 
-                // Apply faces if any were detected
-                if !faces.is_empty() {
-                    let face_count = faces.len();
-                    self.face_detection.apply(dyn_image, faces)?;
-                    log::info!(
-                        "[PASS] [Face Detection] Successfully applied face detection using {} - {} face(s) detected and processed",
-                        self.face_detection.engine,
-                        face_count
-                    );
-                } else {
-                    log::info!(
-                        "[INFO][Face Detection] No faces detected using {}",
-                        self.face_detection.engine
-                    );
+                    #[cfg(feature = "face_detection_insightface")]
+                    crate::effect::face_detection::FaceDetectionEngine::InsightFace => {
+                        let detector =
+                            crate::effect::insightface_detector::InsightFaceDetector::new(
+                                self.face_detection.speed_mode,
+                                self.face_detection.provider,
+                            );
+                        self.run_detection(&detector, path.as_ref(), _img_width, _img_height)
+                    }
+
+                    #[cfg(not(any(
+                        feature = "face_detection_visionkit",
+                        feature = "face_detection_insightface"
+                    )))]
+                    _ => {
+                        log::warn!(
+                            "[Face Detection] Engine {:?} not available on this platform or not compiled with required features",
+                            self.face_detection.engine
+                        );
+                        vec![]
+                    }
                 }
+            };
+
+            // Apply faces if any were detected
+            if !faces.is_empty() {
+                let face_count = faces.len();
+                self.face_detection.apply(dyn_image, faces)?;
+                log::info!(
+                    "[PASS] [Face Detection] Successfully applied face detection using {} - {} face(s) detected and processed",
+                    self.face_detection.engine,
+                    face_count
+                );
+            } else {
+                log::info!(
+                    "[INFO][Face Detection] No faces detected using {}",
+                    self.face_detection.engine
+                );
             }
         }
 

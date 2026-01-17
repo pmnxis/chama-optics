@@ -45,6 +45,7 @@ impl StrokeEffect {
     /// # Returns
     /// * `Ok(())` on success
     /// * `Err(String)` on error
+    #[allow(dead_code)]
     pub fn apply(
         image: &mut DynamicImage,
         face_areas: &[(i32, i32, u32, u32)],

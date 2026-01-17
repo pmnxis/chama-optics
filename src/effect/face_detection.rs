@@ -79,7 +79,6 @@ impl FaceDetectionEngine {
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct FaceDetection {
     pub engine: FaceDetectionEngine,
-    pub is_enabled: bool,
     pub border_color: egui::Color32,
     pub border_thickness: u32,
     pub mask_faces: bool,
@@ -107,7 +106,6 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::VisionKit,
-                is_enabled: false,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
                 mask_faces: false,
@@ -130,7 +128,6 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::VisionKit,
-                is_enabled: false,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
                 mask_faces: false,
@@ -150,7 +147,6 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::InsightFace,
-                is_enabled: false,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
                 mask_faces: false,
@@ -173,7 +169,6 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::NoOp,
-                is_enabled: false,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
                 mask_faces: false,
@@ -197,10 +192,6 @@ impl FaceDetection {
         dyn_image: &mut image::DynamicImage,
         face_rectangles: Vec<(i32, i32, u32, u32)>,
     ) -> Result<(), image::ImageError> {
-        if !self.is_enabled {
-            return Ok(());
-        }
-
         // Apply blur masking if enabled
         if self.mask_faces {
             for (x, y, width, height) in &face_rectangles {
@@ -708,9 +699,7 @@ impl FaceDetection {
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
-            ui.checkbox(&mut self.is_enabled, t!("face_detection.is_enabled"));
-
-            ui.separator();
+            ui.collapsing(t!("face_detection.detail_of_detection_engine"), |ui| {
 
             // Engine selection
             ui.label(t!("face_detection.engine"));
@@ -827,6 +816,8 @@ impl FaceDetection {
 
                 ui.separator();
             }
+
+        });
 
             ui.checkbox(&mut self.mask_faces, t!("face_detection.mask_faces"));
 

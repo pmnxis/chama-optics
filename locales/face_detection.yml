@@ -9,6 +9,10 @@ face_detection:
     en: "Enabled face detection"
     ko: "얼굴 감지 활성화"
     ja: "顔検出有効化"
+  detail_of_detection_engine:
+    en: "Detail of face detection"
+    ko: "얼굴 감지 설정"
+    ja: "検出エンジンエクスポート"
   engine:
     en: "Detection engine"
     ko: "감지 엔진"

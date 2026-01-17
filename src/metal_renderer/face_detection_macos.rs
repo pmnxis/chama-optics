@@ -49,10 +49,6 @@ impl MacFaceDetector {
         dyn_image: &mut image::DynamicImage,
         image_path: &Path,
     ) -> Result<(), image::ImageError> {
-        if !face_detection.is_enabled {
-            return Ok(());
-        }
-
         // Detect faces using selected engine
         let face_rectangles = self.detect_faces(image_path);
 
