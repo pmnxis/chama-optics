@@ -307,6 +307,7 @@ impl ChamaOptics {
             prefix: Option<String>,
             postfix: Option<String>,
             sticker_bytes: Option<Vec<u8>>,
+            #[allow(dead_code)] // todo - windows issue, resolve later
             configured_faces: Vec<crate::effect::sticker_storage::FaceWithSticker>,
         }
 
