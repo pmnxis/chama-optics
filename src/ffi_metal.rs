@@ -307,6 +307,24 @@ fn export_final_impl_with_exif_source(
     use crate::image::packed_image::PackedImage;
     use uuid::Uuid;
 
+    // Read the image bytes from the input path (which may be a temp file with face effects)
+    let image_bytes_result = std::fs::read(image_path);
+    #[cfg(not(feature = "desktop"))]
+    let image_bytes = match &image_bytes_result {
+        Ok(bytes) => {
+            log::info!(
+                "✅ Read {} bytes from input image: {}",
+                bytes.len(),
+                image_path
+            );
+            Some(bytes.clone())
+        }
+        Err(e) => {
+            log::error!("❌ Failed to read input image bytes: {}", e);
+            None
+        }
+    };
+
     let packed_image = PackedImage {
         uuid: Uuid::new_v4(),
         path: Path::new(image_path).to_path_buf(),
@@ -315,7 +333,7 @@ fn export_final_impl_with_exif_source(
         editable: false,
         texture: PackedTexture::Dummy,
         #[cfg(not(feature = "desktop"))]
-        image_bytes: std::fs::read(image_path).ok(),
+        image_bytes,
         sticker_bytes: None,
         perceptual_hash: None,
     };
@@ -1066,6 +1084,8 @@ pub enum CFaceEffectType {
     Mosaic = 1,
     Stroke = 2,
     Sticker = 3,
+    /// Combined Mosaic + Stroke effect (mosaic inside, stroke border outside)
+    MosaicStroke = 4,
 }
 
 /// Output format for export
@@ -1248,6 +1268,41 @@ pub unsafe extern "C" fn chama_export_combined(
                 dyn_image =
                     crate::effect::sticker::apply_sticker(dyn_image, face_areas, &sticker_config);
                 log::info!("  Sticker applied successfully");
+            }
+            CFaceEffectType::MosaicStroke => {
+                // Apply mosaic first (inside the face area)
+                let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                    block_size: config_ref.mosaic_block_size,
+                    intensity: config_ref.mosaic_intensity,
+                };
+                if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &mosaic_config,
+                ) {
+                    log::error!("Failed to apply mosaic in MosaicStroke: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+
+                // Then apply stroke (border around the face area)
+                let stroke_config = crate::effect::stroke::StrokeEffect {
+                    thickness: config_ref.stroke_thickness,
+                    color: (
+                        config_ref.stroke_color_r,
+                        config_ref.stroke_color_g,
+                        config_ref.stroke_color_b,
+                        config_ref.stroke_color_a,
+                    ),
+                };
+                if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &stroke_config,
+                ) {
+                    log::error!("Failed to apply stroke in MosaicStroke: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+                log::info!("  MosaicStroke applied successfully");
             }
             CFaceEffectType::None => {}
         }

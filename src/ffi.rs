@@ -459,6 +459,8 @@ mod face_detection_ffi {
                 recursive_max_depth: 4,
                 recursive_overlap: true,
                 recursive_overlap_ratio: 0.25,
+                effect_mode: crate::effect::face_detection::FaceEffectMode::None,
+                mosaic_block_size: 10,
             };
 
             // Apply face detection - pass owned Vec (not borrowed reference)

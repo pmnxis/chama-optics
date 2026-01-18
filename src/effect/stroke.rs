@@ -9,6 +9,7 @@
 
 use image::DynamicImage;
 use image::GenericImage;
+use image::GenericImageView;
 
 /// Stroke effect configuration
 #[derive(Debug, Clone)]
@@ -53,7 +54,9 @@ impl StrokeEffect {
     ) -> Result<(), String> {
         let (stroke_r, stroke_g, stroke_b, stroke_a) = config.color;
         let stroke_color = image::Rgba([stroke_r, stroke_g, stroke_b, stroke_a]);
-        let stroke_width = config.thickness;
+        let stroke_width = config.thickness.max(1);
+
+        let (img_width, img_height) = image.dimensions();
 
         for &(x, y, width, height) in face_areas {
             // Ensure face area is within image bounds
@@ -63,36 +66,70 @@ impl StrokeEffect {
 
             let start_x = x.max(0) as u32;
             let start_y = y.max(0) as u32;
-            let dimm = imageproc::drawing::Canvas::dimensions(image);
-            let face_width = width.saturating_sub(dimm.0 - start_x);
-            let face_height = height.saturating_sub(dimm.1 - start_y);
+            // Clamp face dimensions to image boundaries
+            let available_width = img_width.saturating_sub(start_x);
+            let available_height = img_height.saturating_sub(start_y);
+            let face_width = width.min(available_width);
+            let face_height = height.min(available_height);
 
             if face_width == 0 || face_height == 0 {
                 continue;
             }
 
-            // Draw top border
-            for px in 0..face_width {
-                let py = start_y;
-                image.put_pixel(px, py, stroke_color);
+            let end_x = start_x + face_width;
+            let end_y = start_y + face_height;
+
+            log::debug!(
+                "Applying stroke to face at ({}, {}) size {}x{} with thickness {}",
+                start_x,
+                start_y,
+                face_width,
+                face_height,
+                stroke_width
+            );
+
+            // Draw top border (horizontal line at top)
+            for thickness_offset in 0..stroke_width {
+                let py = start_y + thickness_offset;
+                if py >= img_height {
+                    break;
+                }
+                for px in start_x..end_x.min(img_width) {
+                    image.put_pixel(px, py, stroke_color);
+                }
             }
 
-            // Draw bottom border
-            for px in 0..face_width {
-                let py = start_y + face_height - stroke_width.min(1);
-                image.put_pixel(px, py, stroke_color);
+            // Draw bottom border (horizontal line at bottom)
+            for thickness_offset in 0..stroke_width {
+                let py = end_y.saturating_sub(1 + thickness_offset);
+                if py < start_y {
+                    break;
+                }
+                for px in start_x..end_x.min(img_width) {
+                    image.put_pixel(px, py, stroke_color);
+                }
             }
 
-            // Draw left border
-            for py in 0..face_height {
-                let px = start_x;
-                image.put_pixel(px, py, stroke_color);
+            // Draw left border (vertical line at left)
+            for thickness_offset in 0..stroke_width {
+                let px = start_x + thickness_offset;
+                if px >= img_width {
+                    break;
+                }
+                for py in start_y..end_y.min(img_height) {
+                    image.put_pixel(px, py, stroke_color);
+                }
             }
 
-            // Draw right border
-            for py in 0..face_height {
-                let px = start_x + face_width - stroke_width.min(1);
-                image.put_pixel(px, py, stroke_color);
+            // Draw right border (vertical line at right)
+            for thickness_offset in 0..stroke_width {
+                let px = end_x.saturating_sub(1 + thickness_offset);
+                if px < start_x {
+                    break;
+                }
+                for py in start_y..end_y.min(img_height) {
+                    image.put_pixel(px, py, stroke_color);
+                }
             }
         }
 

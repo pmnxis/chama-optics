@@ -54,8 +54,6 @@ impl ExportConfig {
                 self.output_name.update_ui(ui);
                 ui.separator();
                 self.watermark.update_ui(ui);
-                ui.separator();
-                self.face_detection.update_ui(ui);
             });
             ui.separator();
             self.theme_reg.update_ui(ui, show_theme_name_in_english);

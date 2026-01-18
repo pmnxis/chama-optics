@@ -5,13 +5,17 @@
 _version: 2
 
 face_detection:
+  label:
+    en: "Face detection config"
+    ko: "얼굴 감지 설정"
+    ja: "顔検出設定"
   is_enabled:
     en: "Enabled face detection"
     ko: "얼굴 감지 활성화"
     ja: "顔検出有効化"
   detail_of_detection_engine:
-    en: "Detail of face detection"
-    ko: "얼굴 감지 설정"
+    en: "Detail of face detection engine"
+    ko: "얼굴 감지 엔진 설정"
     ja: "検出エンジンエクスポート"
   engine:
     en: "Detection engine"

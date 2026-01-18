@@ -65,12 +65,21 @@ impl MosaicEffect {
 
             let start_x = x.max(0) as u32;
             let start_y = y.max(0) as u32;
-            let face_width = rect_width.saturating_sub(img_width - start_x);
-            let face_height = rect_height.saturating_sub(img_height - start_y);
+            // Clamp face dimensions to image boundaries
+            let face_width = rect_width.min(img_width.saturating_sub(start_x));
+            let face_height = rect_height.min(img_height.saturating_sub(start_y));
 
             if face_width == 0 || face_height == 0 {
                 continue;
             }
+
+            log::debug!(
+                "Applying mosaic to face at ({}, {}) size {}x{}",
+                start_x,
+                start_y,
+                face_width,
+                face_height
+            );
 
             let block_size = config.block_size.max(1);
 

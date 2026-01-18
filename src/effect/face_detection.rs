@@ -10,6 +10,47 @@ use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
 
+/// Face effect mode - what effect to apply to detected faces
+/// This enum matches the iOS FaceEffectType for consistency
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, Default)]
+pub enum FaceEffectMode {
+    /// No effect applied to faces
+    #[default]
+    None,
+    /// Mosaic/pixelate effect
+    Mosaic,
+    /// Stroke/border around face
+    Stroke,
+    /// Combined mosaic inside + stroke border
+    MosaicStroke,
+    /// Sticker overlay (handled separately)
+    Sticker,
+}
+
+impl FaceEffectMode {
+    /// Get display name for the effect mode
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            FaceEffectMode::None => "None",
+            FaceEffectMode::Mosaic => "Mosaic",
+            FaceEffectMode::Stroke => "Stroke",
+            FaceEffectMode::MosaicStroke => "Mosaic+Stroke",
+            FaceEffectMode::Sticker => "Sticker",
+        }
+    }
+
+    /// Get all available modes for UI
+    pub fn all_modes() -> &'static [FaceEffectMode] {
+        &[
+            FaceEffectMode::None,
+            FaceEffectMode::Mosaic,
+            FaceEffectMode::Stroke,
+            FaceEffectMode::MosaicStroke,
+            FaceEffectMode::Sticker,
+        ]
+    }
+}
+
 #[derive(Clone, serde::Deserialize, serde::Serialize, Display, PartialEq, Eq, Debug)]
 pub enum FaceDetectionEngine {
     #[cfg(feature = "face_detection_visionkit")]
@@ -79,8 +120,17 @@ impl FaceDetectionEngine {
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct FaceDetection {
     pub engine: FaceDetectionEngine,
+    /// Effect mode to apply to detected faces
+    #[serde(default)]
+    pub effect_mode: FaceEffectMode,
+    /// Stroke border color
     pub border_color: egui::Color32,
+    /// Stroke border thickness
     pub border_thickness: u32,
+    /// Mosaic block size in pixels
+    #[serde(default = "default_mosaic_block_size")]
+    pub mosaic_block_size: u32,
+    /// Legacy: mask faces with blur (deprecated, use effect_mode instead)
     pub mask_faces: bool,
     pub mask_blur_radius: f32,
     #[cfg(feature = "face_detection_insightface")]
@@ -92,6 +142,10 @@ pub struct FaceDetection {
     pub recursive_max_depth: u32,
     pub recursive_overlap: bool,
     pub recursive_overlap_ratio: f32,
+}
+
+fn default_mosaic_block_size() -> u32 {
+    10
 }
 
 impl core::default::Default for FaceDetection {
@@ -106,8 +160,10 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::VisionKit,
+                effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
+                mosaic_block_size: 10,
                 mask_faces: false,
                 mask_blur_radius: 20.0,
                 speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
@@ -128,8 +184,10 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::VisionKit,
+                effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
+                mosaic_block_size: 10,
                 mask_faces: false,
                 mask_blur_radius: 20.0,
                 recursive_detection: false,
@@ -147,8 +205,10 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::InsightFace,
+                effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
+                mosaic_block_size: 10,
                 mask_faces: false,
                 mask_blur_radius: 20.0,
                 speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
@@ -169,8 +229,10 @@ impl core::default::Default for FaceDetection {
         {
             Self {
                 engine: FaceDetectionEngine::NoOp,
+                effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 border_thickness: 3,
+                mosaic_block_size: 10,
                 mask_faces: false,
                 mask_blur_radius: 20.0,
                 recursive_detection: false,
@@ -700,124 +762,122 @@ impl FaceDetection {
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.vertical(|ui| {
             ui.collapsing(t!("face_detection.detail_of_detection_engine"), |ui| {
-
-            // Engine selection
-            ui.label(t!("face_detection.engine"));
-            egui::ComboBox::from_label(t!("face_detection.engine"))
-                .selected_text(format!("{}", self.engine))
-                .show_ui(ui, |ui| {
-                    // Show VisionKit if feature is enabled
-                    #[cfg(feature = "face_detection_visionkit")]
-                    {
-                        ui.selectable_value(
-                            &mut self.engine,
-                            FaceDetectionEngine::VisionKit,
-                            "VisionKit",
-                        );
-                    }
-                    // Show InsightFace (enabled if feature is active, otherwise disabled)
-                    #[cfg(feature = "face_detection_insightface")]
-                    {
-                        ui.selectable_value(
-                            &mut self.engine,
-                            FaceDetectionEngine::InsightFace,
-                            "InsightFace",
-                        );
-                    }
-                    #[cfg(not(feature = "face_detection_insightface"))]
-                    {
-                        ui.colored_label(
-                            ui.visuals().weak_text_color(),
-                            "InsightFace (requires feature flag)",
-                        );
-                    }
-                });
-
-            ui.separator();
-
-            // Show speed mode and provider options for InsightFace
-            #[cfg(feature = "face_detection_insightface")]
-            if matches!(self.engine, FaceDetectionEngine::InsightFace) {
-                // Speed mode selection
-                ui.label(t!("face_detection.speed_mode"))
-                    .on_hover_text(t!("face_detection.speed_mode_hint"));
-
-                egui::ComboBox::from_label(t!("face_detection.speed_mode"))
-                    .selected_text(self.speed_mode.as_str().to_string())
+                // Engine selection
+                ui.label(t!("face_detection.engine"));
+                egui::ComboBox::from_label(t!("face_detection.engine"))
+                    .selected_text(format!("{}", self.engine))
                     .show_ui(ui, |ui| {
-                        use crate::effect::insightface_detector::SpeedMode;
-                        let modes = [
-                            (
-                                SpeedMode::Fastest,
-                                t!("face_detection.speed_mode_fastest"),
-                                "Fastest: Stage 0 only, ~0.5s avg, ~95 faces",
-                            ),
-                            (
-                                SpeedMode::Fast,
-                                t!("face_detection.speed_mode_fast"),
-                                "Fast: Stage 0+1, ~0.6s avg, ~95 faces",
-                            ),
-                            (
-                                SpeedMode::Normal,
-                                t!("face_detection.speed_mode_normal"),
-                                "Normal: Stage 0+1+2, ~7s avg, ~325 faces",
-                            ),
-                            (
-                                SpeedMode::Slow,
-                                t!("face_detection.speed_mode_slow"),
-                                "Slow: Full depth, ~13s avg, ~385 faces",
-                            ),
-                            (
-                                SpeedMode::Slowest,
-                                t!("face_detection.speed_mode_slowest"),
-                                "Slowest: Max depth, ~28s avg, ~398 faces",
-                            ),
-                        ];
-
-                        for (mode, label, hint) in modes {
-                            ui.selectable_value(&mut self.speed_mode, mode, label)
-                                .on_hover_text(hint);
+                        // Show VisionKit if feature is enabled
+                        #[cfg(feature = "face_detection_visionkit")]
+                        {
+                            ui.selectable_value(
+                                &mut self.engine,
+                                FaceDetectionEngine::VisionKit,
+                                "VisionKit",
+                            );
+                        }
+                        // Show InsightFace (enabled if feature is active, otherwise disabled)
+                        #[cfg(feature = "face_detection_insightface")]
+                        {
+                            ui.selectable_value(
+                                &mut self.engine,
+                                FaceDetectionEngine::InsightFace,
+                                "InsightFace",
+                            );
+                        }
+                        #[cfg(not(feature = "face_detection_insightface"))]
+                        {
+                            ui.colored_label(
+                                ui.visuals().weak_text_color(),
+                                "InsightFace (requires feature flag)",
+                            );
                         }
                     });
 
                 ui.separator();
 
-                // Execution provider selection
-                ui.label(t!("face_detection.execution_provider"))
-                    .on_hover_text(t!("face_detection.execution_provider_hint"));
+                // Show speed mode and provider options for InsightFace
+                #[cfg(feature = "face_detection_insightface")]
+                if matches!(self.engine, FaceDetectionEngine::InsightFace) {
+                    // Speed mode selection
+                    ui.label(t!("face_detection.speed_mode"))
+                        .on_hover_text(t!("face_detection.speed_mode_hint"));
 
-                egui::ComboBox::from_label(t!("face_detection.execution_provider"))
-                    .selected_text(self.provider.as_str().to_string())
-                    .show_ui(ui, |ui| {
-                        use crate::effect::insightface_detector::ExecutionProvider;
+                    egui::ComboBox::from_label(t!("face_detection.speed_mode"))
+                        .selected_text(self.speed_mode.as_str().to_string())
+                        .show_ui(ui, |ui| {
+                            use crate::effect::insightface_detector::SpeedMode;
+                            let modes = [
+                                (
+                                    SpeedMode::Fastest,
+                                    t!("face_detection.speed_mode_fastest"),
+                                    "Fastest: Stage 0 only, ~0.5s avg, ~95 faces",
+                                ),
+                                (
+                                    SpeedMode::Fast,
+                                    t!("face_detection.speed_mode_fast"),
+                                    "Fast: Stage 0+1, ~0.6s avg, ~95 faces",
+                                ),
+                                (
+                                    SpeedMode::Normal,
+                                    t!("face_detection.speed_mode_normal"),
+                                    "Normal: Stage 0+1+2, ~7s avg, ~325 faces",
+                                ),
+                                (
+                                    SpeedMode::Slow,
+                                    t!("face_detection.speed_mode_slow"),
+                                    "Slow: Full depth, ~13s avg, ~385 faces",
+                                ),
+                                (
+                                    SpeedMode::Slowest,
+                                    t!("face_detection.speed_mode_slowest"),
+                                    "Slowest: Max depth, ~28s avg, ~398 faces",
+                                ),
+                            ];
 
-                        ui.selectable_value(
-                            &mut self.provider,
-                            ExecutionProvider::CPUExecutionProvider,
-                            t!("face_detection.provider_cpu"),
-                        )
-                        .on_hover_text("CPU execution - compatible with all platforms");
+                            for (mode, label, hint) in modes {
+                                ui.selectable_value(&mut self.speed_mode, mode, label)
+                                    .on_hover_text(hint);
+                            }
+                        });
 
-                        ui.selectable_value(
-                            &mut self.provider,
-                            ExecutionProvider::OnnxAuto,
-                            t!("face_detection.provider_onnx_auto"),
-                        )
-                        .on_hover_text("Auto-detect best available provider");
+                    ui.separator();
 
-                        #[cfg(target_os = "macos")]
-                        ui.selectable_value(
-                            &mut self.provider,
-                            ExecutionProvider::CoreMLExecutionProvider,
-                            t!("face_detection.provider_coreml"),
-                        )
-                        .on_hover_text("Apple Silicon acceleration - macOS only");
-                    });
+                    // Execution provider selection
+                    ui.label(t!("face_detection.execution_provider"))
+                        .on_hover_text(t!("face_detection.execution_provider_hint"));
 
-                ui.separator();
-            }
+                    egui::ComboBox::from_label(t!("face_detection.execution_provider"))
+                        .selected_text(self.provider.as_str().to_string())
+                        .show_ui(ui, |ui| {
+                            use crate::effect::insightface_detector::ExecutionProvider;
 
-        });
+                            ui.selectable_value(
+                                &mut self.provider,
+                                ExecutionProvider::CPUExecutionProvider,
+                                t!("face_detection.provider_cpu"),
+                            )
+                            .on_hover_text("CPU execution - compatible with all platforms");
+
+                            ui.selectable_value(
+                                &mut self.provider,
+                                ExecutionProvider::OnnxAuto,
+                                t!("face_detection.provider_onnx_auto"),
+                            )
+                            .on_hover_text("Auto-detect best available provider");
+
+                            #[cfg(target_os = "macos")]
+                            ui.selectable_value(
+                                &mut self.provider,
+                                ExecutionProvider::CoreMLExecutionProvider,
+                                t!("face_detection.provider_coreml"),
+                            )
+                            .on_hover_text("Apple Silicon acceleration - macOS only");
+                        });
+
+                    ui.separator();
+                }
+            });
 
             ui.checkbox(&mut self.mask_faces, t!("face_detection.mask_faces"));
 
@@ -842,46 +902,6 @@ impl FaceDetection {
                     egui::color_picker::Alpha::BlendOrAdditive,
                 );
             });
-
-            ui.separator();
-
-            ui.checkbox(
-                &mut self.recursive_detection,
-                t!("face_detection.recursive_detection"),
-            );
-
-            if self.recursive_detection {
-                ui.horizontal(|ui| {
-                    ui.label(t!("face_detection.recursive_min_size"));
-                    ui.add(
-                        egui::Slider::new(&mut self.recursive_min_size, 32..=512)
-                            .text(t!("face_detection.pixels")),
-                    )
-                    .on_hover_text(t!("face_detection.recursive_min_size_hint"));
-                });
-
-                ui.horizontal(|ui| {
-                    ui.label("Max depth");
-                    ui.add(egui::Slider::new(&mut self.recursive_max_depth, 1..=4).text("levels"))
-                        .on_hover_text("Maximum recursion depth (1-4)");
-                });
-
-                ui.checkbox(
-                    &mut self.recursive_overlap,
-                    t!("face_detection.recursive_overlap"),
-                );
-
-                if self.recursive_overlap {
-                    ui.horizontal(|ui| {
-                        ui.label(t!("face_detection.recursive_overlap_ratio"));
-                        ui.add(
-                            egui::Slider::new(&mut self.recursive_overlap_ratio, 0.0..=0.5)
-                                .text(t!("face_detection.recursive_percentage")),
-                        )
-                        .on_hover_text(t!("face_detection.recursive_overlap_ratio_hint"));
-                    });
-                }
-            }
         });
     }
 }

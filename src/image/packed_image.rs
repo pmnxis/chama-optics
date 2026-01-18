@@ -75,8 +75,22 @@ impl PackedImage {
         {
             // For non-desktop platforms (WASM, iOS), load from memory
             if let Some(bytes) = &self.image_bytes {
-                __load_image_from_vec(&self.path, bytes.clone())
+                log::info!(
+                    "📦 Loading image from {} bytes (path hint: {:?})",
+                    bytes.len(),
+                    self.path
+                );
+                let result = __load_image_from_vec(&self.path, bytes.clone());
+                if let Ok((ref img, _)) = result {
+                    log::info!(
+                        "📦 Loaded image dimensions: {}x{}",
+                        img.width(),
+                        img.height()
+                    );
+                }
+                result
             } else {
+                log::error!("❌ No image_bytes available for non-desktop platform");
                 Err(image::ImageError::IoError(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
                     "Image bytes not available for non-desktop platform",

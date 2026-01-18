@@ -15,7 +15,7 @@ brew install libheif x265 libde265 ffmpeg nasm --quiet
 rustup target add aarch64-apple-darwin
 # rustup target add x86_64-apple-darwin
 
-cargo bundle --release
+cargo bundle --release --features face_detection_insightface
 
 echo otool for aarch64:
 # otool -L target/aarch64-apple-darwin/release/chama-optics

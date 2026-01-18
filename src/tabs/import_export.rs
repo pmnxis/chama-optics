@@ -25,7 +25,7 @@ impl ChamaOptics {
             .update_ui(ui, self.show_theme_name_in_english);
 
         // temporary call detect config ui here
-        ui.heading(t!("export_config.label"));
+        ui.heading(t!("face_detection.detail_of_detection_engine"));
         self.export_config.face_detection.update_ui(ui);
     }
 }

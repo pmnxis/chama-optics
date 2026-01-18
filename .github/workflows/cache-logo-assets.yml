@@ -42,7 +42,7 @@ jobs:
           # Even if it fails, we'll save whatever was downloaded
           echo "Starting logo download..."
           cargo fetch || true
-          cargo build --release 2>&1 | tee build.log || echo "Build failed, but continuing to save cache"
+          cargo build --release --features face_detection_insightface 2>&1 | tee build.log || echo "Build failed, but continuing to save cache"
 
       - name: Verify downloads
         if: always()

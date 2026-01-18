@@ -256,7 +256,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --verbose --release --target=${{ matrix.TARGET }}
+        args: --verbose --release --features face_detection_insightface --target=${{ matrix.TARGET }}
 
     # macOS
     - name: Install cargo bundle
