@@ -92,6 +92,18 @@ pub struct ChamaOptics {
     /// Sticker application config (scale, offset)
     pub sticker_config: crate::effect::sticker_storage::StickerConfig,
 
+    /// Default effect to apply to newly detected faces
+    pub default_face_effect: crate::effect::FaceEffectMode,
+
+    /// Mosaic block size for effect application
+    pub mosaic_block_size: u32,
+
+    /// Stroke thickness for effect application
+    pub stroke_thickness: u32,
+
+    /// Stroke color for effect application (RGBA: r, g, b, a)
+    pub stroke_color: egui::Color32,
+
     #[serde(skip)]
     /// Selected sticker ID for sticker preview tab
     pub(crate) selected_sticker_id: Option<uuid::Uuid>,
@@ -220,6 +232,10 @@ impl Default for ChamaOptics {
             selected_tab: MainTab::default(),
             sticker_storage: crate::effect::sticker_storage::StickerStorage::new(),
             sticker_config: crate::effect::sticker_storage::StickerConfig::default(),
+            default_face_effect: crate::effect::FaceEffectMode::Sticker, // Default to Sticker mode
+            mosaic_block_size: 10, // Default mosaic block size (pixels)
+            stroke_thickness: 3,   // Default stroke thickness (pixels)
+            stroke_color: egui::Color32::DARK_RED, // Default stroke color (red)
             selected_sticker_id: None,
             packed_images: vec![],
             image_groups: None,

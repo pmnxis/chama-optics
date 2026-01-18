@@ -9,10 +9,63 @@ face_detection:
     en: "Face detection config"
     ko: "얼굴 감지 설정"
     ja: "顔検出設定"
-  is_enabled:
-    en: "Enabled face detection"
-    ko: "얼굴 감지 활성화"
-    ja: "顔検出有効化"
+  select_image:
+    en: "Select image"
+    ko: "이미지 선택"
+    ja: "画像選択"
+  no_images:
+    en: "No images"
+    ko: "이미지 없음"
+    ja: "画像なし"
+  preview:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
+  faces_found:
+    en: "{} faces found"
+    ko: "{} 개 얼굴 발견됨"
+    ja: "{}個の顔が検出されました"
+  detect_faces:
+    en: "Detect Faces"
+    ko: "얼굴 감지"
+    ja: "顔検出"
+  faces_and_stickers:
+    en: "Faces and stickers"
+    ko: "얼굴과 스티커"
+    ja: "顔とステッカー"
+  no_faces:
+    en: "No faces"
+    ko: "얼굴 없음"
+    ja: "顔なし"
+  faces_and_stickers:
+    en: "Faces and stickers"
+    ko: "얼굴과 스티커"
+    ja: "顔とステッカー"
+  face_label_format:
+    en: "Face #{} ({}x{})"
+    ko: "얼굴 #{} ({}x{})"
+    ja: "顔 #{}（{}x{}）"
+  selected_face:
+    en: "Selected face #{}"
+    ko: "선택된 얼굴 #{}"
+    ja: "選択された顔 #{}"
+  assign_sticker:
+    en: "Assign sticker"
+    ko: "스티커 할당"
+    ja: "ステッカーを割り当て"
+  sticker_hint:
+    en: "Add stickers in Sticker tab (top-right)"
+    ko: "스티커 탭에서 추가 (우측 상단)"
+    ja: "ステッカータブ（右上）で追加"
+  face_selected_format:
+    en: "Face #{} selected"
+    ko: "얼굴 #{} 선택됨"
+    ja: "顔 #{}が選択されました"
+  no_face_selected:
+    en: "No face selected"
+    ko: "얼굴 선택되지 않음"
+    ja: "顔が選択されていません"
+# Configuration
   detail_of_detection_engine:
     en: "Detail of face detection engine"
     ko: "얼굴 감지 엔진 설정"
@@ -30,25 +83,25 @@ face_detection:
     ko: "속도와 정확도 사이의 균형 (처리 깊이에 영향)"
     ja: "速度と精度のバランス（処理深度に影響）"
   speed_mode_fastest:
-    en: "Fastest (0.5s, ~95 faces)"
-    ko: "최고속 (0.5초, ~95개 얼굴)"
-    ja: "最速（0.5秒、約95個）"
+    en: "Fastest (Single or two-person photo)"
+    ko: "최고속 (단독/두명 있는 사진)"
+    ja: "最速（1人または2人の写真）"
   speed_mode_fast:
-    en: "Fast (0.6s, ~95 faces)"
-    ko: "빠름 (0.6초, ~95개 얼굴)"
-    ja: "高速（0.6秒、約95個）"
+    en: "Fast (3–4 people in unusual aspect ratio photo)"
+    ko: "빠름 (종횡비가 특이한 사진에서 3-4명 있는 사진)"
+    ja: "高速（縦横比が特殊な写真に3～4人）"
   speed_mode_normal:
-    en: "Normal (7s, ~325 faces)"
-    ko: "보통 (7초, ~325개 얼굴)"
-    ja: "標準（7秒、約325個）"
+    en: "Normal (Group photo with 10+ people)"
+    ko: "보통 (10명 이상의 사진)"
+    ja: "標準（10人以上の写真）"
   speed_mode_slow:
-    en: "Slow (13s, ~385 faces)"
-    ko: "느림 (13초, ~385개 얼굴)"
-    ja: "低速（13秒、約385個）"
+    en: "Slow (Group photo with 40-50 people)"
+    ko: "느림 (40~50명의 단체사진)"
+    ja: "低速（40～50人の団体写真）"
   speed_mode_slowest:
-    en: "Slowest (28s, ~398 faces)"
-    ko: "최저속 (28초, ~398개 얼굴)"
-    ja: "最低速（28秒、約398個）"
+    en: "Slowest (Group photo with 50-100 people)"
+    ko: "가장느림 (50~100명의 단체사진)"
+    ja: "最低速（50～100人の団体写真）"
   execution_provider:
     en: "Execution provider"
     ko: "실행 제공자"
@@ -68,7 +121,7 @@ face_detection:
   provider_coreml:
     en: "CoreML (Apple Silicon)"
     ko: "CoreML (Apple Silicon)"
-    ja: "CoreML（Apple Silicon）"
+    ja: "CoreML (Apple Silicon)"
   recursive_detection:
     en: "Recursive face detection"
     ko: "재귀적 얼굴 감지"

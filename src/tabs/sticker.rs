@@ -80,36 +80,29 @@ impl ChamaOptics {
                         ui.end_row();
 
                         // Mosaic and Stroke settings (merged into Sticker settings)
-                        ui.heading("Mosaic / Stroke Settings");
+                        ui.heading(t!("effect.default_effect.mosaic_and_stroke_settings"));
                         ui.end_row();
 
                         // Mosaic block size
-                        ui.label("Mosaic Block Size");
-                        ui.add(egui::Slider::new(
-                            &mut self.export_config.face_detection.mosaic_block_size,
-                            2..=50,
-                        ))
-                        .on_hover_text("Size of mosaic blocks in pixels");
+                        ui.label(t!("effect.default_effect.mosaic_block_size"));
+                        ui.add(egui::Slider::new(&mut self.mosaic_block_size, 2..=400))
+                            .on_hover_text(t!("effect.default_effect.mosaic_block_size_hint"));
                         ui.end_row();
 
-                        // Border color
-                        ui.label("Stroke Border Color");
+                        ui.label(t!("effect.default_effect.stroke_color"));
                         ui.horizontal(|ui| {
                             egui::color_picker::color_edit_button_srgba(
                                 ui,
-                                &mut self.export_config.face_detection.border_color,
+                                &mut self.stroke_color,
                                 egui::color_picker::Alpha::BlendOrAdditive,
-                            );
+                            )
                         });
                         ui.end_row();
 
                         // Border thickness
-                        ui.label("Stroke Border Thickness");
-                        ui.add(egui::Slider::new(
-                            &mut self.export_config.face_detection.border_thickness,
-                            1..=20,
-                        ))
-                        .on_hover_text("Thickness of stroke border in pixels");
+                        ui.label(t!("effect.default_effect.stroke_border_thickness"));
+                        ui.add(egui::Slider::new(&mut self.stroke_thickness, 1..=20))
+                            .on_hover_text("Thickness of stroke border in pixels");
                         ui.end_row();
                     });
 

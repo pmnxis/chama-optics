@@ -158,7 +158,6 @@ impl ExportConfig {
             // Apply faces if any were detected
             if !faces.is_empty() {
                 let face_count = faces.len();
-                self.face_detection.apply(dyn_image, faces)?;
                 log::info!(
                     "[PASS] [Face Detection] Successfully applied face detection using {} - {} face(s) detected and processed",
                     self.face_detection.engine,

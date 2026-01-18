@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-use imageproc::drawing::draw_hollow_rect_mut;
-use imageproc::rect::Rect;
 use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
@@ -123,16 +121,14 @@ pub struct FaceDetection {
     /// Effect mode to apply to detected faces
     #[serde(default)]
     pub effect_mode: FaceEffectMode,
+    #[cfg(target_os = "ios")]
+    pub border_thickness: u32, // todo - remove later
     /// Stroke border color
-    pub border_color: egui::Color32,
-    /// Stroke border thickness
-    pub border_thickness: u32,
+    pub border_color: egui::Color32, // todo - is this really used?
     /// Mosaic block size in pixels
-    #[serde(default = "default_mosaic_block_size")]
     pub mosaic_block_size: u32,
     /// Legacy: mask faces with blur (deprecated, use effect_mode instead)
-    pub mask_faces: bool,
-    pub mask_blur_radius: f32,
+    pub mask_faces: bool, // todo - is this really used?
     #[cfg(feature = "face_detection_insightface")]
     pub speed_mode: crate::effect::insightface_detector::SpeedMode,
     #[cfg(feature = "face_detection_insightface")]
@@ -144,9 +140,7 @@ pub struct FaceDetection {
     pub recursive_overlap_ratio: f32,
 }
 
-fn default_mosaic_block_size() -> u32 {
-    10
-}
+const DEFAULT_MOSAIC_BLOCK_SIZE: u32 = 100u32;
 
 impl core::default::Default for FaceDetection {
     fn default() -> Self {
@@ -154,18 +148,17 @@ impl core::default::Default for FaceDetection {
         let [r, g, b, a] = [255, 0, 0, 255];
 
         #[cfg(all(
+            not(target_os = "ios"),
             feature = "face_detection_visionkit",
             feature = "face_detection_insightface"
         ))]
         {
-            Self {
+            FaceDetection {
                 engine: FaceDetectionEngine::VisionKit,
                 effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
-                border_thickness: 3,
-                mosaic_block_size: 10,
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                mask_blur_radius: 20.0,
                 speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
                 provider:
                     crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
@@ -178,18 +171,17 @@ impl core::default::Default for FaceDetection {
         }
 
         #[cfg(all(
+            not(target_os = "ios"),
             feature = "face_detection_visionkit",
             not(feature = "face_detection_insightface")
         ))]
         {
-            Self {
+            FaceDetection {
                 engine: FaceDetectionEngine::VisionKit,
                 effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
-                border_thickness: 3,
-                mosaic_block_size: 10,
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                mask_blur_radius: 20.0,
                 recursive_detection: false,
                 recursive_min_size: 64,
                 recursive_max_depth: 4,
@@ -199,21 +191,19 @@ impl core::default::Default for FaceDetection {
         }
 
         #[cfg(all(
+            not(target_os = "ios"),
             feature = "face_detection_insightface",
             not(feature = "face_detection_visionkit")
         ))]
         {
-            Self {
+            FaceDetection {
                 engine: FaceDetectionEngine::InsightFace,
                 effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
-                border_thickness: 3,
-                mosaic_block_size: 10,
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                mask_blur_radius: 20.0,
                 speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
-                provider:
-                    crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
+                provider: crate::effect::insightface_detector::ExecutionProvider::OnnxAuto,
                 recursive_detection: false,
                 recursive_min_size: 64,
                 recursive_max_depth: 4,
@@ -222,19 +212,37 @@ impl core::default::Default for FaceDetection {
             }
         }
 
-        #[cfg(not(any(
-            feature = "face_detection_visionkit",
-            feature = "face_detection_insightface"
-        )))]
+        #[cfg(all(
+            not(any(
+                feature = "face_detection_visionkit",
+                feature = "face_detection_insightface"
+            )),
+            not(target_os = "ios")
+        ))]
         {
-            Self {
+            FaceDetection {
                 engine: FaceDetectionEngine::NoOp,
                 effect_mode: FaceEffectMode::None,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
-                border_thickness: 3,
-                mosaic_block_size: 10,
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                mask_blur_radius: 20.0,
+                recursive_detection: false,
+                recursive_min_size: 64,
+                recursive_max_depth: 4,
+                recursive_overlap: true,
+                recursive_overlap_ratio: 0.25,
+            }
+        }
+
+        #[cfg(target_os = "ios")]
+        {
+            Self {
+                engine: FaceDetectionEngine::VisionKit,
+                effect_mode: FaceEffectMode::None,
+                border_thickness: 4,
+                border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
+                mask_faces: false,
                 recursive_detection: false,
                 recursive_min_size: 64,
                 recursive_max_depth: 4,
@@ -249,6 +257,8 @@ impl FaceDetection {
     /// Draw face detection rectangles on image
     /// This method draws rectangles for detected faces with no fill and a border
     /// Optionally applies blur masking to detected faces
+    // todo - need to be remove later
+    #[cfg(target_os = "ios")]
     pub fn apply(
         &self,
         dyn_image: &mut image::DynamicImage,
@@ -266,17 +276,17 @@ impl FaceDetection {
         let thickness = self.border_thickness as i32;
 
         for (x, y, width, height) in face_rectangles {
-            let _rect = Rect::at(x, y).of_size(width, height);
+            let _rect = imageproc::rect::Rect::at(x, y).of_size(width, height);
 
             // Draw a hollow rectangle (no fill, just border)
             // For thicker borders, we draw multiple rectangles with decreasing size
             for offset in 0..thickness {
-                let inner_rect = Rect::at(x + offset, y + offset).of_size(
+                let inner_rect = imageproc::rect::Rect::at(x + offset, y + offset).of_size(
                     width.saturating_sub(2 * offset as u32),
                     height.saturating_sub(2 * offset as u32),
                 );
 
-                draw_hollow_rect_mut(dyn_image, inner_rect, color);
+                imageproc::drawing::draw_hollow_rect_mut(dyn_image, inner_rect, color);
             }
         }
 
@@ -284,6 +294,8 @@ impl FaceDetection {
     }
 
     /// Apply blur masking to a face region
+    // todo - need to be remove later
+    #[cfg(target_os = "ios")]
     fn apply_blur_mask(
         &self,
         dyn_image: &mut image::DynamicImage,
@@ -298,7 +310,7 @@ impl FaceDetection {
         let face_region = dyn_image.crop_imm(x as u32, y as u32, width, height);
 
         // Apply Gaussian blur
-        let blurred = imageops::blur(&face_region, self.mask_blur_radius);
+        let blurred = imageops::blur(&face_region, 20.0); // assume it's 20.0
 
         // Replace original region with blurred version
         imageops::replace(dyn_image, &blurred, x as i64, y as i64);
@@ -811,27 +823,27 @@ impl FaceDetection {
                                 (
                                     SpeedMode::Fastest,
                                     t!("face_detection.speed_mode_fastest"),
-                                    "Fastest: Stage 0 only, ~0.5s avg, ~95 faces",
+                                    "Single or two person photo",
                                 ),
                                 (
                                     SpeedMode::Fast,
                                     t!("face_detection.speed_mode_fast"),
-                                    "Fast: Stage 0+1, ~0.6s avg, ~95 faces",
+                                    "Single or two person photo with an unusual aspect ratio",
                                 ),
                                 (
                                     SpeedMode::Normal,
                                     t!("face_detection.speed_mode_normal"),
-                                    "Normal: Stage 0+1+2, ~7s avg, ~325 faces",
+                                    "Group photo of around 10 people",
                                 ),
                                 (
                                     SpeedMode::Slow,
                                     t!("face_detection.speed_mode_slow"),
-                                    "Slow: Full depth, ~13s avg, ~385 faces",
+                                    "Group photo of 40~50 people",
                                 ),
                                 (
                                     SpeedMode::Slowest,
                                     t!("face_detection.speed_mode_slowest"),
-                                    "Slowest: Max depth, ~28s avg, ~398 faces",
+                                    "Large group photo of more than 50 people",
                                 ),
                             ];
 
@@ -877,30 +889,6 @@ impl FaceDetection {
 
                     ui.separator();
                 }
-            });
-
-            ui.checkbox(&mut self.mask_faces, t!("face_detection.mask_faces"));
-
-            if self.mask_faces {
-                ui.horizontal(|ui| {
-                    ui.label(t!("face_detection.mask_blur_radius"));
-                    ui.add(
-                        egui::Slider::new(&mut self.mask_blur_radius, 1.0..=100.0)
-                            .text(t!("face_detection.pixels")),
-                    )
-                    .on_hover_text(t!("face_detection.mask_blur_radius_hint"));
-                });
-            }
-
-            ui.separator();
-
-            ui.horizontal(|ui| {
-                ui.label(t!("face_detection.border_color"));
-                egui::color_picker::color_edit_button_srgba(
-                    ui,
-                    &mut self.border_color,
-                    egui::color_picker::Alpha::BlendOrAdditive,
-                );
             });
         });
     }

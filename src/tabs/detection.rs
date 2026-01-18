@@ -36,8 +36,30 @@ impl ChamaOptics {
                 self.detection_pan = egui::Vec2::ZERO;
                 self.detection_preview_texture = None;
                 self.detection_preview_cache_key = None;
-                self.detected_faces.clear();
-                self.selected_face_index = None;
+
+                // Reset detection progress state to allow detection on new image
+                self.detection_progress = crate::ui_state::ProgressState::new();
+
+                // Load previously configured faces if available, otherwise clear
+                if let Some(img) = self.packed_images.get(idx) {
+                    if let Some(configured_faces) = self.configured_faces_by_uuid.get(&img.uuid) {
+                        self.detected_faces = configured_faces.clone();
+                        self.selected_face_index = if self.detected_faces.is_empty() {
+                            None
+                        } else {
+                            Some(0)
+                        };
+                        log::info!(
+                            "Loaded {} configured faces for image {:?}",
+                            self.detected_faces.len(),
+                            img.path
+                        );
+                    } else {
+                        // No configured faces yet, clear current faces
+                        self.detected_faces.clear();
+                        self.selected_face_index = None;
+                    }
+                }
             }
         };
 
@@ -66,18 +88,33 @@ impl ChamaOptics {
         ui.horizontal(|ui| {
             let is_detecting = self.detection_progress.is_active();
 
+            // Default effect selector
+            ui.label("Default Effect:");
+            egui::ComboBox::from_id_salt("default_effect_combo")
+                .selected_text(self.default_face_effect.display_name())
+                .width(120.0)
+                .show_ui(ui, |ui| {
+                    for mode in crate::effect::FaceEffectMode::all_modes() {
+                        if ui
+                            .selectable_label(
+                                self.default_face_effect == *mode,
+                                mode.display_name(),
+                            )
+                            .clicked()
+                        {
+                            self.default_face_effect = *mode;
+                        }
+                    }
+                });
+
+            ui.separator();
+
             if ui.button(t!("detection.detect_faces")).clicked() && !is_detecting {
                 self.run_face_detection();
             }
 
             // Show progress bar while detecting
-            if is_detecting {
-                ui.add(
-                    egui::ProgressBar::new(self.detection_progress.fraction())
-                        .show_percentage()
-                        .animate(true),
-                );
-            } else if !self.detected_faces.is_empty() {
+            if !self.detected_faces.is_empty() {
                 ui.label(format!(
                     "{} {}",
                     self.detected_faces.len(),
@@ -87,6 +124,44 @@ impl ChamaOptics {
                 if ui.button(t!("detection.clear_all")).clicked() {
                     self.detected_faces.clear();
                     self.selected_face_index = None;
+                    // Clear configured faces for current image
+                    if let Some(idx) = self.preview_selected_index
+                        && let Some(img) = self.packed_images.get(idx)
+                    {
+                        self.configured_faces_by_uuid.remove(&img.uuid);
+                        self.detection_preview_cache_key = None;
+                    }
+                }
+            }
+
+            ui.separator();
+
+            // Manual add face button
+            if ui
+                .button("➕ Face")
+                .on_hover_text("Add face area manually at center of view")
+                .clicked()
+            {
+                self.add_face_manually();
+            }
+
+            // Delete selected face button
+            if let Some(selected_idx) = self.selected_face_index
+                && ui
+                    .button("🗑 Face")
+                    .on_hover_text("Delete selected face area")
+                    .clicked()
+            {
+                self.detected_faces.remove(selected_idx);
+                self.selected_face_index = None;
+                self.detection_preview_cache_key = None;
+
+                // Update configured faces
+                if let Some(idx) = self.preview_selected_index
+                    && let Some(img) = self.packed_images.get(idx)
+                {
+                    self.configured_faces_by_uuid
+                        .insert(img.uuid, self.detected_faces.clone());
                 }
             }
 
@@ -112,6 +187,15 @@ impl ChamaOptics {
                 self.detection_pan = egui::Vec2::ZERO;
             }
         });
+
+        ui.add(
+            // todo - add padding when false case
+            egui::ProgressBar::new(self.detection_progress.fraction())
+                .show_percentage()
+                .animate(
+                    self.detection_progress.is_active() && !self.detection_progress.is_complete(),
+                ),
+        );
 
         ui.separator();
 
@@ -240,6 +324,12 @@ impl ChamaOptics {
                                             .clicked()
                                         {
                                             self.detected_faces[selected_idx].effect_mode = *mode;
+                                            // Clear sticker ID if Mosaic/Stroke effect is selected (mutually exclusive)
+                                            if *mode != crate::effect::FaceEffectMode::Sticker
+                                                && *mode != crate::effect::FaceEffectMode::None
+                                            {
+                                                self.detected_faces[selected_idx].sticker_id = None;
+                                            }
                                             // Invalidate preview cache to regenerate with updated effect
                                             self.detection_preview_cache_key = None;
                                         }
@@ -249,50 +339,68 @@ impl ChamaOptics {
 
                         ui.separator();
 
-                        // Sticker picker
-                        ui.horizontal(|ui| {
-                            ui.label(t!("detection.assign_sticker"));
+                        // Sticker picker - ONLY show when Sticker mode or None is selected
+                        let show_sticker_picker = matches!(
+                            self.detected_faces[selected_idx].effect_mode,
+                            crate::effect::FaceEffectMode::None
+                                | crate::effect::FaceEffectMode::Sticker
+                        );
 
-                            let current_sticker_name = self.detected_faces[selected_idx]
-                                .sticker_id
-                                .and_then(|id| self.sticker_storage.get_sticker(id))
-                                .map(|s| s.name.as_str())
-                                .unwrap_or("None");
+                        if show_sticker_picker {
+                            ui.horizontal(|ui| {
+                                ui.label(t!("detection.assign_sticker"));
 
-                            egui::ComboBox::from_id_salt("face_sticker_combo")
-                                .selected_text(current_sticker_name)
-                                .show_ui(ui, |ui| {
-                                    // None option
-                                    if ui
-                                        .selectable_label(
-                                            self.detected_faces[selected_idx].sticker_id.is_none(),
-                                            "None",
-                                        )
-                                        .clicked()
-                                    {
-                                        self.detected_faces[selected_idx].sticker_id = None;
-                                        // Invalidate preview cache to regenerate with updated sticker
-                                        self.detection_preview_cache_key = None;
-                                    }
+                                let current_sticker_name = self.detected_faces[selected_idx]
+                                    .sticker_id
+                                    .and_then(|id| self.sticker_storage.get_sticker(id))
+                                    .map(|s| s.name.as_str())
+                                    .unwrap_or("None");
 
-                                    // Sticker options
-                                    for sticker in &self.sticker_storage.stickers {
+                                egui::ComboBox::from_id_salt("face_sticker_combo")
+                                    .selected_text(current_sticker_name)
+                                    .show_ui(ui, |ui| {
+                                        // None option
                                         if ui
                                             .selectable_label(
-                                                self.detected_faces[selected_idx].sticker_id
-                                                    == Some(sticker.id),
-                                                &sticker.name,
+                                                self.detected_faces[selected_idx]
+                                                    .sticker_id
+                                                    .is_none(),
+                                                "None",
                                             )
                                             .clicked()
                                         {
-                                            self.detected_faces[selected_idx].sticker_id =
-                                                Some(sticker.id);
+                                            self.detected_faces[selected_idx].sticker_id = None;
                                             // Invalidate preview cache to regenerate with updated sticker
                                             self.detection_preview_cache_key = None;
                                         }
-                                    }
-                                });
-                        });
+
+                                        // Sticker options
+                                        for sticker in &self.sticker_storage.stickers {
+                                            if ui
+                                                .selectable_label(
+                                                    self.detected_faces[selected_idx].sticker_id
+                                                        == Some(sticker.id),
+                                                    &sticker.name,
+                                                )
+                                                .clicked()
+                                            {
+                                                self.detected_faces[selected_idx].sticker_id =
+                                                    Some(sticker.id);
+                                                // Invalidate preview cache to regenerate with updated sticker
+                                                self.detection_preview_cache_key = None;
+                                            }
+                                        }
+                                    });
+                            });
+                        } else {
+                            ui.label(
+                                egui::RichText::new(
+                                    "Sticker selection not available for Mosaic/Stroke effects",
+                                )
+                                .weak()
+                                .italics(),
+                            );
+                        }
                     }
                 }
             });
@@ -898,6 +1006,35 @@ impl ChamaOptics {
         );
     }
 
+    /// Add a new face manually at the center of the current view
+    fn add_face_manually(&mut self) {
+        if let Some(idx) = self.preview_selected_index
+            && let Some(packed_image) = self.packed_images.get(idx)
+        {
+            // Get original image dimensions
+            let (orig_w, orig_h) = self.detection_preview_original_size.unwrap_or((1000, 1000));
+
+            // Create new face at center of image with default size (150x150)
+            let default_size = 150u32;
+            let new_face = FaceWithSticker::new(
+                (orig_w as i32 - default_size as i32) / 2,
+                (orig_h as i32 - default_size as i32) / 2,
+                default_size,
+                default_size,
+            );
+
+            self.detected_faces.push(new_face);
+            self.selected_face_index = Some(self.detected_faces.len() - 1);
+            self.detection_preview_cache_key = None;
+
+            // Update configured faces
+            self.configured_faces_by_uuid
+                .insert(packed_image.uuid, self.detected_faces.clone());
+
+            log::info!("Manually added face at center of image");
+        }
+    }
+
     /// Run face detection on selected image (asynchronous)
     fn run_face_detection(&mut self) {
         let Some(idx) = self.preview_selected_index else {
@@ -1000,13 +1137,21 @@ impl ChamaOptics {
                     if selected_image.uuid == image_uuid {
                         log::info!("Applying detection results for current image");
 
-                        // Convert to FaceWithSticker and apply default sticker if set
+                        // Convert to FaceWithSticker and apply default effect and sticker if set
                         self.detected_faces = faces
                             .into_iter()
                             .map(|(x, y, w, h)| {
                                 let mut face = FaceWithSticker::new(x, y, w, h);
-                                // Apply default sticker from storage
-                                face.sticker_id = self.sticker_storage.default_sticker_id;
+                                // Apply default effect from settings
+                                face.effect_mode = self.default_face_effect;
+                                // Apply default sticker from storage (only if Sticker or None mode)
+                                if matches!(
+                                    self.default_face_effect,
+                                    crate::effect::FaceEffectMode::Sticker
+                                        | crate::effect::FaceEffectMode::None
+                                ) {
+                                    face.sticker_id = self.sticker_storage.default_sticker_id;
+                                }
                                 face
                             })
                             .collect();
@@ -1058,6 +1203,7 @@ impl ChamaOptics {
         image_uuid: uuid::Uuid,
         idx: usize,
     ) {
+        let mosaic_block_size = self.mosaic_block_size;
         let cache_key = (idx, self.detected_faces.len());
         let texture_queue = self.preview_texture_queue.clone();
         let image_path = image_path.to_path_buf();
@@ -1078,11 +1224,17 @@ impl ChamaOptics {
             );
 
             // Load and process image
+            let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                block_size: mosaic_block_size,
+                intensity: 1.0,
+            };
+
             let color_image = Self::generate_detection_preview_sync(
                 &image_path,
                 &detected_faces,
                 &sticker_storage,
                 &sticker_config,
+                &mosaic_config,
             );
 
             if let Some((color_image, orig_size, sticker_processed)) = color_image {
@@ -1103,10 +1255,12 @@ impl ChamaOptics {
         detected_faces: &[crate::effect::sticker_storage::FaceWithSticker],
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
+        mosaic_config: &crate::effect::mosaic::MosaicEffect,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         use crate::effect::FaceEffectMode;
         use crate::effect::mosaic::MosaicEffect;
         use crate::effect::stroke::StrokeEffect;
+        log::debug!("generate_detection_preview_sync");
 
         // Load original image
         let dyn_image = image::open(image_path).ok()?;
@@ -1148,17 +1302,12 @@ impl ChamaOptics {
 
             // Apply mosaic effect to all faces that need it
             if !mosaic_faces.is_empty() {
-                let mosaic_config = MosaicEffect {
-                    block_size: 10, // Default, should come from config
-                    intensity: 1.0,
-                };
-
                 // Note: We'll use a default block size for now since we don't have access to
                 // export_config in this function. In production, this should be passed as a parameter.
                 let _ = MosaicEffect::apply(
                     &mut img_with_effects_and_stickers,
                     &mosaic_faces,
-                    &mosaic_config,
+                    mosaic_config,
                 );
             }
 
@@ -1251,7 +1400,7 @@ impl ChamaOptics {
         let preview_source = sticker_processed_image.as_ref().unwrap_or(&dyn_image);
 
         // Scale down for preview if needed
-        let max_preview_size = 800u32;
+        let max_preview_size = 1920u32;
         let (w, h) = (preview_source.width(), preview_source.height());
         let preview_image = if w > max_preview_size || h > max_preview_size {
             let scale = max_preview_size as f32 / w.max(h) as f32;

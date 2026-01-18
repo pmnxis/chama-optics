@@ -448,7 +448,6 @@ mod face_detection_ffi {
                 border_color,
                 border_thickness,
                 mask_faces,
-                mask_blur_radius,
                 #[cfg(feature = "face_detection_insightface")]
                 speed_mode,
                 #[cfg(feature = "face_detection_insightface")]

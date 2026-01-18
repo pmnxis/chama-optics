@@ -136,3 +136,24 @@ effect:
       en: "Modified"
       ko: "수정됨"
       ja: "変更済み"
+  default_effect:
+    mosaic_and_stroke_settings:
+      en: "Mosaic / Stroke Settings"
+      ko: "모자이크 / 테두리 설정"
+      ja: "モザイク／枠線設定"
+    mosaic_block_size:
+      en: "Mosaic Block Size"
+      ko: "모자이크 블럭 사이즈"
+      ja: "モザイクブロックサイズ"
+    mosaic_block_size_hint:
+      en: "Size of mosaic blocks in pixels"
+      ko: "모자이크 블록의 픽셀 크기"
+      ja: "モザイクブロックのピクセルサイズ"
+    stroke_color:
+      en: "Stroke Border Color"
+      ko: "테두리 색상"
+      ja: "枠線の色"
+    stroke_border_thickness:
+      en: "Stroke Border Thickness"
+      ko: "테두리 두께"
+      ja: "枠線の太さ"

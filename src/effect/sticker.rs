@@ -7,19 +7,23 @@
 //! - Built-in procedural stickers (heart, star, smile shapes)
 //! - Custom image stickers loaded from file paths (PNG, JPG, etc.)
 
-use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
+use image::{DynamicImage, Rgba, RgbaImage};
 use std::path::PathBuf;
 
 /// Configuration for sticker effect
 #[derive(Debug, Clone)]
 pub struct StickerConfig {
     /// Sticker ID for built-in stickers (legacy, for backward compatibility)
-    pub sticker_id: String,
+    #[allow(dead_code)]
+    pub sticker_id: String, // todo - check it's really need
     /// Optional image path for custom stickers (takes precedence over sticker_id)
     pub sticker_path: Option<PathBuf>,
-    pub scale: f32,
-    pub offset_x: i32,
-    pub offset_y: i32,
+    #[allow(dead_code)]
+    pub scale: f32, // todo - check it's really need
+    #[allow(dead_code)]
+    pub offset_x: i32, // todo - check it's really need
+    #[allow(dead_code)]
+    pub offset_y: i32, // todo - check it's really need
 }
 
 impl Default for StickerConfig {
@@ -89,12 +93,27 @@ pub fn apply_sticker(
         // Get or create sticker at the right size
         let sticker = match &sticker_source {
             Some(source_img) => {
-                // Resize the loaded image to target size
-                let resized = source_img.resize(
-                    target_size,
-                    target_size,
-                    image::imageops::FilterType::Lanczos3,
-                );
+                // Calculate aspect ratio to maintain original proportions
+                let orig_width = source_img.width();
+                let orig_height = source_img.height();
+                let aspect_ratio = orig_width as f32 / orig_height as f32;
+
+                // Calculate dimensions that maintain aspect ratio within target_size
+                let (new_width, new_height) = if aspect_ratio >= 1.0 {
+                    // Wider than tall: fit to width
+                    let w = target_size;
+                    let h = (target_size as f32 / aspect_ratio) as u32;
+                    (w, h)
+                } else {
+                    // Taller than wide: fit to height
+                    let h = target_size;
+                    let w = (target_size as f32 * aspect_ratio) as u32;
+                    (w, h)
+                };
+
+                // Resize the loaded image maintaining aspect ratio
+                let resized =
+                    source_img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
                 resized.to_rgba8()
             }
             None => {
@@ -179,7 +198,9 @@ fn draw_circle(img: &mut RgbaImage, size: u32, color: Rgba<u8>) {
 }
 
 /// Overlay sticker image onto base image with transparency
+#[cfg(target_os = "ios")]
 fn overlay_sticker(base: &mut DynamicImage, sticker: &RgbaImage, center_x: i32, center_y: i32) {
+    use image::{GenericImage, GenericImageView};
     let sticker_width = sticker.width() as i32;
     let sticker_height = sticker.height() as i32;
 
