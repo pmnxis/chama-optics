@@ -215,11 +215,39 @@ impl ChamaOptics {
 
                     ui.separator();
 
-                    // Sticker assignment for selected face
+                    // Sticker and effect assignment for selected face
                     if let Some(selected_idx) = self.selected_face_index
                         && selected_idx < self.detected_faces.len()
                     {
                         ui.label(t!("detection.selected_face", n = selected_idx + 1));
+
+                        // Effect picker
+                        ui.horizontal(|ui| {
+                            ui.label("Effect");
+
+                            egui::ComboBox::from_id_salt("face_effect_combo")
+                                .selected_text(
+                                    self.detected_faces[selected_idx].effect_mode.display_name(),
+                                )
+                                .show_ui(ui, |ui| {
+                                    for mode in crate::effect::FaceEffectMode::all_modes() {
+                                        if ui
+                                            .selectable_label(
+                                                self.detected_faces[selected_idx].effect_mode
+                                                    == *mode,
+                                                mode.display_name(),
+                                            )
+                                            .clicked()
+                                        {
+                                            self.detected_faces[selected_idx].effect_mode = *mode;
+                                            // Invalidate preview cache to regenerate with updated effect
+                                            self.detection_preview_cache_key = None;
+                                        }
+                                    }
+                                });
+                        });
+
+                        ui.separator();
 
                         // Sticker picker
                         ui.horizontal(|ui| {
@@ -513,6 +541,15 @@ impl ChamaOptics {
             self.detection_preview_cache_key = None;
             log::info!("Preview cache invalidated - manual face edit completed");
             self.face_interaction_state = FaceInteractionState::Idle;
+
+            // Save updated configured faces for export to avoid re-detection
+            if let Some(idx) = self.preview_selected_index
+                && let Some(img) = self.packed_images.get(idx)
+            {
+                self.configured_faces_by_uuid
+                    .insert(img.uuid, self.detected_faces.clone());
+                log::info!("Saved configured faces for image {:?}", img.path);
+            }
             return;
         }
 
@@ -980,6 +1017,10 @@ impl ChamaOptics {
                             Some(0)
                         };
 
+                        // Save configured faces for export to avoid re-detection
+                        self.configured_faces_by_uuid
+                            .insert(image_uuid, self.detected_faces.clone());
+
                         faces_processed = true;
                     } else {
                         log::warn!("Detection results are for different image, ignoring");
@@ -1056,13 +1097,17 @@ impl ChamaOptics {
         });
     }
 
-    /// Generate a preview image (with stickers applied) - synchronous version
+    /// Generate a preview image (with effects and stickers applied) - synchronous version
     fn generate_detection_preview_sync(
         image_path: &std::path::Path,
         detected_faces: &[crate::effect::sticker_storage::FaceWithSticker],
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
+        use crate::effect::FaceEffectMode;
+        use crate::effect::mosaic::MosaicEffect;
+        use crate::effect::stroke::StrokeEffect;
+
         // Load original image
         let dyn_image = image::open(image_path).ok()?;
 
@@ -1070,10 +1115,77 @@ impl ChamaOptics {
         let orig_w = dyn_image.width();
         let orig_h = dyn_image.height();
 
-        // Apply stickers to the image if faces are detected
+        // Apply effects and stickers to the image if faces are detected
         let sticker_processed_image = if !detected_faces.is_empty() {
-            let mut img_with_stickers = dyn_image.clone();
+            let mut img_with_effects_and_stickers = dyn_image.clone();
 
+            // First, collect faces by effect type for batch processing
+            let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
+            let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
+
+            for face in detected_faces {
+                let face_tuple = (face.x, face.y, face.width, face.height);
+
+                match face.effect_mode {
+                    FaceEffectMode::None => {
+                        // No effect
+                    }
+                    FaceEffectMode::Mosaic => {
+                        mosaic_faces.push(face_tuple);
+                    }
+                    FaceEffectMode::Stroke => {
+                        stroke_faces.push(face_tuple);
+                    }
+                    FaceEffectMode::MosaicStroke => {
+                        mosaic_faces.push(face_tuple);
+                        stroke_faces.push(face_tuple);
+                    }
+                    FaceEffectMode::Sticker => {
+                        // Sticker is applied separately below
+                    }
+                }
+            }
+
+            // Apply mosaic effect to all faces that need it
+            if !mosaic_faces.is_empty() {
+                let mosaic_config = MosaicEffect {
+                    block_size: 10, // Default, should come from config
+                    intensity: 1.0,
+                };
+
+                // Note: We'll use a default block size for now since we don't have access to
+                // export_config in this function. In production, this should be passed as a parameter.
+                let _ = MosaicEffect::apply(
+                    &mut img_with_effects_and_stickers,
+                    &mosaic_faces,
+                    &mosaic_config,
+                );
+            }
+
+            // Apply stroke effect to all faces that need it
+            if !stroke_faces.is_empty() {
+                // Convert egui Color32 to RGBA
+                let border_rgba = crate::theme::color32_to_rgba(
+                    egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255),
+                );
+                let stroke_config = StrokeEffect {
+                    thickness: 3, // Default, should come from config
+                    color: (
+                        border_rgba[0],
+                        border_rgba[1],
+                        border_rgba[2],
+                        border_rgba[3],
+                    ),
+                };
+
+                let _ = StrokeEffect::apply(
+                    &mut img_with_effects_and_stickers,
+                    &stroke_faces,
+                    &stroke_config,
+                );
+            }
+
+            // Apply stickers to the image
             for face in detected_faces {
                 if let Some(sticker_id) = face.sticker_id
                     && let Some(sticker_img) = sticker_storage.get_sticker_image(sticker_id)
@@ -1122,14 +1234,15 @@ impl ChamaOptics {
 
                     // Apply sticker with alpha blending
                     image::imageops::overlay(
-                        &mut img_with_stickers,
+                        &mut img_with_effects_and_stickers,
                         &resized_sticker,
                         sticker_x,
                         sticker_y,
                     );
                 }
             }
-            Some(img_with_stickers)
+
+            Some(img_with_effects_and_stickers)
         } else {
             None
         };

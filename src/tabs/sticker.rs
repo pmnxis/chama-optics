@@ -75,6 +75,42 @@ impl ChamaOptics {
                             -100..=100,
                         ));
                         ui.end_row();
+
+                        ui.separator();
+                        ui.end_row();
+
+                        // Mosaic and Stroke settings (merged into Sticker settings)
+                        ui.heading("Mosaic / Stroke Settings");
+                        ui.end_row();
+
+                        // Mosaic block size
+                        ui.label("Mosaic Block Size");
+                        ui.add(egui::Slider::new(
+                            &mut self.export_config.face_detection.mosaic_block_size,
+                            2..=50,
+                        ))
+                        .on_hover_text("Size of mosaic blocks in pixels");
+                        ui.end_row();
+
+                        // Border color
+                        ui.label("Stroke Border Color");
+                        ui.horizontal(|ui| {
+                            egui::color_picker::color_edit_button_srgba(
+                                ui,
+                                &mut self.export_config.face_detection.border_color,
+                                egui::color_picker::Alpha::BlendOrAdditive,
+                            );
+                        });
+                        ui.end_row();
+
+                        // Border thickness
+                        ui.label("Stroke Border Thickness");
+                        ui.add(egui::Slider::new(
+                            &mut self.export_config.face_detection.border_thickness,
+                            1..=20,
+                        ))
+                        .on_hover_text("Thickness of stroke border in pixels");
+                        ui.end_row();
                     });
 
                 ui.add_space(20.0);

@@ -413,7 +413,7 @@ impl Default for StickerConfig {
     }
 }
 
-/// Face detection result with optional sticker assignment
+/// Face detection result with optional sticker and effect assignment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FaceWithSticker {
     /// Face bounding box: (x, y, width, height)
@@ -423,6 +423,9 @@ pub struct FaceWithSticker {
     pub height: u32,
     /// Optional sticker ID assigned to this face
     pub sticker_id: Option<Uuid>,
+    /// Effect mode to apply to this face
+    #[serde(default)]
+    pub effect_mode: super::FaceEffectMode,
 }
 
 impl FaceWithSticker {
@@ -433,6 +436,7 @@ impl FaceWithSticker {
             width,
             height,
             sticker_id: None,
+            effect_mode: super::FaceEffectMode::default(),
         }
     }
 
