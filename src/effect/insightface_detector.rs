@@ -705,9 +705,86 @@ impl InsightFaceDetector {
         }
 
         // Special case: max_depth=0 means no sliding window (Fastest mode)
-        if max_depth == 0 {
+        let mut all_faces = self.detect_single(&img, 0, 0, img_width, img_height);
+
+        if self.speed_mode == SpeedMode::Fastest {
             log::info!("Fastest mode: processing whole image resized to 640×640");
-            return self.detect_single(&img, 0, 0, img_width, img_height);
+            return all_faces;
+        } else {
+            log::info!("Fcedetction trial from total window");
+        }
+
+        // Reverse the depth to process large windows first
+        let window_size = img_width.min(img_height);
+
+        log::info!("Processing Fast Mode: window_size={}", window_size);
+
+        // Calculate step size (with overlap)
+        let step = (window_size as f32 * (1.0 - self.overlap_ratio)) as i32;
+
+        // Generate sliding window positions
+        let mut windows = vec![];
+        let mut x = 0i32;
+        while x < img_width as i32 {
+            let mut y = 0i32;
+            while y < img_height as i32 {
+                let w = (window_size as i32).min(img_width as i32 - x);
+                let h = (window_size as i32).min(img_height as i32 - y);
+                if w > 0 && h > 0 {
+                    windows.push((x, y, w as u32, h as u32));
+                }
+                y += step;
+            }
+            x += step;
+        }
+
+        log::debug!("Generated {} windows at fast mode", windows.len());
+
+        // Detect faces in each window
+        for (wx, wy, ww, wh) in windows {
+            // Validate window dimensions
+            if ww == 0 || wh == 0 {
+                log::debug!("Skipping window with zero dimensions at ({}, {})", wx, wy);
+                continue;
+            }
+
+            // Calculate actual crop dimensions with bounds checking
+            let crop_x = wx as u32;
+            let crop_y = wy as u32;
+            let crop_w = ww.min(img.width().saturating_sub(crop_x));
+            let crop_h = wh.min(img.height().saturating_sub(crop_y));
+
+            // Skip if crop dimensions are invalid
+            if crop_w == 0 || crop_h == 0 {
+                log::debug!(
+                    "Skipping window with invalid crop dimensions: crop_w={}, crop_h={} at ({}, {})",
+                    crop_w,
+                    crop_h,
+                    wx,
+                    wy
+                );
+                continue;
+            }
+
+            // Crop window region
+            let cropped = img.crop_imm(crop_x, crop_y, crop_w, crop_h);
+
+            // Double-check crop is valid
+            if cropped.width() == 0 || cropped.height() == 0 {
+                log::debug!("Skipping empty window crop at ({}, {})", wx, wy);
+                continue;
+            }
+
+            // Run detection using ONNX
+            let window_faces = self.detect_single(&cropped, wx, wy, ww, wh);
+
+            // Add to results
+            all_faces.extend(window_faces);
+        }
+
+        // Fast mode it's enough with swallow cropping.
+        if self.speed_mode == SpeedMode::Fast {
+            return all_faces;
         }
 
         // Calculate scaling factors for different depths
@@ -716,8 +793,6 @@ impl InsightFaceDetector {
         // Depth 1: half size (2^(max_depth-1) × 640)
         // ...
         // Depth max_depth-1: base window (640x640)
-        let mut all_faces = vec![];
-
         for depth in 0..max_depth as usize {
             // Reverse the depth to process large windows first
             let scale_factor = 1 << (max_depth as usize - depth - 1); // 2^(max_depth - depth - 1)
@@ -835,10 +910,11 @@ impl super::face_detectors::FaceDetector for InsightFaceDetector {
         } else {
             // For large images, use sliding window with appropriate depth
             // Use SpeedMode's max_depth, which provides sensible defaults:
-            // Fastest/Fast: 0 (no sliding window, just resized image)
-            // Normal: 1 (640×640 and 1280×1280 windows)
-            // Slow: 2 (640×640, 1280×1280, and 2560×2560 windows)
-            // Slowest: 3 (640×640, 1280×1280, 2560×2560, and 5120×5120 windows)
+            // Fastest : None (no sliding window, just resized image)
+            // Fast : None + 0 (sliding window with shorter from height/weight)
+            // Normal: Fast Mode + 1 (640×640 and 1280×1280 windows)
+            // Slow: Fast Mode + 2 (640×640, 1280×1280, and 2560×2560 windows)
+            // Slowest: Fast Mode + 3 (640×640, 1280×1280, 2560×2560, and 5120×5120 windows)
             self.detect_faces_sliding_window(image_path, None) // Use default from SpeedMode
         }
     }
