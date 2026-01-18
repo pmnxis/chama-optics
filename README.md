@@ -29,13 +29,13 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [ ] Save photos with EXIF
 - [x] Face Detection with CPU
 - [x] Face Detection with neural engine in macOS.
-- [ ] Face Detection utilize NPU or GPU in Windows / Linux (Optional)
+- [x] Face Detection utilize NPU or GPU in Windows / Linux (Optional)
 - [x] Multi core usage
 - [x] Utilize camera maker logo
 - [x] Watermark feature
 - [x] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
 - [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
-- [ ] Function to group similar photos or images taken around the same time
+- [x] Function to group similar photos or images taken around the same time
 - [ ] Preset and adjustment controls for contrast, brightness, grain, texture, and LUT
 - [ ] Web application supports (libheif wasm)
 
