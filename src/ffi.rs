@@ -324,7 +324,7 @@ mod face_detection_ffi {
     /// Apply face detection rectangles to an image
     /// This function takes face rectangles from VisionKit and applies them to image
     #[unsafe(no_mangle)]
-#[cfg(target_os = "ios")]
+    #[cfg(target_os = "ios")]
     pub extern "C" fn chama_optics_apply_face_detection(
         handle: *mut ChamaOpticsHandle,
         face_rects: *const CFaceRect,

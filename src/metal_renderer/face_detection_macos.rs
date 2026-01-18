@@ -10,7 +10,7 @@
 //! which supports VisionKit, MediaPipe, and YOLO engines.
 
 #[allow(unused_imports)]
-use crate::effect::face_detection::{FaceDetectionEngine};
+use crate::effect::face_detection::FaceDetectionEngine;
 use std::path::Path;
 
 /// Face detector adapter for macOS
