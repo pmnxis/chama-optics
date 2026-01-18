@@ -9,7 +9,8 @@
 //! This module provides face detection functionality using to new detector architecture
 //! which supports VisionKit, MediaPipe, and YOLO engines.
 
-use crate::effect::face_detection::{FaceDetection, FaceDetectionEngine};
+#[allow(unused_imports)]
+use crate::effect::face_detection::{FaceDetectionEngine};
 use std::path::Path;
 
 /// Face detector adapter for macOS
@@ -43,6 +44,7 @@ impl MacFaceDetector {
     }
 
     /// Apply face detection with rectangles to an image
+    #[cfg(target_os = "ios")]
     pub fn apply_to_image(
         &self,
         face_detection: &FaceDetection,

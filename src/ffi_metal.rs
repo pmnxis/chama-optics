@@ -308,9 +308,8 @@ fn export_final_impl_with_exif_source(
     use uuid::Uuid;
 
     // Read the image bytes from the input path (which may be a temp file with face effects)
-    let image_bytes_result = std::fs::read(image_path);
     #[cfg(not(feature = "desktop"))]
-    let image_bytes = match &image_bytes_result {
+    let image_bytes = match &std::fs::read(image_path) {
         Ok(bytes) => {
             log::info!(
                 "✅ Read {} bytes from input image: {}",
@@ -1146,6 +1145,7 @@ pub struct CombinedExportConfig {
 /// - All C string pointers must be valid null-terminated strings or NULL
 /// - face_rects must point to a valid array of CFaceRect with face_count elements
 #[unsafe(no_mangle)]
+#[cfg(target_os = "ios")]
 pub unsafe extern "C" fn chama_export_combined(
     image_path: *const c_char,
     output_path: *const c_char,

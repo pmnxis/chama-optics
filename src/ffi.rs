@@ -295,6 +295,7 @@ pub extern "C" fn chama_optics_load_image(
     feature = "metal_rendering"
 ))]
 mod face_detection_ffi {
+    #[allow(unused_imports)]
     use super::*;
 
     /// Detect faces in an image using VisionKit
@@ -323,6 +324,7 @@ mod face_detection_ffi {
     /// Apply face detection rectangles to an image
     /// This function takes face rectangles from VisionKit and applies them to image
     #[unsafe(no_mangle)]
+#[cfg(target_os = "ios")]
     pub extern "C" fn chama_optics_apply_face_detection(
         handle: *mut ChamaOpticsHandle,
         face_rects: *const CFaceRect,
@@ -706,6 +708,7 @@ pub extern "C" fn chama_optics_apply_stroke(
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[cfg(target_os = "ios")]
 pub extern "C" fn chama_optics_apply_sticker(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
@@ -812,6 +815,7 @@ pub extern "C" fn chama_optics_apply_sticker(
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[cfg(target_os = "ios")]
 pub extern "C" fn chama_optics_apply_sticker_from_path(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
