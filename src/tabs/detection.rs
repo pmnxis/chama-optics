@@ -22,6 +22,22 @@ impl ChamaOptics {
             return;
         }
 
+        // Auto-select first image if none selected (like theme preview tab)
+        if self.preview_selected_index.is_none() && !self.packed_images.is_empty() {
+            self.preview_selected_index = Some(0);
+            // Load previously configured faces if available
+            if let Some(img) = self.packed_images.first()
+                && let Some(configured_faces) = self.configured_faces_by_uuid.get(&img.uuid)
+            {
+                self.detected_faces = configured_faces.clone();
+                self.selected_face_index = if self.detected_faces.is_empty() {
+                    None
+                } else {
+                    Some(0)
+                };
+            }
+        }
+
         // Horizontal image gallery
         ui.label(t!("detection.select_image"));
         use crate::ui_components::render_horizontal_gallery;
@@ -199,211 +215,270 @@ impl ChamaOptics {
 
         ui.separator();
 
-        // Two-column layout: preview on left, face list on right
-        ui.columns(2, |columns| {
-            // Left column: Image preview with face rectangles
-            columns[0].group(|ui| {
-                ui.label(t!("detection.preview"));
+        // Two-column layout: preview on left (larger), face list on right (narrower)
+        let available_width = ui.available_width();
+        let available_height = ui.available_height();
+        let right_panel_width = 150.0_f32.min(available_width * 0.20); // Max 150px or 20% of width
+        let left_width = available_width - right_panel_width - ui.spacing().item_spacing.x;
 
-                if let Some(idx) = self.preview_selected_index {
-                    if let Some(packed_image) = self.packed_images.get(idx) {
-                        // Generate base preview texture (without rectangles)
-                        let cache_key = (idx, self.detected_faces.len());
+        ui.horizontal(|ui| {
+            // Left column: Image preview with face rectangles (takes remaining space)
+            ui.allocate_ui_with_layout(
+                egui::vec2(left_width, available_height),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| {
+                    ui.group(|ui| {
+                        // Set minimum size to fill available space
+                        ui.set_min_size(egui::vec2(
+                            left_width - ui.spacing().window_margin.sum().x,
+                            available_height - ui.spacing().window_margin.sum().y - 20.0,
+                        ));
 
-                        let needs_regenerate = self.detection_preview_cache_key != Some(cache_key);
+                        ui.label(t!("detection.preview"));
 
-                        // Clone data needed before mutable operations
-                        let image_path = packed_image.path.clone();
-                        let image_uuid = packed_image.uuid;
+                        if let Some(idx) = self.preview_selected_index {
+                            if let Some(packed_image) = self.packed_images.get(idx) {
+                                // Clone data needed before mutable operations
+                                let image_path = packed_image.path.clone();
+                                let image_uuid = packed_image.uuid;
+                                let thumbnail_texture = packed_image.texture.get().clone();
 
-                        if needs_regenerate {
-                            // Start async preview generation
-                            self.start_async_preview_generation(&image_path, image_uuid, idx);
-                        }
+                                // Generate base preview texture
+                                let cache_key = (idx, self.detected_faces.len());
+                                let needs_regenerate =
+                                    self.detection_preview_cache_key != Some(cache_key);
 
-                        // Display preview with interactive editing
-                        let texture = self.detection_preview_texture.clone();
-                        if let Some(texture) = texture {
-                            self.render_zoomable_preview(ui, &texture, image_path);
-                        }
-                    }
-                } else {
-                    ui.label(t!("detection.select_image_first"));
-                }
-            });
-
-            // Right column: Face list and sticker assignment
-            columns[1].group(|ui| {
-                ui.label(t!("detection.faces_and_stickers"));
-                ui.separator();
-
-                if self.detected_faces.is_empty() {
-                    ui.label(t!("detection.no_faces"));
-                } else {
-                    // Face list
-                    egui::ScrollArea::vertical()
-                        .max_height(200.0)
-                        .show(ui, |ui| {
-                            let mut faces_to_remove = vec![];
-
-                            for (idx, face) in self.detected_faces.iter_mut().enumerate() {
-                                let is_selected = self.selected_face_index == Some(idx);
-
-                                ui.horizontal(|ui| {
-                                    // Selection indicator
-                                    if ui
-                                        .selectable_label(
-                                            is_selected,
-                                            t!(
-                                                "detection.face_label_format",
-                                                n1 = idx + 1,
-                                                n2 = face.width,
-                                                n3 = face.height
-                                            ),
-                                        )
-                                        .clicked()
-                                    {
-                                        self.selected_face_index = Some(idx);
-                                    }
-
-                                    // Sticker indicator
-                                    if face.sticker_id.is_some() {
-                                        ui.label("🎭");
-                                    }
-
-                                    ui.with_layout(
-                                        egui::Layout::right_to_left(egui::Align::Center),
-                                        |ui| {
-                                            // Delete button
-                                            if ui.button("🗑").clicked() {
-                                                faces_to_remove.push(idx);
-                                            }
-                                        },
+                                if needs_regenerate {
+                                    // Start async preview generation
+                                    self.start_async_preview_generation(
+                                        &image_path,
+                                        image_uuid,
+                                        idx,
                                     );
-                                });
-                            }
+                                }
 
-                            // Remove faces (in reverse order to preserve indices)
-                            let faces_deleted = !faces_to_remove.is_empty();
-                            for idx in faces_to_remove.into_iter().rev() {
-                                self.detected_faces.remove(idx);
-                                if self.selected_face_index == Some(idx) {
-                                    self.selected_face_index = None;
+                                // Display preview with interactive editing (or show loading/thumbnail)
+                                if let Some(texture) = self.detection_preview_texture.clone() {
+                                    self.render_zoomable_preview(ui, &texture, image_path, None);
+                                } else {
+                                    // Show thumbnail while loading full preview
+                                    let available_size = ui.available_size();
+                                    let texture_size = thumbnail_texture.size_vec2();
+
+                                    // Calculate scaling to fit within available space
+                                    let scale = (available_size.x / texture_size.x)
+                                        .min(available_size.y / texture_size.y)
+                                        .min(1.0);
+                                    let display_size = texture_size * scale;
+
+                                    ui.vertical_centered(|ui| {
+                                        ui.add(
+                                            egui::Image::from_texture(&thumbnail_texture)
+                                                .fit_to_exact_size(display_size),
+                                        );
+                                        ui.spinner();
+                                        ui.label(t!(
+                                            "detection.loading_preview",
+                                            default = "Loading preview..."
+                                        ));
+                                    });
                                 }
                             }
-                            // Invalidate preview cache if faces were deleted
-                            if faces_deleted {
-                                self.detection_preview_cache_key = None;
-                            }
-                        });
+                        } else {
+                            ui.label(t!("detection.select_image_first"));
+                        }
+                    });
+                },
+            );
 
-                    ui.separator();
-
-                    // Sticker and effect assignment for selected face
-                    if let Some(selected_idx) = self.selected_face_index
-                        && selected_idx < self.detected_faces.len()
-                    {
-                        ui.label(t!("detection.selected_face", n = selected_idx + 1));
-
-                        // Effect picker
-                        ui.horizontal(|ui| {
-                            ui.label("Effect");
-
-                            egui::ComboBox::from_id_salt("face_effect_combo")
-                                .selected_text(
-                                    self.detected_faces[selected_idx].effect_mode.display_name(),
-                                )
-                                .show_ui(ui, |ui| {
-                                    for mode in crate::effect::FaceEffectMode::all_modes() {
-                                        if ui
-                                            .selectable_label(
-                                                self.detected_faces[selected_idx].effect_mode
-                                                    == *mode,
-                                                mode.display_name(),
-                                            )
-                                            .clicked()
-                                        {
-                                            self.detected_faces[selected_idx].effect_mode = *mode;
-                                            // Clear sticker ID if Mosaic/Stroke effect is selected (mutually exclusive)
-                                            if *mode != crate::effect::FaceEffectMode::Sticker
-                                                && *mode != crate::effect::FaceEffectMode::None
-                                            {
-                                                self.detected_faces[selected_idx].sticker_id = None;
-                                            }
-                                            // Invalidate preview cache to regenerate with updated effect
-                                            self.detection_preview_cache_key = None;
-                                        }
-                                    }
-                                });
-                        });
-
+            // Right column: Face list and sticker assignment (fixed narrow width)
+            ui.allocate_ui_with_layout(
+                egui::vec2(right_panel_width, available_height),
+                egui::Layout::top_down(egui::Align::LEFT),
+                |ui| {
+                    ui.group(|ui| {
+                        ui.label(t!("detection.faces_and_stickers"));
                         ui.separator();
 
-                        // Sticker picker - ONLY show when Sticker mode or None is selected
-                        let show_sticker_picker = matches!(
-                            self.detected_faces[selected_idx].effect_mode,
-                            crate::effect::FaceEffectMode::None
-                                | crate::effect::FaceEffectMode::Sticker
-                        );
+                        if self.detected_faces.is_empty() {
+                            ui.label(t!("detection.no_faces"));
+                        } else {
+                            // Face list
+                            egui::ScrollArea::vertical()
+                                .max_height(200.0)
+                                .show(ui, |ui| {
+                                    let mut faces_to_remove = vec![];
 
-                        if show_sticker_picker {
-                            ui.horizontal(|ui| {
-                                ui.label(t!("detection.assign_sticker"));
+                                    for (idx, face) in self.detected_faces.iter_mut().enumerate() {
+                                        let is_selected = self.selected_face_index == Some(idx);
 
-                                let current_sticker_name = self.detected_faces[selected_idx]
-                                    .sticker_id
-                                    .and_then(|id| self.sticker_storage.get_sticker(id))
-                                    .map(|s| s.name.as_str())
-                                    .unwrap_or("None");
-
-                                egui::ComboBox::from_id_salt("face_sticker_combo")
-                                    .selected_text(current_sticker_name)
-                                    .show_ui(ui, |ui| {
-                                        // None option
-                                        if ui
-                                            .selectable_label(
-                                                self.detected_faces[selected_idx]
-                                                    .sticker_id
-                                                    .is_none(),
-                                                "None",
-                                            )
-                                            .clicked()
-                                        {
-                                            self.detected_faces[selected_idx].sticker_id = None;
-                                            // Invalidate preview cache to regenerate with updated sticker
-                                            self.detection_preview_cache_key = None;
-                                        }
-
-                                        // Sticker options
-                                        for sticker in &self.sticker_storage.stickers {
+                                        ui.horizontal(|ui| {
+                                            // Selection indicator
                                             if ui
                                                 .selectable_label(
-                                                    self.detected_faces[selected_idx].sticker_id
-                                                        == Some(sticker.id),
-                                                    &sticker.name,
+                                                    is_selected,
+                                                    t!(
+                                                        "detection.face_label_format",
+                                                        n1 = idx + 1,
+                                                        n2 = face.width,
+                                                        n3 = face.height
+                                                    ),
                                                 )
                                                 .clicked()
                                             {
-                                                self.detected_faces[selected_idx].sticker_id =
-                                                    Some(sticker.id);
-                                                // Invalidate preview cache to regenerate with updated sticker
-                                                self.detection_preview_cache_key = None;
+                                                self.selected_face_index = Some(idx);
                                             }
+
+                                            // Sticker indicator
+                                            if face.sticker_id.is_some() {
+                                                ui.label("🎭");
+                                            }
+
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::Center),
+                                                |ui| {
+                                                    // Delete button
+                                                    if ui.button("🗑").clicked() {
+                                                        faces_to_remove.push(idx);
+                                                    }
+                                                },
+                                            );
+                                        });
+                                    }
+
+                                    // Remove faces (in reverse order to preserve indices)
+                                    let faces_deleted = !faces_to_remove.is_empty();
+                                    for idx in faces_to_remove.into_iter().rev() {
+                                        self.detected_faces.remove(idx);
+                                        if self.selected_face_index == Some(idx) {
+                                            self.selected_face_index = None;
                                         }
+                                    }
+                                    // Invalidate preview cache if faces were deleted
+                                    if faces_deleted {
+                                        self.detection_preview_cache_key = None;
+                                    }
+                                });
+
+                            ui.separator();
+
+                            // Sticker and effect assignment for selected face
+                            if let Some(selected_idx) = self.selected_face_index
+                                && selected_idx < self.detected_faces.len()
+                            {
+                                ui.label(t!("detection.selected_face", n = selected_idx + 1));
+
+                                // Effect picker
+                                ui.horizontal(|ui| {
+                                    ui.label("Effect");
+
+                                    egui::ComboBox::from_id_salt("face_effect_combo")
+                                        .selected_text(
+                                            self.detected_faces[selected_idx]
+                                                .effect_mode
+                                                .display_name(),
+                                        )
+                                        .show_ui(ui, |ui| {
+                                            for mode in crate::effect::FaceEffectMode::all_modes() {
+                                                if ui
+                                                    .selectable_label(
+                                                        self.detected_faces[selected_idx]
+                                                            .effect_mode
+                                                            == *mode,
+                                                        mode.display_name(),
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    self.detected_faces[selected_idx].effect_mode =
+                                                        *mode;
+                                                    // Clear sticker ID if Mosaic/Stroke effect is selected (mutually exclusive)
+                                                    if *mode
+                                                        != crate::effect::FaceEffectMode::Sticker
+                                                        && *mode
+                                                            != crate::effect::FaceEffectMode::None
+                                                    {
+                                                        self.detected_faces[selected_idx]
+                                                            .sticker_id = None;
+                                                    }
+                                                    // Invalidate preview cache to regenerate with updated effect
+                                                    self.detection_preview_cache_key = None;
+                                                }
+                                            }
+                                        });
+                                });
+
+                                ui.separator();
+
+                                // Sticker picker - ONLY show when Sticker mode or None is selected
+                                let show_sticker_picker = matches!(
+                                    self.detected_faces[selected_idx].effect_mode,
+                                    crate::effect::FaceEffectMode::None
+                                        | crate::effect::FaceEffectMode::Sticker
+                                );
+
+                                if show_sticker_picker {
+                                    ui.horizontal(|ui| {
+                                        ui.label(t!("detection.assign_sticker"));
+
+                                        let current_sticker_name = self.detected_faces
+                                            [selected_idx]
+                                            .sticker_id
+                                            .and_then(|id| self.sticker_storage.get_sticker(id))
+                                            .map(|s| s.name.as_str())
+                                            .unwrap_or("None");
+
+                                        egui::ComboBox::from_id_salt("face_sticker_combo")
+                                            .selected_text(current_sticker_name)
+                                            .show_ui(ui, |ui| {
+                                                // None option
+                                                if ui
+                                                    .selectable_label(
+                                                        self.detected_faces[selected_idx]
+                                                            .sticker_id
+                                                            .is_none(),
+                                                        "None",
+                                                    )
+                                                    .clicked()
+                                                {
+                                                    self.detected_faces[selected_idx].sticker_id =
+                                                        None;
+                                                    // Invalidate preview cache to regenerate with updated sticker
+                                                    self.detection_preview_cache_key = None;
+                                                }
+
+                                                // Sticker options
+                                                for sticker in &self.sticker_storage.stickers {
+                                                    if ui
+                                                        .selectable_label(
+                                                            self.detected_faces[selected_idx]
+                                                                .sticker_id
+                                                                == Some(sticker.id),
+                                                            &sticker.name,
+                                                        )
+                                                        .clicked()
+                                                    {
+                                                        self.detected_faces[selected_idx]
+                                                            .sticker_id = Some(sticker.id);
+                                                        // Invalidate preview cache to regenerate with updated sticker
+                                                        self.detection_preview_cache_key = None;
+                                                    }
+                                                }
+                                            });
                                     });
-                            });
-                        } else {
-                            ui.label(
+                                } else {
+                                    ui.label(
                                 egui::RichText::new(
                                     "Sticker selection not available for Mosaic/Stroke effects",
                                 )
                                 .weak()
                                 .italics(),
                             );
+                                }
+                            }
                         }
-                    }
-                }
-            });
+                    });
+                },
+            );
         });
 
         // Hint about sticker storage location
@@ -423,6 +498,7 @@ impl ChamaOptics {
         ui: &mut egui::Ui,
         texture: &egui::TextureHandle,
         _packed_image_path: std::path::PathBuf,
+        _right_column_width: Option<f32>,
     ) {
         let available_size = ui.available_size();
         let texture_size = texture.size_vec2();
@@ -522,7 +598,7 @@ impl ChamaOptics {
 
         // Show navigation window if zoomed
         if self.detection_zoom > 1.5 {
-            self.render_navigation_window(ui, texture, available_size, offset, zoomed_size);
+            self.render_navigation_window(ui, texture, available_size, offset, zoomed_size, None);
         }
     }
 
@@ -956,18 +1032,24 @@ impl ChamaOptics {
         available_size: egui::Vec2,
         offset: egui::Vec2,
         zoomed_size: egui::Vec2,
+        _right_column_width: Option<f32>,
     ) {
-        const NAV_SIZE: f32 = 150.0;
-
         let painter = ui.painter_at(ui.clip_rect());
+        let texture_size = texture.size_vec2();
+
+        // Calculate navigation window size - fixed width, maintain aspect ratio
+        const NAV_WIDTH: f32 = 150.0;
+        let aspect = texture_size.x / texture_size.y;
+        let nav_height = NAV_WIDTH / aspect;
 
         // Position in bottom-right corner of preview area
         let nav_pos = egui::pos2(
-            ui.clip_rect().max.x - NAV_SIZE - 10.0,
-            ui.clip_rect().max.y - NAV_SIZE - 10.0,
+            ui.clip_rect().max.x - NAV_WIDTH - 10.0,
+            ui.clip_rect().max.y - nav_height - 10.0,
         );
 
-        let nav_rect = egui::Rect::from_min_size(nav_pos, egui::vec2(NAV_SIZE, NAV_SIZE));
+        let nav_size = egui::vec2(NAV_WIDTH, nav_height);
+        let nav_rect = egui::Rect::from_min_size(nav_pos, nav_size);
 
         // Draw background
         painter.rect_filled(nav_rect, 5.0, egui::Color32::from_black_alpha(200));
@@ -978,7 +1060,7 @@ impl ChamaOptics {
             egui::StrokeKind::Inside,
         );
 
-        // Draw thumbnail
+        // Draw thumbnail - nav_rect has correct aspect ratio
         painter.image(
             texture.id(),
             nav_rect,
@@ -987,17 +1069,26 @@ impl ChamaOptics {
         );
 
         // Calculate viewport indicator
-        let viewport_x = -offset.x * (NAV_SIZE / zoomed_size.x);
-        let viewport_y = -offset.y * (NAV_SIZE / zoomed_size.y);
-        let viewport_w = available_size.x * (NAV_SIZE / zoomed_size.x);
-        let viewport_h = available_size.y * (NAV_SIZE / zoomed_size.y);
+        // The navigation window shows the full image scaled to NAV_WIDTH x nav_height
+        // The viewport indicator shows what part of the full image is visible in the zoomed view
+
+        // Scale from zoomed viewport to navigation window
+        let scale_x = NAV_WIDTH / zoomed_size.x;
+        let scale_y = nav_height / zoomed_size.y;
+
+        // Calculate viewport position and size in navigation window coordinates
+        // offset is negative when panned to show right/top, positive when panned to left/bottom
+        let viewport_x = -offset.x * scale_x;
+        let viewport_y = -offset.y * scale_y;
+        let viewport_w = available_size.x * scale_x;
+        let viewport_h = available_size.y * scale_y;
 
         let viewport_indicator = egui::Rect::from_min_size(
             egui::pos2(nav_pos.x + viewport_x, nav_pos.y + viewport_y),
             egui::vec2(viewport_w, viewport_h),
         );
 
-        // Draw viewport indicator
+        // Draw viewport indicator - ensure it's visible by drawing after background but before image content
         painter.rect_stroke(
             viewport_indicator,
             0.0,
