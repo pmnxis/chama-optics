@@ -875,6 +875,170 @@ impl InsightFaceDetector {
         log::info!("Sliding window complete: {} faces found", all_faces.len());
         all_faces
     }
+
+    /// Detect faces from a DynamicImage directly (for pre-processed/rotated images)
+    /// This is useful when the image has already been loaded and orientation-corrected.
+    pub fn detect_faces_from_image(&self, img: &image::DynamicImage) -> Vec<(i32, i32, u32, u32)> {
+        let img_width = img.width();
+        let img_height = img.height();
+
+        log::info!(
+            "Running InsightFace inference on {}x{} DynamicImage",
+            img_width,
+            img_height
+        );
+
+        // For small images, use single detection
+        if img_width <= 640 && img_height <= 640 {
+            let faces = self.detect_single(img, 0, 0, img_width, img_height);
+            log::info!("InsightFace detected {} faces", faces.len());
+            return faces;
+        }
+
+        // For large images, use sliding window detection
+        self.detect_faces_sliding_window_from_image(img, None)
+    }
+
+    /// Detect faces using 640x640 sliding window with configurable depth (from DynamicImage)
+    pub fn detect_faces_sliding_window_from_image(
+        &self,
+        img: &image::DynamicImage,
+        max_depth: Option<u32>,
+    ) -> Vec<(i32, i32, u32, u32)> {
+        let max_depth = max_depth.unwrap_or(self.max_depth);
+        let img_width = img.width();
+        let img_height = img.height();
+
+        log::info!(
+            "Sliding window detection from image: window=640x640, max_depth={}, overlap={:.0}%",
+            max_depth,
+            self.overlap_ratio * 100.0
+        );
+
+        // If image fits in window, just run detection once
+        if img_width <= self.window_size && img_height <= self.window_size {
+            log::info!("Image fits in window, running single detection");
+            return self.detect_single(img, 0, 0, img_width, img_height);
+        }
+
+        // Special case: max_depth=0 means no sliding window (Fastest mode)
+        let mut all_faces = self.detect_single(img, 0, 0, img_width, img_height);
+
+        if self.speed_mode == SpeedMode::Fastest {
+            log::info!("Fastest mode: processing whole image resized to 640×640");
+            return all_faces;
+        } else {
+            log::info!("Face detection trial from total window");
+        }
+
+        // Reverse the depth to process large windows first
+        let window_size = img_width.min(img_height);
+
+        log::info!("Processing Fast Mode: window_size={}", window_size);
+
+        // Calculate step size (with overlap)
+        let step = (window_size as f32 * (1.0 - self.overlap_ratio)) as i32;
+
+        // Generate sliding window positions
+        let mut windows = vec![];
+        let mut x = 0i32;
+        while x < img_width as i32 {
+            let mut y = 0i32;
+            while y < img_height as i32 {
+                let w = (window_size as i32).min(img_width as i32 - x);
+                let h = (window_size as i32).min(img_height as i32 - y);
+                if w > 0 && h > 0 {
+                    windows.push((x, y, w as u32, h as u32));
+                }
+                y += step;
+            }
+            x += step;
+        }
+
+        log::debug!("Generated {} windows at fast mode", windows.len());
+
+        // Detect faces in each window
+        for (wx, wy, ww, wh) in windows {
+            if ww == 0 || wh == 0 {
+                continue;
+            }
+            let crop_x = wx as u32;
+            let crop_y = wy as u32;
+            let crop_w = ww.min(img.width().saturating_sub(crop_x));
+            let crop_h = wh.min(img.height().saturating_sub(crop_y));
+            if crop_w == 0 || crop_h == 0 {
+                continue;
+            }
+            let cropped = img.crop_imm(crop_x, crop_y, crop_w, crop_h);
+            if cropped.width() == 0 || cropped.height() == 0 {
+                continue;
+            }
+            let window_faces = self.detect_single(&cropped, wx, wy, ww, wh);
+            all_faces.extend(window_faces);
+        }
+
+        // Fast mode it's enough with swallow cropping.
+        if self.speed_mode == SpeedMode::Fast {
+            return all_faces;
+        }
+
+        // Process deeper levels
+        for depth in 0..max_depth as usize {
+            let scale_factor = 1 << (max_depth as usize - depth - 1);
+            let window_scaled = self.window_size * scale_factor;
+
+            log::info!(
+                "Processing depth {}: window_size={}, scale={}",
+                depth,
+                window_scaled,
+                scale_factor
+            );
+
+            let step = (window_scaled as f32 * (1.0 - self.overlap_ratio)) as i32;
+
+            let mut windows = vec![];
+            let mut x = 0i32;
+            while x < img_width as i32 {
+                let mut y = 0i32;
+                while y < img_height as i32 {
+                    let w = (window_scaled as i32).min(img_width as i32 - x);
+                    let h = (window_scaled as i32).min(img_height as i32 - y);
+                    if w > 0 && h > 0 {
+                        windows.push((x, y, w as u32, h as u32));
+                    }
+                    y += step;
+                }
+                x += step;
+            }
+
+            log::debug!("Generated {} windows at depth {}", windows.len(), depth);
+
+            for (wx, wy, ww, wh) in windows {
+                if ww == 0 || wh == 0 {
+                    continue;
+                }
+                let crop_x = wx as u32;
+                let crop_y = wy as u32;
+                let crop_w = ww.min(img.width().saturating_sub(crop_x));
+                let crop_h = wh.min(img.height().saturating_sub(crop_y));
+                if crop_w == 0 || crop_h == 0 {
+                    continue;
+                }
+                let cropped = img.crop_imm(crop_x, crop_y, crop_w, crop_h);
+                if cropped.width() == 0 || cropped.height() == 0 {
+                    continue;
+                }
+                let window_faces = self.detect_single(&cropped, wx, wy, ww, wh);
+                all_faces.extend(window_faces);
+            }
+        }
+
+        // Apply NMS to remove duplicates
+        all_faces = self.nms(all_faces, 0.4);
+
+        log::info!("Sliding window complete: {} faces found", all_faces.len());
+        all_faces
+    }
 }
 
 #[cfg(not(feature = "face_detection_insightface"))]

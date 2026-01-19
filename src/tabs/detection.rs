@@ -1059,11 +1059,15 @@ impl ChamaOptics {
         // Start progress tracking (1 item to detect)
         self.detection_progress.start(1);
 
+        // Store orientation so detection can apply it before running the detector
+        self.detection_pending_orientation = Some(packed_image.view_exif.orientation);
+
         // Clone necessary data for background thread
         #[allow(unused)] // clippy adding _ every time
         let image_path = packed_image.path.clone();
         let image_uuid = packed_image.uuid;
         let results_queue = self.detection_results_queue.clone();
+        let orientation = packed_image.view_exif.orientation;
 
         #[cfg(feature = "face_detection_insightface")]
         let speed_mode = self.export_config.face_detection.speed_mode;
@@ -1076,8 +1080,29 @@ impl ChamaOptics {
         std::thread::spawn(move || {
             log::info!("Face detection background thread started");
 
-            #[cfg(feature = "face_detection_insightface")]
-            use crate::effect::face_detectors::FaceDetector;
+            // Load image and apply EXIF orientation BEFORE detection
+            // This ensures the face detector sees upright faces
+            let mut img = match image::open(&image_path) {
+                Ok(img) => img,
+                Err(e) => {
+                    log::error!("Failed to load image for detection: {}", e);
+                    if let Ok(mut queue) = results_queue.lock() {
+                        *queue = Some((vec![], image_uuid, (0, 0)));
+                    }
+                    return;
+                }
+            };
+
+            // Apply orientation so faces are upright for detection
+            img.apply_orientation(orientation);
+
+            let oriented_size = (img.width(), img.height());
+            log::info!(
+                "Image dimensions after orientation {:?}: {}x{}",
+                orientation,
+                oriented_size.0,
+                oriented_size.1
+            );
 
             #[cfg(feature = "face_detection_insightface")]
             {
@@ -1104,13 +1129,18 @@ impl ChamaOptics {
                     }
                 };
 
-                let faces = detector.detect_faces(&image_path);
+                // Detect faces on the orientation-corrected image
+                // Face coordinates are now in the same space as the displayed preview
+                let faces = detector.detect_faces_from_image(&img);
 
-                log::info!("Detected {} faces", faces.len());
+                log::info!(
+                    "Detected {} faces on orientation-corrected image",
+                    faces.len()
+                );
 
-                // Send results to queue
+                // Send results to queue - coordinates are already in the correct orientation space
                 if let Ok(mut queue) = results_queue.lock() {
-                    *queue = Some((faces, image_uuid));
+                    *queue = Some((faces, image_uuid, oriented_size));
                 }
             }
 
@@ -1118,7 +1148,7 @@ impl ChamaOptics {
             {
                 log::warn!("Face detection feature not enabled");
                 if let Ok(mut queue) = results_queue.lock() {
-                    *queue = Some((vec![], image_uuid));
+                    *queue = Some((vec![], image_uuid, oriented_size));
                 }
             }
         });
@@ -1129,7 +1159,7 @@ impl ChamaOptics {
         // Check if there are results in the queue
         let mut faces_processed = false;
         if let Ok(mut queue) = self.detection_results_queue.try_lock()
-            && let Some((faces, image_uuid)) = queue.take()
+            && let Some((faces, image_uuid, oriented_size)) = queue.take()
         {
             // Verify this result is for the currently selected image
             if let Some(selected_idx) = self.preview_selected_index {
@@ -1137,7 +1167,20 @@ impl ChamaOptics {
                     if selected_image.uuid == image_uuid {
                         log::info!("Applying detection results for current image");
 
-                        // Convert to FaceWithSticker and apply default effect and sticker if set
+                        // Clear pending orientation (no longer needed for coordinate transformation
+                        // since detection now runs on orientation-corrected image)
+                        let _ = self.detection_pending_orientation.take();
+
+                        let (img_w, img_h) = oriented_size;
+                        log::info!(
+                            "Received {} faces for oriented image ({}x{})",
+                            faces.len(),
+                            img_w,
+                            img_h
+                        );
+
+                        // Convert to FaceWithSticker - coordinates are already in the correct space
+                        // since detection ran on the orientation-corrected image
                         self.detected_faces = faces
                             .into_iter()
                             .map(|(x, y, w, h)| {
@@ -1213,6 +1256,13 @@ impl ChamaOptics {
         let sticker_storage = self.sticker_storage.clone_for_thread();
         let sticker_config = self.sticker_config.clone();
 
+        // Get orientation from the packed image for proper display
+        let orientation = self
+            .packed_images
+            .get(idx)
+            .map(|img| img.view_exif.orientation)
+            .unwrap_or(image::metadata::Orientation::NoTransforms);
+
         // Update cache key immediately to prevent duplicate requests
         self.detection_preview_cache_key = Some(cache_key);
 
@@ -1235,6 +1285,7 @@ impl ChamaOptics {
                 &sticker_storage,
                 &sticker_config,
                 &mosaic_config,
+                orientation,
             );
 
             if let Some((color_image, orig_size, sticker_processed)) = color_image {
@@ -1256,16 +1307,21 @@ impl ChamaOptics {
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
         mosaic_config: &crate::effect::mosaic::MosaicEffect,
+        orientation: image::metadata::Orientation,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         use crate::effect::FaceEffectMode;
         use crate::effect::mosaic::MosaicEffect;
         use crate::effect::stroke::StrokeEffect;
-        log::debug!("generate_detection_preview_sync");
+        log::debug!(
+            "generate_detection_preview_sync with orientation: {:?}",
+            orientation
+        );
 
-        // Load original image
-        let dyn_image = image::open(image_path).ok()?;
+        // Load original image and apply EXIF orientation for correct display
+        let mut dyn_image = image::open(image_path).ok()?;
+        dyn_image.apply_orientation(orientation);
 
-        // Get original dimensions BEFORE scaling
+        // Get dimensions AFTER orientation is applied (may swap width/height for 90°/270° rotations)
         let orig_w = dyn_image.width();
         let orig_h = dyn_image.height();
 

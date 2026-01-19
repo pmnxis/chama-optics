@@ -23,8 +23,8 @@ type PreviewTextureData = (
 type PreviewTextureQueue = Arc<Mutex<Option<PreviewTextureData>>>;
 
 /// Type alias for face detection results
-/// Contains: (Vec of face rectangles as (x, y, width, height), UUID)
-type DetectionResultsData = (Vec<(i32, i32, u32, u32)>, uuid::Uuid);
+/// Contains: (Vec of face rectangles as (x, y, width, height), UUID, raw image dimensions (w, h))
+type DetectionResultsData = (Vec<(i32, i32, u32, u32)>, uuid::Uuid, (u32, u32));
 
 /// Type alias for thread-safe detection results queue
 type DetectionResultsQueue = Arc<Mutex<Option<DetectionResultsData>>>;
@@ -177,8 +177,17 @@ pub struct ChamaOptics {
     pub preview_texture_queue: PreviewTextureQueue,
 
     #[serde(skip)]
-    /// Original image size for detection preview (width, height)
+    /// Original image size for detection preview (width, height) - AFTER orientation applied
     pub(crate) detection_preview_original_size: Option<(u32, u32)>,
+
+    #[serde(skip)]
+    /// Pending orientation for face detection coordinate transformation
+    /// Stores the EXIF orientation when detection starts, used to transform coordinates
+    pub(crate) detection_pending_orientation: Option<image::metadata::Orientation>,
+
+    #[serde(skip)]
+    /// Raw image dimensions before orientation applied (for coordinate transformation)
+    pub(crate) detection_raw_image_size: Option<(u32, u32)>,
 
     #[serde(skip)]
     /// Queue for face detection results from background thread
@@ -255,6 +264,8 @@ impl Default for ChamaOptics {
             detection_progress: ProgressState::new(),
             preview_texture_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
             detection_preview_original_size: None,
+            detection_pending_orientation: None,
+            detection_raw_image_size: None,
             detection_results_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
             configured_faces_by_uuid: std::collections::HashMap::new(),
             #[cfg(feature = "face_detection_insightface")]
