@@ -892,4 +892,20 @@ impl FaceDetection {
             });
         });
     }
+
+    pub fn get_current_engine_name(&self) -> String {
+        #[cfg(feature = "face_detection_insightface")]
+        {
+            format!(
+                "{} {} {}",
+                self.engine.display_name(),
+                self.provider.as_str(),
+                self.speed_mode.as_str()
+            )
+        }
+        #[cfg(not(feature = "face_detection_insightface"))]
+        {
+            self.engine.display_name().to_string()
+        }
+    }
 }

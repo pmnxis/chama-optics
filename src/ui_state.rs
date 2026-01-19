@@ -22,6 +22,7 @@ pub struct UiState {
 pub struct ProgressState {
     current: Arc<AtomicUsize>,
     total: usize,
+    started_at: Option<Instant>,
     completed_at: Option<Instant>,
 }
 
@@ -30,6 +31,7 @@ impl ProgressState {
         Self {
             current: Arc::new(AtomicUsize::new(0)),
             total: 0,
+            started_at: None,
             completed_at: None,
         }
     }
@@ -38,6 +40,7 @@ impl ProgressState {
     pub fn start(&mut self, total: usize) {
         self.total = total;
         self.current.store(0, Ordering::Relaxed);
+        self.started_at = Some(Instant::now());
         self.completed_at = None;
     }
 
@@ -65,6 +68,11 @@ impl ProgressState {
         }
     }
 
+    /// Check is this started
+    pub fn is_started(&self) -> bool {
+        self.started_at.is_some()
+    }
+
     /// Check if operation is in progress
     pub fn is_active(&self) -> bool {
         self.total > 0
@@ -78,6 +86,7 @@ impl ProgressState {
     /// Mark operation as complete
     pub fn mark_complete(&mut self) {
         if self.is_complete() && self.completed_at.is_none() {
+            self.started_at = None;
             self.completed_at = Some(Instant::now());
         }
     }
@@ -86,12 +95,15 @@ impl ProgressState {
     pub fn reset(&mut self) {
         self.total = 0;
         self.current.store(0, Ordering::Relaxed);
+        self.started_at = None;
         self.completed_at = None;
     }
 
     /// Check if enough time has elapsed since completion to hide the progress bar
     pub fn should_hide(&self, duration: std::time::Duration) -> bool {
-        if let Some(completed_at) = self.completed_at {
+        if self.started_at.is_none() {
+            true
+        } else if let Some(completed_at) = self.completed_at {
             completed_at.elapsed() > duration
         } else {
             false

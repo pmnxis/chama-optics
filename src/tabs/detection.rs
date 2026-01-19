@@ -102,8 +102,6 @@ impl ChamaOptics {
 
         // Detection controls and zoom controls
         ui.horizontal(|ui| {
-            let is_detecting = self.detection_progress.is_active();
-
             // Default effect selector
             ui.label("Default Effect:");
             egui::ComboBox::from_id_salt("default_effect_combo")
@@ -125,7 +123,9 @@ impl ChamaOptics {
 
             ui.separator();
 
-            if ui.button(t!("detection.detect_faces")).clicked() && !is_detecting {
+            if ui.button(t!("detection.detect_faces")).clicked()
+                && !self.detection_progress.is_complete()
+            {
                 self.run_face_detection();
             }
 
@@ -204,14 +204,21 @@ impl ChamaOptics {
             }
         });
 
-        ui.add(
-            // todo - add padding when false case
-            egui::ProgressBar::new(self.detection_progress.fraction())
-                .show_percentage()
-                .animate(
-                    self.detection_progress.is_active() && !self.detection_progress.is_complete(),
-                ),
-        );
+        if self
+            .detection_progress
+            .should_hide(std::time::Duration::from_secs(2))
+        {
+            ui.label(self.export_config.face_detection.get_current_engine_name());
+        } else {
+            ui.add(
+                egui::ProgressBar::new(self.detection_progress.fraction())
+                    .show_percentage()
+                    .animate(
+                        self.detection_progress.is_active()
+                            && !self.detection_progress.is_complete(),
+                    ),
+            );
+        }
 
         ui.separator();
 
@@ -1599,6 +1606,7 @@ impl ChamaOptics {
                         .unwrap_or("jpg");
 
                     // Use JPEG for best compatibility with original images
+                    // todo - check it's bolierplate or can be unified with other function
                     let format = match original_ext.to_lowercase().as_str() {
                         "png" => image::ImageFormat::Png,
                         "heic" | "heif" => image::ImageFormat::Jpeg, // Convert HEIC to JPEG
