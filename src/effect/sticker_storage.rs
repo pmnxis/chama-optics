@@ -490,9 +490,13 @@ pub fn apply_stickers_from_storage(
             image::imageops::FilterType::Lanczos3,
         );
 
-        // Calculate position (center of face + offset)
-        let center_x = face.x + (face.width as i32 / 2) + config.offset_x;
-        let center_y = face.y + (face.height as i32 / 2) + config.offset_y;
+        // Calculate position (center of face + offset as percentage of sticker size)
+        // offset_x and offset_y are percentages (-100 to 100) of sticker size
+        let offset_pixel_x = (target_size as f32 * config.offset_x as f32 / 100.0) as i32;
+        let offset_pixel_y = (target_size as f32 * config.offset_y as f32 / 100.0) as i32;
+
+        let center_x = face.x + (face.width as i32 / 2) + offset_pixel_x;
+        let center_y = face.y + (face.height as i32 / 2) + offset_pixel_y;
 
         // Overlay sticker
         overlay_sticker_image(&mut image, &resized, center_x, center_y);

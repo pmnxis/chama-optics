@@ -90,9 +90,15 @@ impl ChamaOptics {
                         let face_center_x = face.x as f32 + face.width as f32 / 2.0;
                         let face_center_y = face.y as f32 + face.height as f32 / 2.0;
 
-                        // Apply offset to center position
-                        let sticker_center_x = face_center_x + self.sticker_config.offset_x as f32;
-                        let sticker_center_y = face_center_y + self.sticker_config.offset_y as f32;
+                        // Apply offset as percentage of sticker size
+                        // offset_x and offset_y are percentages (-100 to 100) of sticker size
+                        let offset_pixel_x =
+                            sticker_w as f32 * self.sticker_config.offset_x as f32 / 100.0;
+                        let offset_pixel_y =
+                            sticker_h as f32 * self.sticker_config.offset_y as f32 / 100.0;
+
+                        let sticker_center_x = face_center_x + offset_pixel_x;
+                        let sticker_center_y = face_center_y + offset_pixel_y;
 
                         // Calculate top-left position to center sticker
                         let sticker_x = (sticker_center_x - sticker_w as f32 / 2.0) as i64;

@@ -60,18 +60,20 @@ impl ChamaOptics {
 
                         // Offset X
                         ui.label(t!("effect.sticker_storage.offset_x"));
-                        ui.add(egui::Slider::new(
-                            &mut self.sticker_config.offset_x,
-                            -100..=100,
-                        ));
+                        let offset_x_display = self.sticker_config.offset_x;
+                        ui.add(
+                            egui::Slider::new(&mut self.sticker_config.offset_x, -100..=100)
+                                .text(format!("{}%", offset_x_display)),
+                        );
                         ui.end_row();
 
                         // Offset Y
                         ui.label(t!("effect.sticker_storage.offset_y"));
-                        ui.add(egui::Slider::new(
-                            &mut self.sticker_config.offset_y,
-                            -100..=100,
-                        ));
+                        let offset_y_display = self.sticker_config.offset_y;
+                        ui.add(
+                            egui::Slider::new(&mut self.sticker_config.offset_y, -100..=100)
+                                .text(format!("{}%", offset_y_display)),
+                        );
                         ui.end_row();
 
                         ui.separator();
