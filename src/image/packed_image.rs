@@ -116,7 +116,7 @@ impl PackedImage {
         let (new_width, new_height) =
             scale.apply(old_width, old_height, self.view_exif.is_vertical_rotated());
 
-        log::debug!("({old_width} x {old_height}) -> ({new_width}x{new_height}");
+        log::debug!("({old_width} x {old_height}) -> ({new_width}x{new_height})");
 
         let resized_image: fast_image_resize::images::Image<'static> =
             resize_image(dyn_image, new_width, new_height)?;

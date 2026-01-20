@@ -79,7 +79,7 @@ impl ChamaOptics {
             }
         };
 
-        let _image_to_delete = render_horizontal_gallery(
+        let image_to_delete = render_horizontal_gallery(
             ui,
             self.packed_images.iter().enumerate(),
             |(idx, _img)| *idx, // Use index as ID (dereference)
@@ -95,8 +95,15 @@ impl ChamaOptics {
             None::<fn(&_) -> bool>, // No default concept for images
             None::<fn(&_) -> Option<(bool, bool)>>, // No warnings for images
             &mut on_select,
-            None, // No delete for images in detection tab
+            Some(&mut |idx| {
+                log::info!("Delete button clicked for image index {}", idx);
+            }),
         );
+
+        // Handle deletion outside the function call to avoid borrow conflicts
+        if let Some(idx) = image_to_delete {
+            self.delete_image_by_index(idx);
+        }
 
         ui.separator();
 

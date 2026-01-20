@@ -286,6 +286,81 @@ impl ChamaOptics {
         self.packed_images.iter().position(|img| img.uuid == uuid)
     }
 
+    /// Invalidate all preview and detection caches
+    pub fn invalidate_caches(&mut self) {
+        self.theme_preview_cache_key = None;
+        self.theme_preview_texture = None;
+        self.detection_preview_cache_key = None;
+        self.detection_preview_texture = None;
+        self.detected_faces.clear();
+        self.selected_face_index = None;
+    }
+
+    /// Delete an image by index and handle related cleanup
+    pub fn delete_image_by_index(&mut self, idx: usize) {
+        if idx >= self.packed_images.len() {
+            log::warn!("Attempted to delete image at invalid index {}", idx);
+            return;
+        }
+
+        let removed_uuid = self.packed_images[idx].uuid;
+        log::info!(
+            "Deleting image at index {} with UUID {:?}",
+            idx,
+            removed_uuid
+        );
+
+        // Remove the image
+        let _ = self.packed_images.remove(idx);
+
+        // Update grouping: remove UUID from all groups
+        if let Some(groups) = &mut self.image_groups {
+            // Remove the UUID from all groups
+            for group in groups.iter_mut() {
+                group.image_uuids.retain(|&uuid| uuid != removed_uuid);
+            }
+
+            // Remove empty groups
+            groups.retain(|g| !g.image_uuids.is_empty());
+
+            // Clear grouping if no groups remain
+            if groups.is_empty() {
+                self.image_groups = None;
+                log::info!("All groups removed after image deletion");
+            } else {
+                log::info!("Updated grouping after removing image at index {}", idx);
+            }
+        }
+
+        // Clean up related data
+        self.configured_faces_by_uuid.remove(&removed_uuid);
+        self.sticker_processed_images.remove(&removed_uuid);
+
+        // Adjust preview_selected_index if needed
+        if let Some(selected) = self.preview_selected_index {
+            if selected == idx {
+                // Deleted the selected image, try to select another
+                self.preview_selected_index = if self.packed_images.is_empty() {
+                    None
+                } else if idx >= self.packed_images.len() {
+                    // Was the last image, select the new last image
+                    Some(self.packed_images.len() - 1)
+                } else {
+                    // Select the image that moved into this position
+                    Some(idx)
+                };
+            } else if selected > idx {
+                // Selected image shifted left due to deletion
+                self.preview_selected_index = Some(selected - 1);
+            }
+        }
+
+        // Invalidate caches
+        self.invalidate_caches();
+
+        log::info!("Successfully deleted image at index {}", idx);
+    }
+
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         crate::fonts::replace_fonts(&cc.egui_ctx);
 

@@ -217,7 +217,7 @@ impl ChamaOptics {
 
             use crate::ui_components::render_horizontal_gallery;
 
-            let _image_to_delete = render_horizontal_gallery(
+            let image_to_delete = render_horizontal_gallery(
                 ui,
                 self.packed_images.iter().enumerate(),
                 |(idx, _img)| *idx,
@@ -235,8 +235,15 @@ impl ChamaOptics {
                 &mut |idx| {
                     self.preview_selected_index = Some(idx);
                 },
-                None, // No delete in theme preview tab
+                Some(&mut |idx| {
+                    log::info!("Delete button clicked for image index {}", idx);
+                }),
             );
+
+            // Handle deletion outside of function call to avoid borrow conflicts
+            if let Some(idx) = image_to_delete {
+                self.delete_image_by_index(idx);
+            }
 
             ui.separator();
 
