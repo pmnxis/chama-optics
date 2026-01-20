@@ -91,7 +91,7 @@ exif = { git = "https://github.com/pmnxis/exif-rs", rev = "c6f30cbca14d8d31e1aa7
     "mpf",
 ] }
 image = { version = "0.25.9", features = ["serde"] }
-zune-jpeg = "0.5.8"
+zune-jpeg = "0.5.11"
 base64 = "0.22.1"
 rfd = { version = "0.17.1", optional = true }
 egui-file-dialog = { version = "0.12.0", optional = true }
@@ -113,7 +113,7 @@ clap = { version = "4.5.54", features = ["derive"] }
 chrono = { version = "0.4.43", features = ["serde"] }
 resvg = "0.46"
 tiny-skia = "0.11.4"
-rayon = "1.10"
+rayon = "1.11"
 num_cpus = "1.16"
 ndarray = { version = "0.17", optional = true }
 reqwest = { version = "0.12", features = [
@@ -136,7 +136,7 @@ half = { version = "2.4", optional = true, default-features = false }
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
 oxipng = "10"
-libheif-rs = { version = "2.5", default-features = false, features = [
+libheif-rs = { version = "^2.6", default-features = false, features = [
     "v1_18",
 ], optional = true }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a" }

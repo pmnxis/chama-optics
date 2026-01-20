@@ -42,17 +42,15 @@ impl ChamaOptics {
                 }
 
                 // Note: Sticker management (add/delete/set default) is now integrated into preview below
-
-                ui.add_space(20.0);
                 ui.separator();
 
                 // Sticker application settings
                 ui.heading(t!("effect.sticker_storage.settings"));
-                ui.add_space(10.0);
+                ui.add_space(5.0);
 
                 egui::Grid::new("sticker_settings_grid")
                     .num_columns(2)
-                    .spacing([20.0, 10.0])
+                    .spacing([4.0, 3.0])
                     .striped(true)
                     .show(ui, |ui| {
                         // Scale
@@ -105,8 +103,7 @@ impl ChamaOptics {
                             .on_hover_text("Thickness of stroke border in pixels");
                         ui.end_row();
                     });
-
-                ui.add_space(20.0);
+                ui.add_space(5.0);
 
                 // Sticker preview section with images
                 if !self.sticker_storage.stickers.is_empty() {

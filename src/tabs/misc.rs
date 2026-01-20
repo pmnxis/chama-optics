@@ -17,7 +17,7 @@ impl ChamaOptics {
 
         egui::Grid::new("misc_grid")
             .num_columns(2)
-            .spacing([20.0, 10.0])
+            .spacing([4.0, 3.0])
             .striped(true)
             .show(ui, |ui| {
                 // Version Info
