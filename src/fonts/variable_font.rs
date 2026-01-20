@@ -61,6 +61,16 @@ lazy_static::lazy_static! {
         end_include: 900,
     };
 
+    static ref BARLOW_NARROW: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_BARLOW_NARROW.name,
+        font: ab_glyph::FontRef::try_from_slice(
+             crate::fonts::FONT_BARLOW_NARROW.data
+        ).expect("Failed to load Barlow narrow variable font"),
+        default: 400, // too narrow, add 100 from 300
+        start: 100,
+        end_include: 900,
+    };
+
     static ref SOURCE_HAN_SANS: VariableFontPack = VariableFontPack {
         label: crate::fonts::FONT_SHSANS.name,
         font: ab_glyph::FontRef::try_from_slice(
@@ -70,8 +80,9 @@ lazy_static::lazy_static! {
         end_include: 800,
     };
 
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 2] = [
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 3] = [
         &*BARLOW,
+        &*BARLOW_NARROW,
         &*SOURCE_HAN_SANS,
     ];
 }
@@ -82,6 +93,7 @@ lazy_static::lazy_static! {
 pub enum BuiltinVariableFontIndex {
     #[default]
     Barlow,
+    BarlowNarrow,
     SourceHanSans,
 }
 

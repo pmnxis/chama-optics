@@ -32,6 +32,11 @@ const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
     data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped.ttf"),
 };
 
+const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
+    name: "Barlow Narrow",
+    data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf"),
+};
+
 const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
     name: "Digital 7",
     data: include_bytes!(env!("DIGITAL_7_FONT_PATH")),
