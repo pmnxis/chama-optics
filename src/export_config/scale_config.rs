@@ -8,7 +8,7 @@ use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 
-#[derive(EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ScaleMode {
     /// No scale
     None,

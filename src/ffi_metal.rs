@@ -241,10 +241,11 @@ fn export_final_impl(
         params_json,
         font_path,
         font_weight,
+        None, // Use default scale config
     )
 }
 
-/// Export with theme, allowing separate EXIF source
+/// Export with theme, allowing separate EXIF source and optional scale config
 /// This is useful when the image has been modified (e.g., stickers applied)
 /// but we want to read EXIF from the original image
 fn export_final_impl_with_exif_source(
@@ -255,6 +256,7 @@ fn export_final_impl_with_exif_source(
     params_json: &str,
     font_path: &str,
     font_weight: u32,
+    scale_config: Option<crate::scale_config::ScaleConfig>,
 ) -> Result<(), PreviewError> {
     // For final export, always load full resolution
     let _dyn_image = image::open(image_path).map_err(PreviewError::ImageLoad)?;
@@ -337,8 +339,47 @@ fn export_final_impl_with_exif_source(
         perceptual_hash: None,
     };
 
-    // 7. Apply theme
-    let export_config = crate::export_config::ExportConfig::default();
+    // 7. Apply theme with custom scale config if provided
+    let mut export_config = crate::export_config::ExportConfig::default();
+    if let Some(custom_scale) = scale_config {
+        // Convert core ScaleConfig to export_config ScaleConfig
+        export_config.scale_config = crate::export_config::scale_config::ScaleConfig {
+            mode: match custom_scale.mode {
+                crate::scale_config::ScaleMode::None => {
+                    crate::export_config::scale_config::ScaleMode::None
+                }
+                crate::scale_config::ScaleMode::MaxWidth => {
+                    crate::export_config::scale_config::ScaleMode::MaxWidth
+                }
+                crate::scale_config::ScaleMode::MaxHeight => {
+                    crate::export_config::scale_config::ScaleMode::MaxHeight
+                }
+                crate::scale_config::ScaleMode::Longside => {
+                    crate::export_config::scale_config::ScaleMode::Longside
+                }
+                crate::scale_config::ScaleMode::Divide => {
+                    crate::export_config::scale_config::ScaleMode::Divide
+                }
+                crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth => {
+                    crate::export_config::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
+                }
+                crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight => {
+                    crate::export_config::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
+                }
+                crate::scale_config::ScaleMode::ResizeAndCrop => {
+                    crate::export_config::scale_config::ScaleMode::ResizeAndCrop
+                }
+            },
+            value: custom_scale.value,
+            sub_value: custom_scale.sub_value,
+            scale_value: custom_scale.scale_value,
+        };
+        log::info!(
+            "  Using custom scale config: mode={:?}, value={}",
+            custom_scale.mode,
+            custom_scale.value
+        );
+    }
     let mut themed_image = theme
         .apply_to_image(&packed_image, &export_config)
         .map_err(PreviewError::ImageProcess)?;
@@ -1054,6 +1095,147 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
         params_json_str,
         font_path_str,
         font_weight,
+        None, // No custom scale config - use default
+    ) {
+        Ok(_) => {
+            log::info!("✅ Theme applied successfully with EXIF from original");
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to apply theme: {}", e);
+            match e {
+                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
+                PreviewError::InvalidFont => ChamaError::InvalidFont,
+                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
+                _ => ChamaError::ImageProcessError,
+            }
+        }
+    }
+}
+
+/// Apply theme to image with separate EXIF source and custom scale config
+///
+/// Same as `chama_optics_apply_theme_with_exif` but allows specifying custom scale settings.
+/// Use this function when you need to control the output image size during theme application.
+///
+/// # Parameters
+/// - `image_path`: Path to the image to apply theme to (may be modified)
+/// - `exif_source_path`: Path to the original image for reading EXIF data
+/// - `output_path`: Path for the output file
+/// - `theme_name`: Name of the theme to apply
+/// - `params_json`: Theme parameters as JSON string
+/// - `font_path`: Path to the font file
+/// - `font_weight`: Font weight (100-900)
+/// - `scale_config`: Pointer to CScaleConfig for custom scaling (pass null for default 4K scaling)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_and_scale(
+    image_path: *const c_char,
+    exif_source_path: *const c_char,
+    output_path: *const c_char,
+    theme_name: *const c_char,
+    params_json: *const c_char,
+    font_path: *const c_char,
+    font_weight: u32,
+    scale_config: *const CScaleConfig,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = unsafe {
+        match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
+    };
+
+    // Use image_path as EXIF source if exif_source_path is null
+    let exif_source_str = if exif_source_path.is_null() {
+        image_path_str
+    } else {
+        unsafe {
+            match CStr::from_ptr(exif_source_path).to_str() {
+                Ok(s) => s,
+                Err(_) => image_path_str,
+            }
+        }
+    };
+
+    let output_path_str = unsafe {
+        match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
+    };
+
+    let theme_name_str = unsafe {
+        match CStr::from_ptr(theme_name).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidTheme,
+        }
+    };
+
+    let params_json_str = if params_json.is_null() {
+        "{}"
+    } else {
+        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
+    };
+
+    let font_path_str = if font_path.is_null() {
+        ""
+    } else {
+        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
+    };
+
+    // Convert CScaleConfig to core ScaleConfig if provided
+    let core_scale_config = if scale_config.is_null() {
+        None
+    } else {
+        let config_ref = unsafe { &*scale_config };
+        if config_ref.mode == CScaleMode::None {
+            None
+        } else {
+            Some(crate::scale_config::ScaleConfig {
+                mode: match config_ref.mode {
+                    CScaleMode::None => crate::scale_config::ScaleMode::None,
+                    CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
+                    CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
+                    CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
+                    CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
+                    CScaleMode::NearCommonWidth => {
+                        crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
+                    }
+                    CScaleMode::NearCommonHeight => {
+                        crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
+                    }
+                    CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
+                },
+                value: config_ref.value,
+                sub_value: config_ref.sub_value,
+                scale_value: config_ref.scale_value as f32,
+            })
+        }
+    };
+
+    log::info!("Applying theme with separate EXIF source and scale config:");
+    log::info!("  Image: {}", image_path_str);
+    log::info!("  EXIF source: {}", exif_source_str);
+    log::info!("  Theme: {}", theme_name_str);
+    if let Some(ref sc) = core_scale_config {
+        log::info!("  Scale mode: {:?}, value: {}", sc.mode, sc.value);
+    } else {
+        log::info!("  Scale: default (4K)");
+    }
+
+    match export_final_impl_with_exif_source(
+        image_path_str,
+        exif_source_str,
+        output_path_str,
+        theme_name_str,
+        params_json_str,
+        font_path_str,
+        font_weight,
+        core_scale_config,
     ) {
         Ok(_) => {
             log::info!("✅ Theme applied successfully with EXIF from original");
@@ -1096,6 +1278,42 @@ pub enum COutputFormat {
     Webp = 2,
 }
 
+/// Scale mode for image resizing (matches Swift ScaleMode enum)
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CScaleMode {
+    /// No scaling - keep original size
+    None = 0,
+    /// Resize to max width, maintaining aspect ratio
+    MaxWidth = 1,
+    /// Resize to max height, maintaining aspect ratio
+    MaxHeight = 2,
+    /// Resize longest side to target, maintaining aspect ratio
+    Longside = 3,
+    /// Divide both dimensions by scale_value
+    Divide = 4,
+    /// Find nearest width that preserves aspect ratio using GCD
+    NearCommonWidth = 5,
+    /// Find nearest height that preserves aspect ratio using GCD
+    NearCommonHeight = 6,
+    /// Resize and crop to exact dimensions
+    ResizeAndCrop = 7,
+}
+
+/// Scale configuration for image resizing
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct CScaleConfig {
+    /// Scale mode
+    pub mode: CScaleMode,
+    /// Primary value (target width/height/longside depending on mode)
+    pub value: u32,
+    /// Secondary value (used for ResizeAndCrop height)
+    pub sub_value: u32,
+    /// Scale divisor (used for Divide mode)
+    pub scale_value: f64,
+}
+
 /// Configuration for combined export pipeline
 #[repr(C)]
 pub struct CombinedExportConfig {
@@ -1125,12 +1343,240 @@ pub struct CombinedExportConfig {
     pub font_path: *const c_char,
     pub font_weight: u32,
 
+    // Scale settings
+    pub scale_config: CScaleConfig,
+
     // Export settings
     pub output_format: COutputFormat,
     pub quality: u8, // 1-100 for JPEG/WebP
 }
 
-/// Combined export: Face Effects → Theme → Save with Quality
+// ============================================================================
+// Scale Image Helper
+// ============================================================================
+
+/// Apply scaling to a DynamicImage based on CScaleConfig
+fn apply_scale_to_image(
+    image: &image::DynamicImage,
+    scale_config: &CScaleConfig,
+) -> image::DynamicImage {
+    use image::imageops::FilterType;
+
+    if scale_config.mode == CScaleMode::None {
+        return image.clone();
+    }
+
+    let src_width = image.width();
+    let src_height = image.height();
+
+    // Calculate target dimensions based on scale mode
+    let (target_width, target_height) = match scale_config.mode {
+        CScaleMode::None => (src_width, src_height),
+
+        CScaleMode::MaxWidth => {
+            let target_w = scale_config.value;
+            if src_width <= target_w {
+                (src_width, src_height)
+            } else {
+                let ratio = target_w as f64 / src_width as f64;
+                (target_w, (src_height as f64 * ratio).round() as u32)
+            }
+        }
+
+        CScaleMode::MaxHeight => {
+            let target_h = scale_config.value;
+            if src_height <= target_h {
+                (src_width, src_height)
+            } else {
+                let ratio = target_h as f64 / src_height as f64;
+                ((src_width as f64 * ratio).round() as u32, target_h)
+            }
+        }
+
+        CScaleMode::Longside => {
+            let target = scale_config.value;
+            let longside = src_width.max(src_height);
+            if longside <= target {
+                (src_width, src_height)
+            } else {
+                let ratio = target as f64 / longside as f64;
+                (
+                    (src_width as f64 * ratio).round() as u32,
+                    (src_height as f64 * ratio).round() as u32,
+                )
+            }
+        }
+
+        CScaleMode::Divide => {
+            let divider = scale_config.scale_value;
+            if divider <= 1.0 {
+                (src_width, src_height)
+            } else {
+                (
+                    (src_width as f64 / divider).round() as u32,
+                    (src_height as f64 / divider).round() as u32,
+                )
+            }
+        }
+
+        CScaleMode::NearCommonWidth => {
+            let target_w = scale_config.value;
+            // Simplified: just resize to target width maintaining aspect ratio
+            let ratio = target_w as f64 / src_width as f64;
+            (target_w, (src_height as f64 * ratio).round() as u32)
+        }
+
+        CScaleMode::NearCommonHeight => {
+            let target_h = scale_config.value;
+            // Simplified: just resize to target height maintaining aspect ratio
+            let ratio = target_h as f64 / src_height as f64;
+            ((src_width as f64 * ratio).round() as u32, target_h)
+        }
+
+        CScaleMode::ResizeAndCrop => {
+            let target_w = scale_config.value;
+            let target_h = scale_config.sub_value;
+
+            // Calculate scale to fill the target area
+            let width_ratio = target_w as f64 / src_width as f64;
+            let height_ratio = target_h as f64 / src_height as f64;
+            let ratio = width_ratio.max(height_ratio);
+
+            let scaled_w = (src_width as f64 * ratio).round() as u32;
+            let scaled_h = (src_height as f64 * ratio).round() as u32;
+
+            // First resize, then crop to exact dimensions
+            let resized = image.resize(scaled_w, scaled_h, FilterType::Lanczos3);
+
+            // Calculate crop position (center crop)
+            let crop_x = (scaled_w.saturating_sub(target_w)) / 2;
+            let crop_y = (scaled_h.saturating_sub(target_h)) / 2;
+
+            return resized.crop_imm(crop_x, crop_y, target_w, target_h);
+        }
+    };
+
+    // Apply resize if dimensions changed
+    if target_width != src_width || target_height != src_height {
+        log::info!(
+            "  Scaling image from {}x{} to {}x{}",
+            src_width,
+            src_height,
+            target_width,
+            target_height
+        );
+        image.resize(target_width, target_height, FilterType::Lanczos3)
+    } else {
+        image.clone()
+    }
+}
+
+/// Scale image standalone function
+///
+/// Scales an image according to the provided configuration and saves to output path.
+///
+/// # Safety
+/// - image_path and output_path must be valid null-terminated C strings
+/// - scale_config must point to a valid CScaleConfig struct
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_scale_image(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    scale_config: *const CScaleConfig,
+    output_format: COutputFormat,
+    quality: u8,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || scale_config.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = unsafe {
+        match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
+    };
+
+    let output_path_str = unsafe {
+        match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        }
+    };
+
+    let config_ref = unsafe { &*scale_config };
+
+    log::info!("Scale image:");
+    log::info!("  Input: {}", image_path_str);
+    log::info!("  Output: {}", output_path_str);
+    log::info!("  Scale mode: {:?}", config_ref.mode);
+
+    // Load image
+    let dyn_image = match image::open(image_path_str) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Failed to load image: {}", e);
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    log::info!(
+        "  Original size: {}x{}",
+        dyn_image.width(),
+        dyn_image.height()
+    );
+
+    // Apply scaling
+    let scaled_image = apply_scale_to_image(&dyn_image, config_ref);
+
+    log::info!(
+        "  Scaled size: {}x{}",
+        scaled_image.width(),
+        scaled_image.height()
+    );
+
+    // Save with specified format and quality
+    let save_result = match output_format {
+        COutputFormat::Jpeg => {
+            use image::codecs::jpeg::JpegEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut encoder = JpegEncoder::new_with_quality(file, quality);
+            encoder.encode_image(&scaled_image)
+        }
+        COutputFormat::Png => scaled_image.save(output_path_str).map_err(|e| e.into()),
+        COutputFormat::Webp => {
+            use image::ImageFormat;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut buf_writer = std::io::BufWriter::new(file);
+            scaled_image.write_to(&mut buf_writer, ImageFormat::WebP)
+        }
+    };
+
+    match save_result {
+        Ok(_) => {
+            log::info!("✅ Scale image completed successfully");
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to save scaled image: {}", e);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+/// Combined export: Face Effects → Theme → Scale → Save with Quality
 ///
 /// This is the recommended function for iOS to handle the full export pipeline
 /// in a single call, minimizing file I/O and providing atomic operations.
@@ -1139,7 +1585,8 @@ pub struct CombinedExportConfig {
 /// 1. Load original image
 /// 2. Apply face effects (if faces provided and effect != None)
 /// 3. Apply theme (if theme_name provided)
-/// 4. Save with specified format and quality
+/// 4. Apply scaling (if scale_mode != None)
+/// 5. Save with specified format and quality
 ///
 /// # Safety
 /// - All C string pointers must be valid null-terminated strings or NULL
@@ -1352,6 +1799,31 @@ pub unsafe extern "C" fn chama_export_combined(
 
             // Apply theme to temp image, but read EXIF from original image
             // (temp file doesn't have EXIF data after sticker/mosaic processing)
+            // Convert CScaleConfig to core ScaleConfig for theme application
+            let core_scale_config = if config_ref.scale_config.mode != CScaleMode::None {
+                Some(crate::scale_config::ScaleConfig {
+                    mode: match config_ref.scale_config.mode {
+                        CScaleMode::None => crate::scale_config::ScaleMode::None,
+                        CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
+                        CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
+                        CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
+                        CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
+                        CScaleMode::NearCommonWidth => {
+                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
+                        }
+                        CScaleMode::NearCommonHeight => {
+                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
+                        }
+                        CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
+                    },
+                    value: config_ref.scale_config.value,
+                    sub_value: config_ref.scale_config.sub_value,
+                    scale_value: config_ref.scale_config.scale_value as f32,
+                })
+            } else {
+                None
+            };
+
             let theme_result = export_final_impl_with_exif_source(
                 &temp_path,     // Image with face effects
                 image_path_str, // Original image for EXIF data
@@ -1360,6 +1832,7 @@ pub unsafe extern "C" fn chama_export_combined(
                 params_json,
                 font_path,
                 config_ref.font_weight,
+                core_scale_config,
             );
 
             // Clean up temp file
@@ -1380,7 +1853,15 @@ pub unsafe extern "C" fn chama_export_combined(
         }
     }
 
-    // Step 4: Save with specified format and quality (if no theme was applied)
+    // Step 4: Apply scaling (if scale_mode != None)
+    let final_image = if config_ref.scale_config.mode != CScaleMode::None {
+        log::info!("  Applying scale: {:?}", config_ref.scale_config.mode);
+        apply_scale_to_image(&dyn_image, &config_ref.scale_config)
+    } else {
+        dyn_image
+    };
+
+    // Step 5: Save with specified format and quality (if no theme was applied)
     log::info!(
         "  Saving with format: {:?}, quality: {}",
         config_ref.output_format,
@@ -1398,9 +1879,9 @@ pub unsafe extern "C" fn chama_export_combined(
                 }
             };
             let mut encoder = JpegEncoder::new_with_quality(file, config_ref.quality);
-            encoder.encode_image(&dyn_image)
+            encoder.encode_image(&final_image)
         }
-        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
+        COutputFormat::Png => final_image.save(output_path_str).map_err(|e| e.into()),
         COutputFormat::Webp => {
             // WebP support via image crate
             use image::ImageFormat;
@@ -1412,7 +1893,7 @@ pub unsafe extern "C" fn chama_export_combined(
                 }
             };
             let mut buf_writer = std::io::BufWriter::new(file);
-            dyn_image.write_to(&mut buf_writer, ImageFormat::WebP)
+            final_image.write_to(&mut buf_writer, ImageFormat::WebP)
         }
     };
 
