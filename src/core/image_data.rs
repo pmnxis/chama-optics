@@ -140,11 +140,49 @@ impl CoreImage {
 
     /// Load an image directly from a path without any CoreImage metadata
     /// This is a static method used for FFI functions where we need to apply effects and save immediately
+    /// The image is automatically rotated according to EXIF orientation
     pub fn load_image_direct(
         path: &std::path::Path,
     ) -> Result<image::DynamicImage, image::ImageError> {
         use image::ImageReader;
-        let dyn_image = ImageReader::open(path)?.decode()?;
+        let mut dyn_image = ImageReader::open(path)?.decode()?;
+
+        // Read EXIF orientation and apply it so the image matches the visual orientation
+        let orientation = {
+            use exif::{In, Tag};
+            let file = match std::fs::File::open(path) {
+                Ok(f) => f,
+                Err(_) => return Ok(dyn_image), // No EXIF available, return as-is
+            };
+            let mut buf_reader = std::io::BufReader::new(file);
+            match exif::Reader::new().read_from_container(&mut buf_reader) {
+                Ok(exif) => {
+                    let value = exif
+                        .get_field(Tag::Orientation, In::PRIMARY)
+                        .and_then(|field| field.value.get_uint(0));
+                    image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+                        .unwrap_or(image::metadata::Orientation::NoTransforms)
+                }
+                Err(_) => image::metadata::Orientation::NoTransforms,
+            }
+        };
+
+        log::debug!(
+            "load_image_direct: {:?}, orientation: {:?}, size: {}x{}",
+            path,
+            orientation,
+            dyn_image.width(),
+            dyn_image.height()
+        );
+
+        dyn_image.apply_orientation(orientation);
+
+        log::debug!(
+            "load_image_direct after orientation: {}x{}",
+            dyn_image.width(),
+            dyn_image.height()
+        );
+
         Ok(dyn_image)
     }
 

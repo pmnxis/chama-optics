@@ -283,7 +283,17 @@ fn export_final_impl_with_exif_source(
     }
 
     let original_exif = crate::image::exif_impl::OriginalExif::new(exif);
-    let view_exif = crate::image::exif_impl::SimplifiedExif::from(&original_exif);
+    let mut view_exif = crate::image::exif_impl::SimplifiedExif::from(&original_exif);
+
+    // If image_path differs from exif_source_path, the image has already been processed
+    // (e.g., face effects applied via load_image_direct which applies orientation).
+    // In this case, we should NOT apply orientation again to avoid double rotation.
+    if image_path != exif_source_path {
+        log::info!(
+            "  Image path differs from EXIF source - skipping orientation (already applied)"
+        );
+        view_exif.orientation = image::metadata::Orientation::NoTransforms;
+    }
 
     // 3. Create theme instance
     let mut theme = crate::theme::create_theme(theme_name).ok_or(PreviewError::InvalidTheme)?;
@@ -1626,7 +1636,7 @@ pub unsafe extern "C" fn chama_export_combined(
     log::info!("  Face effect: {:?}", config_ref.face_effect_type);
     log::info!("  Face count: {}", face_count);
 
-    // Step 1: Load original image
+    // Step 1: Load original image and apply EXIF orientation
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -1635,7 +1645,42 @@ pub unsafe extern "C" fn chama_export_combined(
         }
     };
 
-    log::info!("  Image size: {}x{}", dyn_image.width(), dyn_image.height());
+    log::info!(
+        "  Raw image size: {}x{}",
+        dyn_image.width(),
+        dyn_image.height()
+    );
+
+    // Read EXIF orientation and apply it so face coordinates match the display orientation
+    let orientation = {
+        use exif::{In, Tag};
+        let file = match std::fs::File::open(image_path_str) {
+            Ok(f) => f,
+            Err(e) => {
+                log::warn!("Failed to open file for EXIF: {}", e);
+                return ChamaError::ImageLoadError;
+            }
+        };
+        let mut buf_reader = std::io::BufReader::new(file);
+        match exif::Reader::new().read_from_container(&mut buf_reader) {
+            Ok(exif) => {
+                let value = exif
+                    .get_field(Tag::Orientation, In::PRIMARY)
+                    .and_then(|field| field.value.get_uint(0));
+                image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+                    .unwrap_or(image::metadata::Orientation::NoTransforms)
+            }
+            Err(_) => image::metadata::Orientation::NoTransforms,
+        }
+    };
+
+    log::info!("  EXIF orientation: {:?}", orientation);
+    dyn_image.apply_orientation(orientation);
+    log::info!(
+        "  After orientation: {}x{}",
+        dyn_image.width(),
+        dyn_image.height()
+    );
 
     // Step 2: Apply face effects (if faces provided and effect != None)
     if !face_rects.is_null()
