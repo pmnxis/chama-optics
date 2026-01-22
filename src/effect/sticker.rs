@@ -86,9 +86,31 @@ pub fn apply_sticker(
         // Calculate sticker size based on face size and scale
         let target_size = ((width as f32 * config.scale) as u32).max(20);
 
+        // Calculate sticker dimensions (after aspect ratio preservation)
+        let sticker_aspect = sticker_source
+            .as_ref()
+            .map(|img| img.width() as f32 / img.height() as f32)
+            .unwrap_or(1.0);
+        let (sticker_w, sticker_h) = if sticker_aspect >= 1.0 {
+            (target_size as f32, target_size as f32 / sticker_aspect)
+        } else {
+            (target_size as f32 * sticker_aspect, target_size as f32)
+        };
+
         // Calculate center of face
-        let center_x = x + (width as i32 / 2) + config.offset_x;
-        let center_y = y + (height as i32 / 2) + config.offset_y;
+        let face_center_x = x as f32 + width as f32 / 2.0;
+        let face_center_y = y as f32 + height as f32 / 2.0;
+
+        // Apply offset as percentage of sticker size (matching EGUI behavior)
+        // offset_x and offset_y are percentages (-100 to 100) of sticker size
+        let offset_pixel_x = sticker_w * config.offset_x as f32 / 100.0;
+        let offset_pixel_y = sticker_h * config.offset_y as f32 / 100.0;
+
+        let sticker_center_x = face_center_x + offset_pixel_x;
+        let sticker_center_y = face_center_y + offset_pixel_y;
+
+        let center_x = sticker_center_x as i32;
+        let center_y = sticker_center_y as i32;
 
         // Get or create sticker at the right size
         let sticker = match &sticker_source {

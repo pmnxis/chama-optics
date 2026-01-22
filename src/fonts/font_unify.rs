@@ -103,7 +103,7 @@ impl SystemFont {
     fn get_path(&self) -> Option<std::path::PathBuf> {
         __get_path_from_handle(&self.handle)
     }
-    
+
     #[cfg(not(feature = "desktop"))] // exclude font_kit
     fn get_path(&self) -> Option<std::path::PathBuf> {
         // WASM: No system fonts, no paths
