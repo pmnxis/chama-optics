@@ -19,7 +19,7 @@ struct FaceDetector {
             let imageUrl = URL(fileURLWithPath: imagePath)
 
             guard let imageSource = CGImageSourceCreateWithURL(imageUrl as CFURL, nil),
-                let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
+                  let cgImage = CGImageSourceCreateImageAtIndex(imageSource, 0, nil)
             else {
                 fputs("[FAIL][VisionKit] Failed to load image at: \(imagePath)\n", stderr)
                 return []
@@ -30,7 +30,7 @@ struct FaceDetector {
 
             // Downsample large images for better performance
             // Best resolution found: 1024px (9 faces detected)
-            let maxDimension: Int = 1024
+            let maxDimension = 1024
             var imageToProcess = cgImage
             var scaleFactor: Float = 1.0
 
@@ -59,7 +59,8 @@ struct FaceDetector {
                     imageToProcess = resizedImage
                     fputs(
                         "[INFO][VisionKit] Downsampled from \(originalWidth)x\(originalHeight) to \(newWidth)x\(newHeight) (scale: \(scale))\n",
-                        stderr)
+                        stderr
+                    )
                 }
             }
 
@@ -71,11 +72,12 @@ struct FaceDetector {
                 stderr
             )
 
-            let request = VNDetectFaceRectanglesRequest { request, error in
+            let request = VNDetectFaceRectanglesRequest { _, error in
                 if let error = error {
                     fputs(
                         "[FAIL][VisionKit] Detection error: \(error.localizedDescription)\n",
-                        stderr)
+                        stderr
+                    )
                 }
             }
 
@@ -86,12 +88,14 @@ struct FaceDetector {
 
             // Try different VNImageOptions
             let handler = VNImageRequestHandler(
-                cgImage: imageToProcess, orientation: .up, options: [:])
+                cgImage: imageToProcess, orientation: .up, options: [:]
+            )
 
             do {
                 fputs(
                     "[INFO][VisionKit] Running Vision framework with Revision2 and 1024px downsampling (BEST CONFIG)...\n",
-                    stderr)
+                    stderr
+                )
                 try handler.perform([request])
 
                 guard let observations = request.results as? [VNFaceObservation] else {
@@ -140,7 +144,8 @@ struct FaceDetector {
 
                     fputs(
                         "[INFO][VisionKit] Face #\(index + 1): x=\(xi), y=\(yi), w=\(wi), h=\(hi)\n",
-                        stderr)
+                        stderr
+                    )
                 }
 
                 return faceResults
@@ -157,10 +162,9 @@ struct FaceDetector {
 
 // Read input JSON
 if let data = readLine(), let jsonData = data.data(using: .utf8),
-    let input = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
-    let imagePath = input["image_path"]
+   let input = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
+   let imagePath = input["image_path"]
 {
-
     let detector = FaceDetector()
     let faces = detector.detectFaces(in: imagePath)
 
