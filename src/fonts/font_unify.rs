@@ -7,10 +7,10 @@
 use ab_glyph::FontArc;
 #[cfg(feature = "desktop")]
 use eframe::egui;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // include font_kit on native+egui
 use font_kit::{handle::Handle, source::SystemSource};
 use std::sync::{Arc, RwLock};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // include font_kit on native+egui
 use std::thread;
 
 use crate::fonts::FONTS_UNIFY;
@@ -51,20 +51,20 @@ pub struct FontSelection {
     pub default: BuiltinFontIndex,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // exclude font_kit
 #[derive(Clone)]
 pub struct SystemFont {
     pub name: String,
     pub(crate) handle: Handle,
 }
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(not(feature = "desktop"))] // include font_kit
 #[derive(Clone)]
 pub struct SystemFont {
     pub name: String,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // exclude font_kit
 fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
     if let Handle::Path {
         path,
@@ -78,7 +78,7 @@ fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
 }
 
 // read font directly from path
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // include font_kit
 fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, FontError> {
     let data = std::fs::read(&path).map_err(|e| {
         log::error!("Cannot find font file. : {e}");
@@ -89,7 +89,7 @@ fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, Fon
         .map_err(|_| FontError::FailedToLoad(path.as_ref().to_string_lossy().to_string()))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "desktop")] // exclude font_kit
 fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<FontArc, FontError> {
     match handle {
         Handle::Memory { bytes, .. } => FontArc::try_from_vec(bytes.to_vec())
@@ -99,12 +99,12 @@ fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<Fon
 }
 
 impl SystemFont {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "desktop")] // include font_kit
     fn get_path(&self) -> Option<std::path::PathBuf> {
         __get_path_from_handle(&self.handle)
     }
-
-    #[cfg(target_arch = "wasm32")]
+    
+    #[cfg(not(feature = "desktop"))] // exclude font_kit
     fn get_path(&self) -> Option<std::path::PathBuf> {
         // WASM: No system fonts, no paths
         None
@@ -135,7 +135,7 @@ pub struct FontsUnify {
 }
 
 impl FontsUnify {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "desktop")] // exclude font_kit
     pub fn new() -> Self {
         let system_fonts = Arc::new(RwLock::new(Vec::new()));
         let thread_ref = system_fonts.clone();
@@ -175,7 +175,7 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(feature = "desktop"))] // include font_kit
     pub fn new() -> Self {
         // WASM: No system fonts available, only builtin fonts
         let system_fonts = Arc::new(RwLock::new(Vec::new()));
@@ -203,33 +203,7 @@ impl FontsUnify {
         }
     }
 
-    // pub fn get(&'static self, font_index: &FontIndex) -> Result<FontArc, FontError> {
-    //     match font_index.sort {
-    //         FontSort::Builtin => {
-    //             let font = self
-    //                 .builtin_fonts
-    //                 .get(font_index.index)
-    //                 .ok_or_else(|| FontError::InvalidIndex(font_index.index))?;
-    //             FontArc::try_from_slice(font.data)
-    //                 .map_err(|_| FontError::FailedToGet(font.name.to_string()))
-    //         }
-
-    //         FontSort::System => {
-    //             let sys_lock = self.system_fonts.read().unwrap();
-    //             let sf = sys_lock
-    //                 .get(font_index.index)
-    //                 .ok_or_else(|| FontError::InvalidIndex(font_index.index))?
-    //                 .clone(); // copy small handle struct
-    //             drop(sys_lock); // [PASS] release read lock early
-
-    //             __get_fontarc_from_handle(&sf.handle, &sf.name)
-    //         } // Not use FontSort::None anymore
-    //           // TBD
-    //           // FontSort::None => Err(FontError::NonSelected),
-    //     }
-    // }
-
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "desktop")] // include font_kit
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         fn get_with_matching_name<'a>(
             read: &'a std::sync::RwLockReadGuard<'_, Vec<SystemFont>>,
@@ -314,7 +288,7 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(feature = "desktop"))] // exclude font_kit
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         // WASM: Only builtin fonts available
         let name = &select.name;
@@ -366,7 +340,7 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "desktop")] // include font_kit
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         let prev_idx = select.select.index;
         match select.select.sort {
@@ -394,7 +368,7 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(not(feature = "desktop"))] // exclude font_kit
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         // WASM: Only builtin fonts
         let prev_idx = select.select.index;
