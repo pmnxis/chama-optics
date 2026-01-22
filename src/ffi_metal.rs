@@ -1561,7 +1561,7 @@ pub unsafe extern "C" fn chama_scale_image(
         }
         COutputFormat::Png => scaled_image.save(output_path_str).map_err(|e| e.into()),
         COutputFormat::Webp => {
-            use image::ImageFormat;
+            use image::codecs::webp::WebPEncoder;
             let file = match std::fs::File::create(output_path_str) {
                 Ok(f) => f,
                 Err(e) => {
@@ -1569,8 +1569,15 @@ pub unsafe extern "C" fn chama_scale_image(
                     return ChamaError::ImageProcessError;
                 }
             };
-            let mut buf_writer = std::io::BufWriter::new(file);
-            scaled_image.write_to(&mut buf_writer, ImageFormat::WebP)
+            // WebPEncoder only supports lossless encoding currently
+            // Convert image to RGBA bytes
+            let rgba = scaled_image.to_rgba8();
+            WebPEncoder::new_lossless(file).encode(
+                rgba.as_raw(),
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
         }
     };
 
@@ -1928,8 +1935,8 @@ pub unsafe extern "C" fn chama_export_combined(
         }
         COutputFormat::Png => final_image.save(output_path_str).map_err(|e| e.into()),
         COutputFormat::Webp => {
-            // WebP support via image crate
-            use image::ImageFormat;
+            // WebP support (lossless)
+            use image::codecs::webp::WebPEncoder;
             let file = match std::fs::File::create(output_path_str) {
                 Ok(f) => f,
                 Err(e) => {
@@ -1937,8 +1944,15 @@ pub unsafe extern "C" fn chama_export_combined(
                     return ChamaError::ImageProcessError;
                 }
             };
-            let mut buf_writer = std::io::BufWriter::new(file);
-            final_image.write_to(&mut buf_writer, ImageFormat::WebP)
+            // WebPEncoder only supports lossless encoding currently
+            // Convert image to RGBA bytes
+            let rgba = final_image.to_rgba8();
+            WebPEncoder::new_lossless(file).encode(
+                rgba.as_raw(),
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
         }
     };
 
