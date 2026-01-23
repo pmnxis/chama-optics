@@ -242,6 +242,7 @@ fn export_final_impl(
         font_path,
         font_weight,
         None, // Use default scale config
+        None, // Use default export config (WebP)
     )
 }
 
@@ -257,6 +258,7 @@ fn export_final_impl_with_exif_source(
     font_path: &str,
     font_weight: u32,
     scale_config: Option<crate::scale_config::ScaleConfig>,
+    output_format_config: Option<COutputFormatConfig>,
 ) -> Result<(), PreviewError> {
     // For final export, always load full resolution
     let _dyn_image = image::open(image_path).map_err(PreviewError::ImageLoad)?;
@@ -351,6 +353,8 @@ fn export_final_impl_with_exif_source(
 
     // 7. Apply theme with custom scale config if provided
     let mut export_config = crate::export_config::ExportConfig::default();
+
+    // Apply custom scale config if provided
     if let Some(custom_scale) = scale_config {
         // Convert core ScaleConfig to export_config ScaleConfig
         export_config.scale_config = crate::export_config::scale_config::ScaleConfig {
@@ -388,6 +392,26 @@ fn export_final_impl_with_exif_source(
             "  Using custom scale config: mode={:?}, value={}",
             custom_scale.mode,
             custom_scale.value
+        );
+    }
+
+    // Apply custom export config (output format and quality) if provided
+    if let Some(output_config) = output_format_config {
+        // Set output format
+        export_config.output_format = crate::export_config::output_format::OutputFormat {
+            ext: match output_config.output_format {
+                COutputFormat::Jpeg => crate::export_config::output_format::OutputExtension::Jpeg,
+                COutputFormat::Png => {
+                    crate::export_config::output_format::OutputExtension::PngOptimized
+                }
+                COutputFormat::Webp => crate::export_config::output_format::OutputExtension::Webp,
+            },
+            quality: output_config.quality,
+        };
+        log::info!(
+            "  Using custom export config: format={:?}, quality={}",
+            output_config.output_format,
+            output_config.quality
         );
     }
     let mut themed_image = theme
@@ -1106,6 +1130,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
         font_path_str,
         font_weight,
         None, // No custom scale config - use default
+        None, // Use default export config (WebP)
     ) {
         Ok(_) => {
             log::info!("✅ Theme applied successfully with EXIF from original");
@@ -1123,22 +1148,24 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
     }
 }
 
-/// Apply theme to image with separate EXIF source and custom scale config
+/// Apply theme to image with separate EXIF source, custom scale config, and export config
 ///
-/// Same as `chama_optics_apply_theme_with_exif` but allows specifying custom scale settings.
-/// Use this function when you need to control the output image size during theme application.
+/// Same as `chama_optics_apply_theme_with_exif` but allows specifying custom scale settings
+/// AND output format (JPEG/PNG/WebP) with quality settings.
+/// Use this function when you need to control output image size and format during theme application.
 ///
 /// # Parameters
-/// - `image_path`: Path to the image to apply theme to (may be modified)
+/// - `image_path`: Path to image to apply theme to (may be modified)
 /// - `exif_source_path`: Path to the original image for reading EXIF data
-/// - `output_path`: Path for the output file
+/// - `output_path`: Path for the output file (extension should match export format)
 /// - `theme_name`: Name of the theme to apply
 /// - `params_json`: Theme parameters as JSON string
-/// - `font_path`: Path to the font file
+/// - `font_path`: Path to font file
 /// - `font_weight`: Font weight (100-900)
 /// - `scale_config`: Pointer to CScaleConfig for custom scaling (pass null for default 4K scaling)
+/// - `output_format_config`: Pointer to COutputFormatConfig for format/quality (pass null for default WebP 90)
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_and_scale(
+pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
     image_path: *const c_char,
     exif_source_path: *const c_char,
     output_path: *const c_char,
@@ -1147,6 +1174,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_and_scale(
     font_path: *const c_char,
     font_weight: u32,
     scale_config: *const CScaleConfig,
+    output_format_config: *const COutputFormatConfig,
 ) -> ChamaError {
     if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
         return ChamaError::InvalidPath;
@@ -1237,6 +1265,14 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_and_scale(
         log::info!("  Scale: default (4K)");
     }
 
+    // Convert COutputFormatConfig if provided
+    let export_config_option = if output_format_config.is_null() {
+        None
+    } else {
+        let config_ref = unsafe { &*output_format_config };
+        Some(*config_ref)
+    };
+
     match export_final_impl_with_exif_source(
         image_path_str,
         exif_source_str,
@@ -1246,6 +1282,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_and_scale(
         font_path_str,
         font_weight,
         core_scale_config,
+        export_config_option,
     ) {
         Ok(_) => {
             log::info!("✅ Theme applied successfully with EXIF from original");
@@ -1322,6 +1359,16 @@ pub struct CScaleConfig {
     pub sub_value: u32,
     /// Scale divisor (used for Divide mode)
     pub scale_value: f64,
+}
+
+/// Theme export configuration
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct COutputFormatConfig {
+    /// Output format (JPEG, PNG, or WebP)
+    pub output_format: COutputFormat,
+    /// Quality (1-100 for JPEG/WebP, ignored for PNG)
+    pub quality: u8,
 }
 
 /// Configuration for combined export pipeline
@@ -1885,6 +1932,7 @@ pub unsafe extern "C" fn chama_export_combined(
                 font_path,
                 config_ref.font_weight,
                 core_scale_config,
+                None, // Use default export config (WebP)
             );
 
             // Clean up temp file
