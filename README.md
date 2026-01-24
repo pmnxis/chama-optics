@@ -44,15 +44,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 
 ### Quick Start
 ```bash
-# Windows
-.\build_windows.bat
-
-# Linux
-chmod +x build_linux.sh
-./build_linux.sh
-
-# macOS
-./build_mac.sh
+cargo run --release --features face_detection_insightface
 ```
 
 ### Web (WASM)
@@ -129,114 +121,12 @@ cargo bundle --release
 - ✅ HEIF/HEIC support (with vcpkg)
 - ⚠️ Face detection: CPU only (No GPU/NPU support yet)
 
-#### Known Limitations on Windows
-
-**⚠️ Face Detection with InsightFace Feature: NOT SUPPORTED on Windows/Linux**
-
-**IMPORTANT:** The `face_detection_insightface` feature is **currently broken on Windows and Linux**. 
-**DO NOT use this feature on Windows/Linux.**
-
-**Alternative: Embedded Model (16.9MB)**
-
-The InsightFace model can be embedded directly into the binary to avoid external file dependencies:
-
-```bash
-# Build with embedded model
-cargo build --features build_assets --release --features desktop,face_detection_insightface
-```
-
-This will:
-1. Download the InsightFace buffalo_l model (det_10g.onnx, ~16.9MB)
-2. Convert it to a byte array and embed it in the binary
-3. Allow face detection to work without external files
-
-**Benefits:**
-- ✅ No external file dependencies
-- ✅ Easy deployment (single binary)
-- ✅ Cross-platform compatibility
-
-**Trade-offs:**
-- ⚠️ Increases binary size by ~16.9MB
-- ⚠️ Slightly longer build time (first time)
-
-**Note:** This still requires ort to compile successfully on Windows/Linux.
-
-### Error Details
-When attempting to build with `--features face_detection_insightface`, you will see linker errors:
-
-```
-error LNK2019: unresolved external symbol __std_find_trivial_8
-error LNK1120: multiple unresolved external references
-```
-
-### Root Cause
-The `ort` (ONNX Runtime) crate has **fundamental C++ Standard Library ABI compatibility issues** on Windows and Linux:
-
-1. ONNX Runtime is written in C++ and uses Rust FFI
-2. When building, ort must link against C++ standard library
-3. Different compiler versions have incompatible C++ stdlib ABIs
-4. The ort crate cannot properly handle these ABI differences
-5. This is a **well-known upstream issue** affecting all Rust projects using ort
-
-### What We Tried (And Why It Failed)
-
-**Attempted Workarounds:**
-1. ✅ Using `download-binaries` feature - Still compiles C++ code
-2. ✅ Adding `tls-rustls` backend - Required by download-binaries
-3. ❌ Prebuilt binaries do not avoid C++ compilation on Windows
-4. ❌ No feature flags resolve the C++ stdlib ABI issue
-
-**Conclusion:** This is a **fundamental upstream issue** in the ort crate that cannot be worked around at the application level.
-
-### ✅ Recommended Build Command (Windows/Linux)
-
-**BUILD WITHOUT FACE DETECTION:**
-```bash
-# Windows
-.\build_windows.bat
-
-# Linux
-./build_linux.sh
-
-# Or manually
-cargo build --release --features desktop
-```
-
 ### Face Detection Options
 
 **For Face Detection, Use macOS/iOS:**
 - ✅ **VisionKit** (macOS/iOS): Works perfectly, fast, accurate
 - Built-in Apple framework, no external dependencies
 - Optimized for Apple Silicon
-
-**For Cross-Platform Face Detection (Future):**
-- ⏸ **InsightFace (ort)**: Currently broken on Windows/Linux due to C++ stdlib ABI issues
-- **Alternative**: **candle-onnx** - Rust-native ML framework with cross-platform GPU support
-  - See `WINDOWS_GPU_ALTERNATIVES.md` for details
-  - Supports: NVIDIA CUDA, AMD/Intel GPUs, CPU fallback
-  - No C++ ABI issues (pure Rust implementation)
-- **Experimental**: Trying ort 2.0.0-rc.10 for Windows (older version may have better ABI compatibility)
-- Wait for upstream fixes in the ort repository
-- Consider alternative face detection libraries
-
-### Impact
-
-**What Works on Windows/Linux:**
-- ✅ Image loading and processing
-- ✅ EXIF data handling
-- ✅ All themes and effects
-- ✅ Watermarking and borders
-- ✅ Font handling and rendering
-- ✅ File dialogs and UI
-- ✅ Batch processing
-- ❌ Face detection (use macOS/iOS instead)
-
-**Technical Details:**
-The issue is tracked in the ort repository:
-- https://github.com/pykeio/ort/issues
-- Affects: All Rust projects using ONNX Runtime on Windows/Linux
-- Severity: Critical - prevents building entirely
-- Status: Known issue, no workaround available at application level
 
 ### macOS
 ```sh
