@@ -41,7 +41,10 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
     };
 
     let mut schema_params = Vec::new();
+    let mut ios_font_params = Vec::new(); // iOS-only font params for VariableTextSlot
     let mut update_arms = Vec::new();
+    // iOS font updates: store (key_string, field_access) pairs for direct code generation
+    let mut ios_font_updates: Vec<(String, proc_macro2::TokenStream)> = Vec::new();
     let mut ui_code = Vec::new();
     let mut field_metadata = Vec::new(); // Store metadata for each field
 
@@ -388,6 +391,38 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     #param_key => (#text_field_access, string)
                 });
 
+                // iOS-only: Also generate font parameter for VariableTextSlot
+                // This allows font selection directly on the slot's font_file field
+                let font_param_key = format!("{}.font", param_key);
+                let font_label_expr = if let Some(ref key) = label_key {
+                    let font_key = format!("{}.font", key);
+                    quote! { rust_i18n::t!(#font_key) }
+                } else {
+                    let font_label = format!("{} Font", label);
+                    quote! { #font_label }
+                };
+                let font_field_access = quote! { #field_access.font_file };
+                let default_font = if let Some(ref const_name) = default_const {
+                    let ident = syn::Ident::new(const_name, field_name.span());
+                    quote! { #ident.font_file }
+                } else {
+                    quote! { crate::effect::variable_text::FONT_FILE_BARLOW }
+                };
+
+                // Store iOS-only font params separately
+                ios_font_params.push(quote! {
+                    crate::param_font!(
+                        #font_param_key,
+                        #font_label_expr,
+                        #hint_expr,
+                        #default_font,
+                        #font_field_access
+                    )
+                });
+
+                // Store key and field access for direct update code generation
+                ios_font_updates.push((font_param_key, font_field_access));
+
                 // Generate UI for text - use VariableTextSlot::ui() method
                 let default_ident_name = default_const.clone().unwrap_or(default.clone());
                 let default_ident = syn::Ident::new(&default_ident_name, field_name.span());
@@ -468,15 +503,68 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
+    // Generate iOS-specific code only if there are font params
+    let has_ios_font_params = !ios_font_params.is_empty();
+
+    let ios_schema_extend = if has_ios_font_params {
+        quote! {
+            // iOS-only: Add font parameters for VariableTextSlot fields
+            #[cfg(feature = "ios_integration")]
+            {
+                parameters.extend(vec![
+                    #(#ios_font_params),*
+                ]);
+            }
+        }
+    } else {
+        quote! {}
+    };
+
+    // For iOS font updates, generate actual match arms with assignment code
+    let ios_update_handling = if has_ios_font_params {
+        // Generate match arms that directly assign string values to font_file fields
+        let ios_match_arms: Vec<_> = ios_font_updates
+            .iter()
+            .map(|(key, field_access)| {
+                quote! {
+                    #key => {
+                        if let Some(s) = value.as_str() {
+                            #field_access = s.to_string();
+                        }
+                    }
+                }
+            })
+            .collect();
+
+        quote! {
+            // iOS-only: Handle font parameter updates
+            #[cfg(feature = "ios_integration")]
+            {
+                for (key, value) in updates {
+                    match key.as_str() {
+                        #(#ios_match_arms)*
+                        _ => {}
+                    }
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let expanded = quote! {
         impl crate::theme::parameter_schema::ThemeParameters for #struct_name {
             fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
+                let mut parameters = vec![
+                    #(#schema_params),*
+                ];
+
+                #ios_schema_extend
+
                 crate::theme::parameter_schema::ThemeSchema {
                     theme_name: self.unique_name().to_string(),
                     theme_label: self.label().to_string(),
-                    parameters: vec![
-                        #(#schema_params),*
-                    ],
+                    parameters,
                 }
             }
 
@@ -484,6 +572,10 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 &mut self,
                 updates: &serde_json::Map<String, serde_json::Value>
             ) -> Result<(), String> {
+                // Handle iOS font updates first (before base param handling)
+                #ios_update_handling
+
+                // Handle base parameter updates
                 crate::update_param!(updates, {
                     #(#update_arms),*
                 })
