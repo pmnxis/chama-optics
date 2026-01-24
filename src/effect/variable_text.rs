@@ -9,6 +9,26 @@ use egui::{self, Align, TextEdit, Ui};
 use rust_i18n::t;
 use std::borrow::Cow;
 
+// Global fonts base directory for iOS (set via FFI)
+#[cfg(feature = "ios_integration")]
+static FONTS_BASE_DIR: std::sync::RwLock<String> = std::sync::RwLock::new(String::new());
+
+/// Set the fonts base directory for iOS font loading
+/// Call this from FFI before rendering themes
+#[cfg(feature = "ios_integration")]
+pub fn set_fonts_base_directory(path: &str) {
+    if let Ok(mut dir) = FONTS_BASE_DIR.write() {
+        *dir = path.to_string();
+        log::info!("Fonts base directory set to: {}", path);
+    }
+}
+
+/// Get the fonts base directory
+#[cfg(feature = "ios_integration")]
+pub fn get_fonts_base_directory() -> String {
+    FONTS_BASE_DIR.read().map(|d| d.clone()).unwrap_or_default()
+}
+
 /// Available EXIF fields for autocomplete
 pub const EXIF_FIELDS: &[ExifField] = &[
     ExifField {
@@ -261,16 +281,39 @@ pub struct VariableTextSlotDefault {
     // fixed index
     pub fixed_index: Option<crate::BuiltinFontIndex>,
     pub prefer_fixed: bool,
+
+    /// Font filename (with extension) for iOS path construction
+    #[cfg(feature = "ios_integration")]
+    pub font_file: &'static str,
 }
+
+/// Default font filenames for different font types
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+pub const FONT_FILE_BARLOW: &str = "Barlow-Variable-Remapped.ttf";
+
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+pub const FONT_FILE_BARLOW_NARROW: &str = "Barlow-Variable-Remapped-Narrow.ttf";
+
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+pub const FONT_FILE_DIGITAL7: &str = "digital-7.ttf";
+
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+pub const FONT_FILE_D2CODING: &str = "D2Coding-Ver1.3.2-20180524-all.ttc";
 
 impl VariableTextSlotDefault {
     pub const fn with_barlow(default: &'static str) -> Self {
         Self {
             text: default,
-            weight: 300, // todo - get method with const gently
+            weight: 300,
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
             prefer_fixed: false,
+            #[cfg(feature = "ios_integration")]
+            font_file: FONT_FILE_BARLOW,
         }
     }
 
@@ -281,18 +324,39 @@ impl VariableTextSlotDefault {
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
             prefer_fixed: false,
+            #[cfg(feature = "ios_integration")]
+            font_file: FONT_FILE_BARLOW,
         }
     }
 
     pub const fn with_digital7(default: &'static str) -> Self {
         Self {
             text: default,
-            weight: 300, // todo - get method with const gently
+            weight: 300,
             font_index: BuiltinVariableFontIndex::Barlow, // don't need for default
             fixed_index: Some(crate::BuiltinFontIndex::Digital7),
             prefer_fixed: true, // will select fixed_index
+            #[cfg(feature = "ios_integration")]
+            font_file: FONT_FILE_DIGITAL7,
         }
     }
+
+    // /// Create with custom font file
+    // #[allow(dead_code)] // this is scar of when tried with iOS integration
+    // pub const fn with_font_file(
+    //     default: &'static str,
+    //     weight: u16,
+    //     font_file: &'static str,
+    // ) -> Self {
+    //     Self {
+    //         text: default,
+    //         weight,
+    //         font_index: BuiltinVariableFontIndex::Barlow,
+    //         fixed_index: None,
+    //         prefer_fixed: false,
+    //         font_file,
+    //     }
+    // }
 }
 
 impl From<VariableTextSlotDefault> for VariableTextSlot {
@@ -302,6 +366,8 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+                #[cfg(feature = "ios_integration")]
+                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         } else {
@@ -309,6 +375,8 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
+                #[cfg(feature = "ios_integration")]
+                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         }
@@ -321,6 +389,8 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
+                #[cfg(feature = "ios_integration")]
+                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         } else {
@@ -328,6 +398,8 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
+                #[cfg(feature = "ios_integration")]
+                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         }
@@ -340,6 +412,10 @@ pub struct VariableTextSlot {
     pub weight: u16,
     // todo - future selection variable fonts
     pub font_index: VariableOrNot,
+    /// Font filename for iOS path construction (just filename with extension)
+    #[cfg(feature = "ios_integration")]
+    #[serde(default)]
+    pub font_file: String,
     #[serde(skip)]
     autocomplete_state: AutocompleteState,
 }
@@ -351,6 +427,8 @@ impl VariableTextSlot {
             text: default.to_string(),
             weight,
             font_index: VariableOrNot::default(),
+            #[cfg(feature = "ios_integration")]
+            font_file: FONT_FILE_BARLOW.to_string(),
             autocomplete_state: AutocompleteState::new(),
         }
     }
@@ -360,13 +438,26 @@ impl VariableTextSlot {
         default.into()
     }
 
+    // /// Update font_file from a full path or just filename (for iOS FFI)
+    // /// Extracts filename if full path is provided
+    // #[allow(dead_code)] // this is scar of when tried with iOS integration
+    // pub fn update_font_path(&mut self, font_path: &str) {
+    //     use std::path::Path;
+    //     // Extract just the filename from full path, or use as-is if just filename
+    //     self.font_file = Path::new(font_path)
+    //         .file_name()
+    //         .and_then(|s| s.to_str())
+    //         .unwrap_or(font_path)
+    //         .to_string();
+    // }
+
     pub fn format_custom(&self, exif: &crate::image::exif_impl::SimplifiedExif) -> String {
         exif.format_custom(self.text.clone())
     }
 
+    /// Get font - on iOS loads directly from font_file, on desktop uses font_index
+    #[cfg(not(feature = "ios_integration"))]
     pub fn get_font(&self) -> ab_glyph::FontArc {
-        // todo - resolve &'static, &, * hell
-        // todo - Result<T,E>
         match &self.font_index {
             VariableOrNot::Variable(var) => var.get_font_by_weight(self.weight).clone(),
             VariableOrNot::Others(others) => match crate::FONTS_UNIFY.search(others) {
@@ -381,7 +472,51 @@ impl VariableTextSlot {
         }
     }
 
+    /// Get font - on iOS loads directly from font_file
+    #[cfg(feature = "ios_integration")]
+    pub fn get_font(&self) -> ab_glyph::FontArc {
+        self.get_font_from_file()
+    }
+
+    /// Load font directly from font_file (for iOS)
+    /// Uses FONTS_BASE_DIR + font_file to construct full path
+    #[cfg(feature = "ios_integration")]
+    fn get_font_from_file(&self) -> ab_glyph::FontArc {
+        use ab_glyph::FontArc;
+        use std::path::PathBuf;
+
+        if self.font_file.is_empty() {
+            panic!("Font loading failed on iOS: font_file is empty");
+        }
+
+        // Construct full path from base directory + filename
+        let base_dir = get_fonts_base_directory();
+        let full_path = if base_dir.is_empty() {
+            // If no base dir set, try using font_file as-is (might be full path)
+            PathBuf::from(&self.font_file)
+        } else {
+            PathBuf::from(&base_dir).join(&self.font_file)
+        };
+
+        log::debug!("Loading font from: {:?}", full_path);
+
+        if let Ok(data) = std::fs::read(&full_path) {
+            if let Ok(font) = FontArc::try_from_vec(data) {
+                return font;
+            }
+            log::error!("Failed to parse font file: {:?}", full_path);
+        } else {
+            log::error!("Failed to read font file: {:?}", full_path);
+        }
+
+        panic!(
+            "Font loading failed on iOS. font_file='{}', base_dir='{}', full_path='{:?}'",
+            self.font_file, base_dir, full_path
+        );
+    }
+
     /// return false on bool tuple when it's not variable font
+    #[cfg(not(feature = "ios_integration"))]
     pub fn get_font_with_new_weight(&self, weight: u16) -> (ab_glyph::FontArc, bool) {
         // todo - resolve &'static, &, * hell
         // todo - Result<T,E>
@@ -400,6 +535,13 @@ impl VariableTextSlot {
                 false,
             ),
         }
+    }
+
+    /// iOS version - weight is ignored, uses font_file directly
+    #[cfg(feature = "ios_integration")]
+    pub fn get_font_with_new_weight(&self, _weight: u16) -> (ab_glyph::FontArc, bool) {
+        // On iOS, fonts are loaded from file, weight is not adjustable at runtime
+        (self.get_font_from_file(), false)
     }
 
     pub fn text_dimensions(&self, scale: ab_glyph::PxScale, txt: impl AsRef<str>) -> (f32, f32) {

@@ -52,28 +52,12 @@ pub struct OneLine {
     pub left: VariableTextSlot,
 
     #[param(
-        font,
-        label_key = "theme.exif_left_bot.font",
-        hint_key = "theme.exif_left_bot.font.hint",
-        default_const = "DEFAULT_LEFT_FONT_PATH"
-    )]
-    pub left_font_path: String,
-
-    #[param(
         text,
         label_key = "theme.exif_right_bot",
         hint_key = "theme.template_format_hint.description",
         default_const = "DEFAULT_RIGHT"
     )]
     pub right: VariableTextSlot,
-
-    #[param(
-        font,
-        label_key = "theme.exif_right_bot.font",
-        hint_key = "theme.exif_right_bot.font.hint",
-        default_const = "DEFAULT_RIGHT_FONT_PATH"
-    )]
-    pub right_font_path: String,
 
     #[param(
         text,
@@ -83,20 +67,8 @@ pub struct OneLine {
     )]
     pub top: VariableTextSlot,
 
-    #[param(
-        font,
-        label_key = "theme.exif_center_top.font",
-        hint_key = "theme.exif_center_top.font.hint",
-        default_const = "DEFAULT_TOP_FONT_PATH"
-    )]
-    pub top_font_path: String,
-
     pub show_hint: bool,
 }
-
-const DEFAULT_LEFT_FONT_PATH: &str = "assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc";
-const DEFAULT_RIGHT_FONT_PATH: &str = "assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc";
-const DEFAULT_TOP_FONT_PATH: &str = "assets/fonts/Barlow-Variable-Remapped.ttf";
 
 const DEFAULT_FONT_HEIGHT: u32 = 30;
 const DEFAULT_TOP_FONT_HEIGHT: u32 = 50;
@@ -135,11 +107,8 @@ impl core::default::Default for OneLine {
             font_height: DEFAULT_FONT_HEIGHT,
             top_font_height: DEFAULT_TOP_FONT_HEIGHT,
             left: (&DEFAULT_LEFT).into(),
-            left_font_path: DEFAULT_LEFT_FONT_PATH.to_string(),
             right: (&DEFAULT_RIGHT).into(),
-            right_font_path: DEFAULT_RIGHT_FONT_PATH.to_string(),
             top: (&DEFAULT_TOP).into(),
-            top_font_path: DEFAULT_TOP_FONT_PATH.to_string(),
             show_hint: false,
         }
     }

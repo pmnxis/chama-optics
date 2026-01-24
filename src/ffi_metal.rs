@@ -2016,6 +2016,58 @@ pub unsafe extern "C" fn chama_export_combined(
     }
 }
 
+// ============================================================================
+// Memory Management
+// ============================================================================
+
+/// Free a string returned by other FFI functions
+///
+/// # Safety
+/// - `ptr` must have been returned by a chama_* function that returns *mut c_char
+/// - Must only be called once per pointer
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_free_string(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        unsafe {
+            let _ = CString::from_raw(ptr);
+        }
+    }
+}
+
+// ============================================================================
+// Font Directory Configuration
+// ============================================================================
+
+/// Set the base directory for font files
+///
+/// This must be called before rendering themes to ensure fonts can be loaded.
+/// The directory should contain font files like "Barlow-Variable-Remapped.ttf", "digital-7.ttf", etc.
+///
+/// # Example
+/// ```c
+/// chama_set_fonts_base_directory("/var/mobile/Containers/Bundle/Application/.../ChamaOptics.app/fonts");
+/// ```
+///
+/// # Safety
+/// - `path` must be a valid null-terminated C string
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_set_fonts_base_directory(path: *const c_char) {
+    if path.is_null() {
+        log::warn!("chama_set_fonts_base_directory: null path provided");
+        return;
+    }
+
+    let path_str = match unsafe { CStr::from_ptr(path) }.to_str() {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!("chama_set_fonts_base_directory: invalid UTF-8: {}", e);
+            return;
+        }
+    };
+
+    crate::effect::variable_text::set_fonts_base_directory(path_str);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

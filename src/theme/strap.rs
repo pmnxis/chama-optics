@@ -138,9 +138,12 @@ impl Theme for Strap {
         let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
+        // For text dimension calculation - use left_top font on iOS, Barlow on desktop
+        #[cfg(not(feature = "ios_integration"))]
         let font =
             &crate::fonts::variable_font::BuiltinVariableFontIndex::Barlow.get_font_by_weight(800);
-        // let font = &crate::fonts::FONT_PACK_BARLOW.font[3];
+        #[cfg(feature = "ios_integration")]
+        let font = &self.left_top.get_font();
         let mut is_overflow = false;
 
         let (ll, rr, _tt, bb) = self.border.border_size(dyn_wh);

@@ -48,6 +48,7 @@ pub(crate) fn text_dimensions(
 
 /// Calculate text dimensions with automatic fallback to SourceHanSans for unsupported characters
 /// This function calculates width character by character, using the appropriate font for each character.
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) fn text_dimensions_with_fallback(
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
@@ -82,9 +83,23 @@ pub(crate) fn text_dimensions_with_fallback(
     (total_width, max_height)
 }
 
+/// Calculate text dimensions with automatic fallback (iOS version - no fallback)
+/// iOS version uses only the primary font. Users select appropriate fonts including CJK support.
+#[cfg(feature = "ios_integration")]
+pub(crate) fn text_dimensions_with_fallback(
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    _weight: u16,
+    text: &str,
+) -> (f32, f32) {
+    // iOS: no fallback, just use primary font
+    text_dimensions(scale, primary_font, text)
+}
+
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters
 /// This function draws text character by character, using the primary font when possible
 /// and falling back to SourceHanSans for CJK and other unsupported characters.
+#[cfg(not(feature = "ios_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback<I>(
     image: &mut I,
@@ -136,8 +151,29 @@ pub(crate) fn draw_text_with_fallback<I>(
     }
 }
 
+/// Draw text with automatic fallback (iOS version - no fallback)
+/// iOS version uses only the primary font directly via imageproc.
+#[cfg(feature = "ios_integration")]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw_text_with_fallback<I>(
+    image: &mut I,
+    color: image::Rgba<u8>,
+    x: i32,
+    y: i32,
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    _weight: u16,
+    text: &str,
+) where
+    I: image::GenericImage<Pixel = image::Rgba<u8>>,
+{
+    // iOS: no fallback, just use primary font directly
+    imageproc::drawing::draw_text_mut(image, color, x, y, scale, primary_font, text);
+}
+
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters (Luma version)
 /// This function is for grayscale images used in glow effects.
+#[cfg(not(feature = "ios_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback_luma<I>(
     image: &mut I,
@@ -187,6 +223,26 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
         // Advance x position
         current_x += scaled_font.h_advance(font_to_use.glyph_id(ch));
     }
+}
+
+/// Draw text with automatic fallback (iOS version - no fallback, Luma)
+/// iOS version uses only the primary font directly via imageproc for grayscale images.
+#[cfg(feature = "ios_integration")]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn draw_text_with_fallback_luma<I>(
+    image: &mut I,
+    color: image::Luma<u8>,
+    x: i32,
+    y: i32,
+    scale: ab_glyph::PxScale,
+    primary_font: &ab_glyph::FontArc,
+    _weight: u16,
+    text: &str,
+) where
+    I: image::GenericImage<Pixel = image::Luma<u8>>,
+{
+    // iOS: no fallback, just use primary font directly
+    imageproc::drawing::draw_text_mut(image, color, x, y, scale, primary_font, text);
 }
 
 pub trait Theme: Send + Sync + std::any::Any {

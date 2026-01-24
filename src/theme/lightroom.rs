@@ -91,7 +91,6 @@ impl core::default::Default for Lightroom {
             left: (&DEFAULT_LEFT).into(),
             center: (&DEFAULT_CENTER).into(),
             right: (&DEFAULT_RIGHT).into(),
-            // width_aligned: true,
             show_hint: false,
         }
     }

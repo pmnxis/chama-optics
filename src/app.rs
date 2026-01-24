@@ -362,6 +362,10 @@ impl ChamaOptics {
     }
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        #[cfg(all(
+            any(feature = "desktop", feature = "web"),
+            not(feature = "ios_integration")
+        ))]
         crate::fonts::replace_fonts(&cc.egui_ctx);
 
         log::info!(

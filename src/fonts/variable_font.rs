@@ -50,6 +50,9 @@ impl VariableFontPack {
     }
 }
 
+// Variable fonts only loaded for desktop/web builds
+// iOS loads fonts from app bundle via FFI, not from embedded data
+#[cfg(not(feature = "ios_integration"))]
 lazy_static::lazy_static! {
     static ref BARLOW: VariableFontPack = VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
@@ -87,6 +90,12 @@ lazy_static::lazy_static! {
     ];
 }
 
+// For iOS, create empty placeholder
+#[cfg(feature = "ios_integration")]
+lazy_static::lazy_static! {
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 0] = [];
+}
+
 #[rustfmt::skip]
 #[repr(usize)]
 #[derive(serde::Deserialize, serde::Serialize, Default, Debug, Clone, Copy, PartialEq, Eq, strum::FromRepr)]
@@ -98,12 +107,28 @@ pub enum BuiltinVariableFontIndex {
 }
 
 impl BuiltinVariableFontIndex {
+    #[cfg(not(feature = "ios_integration"))]
     pub fn get_font(&self) -> &'static VariableFontPack {
         BUILTIN_VARIABLE_FONTS[*self as usize]
     }
 
+    #[cfg(feature = "ios_integration")]
+    pub fn get_font(&self) -> &'static VariableFontPack {
+        panic!(
+            "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."
+        )
+    }
+
+    #[cfg(not(feature = "ios_integration"))]
     pub fn get_font_by_weight(&self, weight: u16) -> ab_glyph::FontArc {
         self.get_font().get_font_by_weight(weight)
+    }
+
+    #[cfg(feature = "ios_integration")]
+    pub fn get_font_by_weight(&self, _weight: u16) -> ab_glyph::FontArc {
+        panic!(
+            "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."
+        )
     }
 
     pub fn update_ui<S: Into<egui::WidgetText>>(

@@ -14,37 +14,75 @@ pub(crate) mod variable_font;
 
 pub struct BuiltInFonts {
     pub name: &'static str,
+    #[cfg(not(feature = "ios_integration"))]
     pub data: &'static [u8],
+    // For iOS, data field is not included - fonts loaded from app bundle via FFI
 }
 
+// Font definitions - data only embedded for desktop/web builds
+// iOS loads fonts from app bundle via file paths passed through FFI
+#[cfg(not(feature = "ios_integration"))]
 const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
     data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
 
+#[cfg(feature = "ios_integration")]
+const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
+    name: "D2Coding-Nerd",
+};
+
+#[cfg(not(feature = "ios_integration"))]
 const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
     name: "Source Han Sans",
     data: include_bytes!("../../assets/fonts/SourceHanSansVF-remapped.otf"),
 };
 
+#[cfg(feature = "ios_integration")]
+const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
+    name: "Source Han Sans",
+};
+
+#[cfg(not(feature = "ios_integration"))]
 const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
     name: "Barlow",
     data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped.ttf"),
 };
 
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+const FONT_BARLOW: BuiltInFonts = BuiltInFonts { name: "Barlow" };
+
+#[cfg(not(feature = "ios_integration"))]
 const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
     name: "Barlow Narrow",
     data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf"),
 };
 
+#[cfg(feature = "ios_integration")]
+#[allow(dead_code)] // todo- do I really need?
+const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
+    name: "Barlow Narrow",
+};
+
+#[cfg(not(feature = "ios_integration"))]
 const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
     name: "Digital 7",
     data: include_bytes!(env!("DIGITAL_7_FONT_PATH")),
 };
 
+#[cfg(feature = "ios_integration")]
+const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts { name: "Digital 7" };
+
+#[cfg(not(feature = "ios_integration"))]
 const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     name: "Digital 7 Italic",
     data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
+};
+
+#[cfg(feature = "ios_integration")]
+const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
+    name: "Digital 7 Italic",
 };
 
 lazy_static::lazy_static! {
@@ -56,7 +94,11 @@ lazy_static::lazy_static! {
 }
 
 // Demonstrates how to replace all fonts.
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+// Not used for iOS - fonts are loaded from app bundle via FFI
+#[cfg(all(
+    any(feature = "desktop", feature = "web"),
+    not(feature = "ios_integration")
+))]
 pub(crate) fn replace_fonts(ctx: &egui::Context) {
     // Start with the default fonts (we will be adding to them rather than replacing them).
     let mut fonts = egui::FontDefinitions::default();

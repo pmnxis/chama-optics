@@ -127,7 +127,6 @@ impl core::default::Default for ShotOnTwoLine {
             first: (&DEFAULT_FIRST).into(),
             second: (&DEFAULT_SECOND).into(),
             top: (&DEFAULT_TOP).into(),
-            // width_aligned: true,
             show_hint: false,
         }
     }
