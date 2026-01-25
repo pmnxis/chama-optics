@@ -7,8 +7,8 @@ _version: 2
 app:
   app_name:
     en: "Chama Optics"
-    ko: "쨔마 옵틱스"
-    ja: "ちゃまオプティクス"
+    ko: "Chama Optics"
+    ja: "Chama Optics"
   file_menu:
     root:
       en: "File"
@@ -836,6 +836,22 @@ settings:
     en: "Resize and Crop"
     ko: "크기 조정 및 자르기"
     ja: "リサイズして切り抜き"
+  reset:
+    en: "Reset"
+    ko: "초기화"
+    ja: "リセット"
+  reset_footer:
+    en: "Reset all theme parameters to their default values. This cannot be undone."
+    ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
+    ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+  about:
+    en: "About"
+    ko: "앱 정보"
+    ja: "アプリについて"
+  about_footer:
+    en: "ChamaOptics Mobile version and license information"
+    ko: "ChamaOptics Mobile 버전 및 라이선스 정보"
+    ja: "ChamaOptics Mobileのバージョンおよびライセンス情報"
 
 laboratory:
   heading:
