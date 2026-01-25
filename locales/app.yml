@@ -45,6 +45,10 @@ app:
       en: "💾Apply"
       ko: "💾적용"
       ja: "💾適用"
+    reset_mobile:
+      en: "Reset"
+      ko: "초기화"
+      ja: "リセット"
     save:
       en: "💾Save"
       ko: "💾저장"
@@ -96,10 +100,20 @@ tabs:
     en: "Image List"
     ko: "이미지 리스트"
     ja: "画像リスト"
+# iOS Specific
+  image_list_short:
+    en: "Gallery"
+    ko: "갤러리"
+    ja: "ギャラリー"
   theme_preview:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+# iOS Specific
+  theme_preview_short:
+    en: "Themes"
+    ko: "테마"
+    ja: "テーマ"
   theme_preview_heading:
     en: "Themes & Preview"
     ko: "테마 & 미리보기"
@@ -130,10 +144,24 @@ theme_preview:
     en: "Select an image to preview:"
     ko: "미리보기할 이미지를 선택하세요:"
     ja: "プレビューする画像を選択してください:"
+  select_image_mobile:
+    en: "Select an image to preview"
+    ko: "미리보기할 이미지를 선택하세요"
+    ja: "プレビューする画像を選択してください"
+# iOS Specific
+  change_photo:
+    en: "Change Photo"
+    ko: "사진 변경"
+    ja: "写真を変更"
   preview_label:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+# iOS Specific
+  original:
+    en: "Original"
+    ko: "원본"
+    ja: "元の画像"
   generating:
     en: "Generating preview..."
     ko: "미리보기 생성 중..."
@@ -158,6 +186,382 @@ theme_preview:
     en: "🔄 Refresh Preview"
     ko: "🔄 미리보기 새로고침"
     ja: "🔄 プレビュー更新"
+  refresh_button_mobile:
+    en: "Refresh Preview"
+    ko: "미리보기 새로고침"
+    ja: "プレビュー更新"
+  status_ready:
+    en: "Ready"
+    ko: "준비 완료"
+    ja: "準備完了"
+  error_loading:
+    en: "Failed to load image data"
+    ko: "이미지 데이터 로드 실패"
+    ja: "画像データの読み込みに失敗"
+  error_decoding:
+    en: "Failed to decode image"
+    ko: "이미지 디코딩 실패"
+    ja: "画像のデコードに失敗"
+  image_loaded:
+    en: "Image loaded"
+    ko: "이미지 로드됨"
+    ja: "画像が読み込まれました"
+  error_prefix:
+    en: "Error: "
+    ko: "오류: "
+    ja: "エラー: "
+  no_theme_applied:
+    en: "No theme applied (Nothing selected)"
+    ko: "테마 적용 안됨 (Nothing 선택됨)"
+    ja: "テーマ適用なし（Nothing選択中）"
+  theme_applied:
+    en: "Theme applied!"
+    ko: "테마 적용됨!"
+    ja: "テーマ適用完了！"
+  output_not_created:
+    en: "Output file not created"
+    ko: "출력 파일 생성 안됨"
+    ja: "出力ファイルが作成されませんでした"
+  theme_failed:
+    en: "Theme application failed"
+    ko: "테마 적용 실패"
+    ja: "テーマ適用に失敗"
+  edit:
+    en: "Edit"
+    ko: "편집"
+    ja: "編集"
+  done:
+    en: "Done"
+    ko: "완료"
+    ja: "完了"
+# iOS Specific
+gallery:
+  detect:
+    en: "Detect"
+    ko: "감지"
+    ja: "検出"
+  empty_state_title:
+    en: "No Images Yet"
+    ko: "아직 이미지가 없습니다"
+    ja: "まだ画像がありません"
+  empty_state_subtitle:
+    en: "Add your first image to get started"
+    ko: "첫 이미지를 추가해서 시작하세요"
+    ja: "最初の画像を追加して始めましょう"
+  add_image:
+    en: "Add Image"
+    ko: "이미지 추가"
+    ja: "画像を追加"
+  detect_all_faces:
+    en: "Detect All Faces"
+    ko: "모든 얼굴 감지"
+    ja: "すべての顔を検出"
+  face_effect:
+    en: "Face Effect"
+    ko: "얼굴 효과"
+    ja: "顔効果"
+  save_all_images:
+    en: "Save All Images"
+    ko: "모든 이미지 저장"
+    ja: "すべての画像を保存"
+  save_success:
+    en: "Saved %d out of %d images to Photos"
+    ko: "%d/%d개 이미지를 포토에 저장했습니다"
+    ja: "%d枚のうち%d枚をフォトに保存しました"
+  webp_saved:
+    en: "WebP file saved to:\n%s\n\nOpen Files app to find it in ChamaOptics folder."
+    ko: "WebP 파일이 다음 위치에 저장됨:\n%s\n\n파일 앱을 열어 ChamaOptics 폴더에서 확인하세요."
+    ja: "WebPファイルが保存されました：\n%s\n\nファイルアプリを開いてChamaOpticsフォルダで確認してください。"
+  photo_saved:
+    en: "Your photo has been saved to the Photos library."
+    ko: "사진이 포토 라이브러리에 저장되었습니다."
+    ja: "写真がフォトライブラリに保存されました。"
+  save_failed:
+    en: "Failed to save photo. Please check permissions."
+    ko: "사진 저장 실패. 권한을 확인하세요."
+    ja: "写真の保存に失敗しました。権限を確認してください。"
+  preview:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
+  speed_fastest_desc:
+    en: "Quick scan, may miss small faces"
+    ko: "빠른 스캔, 작은 얼굴을 놓칠 수 있음"
+    ja: "クイックスキャン、小さな顔を見逃す可能性があります"
+  speed_fast_desc:
+    en: "Fast detection with good accuracy"
+    ko: "빠른 감지, 좋은 정확도"
+    ja: "高速検出、良好な精度"
+  speed_normal_desc:
+    en: "Balanced speed and accuracy (recommended)"
+    ko: "속도와 정확도의 균형 (추천)"
+    ja: "速度と精度のバランス（推奨）"
+  speed_slow_desc:
+    en: "Slower but more thorough"
+    ko: "느리지만 더 철저함"
+    ja: "遅いですがより徹底的"
+  speed_slowest_desc:
+    en: "Most thorough, detects smallest faces"
+    ko: "가장 철저함, 가장 작은 얼굴 감지"
+    ja: "最も徹底的、最小の顔を検出"
+  sticker_assignment:
+    en: "Sticker Assignment"
+    ko: "스티커 할당"
+    ja: "ステッカーの割り当て"
+  no_stickers_hint:
+    en: "No stickers available in Settings. Go to Settings → Sticker Storage to add stickers."
+    ko: "설정에서 스티커가 없습니다. 설정 → 스티커 저장소로 가서 스티커를 추가하세요."
+    ja: "設定にステッカーがありません。設定→ステッカー保存庫に移動してステッカーを追加してください。"
+  exif_information:
+    en: "EXIF Information"
+    ko: "EXIF 정보"
+    ja: "EXIF情報"
+  load_exif:
+    en: "Load EXIF"
+    ko: "EXIF 로드"
+    ja: "EXIFを読み込む"
+  tap_load_exif_hint:
+    en: "Tap 'Load EXIF' to view metadata"
+    ko: "메타데이터를 보려면 'EXIF 로드'를 탭하세요"
+    ja: "メタデータを表示するには「EXIFを読み込む」をタップしてください"
+  photo_saved_title:
+    en: "Photo Saved!"
+    ko: "사진 저장됨!"
+    ja: "写真を保存しました！"
+  loading_image:
+    en: "Loading image..."
+    ko: "이미지 로드 중..."
+    ja: "画像を読み込んでいます..."
+  exif_unavailable:
+    en: "EXIF Unavailable"
+    ko: "EXIF 사용 불가"
+    ja: "EXIF利用不可"
+  camera_make:
+    en: "Camera Make"
+    ko: "카메라 제조사"
+    ja: "カメラメーカー"
+  camera_model:
+    en: "Camera Model"
+    ko: "카메라 모델"
+    ja: "カメラモデル"
+  lens_model:
+    en: "Lens Model"
+    ko: "렌즈 모델"
+    ja: "レンズモデル"
+  focal_length:
+    en: "Focal Length"
+    ko: "초점 거리"
+    ja: "焦点距離"
+  aperture:
+    en: "Aperture"
+    ko: "조리개"
+    ja: "絞り"
+  shutter_speed:
+    en: "Shutter Speed"
+    ko: "셔터 속도"
+    ja: "シャッター速度"
+  date_time:
+    en: "Date/Time"
+    ko: "날짜/시간"
+    ja: "日付/時刻"
+  save_all_alert_title:
+    en: "Save All Images"
+    ko: "모든 이미지 저장"
+    ja: "すべての画像を保存"
+  example_camera:
+    en: "e.g. Canon"
+    ko: "예: Canon"
+    ja: "例：Canon"
+  example_camera_model:
+    en: "e.g. EOS R5"
+    ko: "예: EOS R5"
+    ja: "例：EOS R5"
+  example_lens_model:
+    en: "e.g. RF 24-70mm F2.8"
+    ko: "예: RF 24-70mm F2.8"
+    ja: "例：RF 24-70mm F2.8"
+  example_focal_length:
+    en: "e.g. 50mm"
+    ko: "예: 50mm"
+    ja: "例：50mm"
+  example_aperture:
+    en: "e.g. f/2.8"
+    ko: "예: f/2.8"
+    ja: "例：f/2.8"
+  example_shutter_speed:
+    en: "e.g. 1/250s"
+    ko: "예: 1/250s"
+    ja: "例：1/250s"
+  example_date_time:
+    en: "e.g. 2024-01-01 12:00:00"
+    ko: "예: 2024-01-01 12:00:00"
+    ja: "例：2024-01-01 12:00:00"
+  face_effect_with_value:
+    en: "Face Effect: %@"
+    ko: "얼굴 효과: %@"
+    ja: "顔効果：%@"
+  save_all:
+    en: "Save All"
+    ko: "모두 저장"
+    ja: "すべて保存"
+  remove_all:
+    en: "Remove All"
+    ko: "모두 삭제"
+    ja: "すべて削除"
+  preview:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
+  edit:
+    en: "Edit"
+    ko: "편집"
+    ja: "編集"
+  done:
+    en: "Done"
+    ko: "완료"
+    ja: "完了"
+
+preview_detection:
+  detection_engine:
+    en: "Detection Engine"
+    ko: "감지 엔진"
+    ja: "検出エンジン"
+  engine:
+    en: "Engine"
+    ko: "엔진"
+    ja: "エンジン"
+  speed_mode:
+    en: "Speed Mode"
+    ko: "속도 모드"
+    ja: "速度モード"
+  mode:
+    en: "Mode"
+    ko: "모드"
+    ja: "モード"
+  detecting:
+    en: "Detecting..."
+    ko: "감지 중..."
+    ja: "検出中..."
+  detect_faces_with_engine:
+    en: "Detect Faces (%@)"
+    ko: "얼굴 감지 (%@)"
+    ja: "顔を検出（%@）"
+  detected_faces:
+    en: "Detected %d face(s)"
+    ko: "%d개 얼굴 감지됨"
+    ja: "%d個の顔を検出"
+  position:
+    en: "Pos: (%d, %d)"
+    ko: "위치: (%d, %d)"
+    ja: "位置：(%d, %d)"
+  size:
+    en: "Size: %d × %d"
+    ko: "크기: %d × %d"
+    ja: "サイズ：%d × %d"
+  select_image_to_detect:
+    en: "Select an image to detect faces"
+    ko: "얼굴 감지할 이미지를 선택하세요"
+    ja: "顔を検出する画像を選択してください"
+  select_photo:
+    en: "Select Photo"
+    ko: "사진 선택"
+    ja: "写真を選択"
+  no_faces_detected:
+    en: "No faces detected in image"
+    ko: "이미지에서 감지된 얼굴이 없습니다"
+    ja: "画像で検出された顔がありません"
+  face_number_simple:
+    en: "Face #%d"
+    ko: "얼굴 #%d"
+    ja: "顔 #%d"
+  edit_faces:
+    en: "Edit Faces"
+    ko: "얼굴 편집"
+    ja: "顔を編集"
+  add_face:
+    en: "Add Face"
+    ko: "얼굴 추가"
+    ja: "顔を追加"
+  none:
+    en: "None"
+    ko: "없음"
+    ja: "なし"
+  tap_face_to_assign_sticker:
+    en: "Tap a face to assign a sticker"
+    ko: "스티커를 할당하려면 얼굴을 탭하세요"
+    ja: "ステッカーを割り当てるには顔をタップしてください"
+  face_number:
+    en: "Face #%d"
+    ko: "얼굴 #%d"
+    ja: "顔 #%d"
+  sticker_with_name:
+    en: "Sticker: %@"
+    ko: "스티커: %@"
+    ja: "ステッカー：%@"
+  theme_with_value:
+    en: "Theme: %@"
+    ko: "테마: %@"
+    ja: "テーマ：%@"
+  date_with_value:
+    en: "Date: %@"
+    ko: "날짜: %@"
+    ja: "日付：%@"
+  close:
+    en: "Close"
+    ko: "닫기"
+    ja: "閉じる"
+  save:
+    en: "Save"
+    ko: "저장"
+    ja: "保存"
+  saving:
+    en: "Saving..."
+    ko: "저장 중..."
+    ja: "保存中..."
+  face_detection_list:
+    en: "Face Detection"
+    ko: "얼굴 감지"
+    ja: "顔検出"
+  faces_detected:
+    en: "%d face(s) detected"
+    ko: "%d개 얼굴 감지됨"
+    ja: "%d個の顔を検出"
+  face_detection_editor:
+    en: "Face Detection Editor"
+    ko: "얼굴 감지 편집기"
+    ja: "顔検出エディタ"
+  no_sticker_available:
+    en: "No sticker available"
+    ko: "스티커 없음"
+    ja: "ステッカーなし"
+  no_sticker_assigned:
+    en: "No sticker assigned"
+    ko: "스티커 할당 안됨"
+    ja: "ステッカーが割り当てられていません"
+  tap_face_to_assign_sticker:
+    en: "Tap a face to assign a sticker"
+    ko: "스티커를 할당하려면 얼굴을 탭하세요"
+    ja: "ステッカーを割り当てるには顔をタップしてください"
+  detect:
+    en: "Detect"
+    ko: "감지"
+    ja: "検出"
+  detect_all_faces:
+    en: "Detect All Faces"
+    ko: "모든 얼굴 감지"
+    ja: "すべての顔を検出"
+  face_effect:
+    en: "Face Effect"
+    ko: "얼굴 효과"
+    ja: "顔効果"
+  edit:
+    en: "Edit"
+    ko: "편집"
+    ja: "編集"
+  done:
+    en: "Done"
+    ko: "완료"
+    ja: "完了"
 
 settings:
   version_info:
@@ -200,6 +604,238 @@ settings:
     en: "Directory for intermediate processing files"
     ko: "중간 처리 파일을 위한 디렉토리"
     ja: "中間処理ファイル用のディレクトリ"
+  face_detection:
+    en: "Face Detection"
+    ko: "얼굴 감지"
+    ja: "顔検出"
+  detection_speed:
+    en: "Detection Speed"
+    ko: "감지 속도"
+    ja: "検出速度"
+  detection_speed_footer:
+    en: "Higher speed settings detect faces faster but may miss smaller or partially obscured faces. Normal mode is recommended for most use cases."
+    ko: "더 높은 속도 설정은 얼굴을 더 빠르게 감지하지만 작은 얼굴이나 부분적으로 가려진 얼굴을 놓칠 수 있습니다. 대부분의 경우 일반 모드를 권장합니다."
+    ja: "より高い速度設定は顔をより速く検出しますが、小さな顔や部分的に隠れた顔を見逃す可能性があります。ほとんどのケースで標準モードを推奨します。"
+  sticker_size:
+    en: "Sticker Size"
+    ko: "스티커 크기"
+    ja: "ステッカーのサイズ"
+  sticker_size_hint:
+    en: "Size of sticker relative to face detection area. Aspect ratio is always preserved."
+    ko: "얼굴 감지 영역에 상대적인 스티커 크기. 가로세로 비율은 항상 유지됩니다."
+    ja: "顔検出領域に対するステッカーのサイズ。縦横比は常に維持されます。"
+  offset_x:
+    en: "Offset X"
+    ko: "오프셋 X"
+    ja: "オフセットX"
+  offset_x_hint:
+    en: "Horizontal offset as percentage of sticker size (negative = left, positive = right)"
+    ko: "스티커 크기의 백분율로 수평 오프셋 (음수 = 왼쪽, 양수 = 오른쪽)"
+    ja: "ステッカーサイズのパーセンテージによる水平オフセット（負数＝左、正数＝右）"
+  offset_y:
+    en: "Offset Y"
+    ko: "오프셋 Y"
+    ja: "オフセットY"
+  offset_y_hint:
+    en: "Vertical offset as percentage of sticker size (negative = up, positive = down)"
+    ko: "스티커 크기의 백분율로 수직 오프셋 (음수 = 위, 양수 = 아래)"
+    ja: "ステッカーサイズのパーセンテージによる垂直オフセット（負数＝上、正数＝下）"
+  sticker_settings_footer:
+    en: "Adjust sticker placement and size. These settings apply to all stickers when exporting images."
+    ko: "스티커 위치와 크기를 조정합니다. 이 설정들은 이미지 내보내기 시 모든 스티커에 적용됩니다."
+    ja: "ステッカーの配置とサイズを調整します。これらの設定は画像のエクスポート時にすべてのステッカーに適用されます。"
+  default_face_effect:
+    en: "Default Face Effect"
+    ko: "기본 얼굴 효과"
+    ja: "デフォルトの顔効果"
+  mosaic_block_size:
+    en: "Mosaic Block Size"
+    ko: "모자이크 블록 크기"
+    ja: "モザイクブロックサイズ"
+  mosaic_block_size_hint:
+    en: "Larger blocks provide more privacy but less detail"
+    ko: "더 큰 블록은 더 많은 프라이버시를 제공하지만 디테일이 적습니다"
+    ja: "より大きなブロックはより高いプライバシーを提供しますが、ディテールは少なくなります"
+  stroke_thickness:
+    en: "Stroke Thickness"
+    ko: "스트로크 두께"
+    ja: "ストロークの太さ"
+  stroke_thickness_hint:
+    en: "Border thickness around detected faces"
+    ko: "감지된 얼굴 주변의 테두리 두께"
+    ja: "検出された顔の周囲の枠線の太さ"
+  mosaic_stroke_hint:
+    en: "Combines mosaic blur with colored border"
+    ko: "모자이크 블러와 색상 테두리 결합"
+    ja: "モザイクぼかしと色付き枠線を組み合わせます"
+  no_stickers_available:
+    en: "No stickers available. Add stickers in Sticker Storage below."
+    ko: "사용 가능한 스티커가 없습니다. 아래의 스티커 저장소에서 스티커를 추가하세요."
+    ja: "使用可能なステッカーがありません。下のステッカー保存庫でステッカーを追加してください。"
+  default_sticker:
+    en: "Default Sticker"
+    ko: "기본 스티커"
+    ja: "デフォルトステッカー"
+  default_sticker_hint:
+    en: "This sticker will be applied to all detected faces unless manually changed per-face"
+    ko: "이 스티커는 얼굴별로 수동으로 변경하지 않는 한 모든 감지된 얼굴에 적용됩니다"
+    ja: "このステッカーは、顔ごとに手動で変更しない限り、検出されたすべての顔に適用されます"
+  face_effects_footer:
+    en: "Choose default effect applied to detected faces when exporting images."
+    ko: "이미지 내보내기 시 감지된 얼굴에 적용할 기본 효과를 선택하세요."
+    ja: "画像のエクスポート時に検出された顔に適用するデフォルトの効果を選択します。"
+  save_format:
+    en: "Save Format"
+    ko: "저장 형식"
+    ja: "保存形式"
+  jpeg_quality:
+    en: "JPEG Quality"
+    ko: "JPEG 품질"
+    ja: "JPEG品質"
+  webp_quality:
+    en: "WebP Quality"
+    ko: "WebP 품질"
+    ja: "WebP品質"
+  quality_maximum:
+    en: "Maximum quality (largest file size)"
+    ko: "최고 품질 (가장 큰 파일 크기)"
+    ja: "最高品質（最大ファイルサイズ）"
+  quality_high:
+    en: "High quality"
+    ko: "높은 품질"
+    ja: "高品質"
+  quality_good:
+    en: "Good quality"
+    ko: "좋은 품질"
+    ja: "良好な品質"
+  quality_medium:
+    en: "Medium quality"
+    ko: "중간 품질"
+    ja: "中品質"
+  quality_low:
+    en: "Low quality (smallest file size)"
+    ko: "낮은 품질 (가장 작은 파일 크기)"
+    ja: "低品質（最小ファイルサイズ）"
+  image_export_footer:
+    en: "Choose format for saving images to your photo library."
+    ko: "포토 라이브러리에 저장할 이미지 형식을 선택하세요."
+    ja: "写真ライブラリに保存する画像の形式を選択します。"
+  scale_mode:
+    en: "Scale Mode"
+    ko: "스케일 모드"
+    ja: "スケールモード"
+  scale_mode_divide:
+    en: "Divide by"
+    ko: "나누기"
+    ja: "割る"
+  scale_mode_divide_hint:
+    en: "Divides both width and height by this value"
+    ko: "너비와 높이를 이 값으로 나눕니다"
+    ja: "幅と高さをこの値で割ります"
+  scale_mode_width:
+    en: "Width"
+    ko: "너비"
+    ja: "幅"
+  scale_mode_height:
+    en: "Height"
+    ko: "높이"
+    ja: "高さ"
+  scale_mode_resize_crop:
+    en: "Resize and crop to exact dimensions"
+    ko: "정확한 크기로 크기 조정 및 자르기"
+    ja: "正確な寸法にリサイズして切り抜き"
+  scale_mode_max_width_hint:
+    en: "Resize to target width, maintaining aspect ratio"
+    ko: "가로세로 비율 유지하며 목표 너비로 크기 조정"
+    ja: "縦横比を維持して目標幅にリサイズ"
+  scale_mode_max_height_hint:
+    en: "Resize to target height, maintaining aspect ratio"
+    ko: "가로세로 비율 유지하며 목표 높이로 크기 조정"
+    ja: "縦横比を維持して目標高さにリサイズ"
+  scale_mode_longside_hint:
+    en: "Resize longest side to target length, maintaining aspect ratio"
+    ko: "가로세로 비율 유지하며 가장 긴 쪽을 목표 길이로 크기 조정"
+    ja: "縦横比を維持して最長辺を目標の長さにリサイズ"
+  scale_mode_near_common_width_hint:
+    en: "Resize to nearest width that preserves original aspect ratio"
+    ko: "원래 가로세로 비율을 보존하는 가장 가까운 너비로 크기 조정"
+    ja: "元の縦横比を保持する最も近い幅にリサイズ"
+  scale_mode_near_common_height_hint:
+    en: "Resize to nearest height that preserves original aspect ratio"
+    ko: "원래 가로세로 비율을 보존하는 가장 가까운 높이로 크기 조정"
+    ja: "元の縦横比を保持する最も近い高さにリサイズ"
+  scale_mode_target_width:
+    en: "Target Width"
+    ko: "목표 너비"
+    ja: "目標幅"
+  scale_mode_target_height:
+    en: "Target Height"
+    ko: "목표 높이"
+    ja: "目標高さ"
+  image_scale_footer:
+    en: "Resize images before saving. \"Near Common\" options preserve aspect ratio by finding nearest multiple of original's greatest common divisor."
+    ko: "저장 전에 이미지 크기를 조정합니다. \"Near Common\" 옵션은 원래 최대공약수의 가장 가까운 배수를 찾아 가로세로 비율을 유지합니다."
+    ja: "保存前に画像サイズを変更します。「Near Common」オプションは元の最大公約数の最も近い倍数を見つけて縦横比を維持します。"
+  no_stickers_yet:
+    en: "No Stickers Yet"
+    ko: "아직 스티커가 없습니다"
+    ja: "まだステッカーがありません"
+  add_stickers_hint:
+    en: "Add stickers to apply to detected faces"
+    ko: "감지된 얼굴에 적용할 스티커를 추가하세요"
+    ja: "検出された顔に適用するステッカーを追加してください"
+  add_sticker:
+    en: "Add Sticker"
+    ko: "스티커 추가"
+    ja: "ステッカーを追加"
+  sticker_added:
+    en: "Added:"
+    ko: "추가됨:"
+    ja: "追加済み："
+  sticker_storage_footer:
+    en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results."
+    ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요."
+    ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。"
+  reset_all_theme_parameters:
+    en: "Reset All Theme Parameters"
+    ko: "모든 테마 파라미터 초기화"
+    ja: "すべてのテーマパラメータをリセット"
+  about_and_reset_footer:
+    en: "Reset all theme parameters to their default values. This cannot be undone."
+    ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
+    ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+  scale_mode_none:
+    en: "None"
+    ko: "없음"
+    ja: "なし"
+  scale_mode_max_width:
+    en: "Max Width"
+    ko: "최대 너비"
+    ja: "最大幅"
+  scale_mode_max_height:
+    en: "Max Height"
+    ko: "최대 높이"
+    ja: "最大高さ"
+  scale_mode_longside:
+    en: "Longside"
+    ko: "긴 쪽"
+    ja: "長辺"
+  scale_mode_divide_label:
+    en: "Divide"
+    ko: "나누기"
+    ja: "割る"
+  scale_mode_near_common_width:
+    en: "Near Common (Width)"
+    ko: "Near Common (너비)"
+    ja: "Near Common（幅）"
+  scale_mode_near_common_height:
+    en: "Near Common (Height)"
+    ko: "Near Common (높이)"
+    ja: "Near Common（高さ）"
+  scale_mode_resize_crop:
+    en: "Resize and Crop"
+    ko: "크기 조정 및 자르기"
+    ja: "リサイズして切り抜き"
 
 laboratory:
   heading:
@@ -313,3 +949,21 @@ update:
     en: "Failed to read new version info."
     ko: "새 버전 정보를 읽지 못했습니다."
     ja: "新しいバージョン情報を読み取れませんでした。"
+
+fonts:
+  font_type:
+    en: "Font Type"
+    ko: "폰트 유형"
+    ja: "フォントタイプ"
+  font:
+    en: "Font"
+    ko: "폰트"
+    ja: "フォント"
+  weight:
+    en: "Weight"
+    ko: "글꼴 굵기"
+    ja: "太さ"
+  select_font:
+    en: "Select Font"
+    ko: "폰트 선택"
+    ja: "フォントを選択"

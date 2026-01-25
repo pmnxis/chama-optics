@@ -143,22 +143,42 @@ theme:
         en: "Arranges the four text items so they maintain an even spacing across the width."
         ko: "4개의 텍스트들이 일정한 간격을 가지고 너비를 가질 수 있도록 배치합니다."
         ja: "4つのテキストが一定の間隔を保ちながら横幅に配置されます。"
+
     exif_bottom_0:
       en: "Text 0"
       ko: "텍스트0"
       ja: "テキスト0"
+      font:
+        en: "Text 0 Font"
+        ko: "텍스트0 폰트"
+        ja: "テキスト0 フォント"
+
     exif_bottom_1:
       en: "Text 1"
       ko: "텍스트1"
       ja: "テキスト1"
+      font:
+        en: "Text 1 Font"
+        ko: "텍스트1 폰트"
+        ja: "テキスト1 フォント"
+
     exif_bottom_2:
       en: "Text 2"
       ko: "텍스트2"
       ja: "テキスト2"
+      font:
+        en: "Text 2 Font"
+        ko: "텍스트2 폰트"
+        ja: "テキスト2 フォント"
+
     exif_bottom_3:
       en: "Text 3"
       ko: "텍스트3"
       ja: "テキスト3"
+      font:
+        en: "Text 3 Font"
+        ko: "텍스트3 폰트"
+        ja: "テキスト3 フォント"
 
   font_height_ratio:
     first:
@@ -184,50 +204,131 @@ theme:
       ko: "라이트룸"
       ja: "ライトルーム"
 
+  #GLOBAL Translation
   font_color:
     en: "Font color"
     ko: "폰트 색상"
     ja: "フォントカラー"
+
   exif_left_top:
     en: "Top Left"
     ko: "좌상단"
     ja: "左上"
+    font:
+      en: "Top Left Font"
+      ko: "좌상단 폰트"
+      ja: "左上 フォント"
+
   exif_right_top:
     en: "Top Right"
     ko: "우상단"
     ja: "右上"
+    font:
+      en: "Top Right Font"
+      ko: "우상단 폰트"
+      ja: "右上 フォント"
+
   exif_left_bot:
     en: "Bottom Left"
     ko: "좌하단"
     ja: "左下"
+    font:
+      en: "Bottom Left Font"
+      ko: "좌하단 폰트"
+      ja: "左下 フォント"
+
   exif_right_bot:
     en: "Bottom Right"
     ko: "우하단"
     ja: "右下"
+    font:
+      en: "Bottom Right Font"
+      ko: "우하단 폰트"
+      ja: "右下 フォント"
+
   exif_center_bot:
     en: "Bottom Center"
     ko: "하단 중앙"
     ja: "下中央"
+    font:
+      en: "Bottom Center Font"
+      ko: "하단 중앙 폰트"
+      ja: "下中央 フォント"
+
   exif_center_top:
     en: "Top Center"
     ko: "상단 중앙"
     ja: "上中央"
+    font:
+      en: "Top Center Font"
+      ko: "상단 중앙 폰트"
+      ja: "上中央 フォント"
+
   logo_height:
     en: "Logo height"
     ko: "로고 높이"
     ja: "ロゴの高さ"
+    font:
+      en: "Logo Height Font"
+      ko: "로고 높이 폰트"
+      ja: "ロゴの高さ フォント"
+
   bottom1:
     en: "First Bottom"
     ko: "첫번째 하단"
     ja: "下段 1"
+    font:
+      en: "First Bottom Font"
+      ko: "첫번째 하단 폰트"
+      ja: "下段 1 フォント"
+
   bottom2:
     en: "Second Bottom"
     ko: "두번째 하단"
     ja: "下段 2"
+    font:
+      en: "Second Bottom Font"
+      ko: "두번째 하단 폰트"
+      ja: "下段 2 フォント"
+
   bottom3:
     en: "Third Bottom"
     ko: "세번째 하단"
     ja: "下段 3"
+    font:
+      en: "Third Bottom Font"
+      ko: "세번째 하단 폰트"
+      ja: "下段 3 フォント"
+  
+  border:
+    en: "Border"
+    ko: "테두리"
+    ja: "枠線"
+    color:
+      en: "Border Color"
+      ko: "테두리 색상"
+      ja: "枠線の色"
+    left:
+      en: "Left Border"
+      ko: "왼쪽 테두리"
+      ja: "左枠線"
+    right:
+      en: "Right Border"
+      ko: "오른쪽 테두리"
+      ja: "右枠線"
+    top:
+      en: "Top Border"
+      ko: "위쪽 테두리"
+      ja: "上枠線"
+    bottom:
+      en: "Bottom Border"
+      ko: "아래쪽 테두리"
+      ja: "下枠線"
+  
+  glow_color:
+    en: "Glow Effect Color"
+    ko: "글로우 효과 색상"  
+    ja: "グロー効果カラー"
 
   template_format_hint:
     title:

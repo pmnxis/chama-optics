@@ -150,10 +150,19 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     let side_label_key = format!("{}.{}", base_label_key, side);
                     let side_field = syn::Ident::new(side, field_name.span());
 
+                    let side_label_expr = quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#side_label_key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#side_label_key) }
+                        }
+                    };
+
                     schema_params.push(quote! {
                         crate::param_slider!(
                             #side_key,
-                            rust_i18n::t!(#side_label_key),
+                            #side_label_expr,
                             #default_limit_ident.#side_field.0 as f64,
                             #default_limit_ident.#side_field.1 as f64,
                             #default_border_ident.#side_field,
@@ -170,11 +179,19 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let color_key = format!("{}.color", param_key);
                 let color_label_key = format!("{}.color", base_label_key);
                 let color_field = syn::Ident::new("color", field_name.span());
+                let color_label_expr = quote! {
+                    {
+                        #[cfg(feature = "ios_integration")]
+                        { std::borrow::Cow::Borrowed(#color_label_key) }
+                        #[cfg(not(feature = "ios_integration"))]
+                        { rust_i18n::t!(#color_label_key) }
+                    }
+                };
 
                 schema_params.push(quote! {
                     crate::param_color!(
                         #color_key,
-                        rust_i18n::t!(#color_label_key),
+                        #color_label_expr,
                         #default_border_ident.#color_field,
                         #field_access.#color_field
                     )
@@ -205,9 +222,16 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     quote! { #def_str }
                 };
 
-                // Use label_key to generate t!() or use literal label
+                // Use label_key: iOS returns raw key for SwiftUI, desktop returns t!() result
                 let label_expr = if let Some(ref key) = label_key {
-                    quote! { rust_i18n::t!(#key) }
+                    quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#key) }
+                        }
+                    }
                 } else {
                     quote! { #label }
                 };
@@ -319,9 +343,16 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     }
                 };
 
-                // Use label_key to generate t!() or use literal label
+                // Use label_key: iOS returns raw key for SwiftUI, desktop returns t!() result
                 let label_expr = if let Some(ref key) = label_key {
-                    quote! { rust_i18n::t!(#key) }
+                    quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#key) }
+                        }
+                    }
                 } else {
                     quote! { #label }
                 };
@@ -345,9 +376,16 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 });
             }
             "text" => {
-                // Use label_key to generate t!() or use literal label
+                // Use label_key: iOS returns raw key for SwiftUI, desktop returns t!() result
                 let label_expr = if let Some(ref key) = label_key {
-                    quote! { rust_i18n::t!(#key) }
+                    quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#key) }
+                        }
+                    }
                 } else {
                     quote! { #label }
                 };
@@ -377,6 +415,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 // For text fields, we need to access .text subfield
                 let text_field_access = quote! { #field_access.text };
 
+                // Use Rust label for param_text (expects Cow<'static, str>)
                 schema_params.push(quote! {
                     crate::param_text!(
                         #param_key,
@@ -396,7 +435,14 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let font_param_key = format!("{}.font", param_key);
                 let font_label_expr = if let Some(ref key) = label_key {
                     let font_key = format!("{}.font", key);
-                    quote! { rust_i18n::t!(#font_key) }
+                    quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#font_key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#font_key) }
+                        }
+                    }
                 } else {
                     let font_label = format!("{} Font", label);
                     quote! { #font_label }
@@ -423,7 +469,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 // Store key and field access for direct update code generation
                 ios_font_updates.push((font_param_key, font_field_access));
 
-                // Generate UI for text - use VariableTextSlot::ui() method
+                // Generate UI for text - use VariableTextSlot::ui() method with Rust label
                 let default_ident_name = default_const.clone().unwrap_or(default.clone());
                 let default_ident = syn::Ident::new(&default_ident_name, field_name.span());
                 ui_code.push(quote! {
@@ -432,9 +478,16 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 });
             }
             "font" => {
-                // Use label_key to generate t!() or use literal label
+                // Use label_key: iOS returns raw key for SwiftUI, desktop returns t!() result
                 let label_expr = if let Some(ref key) = label_key {
-                    quote! { rust_i18n::t!(#key) }
+                    quote! {
+                        {
+                            #[cfg(feature = "ios_integration")]
+                            { std::borrow::Cow::Borrowed(#key) }
+                            #[cfg(not(feature = "ios_integration"))]
+                            { rust_i18n::t!(#key) }
+                        }
+                    }
                 } else {
                     quote! { #label }
                 };
@@ -461,6 +514,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     quote! { #default }
                 };
 
+                // Use Rust label for param_font (expects Cow<'static, str>)
                 schema_params.push(quote! {
                     crate::param_font!(
                         #param_key,

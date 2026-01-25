@@ -1,0 +1,107 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+theme_ffi:
+  # General theme settings
+  selector:
+    en: "Theme"
+    ko: "테마"
+    ja: "テーマ"
+  settings:
+    en: "Detail theme settings"
+    ko: "상세 테마 설정"
+    ja: "テーマの詳細設定"
+  
+  # Font settings
+  font_size:
+    en: "Font size"
+    ko: "폰트 사이즈"
+    ja: "フォントサイズ"
+  font_color:
+    en: "Font color"
+    ko: "폰트 색상"
+    ja: "フォントカラー"
+  font_height_ratio:
+    en: "Font height ratio"
+    ko: "폰트 높이 비율"
+    ja: "フォント高さ比率"
+  
+  # Border settings
+  border:
+    en: "Border"
+    ko: "테두리"
+    ja: "枠線"
+  border_color:
+    en: "Border color"
+    ko: "테두리 색상"
+    ja: "枠線カラー"
+  border_thickness:
+    en: "Border thickness"
+    ko: "테두리 두께"
+    ja: "枠線の太さ"
+  
+  # Logo settings
+  logo:
+    en: "Logo"
+    ko: "로고"
+    ja: "ロゴ"
+  logo_height:
+    en: "Logo height"
+    ko: "로고 높이"
+    ja: "ロゴの高さ"
+  
+  # EXIF information
+  exif:
+    en: "EXIF Information"
+    ko: "EXIF 정보"
+    ja: "EXIF情報"
+  # Position settings
+  position:
+    en: "Position"
+    ko: "위치"
+    ja: "位置"
+  top_left:
+    en: "Top Left"
+    ko: "좌상단"
+    ja: "左上"
+  top_right:
+    en: "Top Right"
+    ko: "우상단"
+    ja: "右上"
+  top_center:
+    en: "Top Center"
+    ko: "상단 중앙"
+    ja: "上中央"
+  bottom_left:
+    en: "Bottom Left"
+    ko: "좌하단"
+    ja: "左下"
+  bottom_right:
+    en: "Bottom Right"
+    ko: "우하단"
+    ja: "右下"
+  bottom_center:
+    en: "Bottom Center"
+    ko: "하단 중앙"
+    ja: "下中央"
+  
+  # Other settings
+  glow:
+    en: "Glow effect"
+    ko: "글로우 효과"
+    ja: "グロー効果"
+  glow_range:
+    en: "Glow range"
+    ko: "글로우 범위"
+    ja: "グロー範囲"
+  show_logo:
+    en: "Show logo"
+    ko: "로고 표시"
+    ja: "ロゴを表示"
+  show_exif:
+    en: "Show EXIF"
+    ko: "EXIF 표시"
+    ja: "EXIFを表示"

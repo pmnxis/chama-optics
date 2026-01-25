@@ -13,7 +13,7 @@ env:
 jobs:
   release_job:
     name: Create release
-    runs-on: macos-latest
+    runs-on: macos-15
     if: startsWith(github.ref, 'refs/tags/v')
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -43,7 +43,7 @@ jobs:
 
   check:
     name: Check
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Restore logo assets cache
@@ -80,7 +80,7 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Restore logo assets cache
@@ -153,7 +153,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - name: Restore logo assets cache
@@ -196,10 +196,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-        - os: macos-latest
+        - os: macos-15
           TARGET: aarch64-apple-darwin
 
-        # - os: macos-latest
+        # - os: macos-15
         #   TARGET: x86_64-apple-darwin
 
         # - os: ubuntu-24.04
@@ -230,14 +230,14 @@ jobs:
     # macOS
     - name: Install cargo bundle
       run: cargo install cargo-bundle
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
 
     - name: Install cargo universal2
       run: cargo install universal2
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
 
     - name: Install libheif dependencies (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
       run: |
         brew update
         brew install libheif x265 libde265 pkg-config
@@ -260,11 +260,11 @@ jobs:
 
     # macOS
     - name: Install cargo bundle
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
       run: ./build_mac.sh
 
     - name: Sign macOS App
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-15'
       env:
         CERT_KEY_B64: ${{ secrets.CERT_KEY_B64 }}
         CERT_CRT_B64: ${{ secrets.CERT_CRT_B64 }}
@@ -272,12 +272,12 @@ jobs:
       run: bash ./codesign_mac.sh
 
     - name: Zip Mac Silicon Bundle
-      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
       run: mv target/release/bundle/osx/Chama\ Optics.app . && zip -r chama_optics_macos_apple_silicon.zip Chama\ Optics.app
 
     # From here only works when there's tag starting with `v`
     - name: Upload Mac Release
-      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-latest'
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15'
       id: upload-release-asset-mac
       uses: actions/upload-release-asset@v1
       env:

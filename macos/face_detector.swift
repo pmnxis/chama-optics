@@ -137,7 +137,7 @@ struct FaceDetector {
                         "x": xi,
                         "y": yi,
                         "width": wi,
-                        "height": hi
+                        "height": hi,
                     ]
 
                     faceResults.append(faceRect)
@@ -163,7 +163,8 @@ struct FaceDetector {
 // Read input JSON
 if let data = readLine(), let jsonData = data.data(using: .utf8),
    let input = try? JSONSerialization.jsonObject(with: jsonData) as? [String: String],
-   let imagePath = input["image_path"] {
+   let imagePath = input["image_path"]
+{
     let detector = FaceDetector()
     let faces = detector.detectFaces(in: imagePath)
 
