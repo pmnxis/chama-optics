@@ -8,52 +8,46 @@ rust_i18n::i18n!("locales");
 
 // Conditional compilation based on features
 // GUI modules available for both desktop and web
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 mod app;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 mod app_state;
-#[cfg(any(feature = "desktop", feature = "web"))]
+
+#[cfg(not(feature = "ios_integration"))]
 mod tabs;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 mod ui_components;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 mod ui_state;
 
 // Support modules for desktop, web, and iOS
 // GUI-only modules
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub mod export_config;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) mod import_config;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) use export_config::scale_config;
 
 // Modules needed by iOS FFI
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) mod fonts;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) mod langs;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) use art::ART_UNIFY;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) use fonts::FONTS_UNIFY;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 
 // Image module - shared between all platforms
 pub(crate) mod image;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub(crate) use image::{exif_impl, packed_image};
 
 // Art module - needed by iOS FFI
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub mod art;
 
 // Effect modules - available for desktop, web, and iOS integration
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub mod effect;
 
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub(crate) mod image_group;
 
 #[cfg(feature = "desktop")]
@@ -62,11 +56,10 @@ pub mod test_helper;
 mod util;
 
 // Theme module - needed by iOS FFI
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub mod theme;
 
 // Mobile UI optimizations (GUI-only)
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub mod mobile;
 
 // Headless core library (no GUI dependencies)
@@ -87,11 +80,11 @@ pub mod ffi_metal;
 ))]
 pub mod metal_renderer;
 
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub use app::ChamaOptics;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub use app_state::AppState;
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(not(feature = "ios_integration"))]
 pub use ui_state::UiState;
 
 #[macro_use]

@@ -28,6 +28,7 @@ impl Theme for Nothing {
         pi.with_scale_and_orientation(*scale_config)
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     fn ui_config(&mut self, _ui: &mut egui::Ui) {
         // nothing, because `is_ui_config_available(&self) is false`
     }

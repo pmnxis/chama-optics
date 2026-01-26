@@ -14,7 +14,7 @@ use std::path::PathBuf;
 
 use crate::core::ImageProcessor;
 
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(feature = "desktop")]
 use crate::core::ThemeType;
 
 /// C-compatible theme metadata
@@ -217,7 +217,7 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
 /// Opaque pointer to ChamaOptics instance (now using headless core)
 pub struct ChamaOpticsHandle {
     processor: ImageProcessor,
-    #[cfg(any(feature = "desktop", feature = "web"))]
+    #[cfg(feature = "desktop")]
     theme_registry: crate::theme::ThemeRegistry,
 }
 
@@ -225,14 +225,14 @@ pub struct ChamaOpticsHandle {
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_create() -> *mut ChamaOpticsHandle {
     log::info!("Creating ChamaOptics instance");
-    #[cfg(any(feature = "desktop", feature = "web"))]
+    #[cfg(feature = "desktop")]
     {
         Box::into_raw(Box::new(ChamaOpticsHandle {
             processor: ImageProcessor::new(),
             theme_registry: crate::theme::ThemeRegistry::new(),
         }))
     }
-    #[cfg(not(any(feature = "desktop", feature = "web")))]
+    #[cfg(not(feature = "desktop"))]
     {
         Box::into_raw(Box::new(ChamaOpticsHandle {
             processor: ImageProcessor::new(),
@@ -338,7 +338,7 @@ mod face_detection_ffi {
         border_color_a: u8,
         border_thickness: u32,
         mask_faces: bool,
-        mask_blur_radius: f32,
+        _mask_blur_radius: f32,
         _speed_mode: u32, // 0 = Fastest, 1 = Fast, 2 = Normal, 3 = Slow, 4 = Slowest
     ) -> bool {
         if handle.is_null() || image_path.is_null() || output_path.is_null() {
@@ -923,7 +923,7 @@ pub extern "C" fn chama_optics_apply_sticker_from_path(
 }
 
 // Theme-related C FFI functions (requires desktop or web features)
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(feature = "desktop")]
 mod theme_ffi {
     use super::*;
 

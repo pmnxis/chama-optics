@@ -5,11 +5,14 @@
  */
 
 use crate::theme::Theme;
+#[cfg(not(feature = "ios_integration"))]
 use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
+#[cfg(not(feature = "ios_integration"))]
 use rust_i18n::t;
 
+#[cfg(not(feature = "ios_integration"))]
 #[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmGlow {
     pub font: crate::FontSelection,
@@ -41,11 +44,25 @@ pub struct FilmGlow {
     pub show_ps: bool,
 }
 
+#[cfg(feature = "ios_integration")]
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct FilmGlow {
+    pub font_file: String,
+    pub font_color: egui::Color32,
+    pub glow_color: egui::Color32,
+    pub font_size: u32,
+    pub glow_gain: u32,
+    pub show_ps: bool,
+}
+
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
 const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
+#[cfg(feature = "ios_integration")]
+const DEFAULT_FONT_FILE: &str = "digital-7.ttf";
 
+#[cfg(not(feature = "ios_integration"))]
 impl core::default::Default for FilmGlow {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -58,6 +75,40 @@ impl core::default::Default for FilmGlow {
             glow_gain: DEFAULT_GLOW_GAIN,
             show_ps: false,
         }
+    }
+}
+
+#[cfg(feature = "ios_integration")]
+impl core::default::Default for FilmGlow {
+    fn default() -> Self {
+        let [r, g, b, a] = FILM_COLOR.data();
+        let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
+        Self {
+            font_file: DEFAULT_FONT_FILE.to_string(),
+            font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+            glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
+            font_size: DEFAULT_FONT_SIZE,
+            glow_gain: DEFAULT_GLOW_GAIN,
+            show_ps: false,
+        }
+    }
+}
+
+#[cfg(feature = "ios_integration")]
+impl crate::theme::parameter_schema::ThemeParameters for FilmGlow {
+    fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
+        crate::theme::parameter_schema::ThemeSchema {
+            theme_name: "film_glow".to_string(),
+            theme_label: "Film Glow".to_string(),
+            parameters: vec![],
+        }
+    }
+
+    fn update_from_json(
+        &mut self,
+        _updates: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(), String> {
+        Ok(())
     }
 }
 
@@ -79,13 +130,42 @@ impl FilmGlow {
     }
 }
 
+#[cfg(feature = "ios_integration")]
+impl FilmGlow {
+    fn load_font(&self) -> Result<ab_glyph::FontArc, image::ImageError> {
+        use crate::effect::variable_text::get_fonts_base_directory;
+        let base_dir = get_fonts_base_directory();
+        let full_path = if base_dir.is_empty() {
+            std::path::PathBuf::from(&self.font_file)
+        } else {
+            std::path::PathBuf::from(&base_dir).join(&self.font_file)
+        };
+        let data = std::fs::read(&full_path).map_err(|e| {
+            image::ImageError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, e))
+        })?;
+        ab_glyph::FontArc::try_from_vec(data).map_err(|_| {
+            image::ImageError::IoError(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Failed to parse font",
+            ))
+        })
+    }
+}
+
 impl Theme for FilmGlow {
     fn unique_name(&self) -> &'static str {
         "film_glow"
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        t!("theme.film_glow")
+        #[cfg(not(feature = "ios_integration"))]
+        {
+            t!("theme.film_glow")
+        }
+        #[cfg(feature = "ios_integration")]
+        {
+            std::borrow::Cow::Borrowed("Film Glow")
+        }
     }
 
     fn apply_to_image(
@@ -101,7 +181,11 @@ impl Theme for FilmGlow {
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
+
+        #[cfg(not(feature = "ios_integration"))]
         let font = crate::FONTS_UNIFY.search(&self.font)?;
+        #[cfg(feature = "ios_integration")]
+        let font = self.load_font()?;
 
         #[rustfmt::skip]
         macro_rules! draw {
@@ -220,6 +304,7 @@ impl Theme for FilmGlow {
         export_config.save_image(&mut themed_image, Some(margin), output_path)
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 
@@ -241,6 +326,13 @@ impl Theme for FilmGlow {
     }
 
     fn get_parameters_json(&self) -> String {
-        self.auto_get_parameters_json()
+        #[cfg(not(feature = "ios_integration"))]
+        {
+            self.auto_get_parameters_json()
+        }
+        #[cfg(feature = "ios_integration")]
+        {
+            r#"{"parameters": []}"#.to_string()
+        }
     }
 }

@@ -5,9 +5,12 @@
  */
 
 use crate::fonts::variable_font::*;
-use egui::{self, Align, TextEdit, Ui};
-use rust_i18n::t;
+
+#[cfg(not(feature = "ios_integration"))]
 use std::borrow::Cow;
+
+#[cfg(not(feature = "ios_integration"))]
+use egui::{self, Align, TextEdit, Ui};
 
 // Global fonts base directory for iOS (set via FFI)
 #[cfg(feature = "ios_integration")]
@@ -30,6 +33,7 @@ pub fn get_fonts_base_directory() -> String {
 }
 
 /// Available EXIF fields for autocomplete
+#[cfg(not(feature = "ios_integration"))]
 pub const EXIF_FIELDS: &[ExifField] = &[
     ExifField {
         name: "camera_mnf",
@@ -91,29 +95,37 @@ pub const EXIF_FIELDS: &[ExifField] = &[
 ];
 
 #[derive(Clone)]
+#[allow(dead_code)] // there's possibility use again in iOS
 pub struct ExifField {
     pub name: &'static str,
     pub description: &'static str,
     pub example: &'static str,
 }
 
+// Until iOS FFI support autocomplete, it's exclusive
 /// Simple variable text for filename patterns (without font information)
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
+#[cfg(not(feature = "ios_integration"))]
 pub struct VariableText {
     pub text: String,
     #[serde(skip)]
+    #[cfg(not(feature = "ios_integration"))]
     autocomplete_state: AutocompleteState,
 }
 
+// Until iOS FFI support autocomplete, it's exclusive
+#[cfg(not(feature = "ios_integration"))]
 impl VariableText {
     pub fn new() -> Self {
         Self {
             text: String::new(),
+            #[cfg(not(feature = "ios_integration"))]
             autocomplete_state: AutocompleteState::new(),
         }
     }
 
     /// Render a text edit with autocomplete functionality
+    #[cfg(not(feature = "ios_integration"))]
     pub fn render_text_edit_with_autocomplete(
         &mut self,
         ui: &mut egui::Ui,
@@ -130,6 +142,8 @@ impl VariableText {
     }
 }
 
+// Until iOS FFI support autocomplete, it's exclusive
+#[cfg(not(feature = "ios_integration"))]
 impl Default for VariableText {
     fn default() -> Self {
         Self::new()
@@ -137,6 +151,7 @@ impl Default for VariableText {
 }
 
 /// Autocomplete state for variable text input
+#[cfg(not(feature = "ios_integration"))]
 #[derive(Default, Clone, Debug, PartialEq)]
 struct AutocompleteState {
     /// Whether autocomplete popup is visible
@@ -151,6 +166,7 @@ struct AutocompleteState {
     selected_index: usize,
 }
 
+#[cfg(not(feature = "ios_integration"))]
 impl AutocompleteState {
     fn new() -> Self {
         Self::default()
@@ -178,6 +194,7 @@ impl AutocompleteState {
     }
 
     /// Update autocomplete state based on text and cursor position
+    #[cfg(not(feature = "ios_integration"))]
     fn update_from_text(&mut self, text: &str, cursor_pos: usize) {
         self.cursor_pos = Some(cursor_pos);
 
@@ -259,6 +276,8 @@ impl AutocompleteState {
     }
 }
 
+// Desktop version with FontSelection support for system fonts
+#[cfg(not(feature = "ios_integration"))]
 #[rustfmt::skip]
 #[repr(usize)]
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq)]
@@ -267,43 +286,49 @@ pub enum VariableOrNot {
     Others(crate::fonts::font_unify::FontSelection),
 }
 
+// iOS version - only Variable variant since fonts are loaded from files
+#[cfg(feature = "ios_integration")]
+#[rustfmt::skip]
+#[repr(usize)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq)]
+pub enum VariableOrNot {
+    Variable(BuiltinVariableFontIndex),
+}
+
 impl std::default::Default for VariableOrNot {
     fn default() -> Self {
         Self::Variable(BuiltinVariableFontIndex::Barlow)
     }
 }
 
+// Desktop version - with system font selection support
+#[cfg(not(feature = "ios_integration"))]
 pub struct VariableTextSlotDefault {
     pub text: &'static str,
     pub weight: u16,
-    // variable index
     pub font_index: BuiltinVariableFontIndex,
-    // fixed index
     pub fixed_index: Option<crate::BuiltinFontIndex>,
     pub prefer_fixed: bool,
+}
 
-    /// Font filename (with extension) for iOS path construction
-    #[cfg(feature = "ios_integration")]
+// iOS version - fonts loaded from files
+#[cfg(feature = "ios_integration")]
+pub struct VariableTextSlotDefault {
+    pub text: &'static str,
+    pub weight: u16,
+    pub font_index: BuiltinVariableFontIndex,
     pub font_file: &'static str,
 }
 
 /// Default font filenames for different font types
 #[cfg(feature = "ios_integration")]
-#[allow(dead_code)] // todo- do I really need?
 pub const FONT_FILE_BARLOW: &str = "Barlow-Variable-Remapped.ttf";
 
 #[cfg(feature = "ios_integration")]
-#[allow(dead_code)] // todo- do I really need?
-pub const FONT_FILE_BARLOW_NARROW: &str = "Barlow-Variable-Remapped-Narrow.ttf";
-
-#[cfg(feature = "ios_integration")]
-#[allow(dead_code)] // todo- do I really need?
 pub const FONT_FILE_DIGITAL7: &str = "digital-7.ttf";
 
-#[cfg(feature = "ios_integration")]
-#[allow(dead_code)] // todo- do I really need?
-pub const FONT_FILE_D2CODING: &str = "D2Coding-Ver1.3.2-20180524-all.ttc";
-
+// Desktop implementation
+#[cfg(not(feature = "ios_integration"))]
 impl VariableTextSlotDefault {
     pub const fn with_barlow(default: &'static str) -> Self {
         Self {
@@ -312,8 +337,6 @@ impl VariableTextSlotDefault {
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
             prefer_fixed: false,
-            #[cfg(feature = "ios_integration")]
-            font_file: FONT_FILE_BARLOW,
         }
     }
 
@@ -324,7 +347,37 @@ impl VariableTextSlotDefault {
             font_index: BuiltinVariableFontIndex::Barlow,
             fixed_index: None,
             prefer_fixed: false,
-            #[cfg(feature = "ios_integration")]
+        }
+    }
+
+    pub const fn with_digital7(default: &'static str) -> Self {
+        Self {
+            text: default,
+            weight: 300,
+            font_index: BuiltinVariableFontIndex::Barlow,
+            fixed_index: Some(crate::BuiltinFontIndex::Digital7),
+            prefer_fixed: true,
+        }
+    }
+}
+
+// iOS implementation
+#[cfg(feature = "ios_integration")]
+impl VariableTextSlotDefault {
+    pub const fn with_barlow(default: &'static str) -> Self {
+        Self {
+            text: default,
+            weight: 300,
+            font_index: BuiltinVariableFontIndex::Barlow,
+            font_file: FONT_FILE_BARLOW,
+        }
+    }
+
+    pub const fn with_barlow_weight(default: &'static str, weight: u16) -> Self {
+        Self {
+            text: default,
+            weight,
+            font_index: BuiltinVariableFontIndex::Barlow,
             font_file: FONT_FILE_BARLOW,
         }
     }
@@ -333,10 +386,7 @@ impl VariableTextSlotDefault {
         Self {
             text: default,
             weight: 300,
-            font_index: BuiltinVariableFontIndex::Barlow, // don't need for default
-            fixed_index: Some(crate::BuiltinFontIndex::Digital7),
-            prefer_fixed: true, // will select fixed_index
-            #[cfg(feature = "ios_integration")]
+            font_index: BuiltinVariableFontIndex::Barlow,
             font_file: FONT_FILE_DIGITAL7,
         }
     }
@@ -359,6 +409,8 @@ impl VariableTextSlotDefault {
     // }
 }
 
+// Desktop version - supports both Variable and Others variants
+#[cfg(not(feature = "ios_integration"))]
 impl From<VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: VariableTextSlotDefault) -> Self {
         if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
@@ -366,8 +418,6 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
-                #[cfg(feature = "ios_integration")]
-                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         } else {
@@ -375,13 +425,29 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
-                #[cfg(feature = "ios_integration")]
-                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         }
     }
 }
+
+// iOS version - only Variable variant, fonts loaded from font_file
+#[cfg(feature = "ios_integration")]
+impl From<VariableTextSlotDefault> for VariableTextSlot {
+    fn from(value: VariableTextSlotDefault) -> Self {
+        Self {
+            text: value.text.into(),
+            weight: value.weight,
+            font_index: VariableOrNot::Variable(value.font_index),
+            font_file: value.font_file.to_string(),
+            #[cfg(not(feature = "ios_integration"))]
+            autocomplete_state: AutocompleteState::new(),
+        }
+    }
+}
+
+// Desktop version - supports both Variable and Others variants
+#[cfg(not(feature = "ios_integration"))]
 impl From<&VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: &VariableTextSlotDefault) -> Self {
         if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
@@ -389,8 +455,6 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Others(crate::FONTS_UNIFY.builtin_select(x)),
-                #[cfg(feature = "ios_integration")]
-                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
         } else {
@@ -398,10 +462,21 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
                 text: value.text.into(),
                 weight: value.weight,
                 font_index: VariableOrNot::Variable(value.font_index),
-                #[cfg(feature = "ios_integration")]
-                font_file: value.font_file.to_string(),
                 autocomplete_state: AutocompleteState::new(),
             }
+        }
+    }
+}
+
+// iOS version - only Variable variant, fonts loaded from font_file
+#[cfg(feature = "ios_integration")]
+impl From<&VariableTextSlotDefault> for VariableTextSlot {
+    fn from(value: &VariableTextSlotDefault) -> Self {
+        Self {
+            text: value.text.into(),
+            weight: value.weight,
+            font_index: VariableOrNot::Variable(value.font_index),
+            font_file: value.font_file.to_string(),
         }
     }
 }
@@ -417,6 +492,7 @@ pub struct VariableTextSlot {
     #[serde(default)]
     pub font_file: String,
     #[serde(skip)]
+    #[cfg(not(feature = "ios_integration"))]
     autocomplete_state: AutocompleteState,
 }
 
@@ -429,6 +505,7 @@ impl VariableTextSlot {
             font_index: VariableOrNot::default(),
             #[cfg(feature = "ios_integration")]
             font_file: FONT_FILE_BARLOW.to_string(),
+            #[cfg(not(feature = "ios_integration"))]
             autocomplete_state: AutocompleteState::new(),
         }
     }
@@ -560,12 +637,15 @@ impl VariableTextSlot {
         self.text_dimensions(scale, txt)
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     pub fn ui(
         &mut self,
         ui: &mut Ui,
         label: Cow<'static, str>,
         default: &'static VariableTextSlotDefault,
     ) {
+        use rust_i18n::t;
+
         // ensure outside is grid ui
         ui.vertical(|ui| {
             ui.add_space(2.0);
@@ -624,6 +704,7 @@ impl VariableTextSlot {
     }
 
     /// Render a text edit with autocomplete functionality
+    #[cfg(not(feature = "ios_integration"))]
     pub fn render_text_edit_with_autocomplete(
         &mut self,
         ui: &mut Ui,
@@ -641,6 +722,7 @@ impl VariableTextSlot {
 }
 
 /// Shared implementation for text edit with autocomplete
+#[cfg(not(feature = "ios_integration"))]
 fn render_text_edit_autocomplete_impl(
     text: &mut String,
     autocomplete_state: &mut AutocompleteState,

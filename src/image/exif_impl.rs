@@ -119,7 +119,7 @@ impl OriginalExif {
     }
 
     // this is initial implement
-    #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
     pub fn make_note(&self) -> Option<SimplifiedMakeNote> {
         self.0.as_ref().map(|exif| SimplifiedMakeNote {
             photo_style: crate::image::make_note::MakePhotoStyle::from_exif(exif),
@@ -170,7 +170,7 @@ pub struct SimplifiedExif {
     pub exposure: String,
     pub iso_speed: Option<u32>,
     pub datetime: String, // Option<DateTime>,
-    #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
     pub make_note: Option<SimplifiedMakeNote>,
 
     #[serde(skip)]
@@ -189,7 +189,7 @@ impl core::default::Default for SimplifiedExif {
             exposure: String::new(),
             iso_speed: None,
             datetime: String::new(),
-            #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
             make_note: None,
             orientation: image::metadata::Orientation::NoTransforms,
         }
@@ -238,7 +238,7 @@ impl From<&OriginalExif> for SimplifiedExif {
             exposure: value.exposure(),
             iso_speed: value.iso_speed(),
             datetime: value.datetime(),
-            #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
             make_note: value.make_note(),
             orientation: value.orientation(),
         }
@@ -246,10 +246,9 @@ impl From<&OriginalExif> for SimplifiedExif {
 }
 
 // UI dependencies - only needed for desktop
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
 use egui::{RichText, TextEdit, TextStyle};
 
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 use crate::image::make_note::SimplifiedMakeNote;
 
 impl SimplifiedExif {
@@ -321,17 +320,14 @@ impl SimplifiedExif {
         self.iso_speed.map(|x| x.to_string())
     }
 
-    #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
     pub fn get_ps_main(&self) -> Option<String> {
         self.make_note.as_ref()?.photo_style.main_name()
     }
 
-    #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
     pub fn get_lut_detail(&self) -> Option<String> {
         self.make_note.as_ref()?.photo_style.lut_detail()
     }
 
-    #[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, editable: bool) {
         let small_text = |text: &str| RichText::new(text).text_style(TextStyle::Small);
 
@@ -471,9 +467,9 @@ impl SimplifiedExif {
         match key.as_ref() {
             "fnumber" => self.get_fnumber().unwrap_or_default(),
             "exposure" => self.get_exposure().unwrap_or_default(),
-            #[cfg(any(feature = "desktop", feature = "ios_integration"))]
+
             "photo_style" => self.get_ps_main().unwrap_or_default(),
-            #[cfg(any(feature = "desktop", feature = "ios_integration"))]
+
             "lut_detail" => self.get_lut_detail().unwrap_or_default(),
             // default
             default => match map.get(default) {

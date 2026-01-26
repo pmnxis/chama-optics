@@ -3,8 +3,6 @@
  *
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
-#[cfg(any(feature = "desktop", feature = "web"))]
-pub(crate) mod check_update;
 
-#[cfg(any(feature = "desktop", feature = "web"))]
-pub(crate) mod web_download;
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+pub(crate) mod check_update;

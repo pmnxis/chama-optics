@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-use rust_i18n::t;
-
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 pub(crate) mod open_explorer;
 pub(crate) mod output_format;
 pub(crate) mod output_name;
@@ -42,12 +41,13 @@ impl core::default::Default for ExportConfig {
 }
 
 impl ExportConfig {
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, show_theme_name_in_english: bool) {
         ui.group(|ui| {
-            ui.heading(t!("export_config.label"));
+            ui.heading(rust_i18n::t!("export_config.label"));
             ui.separator();
             self.scale_config.update_ui(ui);
-            ui.collapsing(t!("export_config.detail_of_export"), |ui| {
+            ui.collapsing(rust_i18n::t!("export_config.detail_of_export"), |ui| {
                 ui.separator();
                 self.output_format.update_ui(ui);
                 ui.separator();
@@ -89,14 +89,17 @@ impl ExportConfig {
     pub fn save_image_with_faces<P: AsRef<std::path::Path>>(
         &self,
         dyn_image: &mut image::DynamicImage,
-        margin: Option<i32>,
+        #[allow(unused_variables)] margin: Option<i32>,
         path: P,
-        pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>>,
+        #[allow(unused_variables)] pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>>,
     ) -> Result<(), image::ImageError> {
-        // Apply watermark first
+        // Apply watermark first (desktop only - iOS watermark is disabled)
+        #[cfg(not(feature = "ios_integration"))]
         if self.watermark.is_enabled {
             self.watermark.apply(dyn_image, margin)?;
         }
+
+        log::info!("Is this really called?");
 
         // Apply face detection
         #[cfg(target_os = "ios")]

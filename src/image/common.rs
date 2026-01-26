@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 use egui::ColorImage;
 use fast_image_resize as fr;
 
@@ -12,11 +11,10 @@ pub const THUMBNAIL_MAX_WIDTH: u32 = 330 * 2;
 pub const THUMBNAIL_MAX_HEIGHT: u32 = 220 * 2;
 pub const THUMBNAIL_MAX_WIDTH_AS_F32: f32 = 110.0; // considering retina display
 pub const THUMBNAIL_MAX_HEIGHT_AS_F32: f32 = 165.0; // considering retina display
-#[cfg(any(feature = "desktop", feature = "ios_integration"))]
+
 pub const THUMBNAIL_DIMM: egui::Vec2 =
     egui::Vec2::new(THUMBNAIL_MAX_HEIGHT_AS_F32, THUMBNAIL_MAX_WIDTH_AS_F32);
 
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 pub const THUMBMANIL_SCALE: crate::export_config::scale_config::ScaleConfig =
     crate::export_config::scale_config::ScaleConfig {
         mode: crate::export_config::scale_config::ScaleMode::ResizeAndCrop,
@@ -70,7 +68,6 @@ pub(crate) fn resize_image(
     Ok(dst_image)
 }
 
-#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 pub(crate) fn gen_thumbnail(
     decoded_image: image::DynamicImage,
     orientation: image::metadata::Orientation,
@@ -141,7 +138,7 @@ pub(crate) fn __load_image(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    #[cfg(feature = "desktop")]
+                    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -164,7 +161,7 @@ pub(crate) fn __load_image(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(not(feature = "desktop"))]
+                    #[cfg(any(feature = "ios_integration", not(feature = "desktop")))]
                     {
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
@@ -205,7 +202,7 @@ pub(crate) fn __load_image_from_vec(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    #[cfg(feature = "desktop")]
+                    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -228,7 +225,7 @@ pub(crate) fn __load_image_from_vec(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(not(feature = "desktop"))]
+                    #[cfg(any(not(feature = "desktop"), feature = "ios_integration"))]
                     {
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
@@ -240,14 +237,12 @@ pub(crate) fn __load_image_from_vec(
     )
 }
 
-#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 #[derive(PartialEq, Eq, Clone)]
 pub enum PackedTexture {
     Real { texture: egui::TextureHandle },
     Dummy,
 }
 
-#[cfg(any(feature = "desktop", feature = "ios_integration"))]
 impl PackedTexture {
     pub fn get(&self) -> &egui::TextureHandle {
         #[cfg(test)]
@@ -265,7 +260,6 @@ impl PackedTexture {
         }
     }
 
-    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
     pub fn new(texture: egui::TextureHandle) -> PackedTexture {
         Self::Real { texture }
     }

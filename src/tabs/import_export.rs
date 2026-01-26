@@ -9,6 +9,7 @@
 use crate::ChamaOptics;
 use rust_i18n::t;
 
+#[cfg(not(feature = "ios_integration"))]
 impl ChamaOptics {
     /// Render Tab 3: Import&Export Config
     pub(crate) fn render_import_export_tab(&mut self, ui: &mut egui::Ui) {

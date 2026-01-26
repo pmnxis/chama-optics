@@ -111,23 +111,8 @@ fn render_version_info(
     update_checker: &crate::util::check_update::CheckRelease,
 ) {
     // Right-to-left layout, so elements appear in reverse order
-
-    // Only show update checker on desktop (not on web)
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        update_checker.ui(ui);
-        ui.add_space(20.0);
-    }
-
-    // Suppress unused warning for WASM
-    #[cfg(target_arch = "wasm32")]
-    let _ = update_checker;
-
-    ui.label(format!(
-        "v{} ({})",
-        env!("PROJECT_VERSION"),
-        env!("GIT_COMMIT_SHORT_HASH")
-    ));
+    update_checker.ui(ui);
+    ui.add_space(20.0);
 }
 
 /// Render the left sidebar with tab icons

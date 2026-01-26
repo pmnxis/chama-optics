@@ -650,6 +650,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
 
             /// Auto-generated ui_config() implementation
             /// Call this from your Theme::ui_config() implementation
+            #[cfg(not(feature = "ios_integration"))]
             pub fn auto_ui_config(&mut self, ui: &mut egui::Ui) {
                 #border_ui
 

@@ -5,11 +5,15 @@
  */
 
 use crate::theme::Theme;
+#[cfg(not(feature = "ios_integration"))]
 use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
+#[cfg(not(feature = "ios_integration"))]
 use rust_i18n::t;
 
+// Desktop version with FontSelection
+#[cfg(not(feature = "ios_integration"))]
 #[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmDate {
     pub font: crate::FontSelection,
@@ -43,11 +47,30 @@ pub struct FilmDate {
     pub show_ps: bool,
 }
 
+// iOS version with file-based fonts
+#[cfg(feature = "ios_integration")]
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct FilmDate {
+    pub font_file: String,
+    pub font_date_file: String,
+    pub font_color: egui::Color32,
+    pub glow_color: egui::Color32,
+    pub font_size: u32,
+    pub glow_gain: u32,
+    pub hide_camera_exif: bool,
+    pub show_ps: bool,
+}
+
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
 const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
+#[cfg(feature = "ios_integration")]
+const DEFAULT_FONT_FILE: &str = "digital-7.ttf";
+#[cfg(feature = "ios_integration")]
+const DEFAULT_FONT_DATE_FILE: &str = "digital-7-italic.ttf";
 
+#[cfg(not(feature = "ios_integration"))]
 impl core::default::Default for FilmDate {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -62,6 +85,42 @@ impl core::default::Default for FilmDate {
             hide_camera_exif: true,
             show_ps: false,
         }
+    }
+}
+
+#[cfg(feature = "ios_integration")]
+impl core::default::Default for FilmDate {
+    fn default() -> Self {
+        let [r, g, b, a] = FILM_COLOR.data();
+        let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
+        Self {
+            font_file: DEFAULT_FONT_FILE.to_string(),
+            font_date_file: DEFAULT_FONT_DATE_FILE.to_string(),
+            font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+            glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
+            font_size: DEFAULT_FONT_SIZE,
+            glow_gain: DEFAULT_GLOW_GAIN,
+            hide_camera_exif: true,
+            show_ps: false,
+        }
+    }
+}
+
+#[cfg(feature = "ios_integration")]
+impl crate::theme::parameter_schema::ThemeParameters for FilmDate {
+    fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
+        crate::theme::parameter_schema::ThemeSchema {
+            theme_name: "film_date".to_string(),
+            theme_label: "Film Date".to_string(),
+            parameters: vec![],
+        }
+    }
+
+    fn update_from_json(
+        &mut self,
+        _updates: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(), String> {
+        Ok(())
     }
 }
 
@@ -83,13 +142,43 @@ impl FilmDate {
     }
 }
 
+// iOS helper for loading font from file
+#[cfg(feature = "ios_integration")]
+impl FilmDate {
+    fn load_font(font_file: &str) -> Result<ab_glyph::FontArc, image::ImageError> {
+        use crate::effect::variable_text::get_fonts_base_directory;
+        let base_dir = get_fonts_base_directory();
+        let full_path = if base_dir.is_empty() {
+            std::path::PathBuf::from(font_file)
+        } else {
+            std::path::PathBuf::from(&base_dir).join(font_file)
+        };
+        let data = std::fs::read(&full_path).map_err(|e| {
+            image::ImageError::IoError(std::io::Error::new(std::io::ErrorKind::NotFound, e))
+        })?;
+        ab_glyph::FontArc::try_from_vec(data).map_err(|_| {
+            image::ImageError::IoError(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Failed to parse font",
+            ))
+        })
+    }
+}
+
 impl Theme for FilmDate {
     fn unique_name(&self) -> &'static str {
         "film_date"
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        t!("theme.film_date")
+        #[cfg(not(feature = "ios_integration"))]
+        {
+            t!("theme.film_date")
+        }
+        #[cfg(feature = "ios_integration")]
+        {
+            std::borrow::Cow::Borrowed("Film Date")
+        }
     }
 
     fn apply_to_image(
@@ -105,8 +194,15 @@ impl Theme for FilmDate {
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
+
+        #[cfg(not(feature = "ios_integration"))]
         let font = crate::FONTS_UNIFY.search(&self.font)?;
+        #[cfg(not(feature = "ios_integration"))]
         let font_date = crate::FONTS_UNIFY.search(&self.font_date)?;
+        #[cfg(feature = "ios_integration")]
+        let font = Self::load_font(&self.font_file)?;
+        #[cfg(feature = "ios_integration")]
+        let font_date = Self::load_font(&self.font_date_file)?;
 
         #[rustfmt::skip]
         macro_rules! draw {
@@ -207,6 +303,7 @@ impl Theme for FilmDate {
         export_config.save_image(&mut themed_image, Some(margin), output_path)
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 
@@ -233,10 +330,24 @@ impl Theme for FilmDate {
     }
 
     fn is_ui_config_available(&self) -> bool {
-        true
+        #[cfg(not(feature = "ios_integration"))]
+        {
+            true
+        }
+        #[cfg(feature = "ios_integration")]
+        {
+            false
+        }
     }
 
     fn get_parameters_json(&self) -> String {
-        self.auto_get_parameters_json()
+        #[cfg(not(feature = "ios_integration"))]
+        {
+            self.auto_get_parameters_json()
+        }
+        #[cfg(feature = "ios_integration")]
+        {
+            r#"{"parameters": []}"#.to_string()
+        }
     }
 }

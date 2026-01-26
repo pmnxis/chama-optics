@@ -7,10 +7,12 @@
 //! Parallel image loading system
 
 use crate::exif_impl::{OriginalExif, SimplifiedExif};
-use crate::packed_image::PackedImage;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
+
+#[cfg(not(feature = "ios_integration"))]
+use crate::packed_image::PackedImage;
 
 /// Intermediate loaded image data (before texture creation)
 /// Note: We don't store OriginalExif here because exif::Exif is not Clone
@@ -134,6 +136,7 @@ pub fn load_image_data(
     })
 }
 
+// left this code for future even not support wasm
 /// Load image from memory buffer (for WASM file picker)
 #[cfg(target_arch = "wasm32")]
 pub fn load_image_from_memory(

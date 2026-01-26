@@ -37,7 +37,6 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
 - [x] Function to group similar photos or images taken around the same time
 - [ ] Preset and adjustment controls for contrast, brightness, grain, texture, and LUT
-- [ ] Web application supports (libheif wasm)
 
 
 ## Building and Running
@@ -46,27 +45,6 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 ```bash
 cargo run --release --features face_detection_insightface
 ```
-
-### Web (WASM)
-Build and run the web version:
-```sh
-# Install trunk (one-time setup)
-cargo install trunk
-
-# Add wasm target (one-time setup)
-rustup target add wasm32-unknown-unknown
-
-# Build for web (creates dist/ folder)
-./build_web.sh
-
-# Or serve locally with hot-reload
-trunk serve --open
-```
-
-**Note:** Web version has limitations:
-- No native file dialogs (uses HTML file input)
-- No libheif support (HEIF images not supported in browser)
-- File operations are limited to browser capabilities
 
 ### Windows
 
@@ -216,65 +194,6 @@ The `--features face_detection_insightface` flag may have compatibility issues o
 **Recommendation:**
 - Default build (without `face_detection_insightface`): ✅ Recommended
 - With `face_detection_insightface` feature: ⚠️ Experimental, may require additional system dependencies
-
-### Web (WASM)
-
-Build for web browsers using WebAssembly.
-
-#### Prerequisites
-```sh
-# Install trunk (web build tool for Rust)
-cargo install trunk
-
-# Add wasm32 target
-rustup target add wasm32-unknown-unknown
-```
-
-#### Development Server
-```sh
-# Start local development server (opens browser automatically)
-./serve_web.sh
-
-# Or manually:
-trunk serve --open
-```
-
-This will start a server at `http://127.0.0.1:8080` with hot-reload.
-
-#### Production Build
-```sh
-# Build optimized version to dist/ folder
-./build_web.sh
-
-# Or manually:
-trunk build --release
-```
-
-#### Requirements
-- **WebGL support required**: Your browser must support WebGL (WebGL 1.0 or WebGL 2.0)
-- Modern browser: Chrome, Firefox, Edge, Safari (latest versions)
-- Hardware acceleration enabled in browser settings
-
-To check WebGL support, visit: https://get.webgl.org/
-
-#### Limitations
-- **Requires WebGL**: Will not work without WebGL support
-- No file system access (browser security restrictions)
-- File dialogs disabled (use drag & drop instead)
-- System fonts not available (builtin fonts only)
-- Update checker disabled
-- No HEIC support
-- Uses fallback image encoders (PNG/JPEG from `image` crate)
-
-#### Troubleshooting
-
-If you see "WebGL Not Supported":
-1. Update your browser to the latest version
-2. Enable hardware acceleration:
-   - Chrome: `chrome://settings` → Advanced → System → "Use hardware acceleration"
-   - Firefox: `about:preferences` → General → Performance → "Use hardware acceleration"
-3. Update graphics drivers
-4. Try a different browser
 
 ### License
 Most of the code depends on the NON-AI-MIT license, while some portions are under the MIT or Apache 2.0 licenses.

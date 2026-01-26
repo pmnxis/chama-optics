@@ -9,6 +9,7 @@
 use crate::ChamaOptics;
 use rust_i18n::t;
 
+#[cfg(not(feature = "ios_integration"))]
 impl ChamaOptics {
     /// Render Tab 4: Settings
     pub(crate) fn render_settings_tab(&mut self, ui: &mut egui::Ui) {
@@ -241,6 +242,7 @@ impl ChamaOptics {
     }
 
     /// Apply image grouping and reorder the images in the list
+    #[cfg(not(feature = "ios_integration"))]
     pub(crate) fn apply_image_grouping(&mut self, ctx: &egui::Context) {
         if self.packed_images.is_empty() {
             log::info!("No images to group");

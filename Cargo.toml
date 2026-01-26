@@ -44,7 +44,6 @@ desktop = [
     "libheif-rs",
     "font-kit",
 ]
-web = ["egui", "eframe", "eframe/web_screen_reader", "egui-file-dialog"]
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]
@@ -132,7 +131,6 @@ candle-core = { version = "0.9", optional = true }
 candle-nn = { version = "0.9", optional = true }
 half = { version = "2.4", optional = true, default-features = false }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
 oxipng = "10"
@@ -141,27 +139,6 @@ libheif-rs = { version = "^2.6", default-features = false, features = [
 ], optional = true }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a", optional = true }
 
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "^0.2"
-wasm-bindgen-futures = "^0.4"
-web-sys = { version = "^0.3", features = [
-    "File",
-    "FileList",
-    "FileReader",
-    "Blob",
-    "BlobPropertyBag",
-    "Url",
-    "HtmlInputElement",
-    "HtmlAnchorElement",
-    "HtmlCanvasElement",
-    "HtmlBodyElement",
-    "Element",
-    "CssStyleDeclaration",
-    "Window",
-    "Document",
-    "Node",
-] }
-js-sys = "0.3"
 
 [profile.release]
 opt-level = 3

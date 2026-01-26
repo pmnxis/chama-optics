@@ -34,18 +34,13 @@ impl ChamaOptics {
                 }
             }
 
-            // Web file picker button
-            #[cfg(all(target_arch = "wasm32", feature = "web"))]
-            if ui.button(t!("app.open_files.button")).clicked() {
-                self.trigger_file_picker();
-            }
-
             // Save all button
             if ui.button(t!("app.images.save_all")).clicked() {
                 self.save_packed_image_all(ui);
             }
 
             // Explorer button
+            #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
             crate::export_config::open_explorer::launch_explorer_ui(
                 ui,
                 &self.export_config.output_name.folder,

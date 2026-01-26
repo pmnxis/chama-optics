@@ -22,7 +22,6 @@ pub(crate) mod shot_on_two_line;
 pub(crate) mod strap;
 pub(crate) mod two_line;
 
-use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
@@ -328,6 +327,7 @@ pub trait Theme: Send + Sync + std::any::Any {
         export_config.save_image_with_faces(&mut dyn_image, None, output_path, scaled_faces)
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     fn ui_config(&mut self, ui: &mut egui::Ui);
 
     fn is_ui_config_available(&self) -> bool;
@@ -439,9 +439,10 @@ impl ThemeRegistry {
         self.themes[self.selected].read().unwrap()
     }
 
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, show_english_name: bool) {
         ui.vertical(|ui| {
-            ui.label(t!("theme.selector"));
+            ui.label(rust_i18n::t!("theme.selector"));
 
             let selected_text = if show_english_name {
                 // Temporarily switch to English locale to get English label
@@ -481,7 +482,7 @@ impl ThemeRegistry {
 
             let mut theme = self.themes[self.selected].write().unwrap();
             if theme.is_ui_config_available() {
-                ui.collapsing(t!("theme.settings"), |ui| {
+                ui.collapsing(rust_i18n::t!("theme.settings"), |ui| {
                     theme.ui_config(ui);
                 });
             }

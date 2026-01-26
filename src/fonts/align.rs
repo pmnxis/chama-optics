@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-use rust_i18n::t;
-
 #[derive(Clone, Default, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
 pub enum TextAlign {
     Left,
@@ -15,7 +13,10 @@ pub enum TextAlign {
 }
 
 impl TextAlign {
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+        use rust_i18n::t;
+
         ui.horizontal(|ui| {
             ui.selectable_value(self, TextAlign::Left, t!("text_align.left"))
                 .on_hover_text(t!("text_align.left_hint"));

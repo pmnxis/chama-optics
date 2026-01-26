@@ -362,10 +362,7 @@ impl ChamaOptics {
     }
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        #[cfg(all(
-            any(feature = "desktop", feature = "web"),
-            not(feature = "ios_integration")
-        ))]
+        #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
         crate::fonts::replace_fonts(&cc.egui_ctx);
 
         log::info!(
@@ -1022,130 +1019,6 @@ impl ChamaOptics {
                 }
             }
         });
-    }
-
-    /// Trigger browser file picker for web (WASM)
-    #[cfg(all(target_arch = "wasm32", feature = "web"))]
-    pub(crate) fn trigger_file_picker(&mut self) {
-        use wasm_bindgen::JsCast;
-        use wasm_bindgen::closure::Closure;
-
-        let window = match web_sys::window() {
-            Some(w) => w,
-            None => {
-                log::error!("No window object available");
-                return;
-            }
-        };
-
-        let document = match window.document() {
-            Some(d) => d,
-            None => {
-                log::error!("No document object available");
-                return;
-            }
-        };
-
-        // Create file input element
-        let input = match document.create_element("input") {
-            Ok(el) => el,
-            Err(e) => {
-                log::error!("Failed to create input element: {:?}", e);
-                return;
-            }
-        };
-
-        let input = match input.dyn_into::<web_sys::HtmlInputElement>() {
-            Ok(i) => i,
-            Err(e) => {
-                log::error!("Failed to cast to HtmlInputElement: {:?}", e);
-                return;
-            }
-        };
-
-        input.set_type("file");
-        input.set_multiple(true);
-        input.set_accept("image/*,.jpg,.jpeg,.png,.heic,.heif");
-
-        // Clone queue and config for the closure
-        let queue = self.loaded_image_queue.clone();
-        let get_alt_fnumber = self.import_config.get_alt_fnumber;
-
-        // Create onChange handler
-        let onchange = Closure::wrap(Box::new(move |event: web_sys::Event| {
-            let target = event.target().unwrap();
-            let input = target.dyn_into::<web_sys::HtmlInputElement>().unwrap();
-
-            if let Some(files) = input.files() {
-                log::info!("Selected {} files from browser picker", files.length());
-
-                for i in 0..files.length() {
-                    if let Some(file) = files.get(i) {
-                        let file_name = file.name();
-                        log::info!("Processing file: {}", file_name);
-
-                        // Clone for the closure
-                        let queue_clone = queue.clone();
-                        let file_name_clone = file_name.clone();
-
-                        // Read the file as ArrayBuffer
-                        let file_reader = web_sys::FileReader::new().unwrap();
-                        let fr_clone = file_reader.clone();
-
-                        let onload = Closure::wrap(Box::new(move |_event: web_sys::Event| {
-                            if let Ok(result) = fr_clone.result() {
-                                if let Some(array_buffer) = result.dyn_ref::<js_sys::ArrayBuffer>()
-                                {
-                                    let uint8_array = js_sys::Uint8Array::new(array_buffer);
-                                    let bytes = uint8_array.to_vec();
-
-                                    log::info!(
-                                        "Loaded {} bytes for {}",
-                                        bytes.len(),
-                                        file_name_clone
-                                    );
-
-                                    // Process the image from memory
-                                    match crate::image::loader::load_image_from_memory(
-                                        &bytes,
-                                        &file_name_clone,
-                                        get_alt_fnumber,
-                                    ) {
-                                        Ok(loaded_data) => {
-                                            log::info!(
-                                                "Successfully loaded image: {}",
-                                                file_name_clone
-                                            );
-                                            if let Ok(mut q) = queue_clone.lock() {
-                                                q.push(loaded_data);
-                                            }
-                                        }
-                                        Err(e) => {
-                                            log::error!(
-                                                "Failed to load image {}: {:?}",
-                                                file_name_clone,
-                                                e
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        }) as Box<dyn FnMut(_)>);
-
-                        file_reader.set_onload(Some(onload.as_ref().unchecked_ref()));
-                        onload.forget();
-
-                        file_reader.read_as_array_buffer(&file).unwrap();
-                    }
-                }
-            }
-        }) as Box<dyn FnMut(_)>);
-
-        input.set_onchange(Some(onchange.as_ref().unchecked_ref()));
-        onchange.forget(); // Keep closure alive
-
-        // Trigger click
-        input.click();
     }
 
     /// Load and render background image based on theme

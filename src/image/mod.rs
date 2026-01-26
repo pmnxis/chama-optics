@@ -4,20 +4,18 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-// Conditional compilation for desktop-only modules
-#[cfg(feature = "desktop")]
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))] // todo! - heif for iOS
 pub(crate) mod heic;
 
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
 #[allow(dead_code)]
 pub(crate) mod common;
 
 // Always compile exif_impl as it's needed by core
 pub(crate) mod exif_impl;
 
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 pub(crate) mod loader;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
 pub(crate) mod make_note;
-#[cfg(any(feature = "desktop", feature = "web", feature = "ios_integration"))]
+
 pub(crate) mod packed_image;

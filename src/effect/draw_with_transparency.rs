@@ -7,11 +7,12 @@
 //! This code is copied and modified from https://github.com/image-rs/imageproc/blob/main/src/drawing/text.rs
 //! Existing code had limitation of not draw transparency when draw text
 
-use ab_glyph::ScaleFont;
-use ab_glyph::point;
+#[allow(unused_imports)] // there's possibility use again in iOS
+use ab_glyph::{ScaleFont, point};
 
 use crate::effect::custom_weighted_sum::*;
 
+#[cfg(not(feature = "ios_integration"))]
 fn layout_glyphs(
     scale: impl Into<ab_glyph::PxScale> + Copy,
     font: &impl ab_glyph::Font,
@@ -42,6 +43,7 @@ fn layout_glyphs(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(not(feature = "ios_integration"))]
 pub fn draw_text_transparency_mut<C>(
     canvas: &mut C,
     color: C::Pixel,
@@ -78,6 +80,7 @@ pub fn draw_text_transparency_mut<C>(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(not(feature = "ios_integration"))] // iOS version not use watermark for now
 pub fn draw_text_screen_transparency_mut<C>(
     canvas: &mut C,
     color: C::Pixel,

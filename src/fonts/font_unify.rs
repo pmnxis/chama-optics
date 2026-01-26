@@ -5,15 +5,18 @@
  */
 
 use ab_glyph::FontArc;
-#[cfg(feature = "desktop")]
+#[cfg(not(feature = "ios_integration"))]
 use eframe::egui;
-#[cfg(feature = "desktop")] // include font_kit on native+egui
+#[cfg(not(feature = "ios_integration"))]
 use font_kit::{handle::Handle, source::SystemSource};
 use std::sync::{Arc, RwLock};
-#[cfg(feature = "desktop")] // include font_kit on native+egui
+#[cfg(not(feature = "ios_integration"))]
 use std::thread;
 
+#[cfg(not(feature = "ios_integration"))]
 use crate::fonts::FONTS_UNIFY;
+
+#[cfg(not(feature = "ios_integration"))]
 use rust_i18n::t;
 
 #[rustfmt::skip]
@@ -51,20 +54,14 @@ pub struct FontSelection {
     pub default: BuiltinFontIndex,
 }
 
-#[cfg(feature = "desktop")] // exclude font_kit
+#[cfg(not(feature = "ios_integration"))] // include font_kit
 #[derive(Clone)]
 pub struct SystemFont {
     pub name: String,
     pub(crate) handle: Handle,
 }
 
-#[cfg(not(feature = "desktop"))] // include font_kit
-#[derive(Clone)]
-pub struct SystemFont {
-    pub name: String,
-}
-
-#[cfg(feature = "desktop")] // exclude font_kit
+#[cfg(not(feature = "ios_integration"))]
 fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
     if let Handle::Path {
         path,
@@ -78,7 +75,7 @@ fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
 }
 
 // read font directly from path
-#[cfg(any(feature = "desktop", feature = "ios_integration"))] // include font_kit or iOS
+// include font_kit or iOS
 fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, FontError> {
     let data = std::fs::read(&path).map_err(|e| {
         log::error!("Cannot find font file. : {e}");
@@ -89,7 +86,7 @@ fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, Fon
         .map_err(|_| FontError::FailedToLoad(path.as_ref().to_string_lossy().to_string()))
 }
 
-#[cfg(feature = "desktop")] // exclude font_kit
+#[cfg(not(feature = "ios_integration"))]
 fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<FontArc, FontError> {
     match handle {
         Handle::Memory { bytes, .. } => FontArc::try_from_vec(bytes.to_vec())
@@ -99,15 +96,9 @@ fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<Fon
 }
 
 impl SystemFont {
-    #[cfg(feature = "desktop")] // include font_kit
+    #[cfg(not(feature = "ios_integration"))]
     fn get_path(&self) -> Option<std::path::PathBuf> {
         __get_path_from_handle(&self.handle)
-    }
-
-    #[cfg(not(feature = "desktop"))] // exclude font_kit
-    fn get_path(&self) -> Option<std::path::PathBuf> {
-        // WASM: No system fonts, no paths
-        None
     }
 }
 
@@ -135,7 +126,7 @@ pub struct FontsUnify {
 }
 
 impl FontsUnify {
-    #[cfg(feature = "desktop")] // exclude font_kit
+    #[cfg(not(feature = "ios_integration"))] // include font_kit
     pub fn new() -> Self {
         let system_fonts = Arc::new(RwLock::new(Vec::new()));
         let thread_ref = system_fonts.clone();
@@ -175,22 +166,6 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(not(feature = "desktop"))] // include font_kit
-    pub fn new() -> Self {
-        // WASM: No system fonts available, only builtin fonts
-        let system_fonts = Arc::new(RwLock::new(Vec::new()));
-
-        Self {
-            builtin_fonts: [
-                &crate::fonts::FONT_D2CODING,
-                &crate::fonts::FONT_SHSANS,
-                &crate::fonts::FONT_DIGITAL_7,
-                &crate::fonts::FONT_DIGITAL_7_ITALIC,
-            ],
-            system_fonts,
-        }
-    }
-
     pub fn builtin_select(&'static self, index: BuiltinFontIndex) -> FontSelection {
         FontSelection {
             name: self.builtin_fonts[index as usize].name.to_owned(),
@@ -203,10 +178,7 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(all(
-        any(feature = "desktop", feature = "web"),
-        not(feature = "ios_integration")
-    ))]
+    #[cfg(not(feature = "ios_integration"))]
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         fn get_with_matching_name<'a>(
             read: &'a std::sync::RwLockReadGuard<'_, Vec<SystemFont>>,
@@ -358,10 +330,7 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
-    #[cfg(all(
-        any(feature = "desktop", feature = "web"),
-        not(feature = "ios_integration")
-    ))]
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         let prev_idx = select.select.index;
         match select.select.sort {
@@ -443,7 +412,7 @@ impl FontSelection {
         }
     }
 
-    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui<S: Into<egui::WidgetText>>(&mut self, ui: &mut egui::Ui, label: S) {
         // Tab selection state
         let current_font_label = match self.select.sort {
@@ -520,7 +489,7 @@ impl FontSelection {
             });
     }
 
-    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui_with_label<S: Into<egui::WidgetText> + Clone>(
         &mut self,
         ui: &mut egui::Ui,
@@ -532,7 +501,7 @@ impl FontSelection {
         });
     }
 
-    #[cfg(any(feature = "desktop", feature = "ios_integration"))]
+    #[cfg(not(feature = "ios_integration"))]
     pub fn update_ui_with_default_label(&mut self, ui: &mut egui::Ui) {
         let label = t!("fonts_selector.select_a_font");
         ui.horizontal(|ui| {

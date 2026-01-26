@@ -6,6 +6,7 @@
 
 use rust_i18n::t;
 
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 fn __launch_exp<P: AsRef<std::path::Path>>(path: P) {
     let path = path.as_ref();
 
@@ -25,6 +26,7 @@ fn __launch_exp<P: AsRef<std::path::Path>>(path: P) {
     }
 }
 
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 pub(crate) fn launch_explorer_ui<P: AsRef<std::path::Path>>(ui: &mut egui::Ui, path: P) {
     if ui
         .button(t!("export_config.open_folder.label"))
