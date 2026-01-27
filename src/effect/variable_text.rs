@@ -164,6 +164,9 @@ struct AutocompleteState {
     partial_variable: String,
     /// Selected index in the autocomplete list
     selected_index: usize,
+    /// Pending text and cursor position to apply on next frame
+    /// (new_text, cursor_position) - applied before TextEdit renders
+    pending_insertion: Option<(String, usize)>,
 }
 
 #[cfg(not(feature = "ios_integration"))]
@@ -172,13 +175,14 @@ impl AutocompleteState {
         Self::default()
     }
 
-    /// Reset autocomplete state
+    /// Reset autocomplete state (preserves pending_cursor_pos for next frame)
     fn reset(&mut self) {
         self.show_popup = false;
         self.cursor_pos = None;
         self.variable_start = None;
         self.partial_variable.clear();
         self.selected_index = 0;
+        // Note: pending_cursor_pos is NOT reset here - it needs to persist until applied
     }
 
     /// Get filtered list of EXIF fields matching the partial input
@@ -229,25 +233,26 @@ impl AutocompleteState {
         self.reset();
     }
 
-    /// Insert the selected field at the cursor position
-    fn insert_selected_field(&mut self, text: &mut String) -> bool {
+    /// Compute the text insertion result without modifying state yet
+    /// Returns Some((new_text, new_cursor_position)) on success, None on failure
+    fn compute_insertion(&self, text: &str) -> Option<(String, usize)> {
         if !self.show_popup {
-            return false;
+            return None;
         }
 
         let filtered = self.get_filtered_fields();
         if filtered.is_empty() {
-            return false;
+            return None;
         }
 
         if let (Some(start), Some(_cursor)) = (self.variable_start, self.cursor_pos) {
             // Ensure start is a valid char boundary
             if !text.is_char_boundary(start) {
-                self.reset();
-                return false;
+                return None;
             }
 
             let field = filtered[self.selected_index];
+            let field_name_len = field.name.len();
 
             // Find the end position - either the closing `}` or the cursor position
             // This allows replacing existing completed variables
@@ -261,18 +266,31 @@ impl AutocompleteState {
 
             // Ensure end is a valid char boundary
             if !text.is_char_boundary(end) {
-                self.reset();
-                return false;
+                return None;
             }
 
-            // Replace from `{` to `}` (or cursor) with the new variable
-            text.replace_range(start..end, &format!("{{{}}}", field.name));
+            // Build the new text
+            let mut new_text = text.to_string();
+            new_text.replace_range(start..end, &format!("{{{}}}", field.name));
 
-            self.reset();
-            return true;
+            // Calculate new cursor position: start + 1 (for `{`) + field_name_len + 1 (for `}`)
+            let new_cursor_pos = start + field_name_len + 2;
+
+            return Some((new_text, new_cursor_pos));
         }
 
-        false
+        None
+    }
+
+    /// Schedule an insertion to be applied on the next frame
+    fn schedule_insertion(&mut self, text: &str) -> bool {
+        if let Some((new_text, new_cursor_pos)) = self.compute_insertion(text) {
+            self.pending_insertion = Some((new_text, new_cursor_pos));
+            self.reset();
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -731,6 +749,50 @@ fn render_text_edit_autocomplete_impl(
     id_salt: impl std::hash::Hash,
 ) -> egui::Response {
     let text_edit_id = ui.id().with(&id_salt).with("autocomplete_text_edit");
+    let popup_id = ui.id().with(&id_salt).with("autocomplete_popup");
+
+    // Handle pending insertion from previous frame (e.g., from click or Enter)
+    // This must happen BEFORE the TextEdit is rendered so it sees the new text
+    if let Some((new_text, new_cursor_pos)) = autocomplete_state.pending_insertion.take() {
+        log::debug!(
+            "[autocomplete] Applying pending insertion: '{}' cursor={}",
+            new_text,
+            new_cursor_pos
+        );
+
+        // Update the text
+        *text = new_text;
+
+        // Clear the TextEdit's internal state so it re-reads from text
+        // This is necessary because egui's TextEdit caches text when focused
+        ui.ctx()
+            .data_mut(|d| d.remove::<egui::text_edit::TextEditState>(text_edit_id));
+
+        // Store fresh state with the new cursor position
+        let mut fresh_state = egui::text_edit::TextEditState::default();
+        fresh_state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::one(
+                egui::text::CCursor::new(new_cursor_pos),
+            )));
+        fresh_state.store(ui.ctx(), text_edit_id);
+
+        // Request focus back to text edit
+        ui.ctx().memory_mut(|mem| mem.request_focus(text_edit_id));
+
+        // Request repaint to ensure the TextEdit picks up the changes
+        ui.ctx().request_repaint();
+    }
+
+    // IMPORTANT: Consume arrow keys BEFORE rendering TextEdit (like egui_autocomplete)
+    // This prevents TextEdit from moving cursor to start/end of line
+    let (up_pressed, down_pressed) = if autocomplete_state.show_popup {
+        let up = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp));
+        let down = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown));
+        (up, down)
+    } else {
+        (false, false)
+    };
 
     let response = ui.add_sized(
         [width, 23.0],
@@ -739,126 +801,127 @@ fn render_text_edit_autocomplete_impl(
             .id(text_edit_id),
     );
 
-    // Only show autocomplete when the text field has focus
-    if !response.has_focus() {
-        autocomplete_state.reset();
-        return response;
-    }
+    let has_focus = response.has_focus();
 
     // Get cursor position from the text edit state
-    if let Some(mut text_edit_state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id)
+    if let Some(text_edit_state) = egui::TextEdit::load_state(ui.ctx(), text_edit_id)
         && let Some(cursor_range) = text_edit_state.cursor.char_range()
     {
         let cursor_pos = cursor_range.primary.index;
         autocomplete_state.update_from_text(text, cursor_pos);
-
-        // Handle keyboard input when popup is shown
-        if autocomplete_state.show_popup {
-            let filtered = autocomplete_state.get_filtered_fields();
-
-            if !filtered.is_empty() {
-                ui.input(|i| {
-                    // Arrow down
-                    if i.key_pressed(egui::Key::ArrowDown) {
-                        autocomplete_state.selected_index =
-                            (autocomplete_state.selected_index + 1).min(filtered.len() - 1);
-                    }
-                    // Arrow up
-                    if i.key_pressed(egui::Key::ArrowUp) {
-                        autocomplete_state.selected_index =
-                            autocomplete_state.selected_index.saturating_sub(1);
-                    }
-                    // Tab or Enter to accept
-                    if (i.key_pressed(egui::Key::Tab) || i.key_pressed(egui::Key::Enter))
-                        && autocomplete_state.insert_selected_field(text)
-                    {
-                        // Update cursor position after insertion
-                        if let Some(start) = autocomplete_state.variable_start {
-                            let new_cursor_pos =
-                                start + filtered[autocomplete_state.selected_index].name.len() + 2; // +2 for `{}`
-                            text_edit_state.cursor.set_char_range(Some(
-                                egui::text::CCursorRange::one(egui::text::CCursor::new(
-                                    new_cursor_pos,
-                                )),
-                            ));
-                        }
-                    }
-                    // Escape to close
-                    if i.key_pressed(egui::Key::Escape) {
-                        autocomplete_state.reset();
-                    }
-                });
-            }
-        }
-
-        text_edit_state.store(ui.ctx(), text_edit_id);
     }
 
-    // Show autocomplete popup
+    // Update selection index based on arrow keys
     if autocomplete_state.show_popup {
-        let filtered = autocomplete_state.get_filtered_fields();
-
-        if !filtered.is_empty() {
-            // Calculate popup position (below the text edit)
-            let popup_pos = response.rect.left_bottom() + egui::vec2(0.0, 2.0);
-
-            egui::Area::new(ui.id().with(&id_salt).with("autocomplete_popup"))
-                .fixed_pos(popup_pos)
-                .order(egui::Order::Foreground)
-                .show(ui.ctx(), |ui| {
-                    egui::Frame::popup(ui.style()).show(ui, |ui| {
-                        ui.set_min_width(300.0);
-                        ui.set_max_height(200.0);
-
-                        egui::ScrollArea::vertical()
-                            .max_height(200.0)
-                            .show(ui, |ui| {
-                                for (idx, field) in filtered.iter().enumerate() {
-                                    let is_selected = idx == autocomplete_state.selected_index;
-
-                                    ui.horizontal(|ui| {
-                                        // Left: Field name (monospace)
-                                        let item_response = ui.selectable_label(
-                                            is_selected,
-                                            egui::RichText::new(field.name).monospace(),
-                                        );
-
-                                        // Check for click first
-                                        let was_clicked = item_response.clicked();
-
-                                        // Show example on hover
-                                        item_response.on_hover_ui(|ui| {
-                                            ui.label(
-                                                egui::RichText::new(format!(
-                                                    "Example: {}",
-                                                    field.example
-                                                ))
-                                                .weak(),
-                                            );
-                                        });
-
-                                        if was_clicked {
-                                            autocomplete_state.selected_index = idx;
-                                            autocomplete_state.insert_selected_field(text);
-                                        }
-
-                                        // Right: Description (always visible)
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::Center),
-                                            |ui| {
-                                                ui.label(
-                                                    egui::RichText::new(field.description)
-                                                        .small()
-                                                        .weak(),
-                                                );
-                                            },
-                                        );
-                                    });
-                                }
-                            });
-                    });
-                });
+        let filtered_len = autocomplete_state.get_filtered_fields().len();
+        if filtered_len > 0 {
+            if down_pressed {
+                autocomplete_state.selected_index =
+                    (autocomplete_state.selected_index + 1).min(filtered_len - 1);
+            }
+            if up_pressed {
+                autocomplete_state.selected_index =
+                    autocomplete_state.selected_index.saturating_sub(1);
+            }
         }
+    }
+
+    // Check for keyboard acceptance (Enter/Tab)
+    let accepted_by_keyboard = has_focus
+        && autocomplete_state.show_popup
+        && ui.input(|i| i.key_pressed(egui::Key::Enter) || i.key_pressed(egui::Key::Tab));
+
+    // Check for Escape to close
+    let escape_pressed = has_focus
+        && autocomplete_state.show_popup
+        && ui.input(|i| i.key_pressed(egui::Key::Escape));
+
+    if escape_pressed {
+        log::debug!("[autocomplete] Escape pressed, closing popup");
+        autocomplete_state.reset();
+    }
+
+    // Show autocomplete popup using egui's Popup API (like egui_autocomplete)
+    let filtered = autocomplete_state.get_filtered_fields();
+    let popup_should_open = autocomplete_state.show_popup && has_focus && !filtered.is_empty();
+
+    let popup = egui::Popup::from_response(&response)
+        .id(popup_id)
+        .close_behavior(egui::PopupCloseBehavior::IgnoreClicks)
+        .open(popup_should_open);
+
+    let popup_is_open = popup.is_open();
+
+    popup.show(|ui| {
+        ui.set_min_width(300.0);
+        ui.set_max_height(200.0);
+
+        egui::ScrollArea::vertical()
+            .max_height(200.0)
+            .show(ui, |ui| {
+                for (idx, field) in filtered.iter().enumerate() {
+                    let is_selected = idx == autocomplete_state.selected_index;
+
+                    // Use toggle_value like egui_autocomplete - hover sets selection
+                    let mut selected = is_selected;
+                    let item_response = ui.toggle_value(
+                        &mut selected,
+                        egui::RichText::new(format!("{:<15} {}", field.name, field.description))
+                            .monospace(),
+                    );
+
+                    // Auto-scroll to keep selected item visible when navigating with keyboard
+                    if is_selected && (up_pressed || down_pressed) {
+                        item_response.scroll_to_me(Some(egui::Align::Center));
+                    }
+
+                    // Update selected index based on hover (like egui_autocomplete)
+                    if item_response.hovered() {
+                        autocomplete_state.selected_index = idx;
+                        log::trace!("[autocomplete] Hover on item {}: {}", idx, field.name);
+                    }
+
+                    // Show example on hover
+                    item_response.on_hover_ui(|ui| {
+                        ui.label(egui::RichText::new(format!("Example: {}", field.example)).weak());
+                    });
+                }
+            });
+    });
+
+    log::trace!(
+        "[autocomplete] has_focus={}, show_popup={}, popup_is_open={}, selected_idx={}",
+        has_focus,
+        autocomplete_state.show_popup,
+        popup_is_open,
+        autocomplete_state.selected_index
+    );
+
+    // Apply selection when:
+    // 1. Keyboard acceptance (Enter/Tab), OR
+    // 2. Popup was shown but is now closed (user clicked outside or lost focus)
+    let should_apply = accepted_by_keyboard
+        || (autocomplete_state.show_popup
+            && !popup_is_open
+            && autocomplete_state.cursor_pos.is_some());
+
+    if should_apply {
+        log::debug!(
+            "[autocomplete] Applying selection: keyboard={}, popup_closed={}",
+            accepted_by_keyboard,
+            !popup_is_open
+        );
+
+        if autocomplete_state.schedule_insertion(text) {
+            log::debug!("[autocomplete] Insertion scheduled successfully");
+        } else {
+            log::debug!("[autocomplete] Insertion scheduling failed");
+        }
+    }
+
+    // Reset if lost focus and popup closed
+    if !has_focus && !popup_is_open {
+        autocomplete_state.reset();
     }
 
     response
