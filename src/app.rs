@@ -750,7 +750,7 @@ impl ChamaOptics {
                                 ui.checkbox(&mut group.selected, "");
 
                                 // Group label - show datetime/camera for Ungrouped, otherwise Group N
-                                let label_text = if group.datetime == "Ungrouped" {
+                                let label_text = if group.datetime.is_none() {
                                     t!(
                                         "app.image_grouping.group_label_format",
                                         name = t!("app.image_grouping.ungrouped_label"),
@@ -796,11 +796,11 @@ impl ChamaOptics {
                             });
 
                             // Show datetime and camera_model for non-Ungrouped groups
-                            if group.datetime != "Ungrouped" {
-                                if !group.datetime.is_empty() {
+                            if group.datetime.is_some() {
+                                if let Some(dt) = group.datetime {
+                                    let datetime_str = dt.format("%Y.%m.%d  %H:%M:%S").to_string();
                                     ui.label(
-                                        egui::RichText::new(format!("📅 {}", group.datetime))
-                                            .weak(),
+                                        egui::RichText::new(format!("📅 {}", datetime_str)).weak(),
                                     );
                                 }
                                 if !group.camera_model.is_empty() {
@@ -1130,17 +1130,17 @@ impl ChamaOptics {
                 );
 
                 if let Some(groups) = &mut self.image_groups {
-                    // Find or create "Ungrouped" group
-                    let ungrouped_idx = groups.iter().position(|g| g.datetime == "Ungrouped");
+                    // Find or create "Ungrouped" group (datetime is None)
+                    let ungrouped_idx = groups.iter().position(|g| g.datetime.is_none());
 
                     if let Some(idx) = ungrouped_idx {
                         // Append to existing Ungrouped group
                         groups[idx].image_uuids.extend(new_image_indices);
                     } else {
-                        // Create new Ungrouped group
+                        // Create new Ungrouped group (datetime is None)
                         groups.push(crate::image_group::ImageGroup {
                             image_uuids: new_image_indices,
-                            datetime: "Ungrouped".to_string(),
+                            datetime: None,
                             camera_model: "Ungrouped".to_string(),
                             prefix: crate::effect::variable_text::VariableText::new(),
                             postfix: crate::effect::variable_text::VariableText::new(),

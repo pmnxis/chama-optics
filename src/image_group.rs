@@ -82,7 +82,7 @@ pub struct ImageGroup {
     pub image_uuids: Vec<uuid::Uuid>,
 
     /// Representative datetime for this group (from first image)
-    pub datetime: String,
+    pub datetime: Option<chrono::NaiveDateTime>,
 
     /// Camera model (if same_camera_only enabled)
     pub camera_model: String,
@@ -147,30 +147,6 @@ impl ImageGroup {
     }
 }
 
-/// Parse datetime string from EXIF format "YYYY:MM:DD HH:MM:SS" to timestamp
-/// Returns None if parsing fails
-fn parse_datetime_to_secs(datetime_str: &str) -> Option<i64> {
-    use chrono::NaiveDateTime;
-
-    // EXIF format: "2024:12:27 13:45:30"
-    // Parse with chrono using exact format
-    NaiveDateTime::parse_from_str(datetime_str, "%Y:%m:%d %H:%M:%S")
-        .ok()
-        .map(|dt| dt.and_utc().timestamp())
-}
-
-/// Extract date string (YYYY:MM:DD) from EXIF datetime format
-/// Returns None if parsing fails
-fn extract_date(datetime_str: &str) -> Option<String> {
-    // EXIF format: "2024:12:27 13:45:30"
-    // Extract just the date part: "2024:12:27"
-    if datetime_str.len() >= 10 {
-        Some(datetime_str[0..10].to_string())
-    } else {
-        None
-    }
-}
-
 /// Calculate Hamming distance between two hashes (number of differing bits)
 fn hamming_distance(hash1: u64, hash2: u64) -> u32 {
     (hash1 ^ hash2).count_ones()
@@ -202,7 +178,7 @@ pub fn group_similar_images(images: &[PackedImage], config: &ImageGroupConfig) -
     let timestamps: Vec<Option<i64>> = if config.group_by_time {
         images
             .iter()
-            .map(|img| parse_datetime_to_secs(&img.view_exif.datetime))
+            .map(|img| img.view_exif.datetime.map(|dt| dt.and_utc().timestamp()))
             .collect()
     } else {
         vec![None; images.len()]
@@ -212,7 +188,11 @@ pub fn group_similar_images(images: &[PackedImage], config: &ImageGroupConfig) -
     let dates: Vec<Option<String>> = if config.group_by_date {
         images
             .iter()
-            .map(|img| extract_date(&img.view_exif.datetime))
+            .map(|img| {
+                img.view_exif
+                    .datetime
+                    .map(|dt| dt.format("%Y:%m:%d").to_string())
+            })
             .collect()
     } else {
         vec![None; images.len()]
@@ -225,7 +205,7 @@ pub fn group_similar_images(images: &[PackedImage], config: &ImageGroupConfig) -
 
         let mut group = ImageGroup {
             image_uuids: vec![images[i].uuid],
-            datetime: images[i].view_exif.datetime.clone(),
+            datetime: images[i].view_exif.datetime,
             camera_model: images[i].view_exif.camera_model.clone(),
             prefix: VariableText::new(),
             postfix: VariableText::new(),

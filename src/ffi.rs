@@ -189,6 +189,11 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
             }
         };
 
+        let datetime_str = exif
+            .datetime
+            .map(|dt| dt.format("%Y.%m.%d %H:%M:%S").to_string())
+            .unwrap_or_default();
+
         let exif_data = Box::new(CExifData {
             camera_manufacturer: to_cstring(&exif.camera_mnf),
             camera_model: to_cstring(&exif.camera_model),
@@ -198,7 +203,7 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
             f_number: to_cstring(&exif.fnumber),
             exposure_time: to_cstring(&exif.exposure),
             iso_speed: exif.iso_speed.unwrap_or(0),
-            datetime: to_cstring(&exif.datetime),
+            datetime: to_cstring(&datetime_str),
             has_exif,
         });
 

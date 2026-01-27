@@ -78,7 +78,79 @@ pub const EXIF_FIELDS: &[ExifField] = &[
     ExifField {
         name: "datetime",
         description: "Date and time",
-        example: "2025-01-15 14:30:00",
+        example: "2025.01.15  14:30:00",
+    },
+    // Date parts
+    ExifField {
+        name: "date",
+        description: "Date",
+        example: "2025.01.15",
+    },
+    ExifField {
+        name: "YYYY",
+        description: "Year (4 digits)",
+        example: "2025",
+    },
+    ExifField {
+        name: "YY",
+        description: "Year (2 digits)",
+        example: "25",
+    },
+    ExifField {
+        name: "MM",
+        description: "Month (with leading zero)",
+        example: "01",
+    },
+    ExifField {
+        name: "%M",
+        description: "Month (without leading zero)",
+        example: "1",
+    },
+    ExifField {
+        name: "DD",
+        description: "Day (with leading zero)",
+        example: "15",
+    },
+    ExifField {
+        name: "%D",
+        description: "Day (without leading zero)",
+        example: "15",
+    },
+    // Time parts
+    ExifField {
+        name: "time",
+        description: "Time",
+        example: "14:30:00",
+    },
+    ExifField {
+        name: "hh",
+        description: "Hour (with leading zero)",
+        example: "14",
+    },
+    ExifField {
+        name: "%h",
+        description: "Hour (without leading zero)",
+        example: "14",
+    },
+    ExifField {
+        name: "mm",
+        description: "Minute (with leading zero)",
+        example: "30",
+    },
+    ExifField {
+        name: "%m",
+        description: "Minute (without leading zero)",
+        example: "30",
+    },
+    ExifField {
+        name: "ss",
+        description: "Second (with leading zero)",
+        example: "00",
+    },
+    ExifField {
+        name: "%s",
+        description: "Second (without leading zero)",
+        example: "0",
     },
     #[cfg(feature = "desktop")]
     ExifField {

@@ -18,4 +18,6 @@ pub(crate) mod loader;
 
 pub(crate) mod make_note;
 
+pub(crate) mod datetime_edit;
+
 pub(crate) mod packed_image;

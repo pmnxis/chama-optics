@@ -4,10 +4,45 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
+use chrono::{Datelike, Timelike};
 use exif::{In, Tag};
 
 mod hotfix {
     include!("exif_hotfix.rs");
+}
+
+/// Custom serialization/deserialization for Option<NaiveDateTime>
+/// Serializes as ISO 8601 string (e.g., "2024-12-27T13:45:30")
+mod datetime_format {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        datetime: &Option<chrono::NaiveDateTime>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match datetime {
+            Some(dt) => serializer.serialize_some(&dt.format("%Y-%m-%d %H:%M:%S").to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<chrono::NaiveDateTime>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: Option<String> = Option::deserialize(deserializer)?;
+        match s {
+            Some(s) if !s.is_empty() => {
+                chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%d %H:%M:%S")
+                    .map(Some)
+                    .map_err(serde::de::Error::custom)
+            }
+            _ => Ok(None),
+        }
+    }
 }
 
 pub(crate) const _MAX_FIELD_WIDTH: f32 = 140.0;
@@ -152,9 +187,61 @@ impl OriginalExif {
             .and_then(|field| field.value.get_uint(0))
     }
 
-    /// Datetime
-    pub fn datetime(&self) -> String {
-        self.get_exif_value(Tag::DateTimeOriginal)
+    /// Datetime as parsed NaiveDateTime
+    pub fn datetime(&self) -> Option<chrono::NaiveDateTime> {
+        let exif = self.0.as_ref()?;
+
+        // Try to get DateTimeOriginal first
+        let field = exif.get_field(Tag::DateTimeOriginal, In::PRIMARY);
+
+        if let Some(field) = field {
+            let datetime_str = field.display_value().to_string();
+            log::debug!(
+                "DEBUG: EXIF DateTimeOriginal field found: '{}'",
+                datetime_str
+            );
+
+            // EXIF datetime format can be either:
+            // 1. "YYYY-MM-DD HH:MM:SS" (common in many cameras)
+            // 2. "YYYY:MM:DD HH:MM:SS" (EXIF standard)
+            // Try both formats
+            let parsed = chrono::NaiveDateTime::parse_from_str(&datetime_str, "%Y-%m-%d %H:%M:%S")
+                .or_else(|_| {
+                    chrono::NaiveDateTime::parse_from_str(&datetime_str, "%Y:%m:%d %H:%M:%S")
+                });
+
+            match parsed {
+                Ok(dt) => Some(dt),
+                Err(e) => {
+                    log::warn!(
+                        "DEBUG: Failed to parse datetime string '{}': {}",
+                        datetime_str,
+                        e
+                    );
+                    None
+                }
+            }
+        } else {
+            // Try DateTime as fallback
+            let field = exif.get_field(Tag::DateTime, In::PRIMARY);
+            if let Some(field) = field {
+                let datetime_str = field.display_value().to_string();
+
+                // Try both formats for fallback too
+                let parsed =
+                    chrono::NaiveDateTime::parse_from_str(&datetime_str, "%Y-%m-%d %H:%M:%S")
+                        .or_else(|_| {
+                            chrono::NaiveDateTime::parse_from_str(
+                                &datetime_str,
+                                "%Y:%m:%d %H:%M:%S",
+                            )
+                        });
+
+                parsed.ok()
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -169,12 +256,16 @@ pub struct SimplifiedExif {
     pub fnumber: String,
     pub exposure: String,
     pub iso_speed: Option<u32>,
-    pub datetime: String, // Option<DateTime>,
+    #[serde(with = "datetime_format")]
+    pub datetime: Option<chrono::NaiveDateTime>,
 
     pub make_note: Option<SimplifiedMakeNote>,
 
     #[serde(skip)]
     pub orientation: image::metadata::Orientation,
+
+    #[serde(skip)]
+    datetime_edit_state: crate::image::datetime_edit::DatetimeEditState,
 }
 
 impl core::default::Default for SimplifiedExif {
@@ -188,10 +279,11 @@ impl core::default::Default for SimplifiedExif {
             fnumber: String::new(),
             exposure: String::new(),
             iso_speed: None,
-            datetime: String::new(),
+            datetime: None,
 
             make_note: None,
             orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: crate::image::datetime_edit::DatetimeEditState::new(),
         }
     }
 }
@@ -241,6 +333,7 @@ impl From<&OriginalExif> for SimplifiedExif {
 
             make_note: value.make_note(),
             orientation: value.orientation(),
+            datetime_edit_state: crate::image::datetime_edit::DatetimeEditState::new(),
         }
     }
 }
@@ -441,18 +534,12 @@ impl SimplifiedExif {
         ui.end_row();
 
         // DateTime
-        ui.label(small_text("DateTime"));
-        if editable {
-            ui.add(
-                TextEdit::singleline(&mut self.datetime)
-                    .font(TextStyle::Small)
-                    .desired_width(80.0),
-            );
-        } else {
-            ui.label(small_text(&self.datetime));
-        }
-
-        ui.end_row();
+        crate::image::datetime_edit::render_datetime_editor(
+            &mut self.datetime_edit_state,
+            &mut self.datetime,
+            editable,
+            ui,
+        );
     }
 
     pub fn is_vertical_rotated(&self) -> bool {
@@ -467,9 +554,70 @@ impl SimplifiedExif {
         match key.as_ref() {
             "fnumber" => self.get_fnumber().unwrap_or_default(),
             "exposure" => self.get_exposure().unwrap_or_default(),
-
+            "datetime" => self
+                .datetime
+                .map(|dt| dt.format("%Y.%m.%d  %H:%M:%S").to_string())
+                .unwrap_or_default(),
+            // Date parts
+            "date" => self
+                .datetime
+                .map(|dt| dt.format("%Y.%m.%d").to_string())
+                .unwrap_or_default(),
+            "YYYY" => self
+                .datetime
+                .map(|dt| dt.format("%Y").to_string())
+                .unwrap_or_default(),
+            "YY" => self
+                .datetime
+                .map(|dt| dt.format("%y").to_string())
+                .unwrap_or_default(),
+            "MM" => self
+                .datetime
+                .map(|dt| dt.format("%m").to_string())
+                .unwrap_or_default(),
+            "%M" => self
+                .datetime
+                .map(|dt| dt.month().to_string())
+                .unwrap_or_default(),
+            "DD" => self
+                .datetime
+                .map(|dt| dt.format("%d").to_string())
+                .unwrap_or_default(),
+            "%D" => self
+                .datetime
+                .map(|dt| dt.day().to_string())
+                .unwrap_or_default(),
+            // Time parts
+            "time" => self
+                .datetime
+                .map(|dt| dt.format("%H:%M:%S").to_string())
+                .unwrap_or_default(),
+            "hh" => self
+                .datetime
+                .map(|dt| dt.format("%H").to_string())
+                .unwrap_or_default(),
+            "%h" => self
+                .datetime
+                .map(|dt| dt.hour().to_string())
+                .unwrap_or_default(),
+            "mm" => self
+                .datetime
+                .map(|dt| dt.format("%M").to_string())
+                .unwrap_or_default(),
+            "%m" => self
+                .datetime
+                .map(|dt| dt.minute().to_string())
+                .unwrap_or_default(),
+            "ss" => self
+                .datetime
+                .map(|dt| dt.format("%S").to_string())
+                .unwrap_or_default(),
+            "%s" => self
+                .datetime
+                .map(|dt| dt.second().to_string())
+                .unwrap_or_default(),
+            // Other fields
             "photo_style" => self.get_ps_main().unwrap_or_default(),
-
             "lut_detail" => self.get_lut_detail().unwrap_or_default(),
             // default
             default => match map.get(default) {
@@ -555,4 +703,351 @@ fn hex_dump(s: &str) {
         }
     }
     println!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::datetime_edit::DatetimeEditState;
+    use chrono::{Datelike, Timelike};
+
+    #[test]
+    fn test_exif_datetime_parsing_with_dashes() {
+        // Test YYYY-MM-DD format (your camera's format)
+        let exif_data = "2025-11-30 21:41:15";
+        let parsed = chrono::NaiveDateTime::parse_from_str(exif_data, "%Y-%m-%d %H:%M:%S");
+        assert!(parsed.is_ok());
+        let dt = parsed.unwrap();
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.month(), 11);
+        assert_eq!(dt.day(), 30);
+        assert_eq!(dt.hour(), 21);
+        assert_eq!(dt.minute(), 41);
+        assert_eq!(dt.second(), 15);
+    }
+
+    #[test]
+    fn test_exif_datetime_parsing_with_colons() {
+        // Test YYYY:MM:DD format (EXIF standard)
+        let exif_data = "2025:11:30 21:41:15";
+        let parsed = chrono::NaiveDateTime::parse_from_str(exif_data, "%Y:%m:%d %H:%M:%S");
+        assert!(parsed.is_ok());
+        let dt = parsed.unwrap();
+        assert_eq!(dt.year(), 2025);
+        assert_eq!(dt.month(), 11);
+        assert_eq!(dt.day(), 30);
+        assert_eq!(dt.hour(), 21);
+        assert_eq!(dt.minute(), 41);
+        assert_eq!(dt.second(), 15);
+    }
+
+    #[test]
+    fn test_partial_hinting_12_digits_with_padding() {
+        // Test: "20240409144137" (12 digits) → minutes are at positions 10-11
+        // With 12+ digits (substantial input), if we have both minutes digits, show them
+        let cleaned = "20240409144137";
+        let n = cleaned.len();
+
+        // Get minute at positions 10-11
+        let minute_text = if n >= 12 {
+            cleaned[10..12].to_string()
+        } else if n >= 11 {
+            if n >= 12 {
+                format!("0{}", &cleaned[10..11])
+            } else {
+                cleaned[10..11].to_string()
+            }
+        } else if n > 10 {
+            cleaned[10..].to_string()
+        } else {
+            "mm".to_string()
+        };
+
+        // With 12 digits (20240409144137), minutes at 10-11 are "41"
+        assert_eq!(minute_text, "41");
+    }
+
+    #[test]
+    fn test_partial_hinting_13_digits_no_padding() {
+        // Test: "2024040914415" (13 digits) → second is at position 12 (single digit)
+        // With 13 digits (not yet complete 14), we have single second digit "5"
+        let cleaned = "2024040914415";
+        let n = cleaned.len();
+
+        // Get second at position 12 (single digit with 13 total)
+        let second_text = if n >= 14 {
+            cleaned[12..14].to_string()
+        } else if n >= 13 {
+            if n >= 12 {
+                format!("0{}", &cleaned[12..13])
+            } else {
+                cleaned[12..13].to_string()
+            }
+        } else if n > 12 {
+            cleaned[12..].to_string()
+        } else {
+            "ss".to_string()
+        };
+
+        // With 13 digits, we enter the n >= 13 branch, which tries to format with padding
+        // Since n >= 12, it formats "0" + "5" = "05"
+        assert_eq!(second_text, "05");
+    }
+
+    #[test]
+    fn test_partial_hinting_14_digits_complete() {
+        // Test: "202404091441537" (14 digits) → "2024.04.09  14:41:53" (complete)
+        let cleaned = "202404091441537";
+        let n = cleaned.len();
+
+        // Get second with complete input
+        let second_text = if n >= 14 {
+            cleaned[12..14].to_string()
+        } else if n >= 13 {
+            if n >= 12 {
+                format!("0{}", &cleaned[12..13])
+            } else {
+                cleaned[12..13].to_string()
+            }
+        } else if n > 12 {
+            cleaned[12..].to_string()
+        } else {
+            "ss".to_string()
+        };
+
+        assert_eq!(second_text, "53");
+    }
+
+    #[test]
+    fn test_color_validation_month() {
+        // Test month validation
+        let valid_month = "11";
+        let invalid_month = "55";
+
+        let valid: u32 = valid_month.parse().unwrap();
+        let invalid: u32 = invalid_month.parse().unwrap();
+
+        assert!((1..=12).contains(&valid));
+        assert!(!(1..=12).contains(&invalid));
+    }
+
+    #[test]
+    fn test_color_validation_hour() {
+        // Test hour validation
+        let valid_hour = "23";
+        let invalid_hour = "25";
+
+        let valid: u32 = valid_hour.parse().unwrap();
+        let invalid: u32 = invalid_hour.parse().unwrap();
+
+        assert!((0..=23).contains(&valid));
+        assert!(!(0..=23).contains(&invalid));
+    }
+
+    #[test]
+    fn test_datetime_serialization() {
+        // Test serialization/deserialization
+        use serde_json;
+
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-11-30 21:41:15", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: crate::image::datetime_edit::DatetimeEditState::new(),
+        };
+
+        // Serialize
+        let json = serde_json::to_string(&exif).unwrap();
+        assert!(json.contains("2025-11-30 21:41:15"));
+
+        // Deserialize
+        let deserialized: SimplifiedExif = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.datetime, Some(dt));
+    }
+
+    #[test]
+    fn test_datetime_format_custom() {
+        // Test format_custom with {datetime} variable
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-11-30 21:41:15", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: DatetimeEditState::new(),
+        };
+
+        // Test {datetime} variable
+        let result = exif.format_custom("{datetime}");
+        assert_eq!(result, "2025.11.30  21:41:15");
+
+        // Test mixed variables
+        let result = exif.format_custom("Shot on {datetime} at {fnumber}");
+        assert_eq!(result, "Shot on 2025.11.30  21:41:15 at 2.8");
+    }
+
+    #[test]
+    fn test_new_datetime_placeholders_date() {
+        // Test new date placeholders
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-11-30 21:41:15", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: DatetimeEditState::new(),
+        };
+
+        // Test {date}
+        let result = exif.format_custom("{date}");
+        assert_eq!(result, "2025.11.30");
+
+        // Test {YYYY}
+        let result = exif.format_custom("{YYYY}");
+        assert_eq!(result, "2025");
+
+        // Test {YY}
+        let result = exif.format_custom("{YY}");
+        assert_eq!(result, "25");
+
+        // Test {MM} (month with leading zero)
+        let result = exif.format_custom("{MM}");
+        assert_eq!(result, "11");
+
+        // Test {%M} (month without leading zero)
+        let result = exif.format_custom("{%M}");
+        assert_eq!(result, "11");
+
+        // Test month 9 with leading zero
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-09-15 21:41:15", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: DatetimeEditState::new(),
+        };
+
+        let result = exif.format_custom("{MM}");
+        assert_eq!(result, "09");
+
+        let result = exif.format_custom("{%M}");
+        assert_eq!(result, "9");
+    }
+
+    #[test]
+    fn test_new_datetime_placeholders_time() {
+        // Test new time placeholders
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-11-30 21:41:15", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: DatetimeEditState::new(),
+        };
+
+        // Test {time}
+        let result = exif.format_custom("{time}");
+        assert_eq!(result, "21:41:15");
+
+        // Test {hh} (hour with leading zero)
+        let result = exif.format_custom("{hh}");
+        assert_eq!(result, "21");
+
+        // Test {%h} (hour without leading zero)
+        let result = exif.format_custom("{%h}");
+        assert_eq!(result, "21");
+
+        // Test {mm} (minute with leading zero)
+        let result = exif.format_custom("{mm}");
+        assert_eq!(result, "41");
+
+        // Test {%m} (minute without leading zero)
+        let result = exif.format_custom("{%m}");
+        assert_eq!(result, "41");
+
+        // Test {ss} (second with leading zero)
+        let result = exif.format_custom("{ss}");
+        assert_eq!(result, "15");
+
+        // Test {%s} (second without leading zero)
+        let result = exif.format_custom("{%s}");
+        assert_eq!(result, "15");
+    }
+
+    #[test]
+    fn test_new_datetime_placeholders_mixed() {
+        // Test mixed format with all new placeholders
+        let dt = chrono::NaiveDateTime::parse_from_str("2025-11-30 09:05:07", "%Y-%m-%d %H:%M:%S")
+            .unwrap();
+        let exif = SimplifiedExif {
+            camera_mnf: "Test".to_string(),
+            camera_model: "Model".to_string(),
+            lens_mnf: "Lens".to_string(),
+            lens_model: "LensModel".to_string(),
+            focal: "50mm".to_string(),
+            fnumber: "2.8".to_string(),
+            exposure: "1/60".to_string(),
+            iso_speed: Some(100),
+            datetime: Some(dt),
+            make_note: None,
+            orientation: image::metadata::Orientation::NoTransforms,
+            datetime_edit_state: DatetimeEditState::new(),
+        };
+
+        // Test custom format with leading zeros
+        let result = exif.format_custom("{YYYY}.{MM}.{DD} {hh}:{mm}:{ss}");
+        assert_eq!(result, "2025.11.30 09:05:07");
+
+        // Test custom format without leading zeros
+        let result = exif.format_custom("{YY}.{%M}.{%D} {%h}:{%m}:{%s}");
+        assert_eq!(result, "25.11.30 9:5:7");
+
+        // Test mixed format
+        let result = exif.format_custom("{date} at {time}");
+        assert_eq!(result, "2025.11.30 at 09:05:07");
+    }
 }

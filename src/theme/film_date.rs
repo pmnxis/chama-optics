@@ -249,13 +249,11 @@ impl Theme for FilmDate {
             y -= cam_scale.y;
         }
 
-        // Right
-        let date = {
-            use chrono::NaiveDateTime;
-            NaiveDateTime::parse_from_str(&exif.datetime, "%Y-%m-%d %H:%M:%S")
-                .map(|dt| dt.format("'%y  %m  %d").to_string())
-                .unwrap_or_else(|_| "".to_string())
-        };
+        // Right - format: YY  MM  DD
+        let date = exif
+            .datetime
+            .map(|dt| dt.format("%y.%m.%d").to_string())
+            .unwrap_or_default();
 
         let datetime_scale = self.rel_scale(105, dyn_wh);
         let y: f32 = base_y as f32;
