@@ -28,11 +28,11 @@ impl DatetimeEditState {
         if self.edit_string.is_empty() {
             self.edit_string = datetime
                 .map(|dt| {
-                    log::debug!("DEBUG: Initializing datetime_edit from datetime: {:?}", dt);
+                    // log::debug!("DEBUG: Initializing datetime_edit from datetime: {:?}", dt);
                     dt.format("%Y.%m.%d  %H:%M:%S").to_string()
                 })
                 .unwrap_or_else(|| {
-                    log::debug!("DEBUG: datetime is None, using empty string");
+                    // log::debug!("DEBUG: datetime is None, using empty string");
                     String::new()
                 });
         }
@@ -67,13 +67,8 @@ pub fn render_datetime_editor(
             .filter(|c| c.is_ascii_digit())
             .collect();
 
-        log::debug!("DEBUG: Current datetime_edit: '{}", state.edit_string);
-        log::debug!("DEBUG: Cleaned digits: '{}'", cleaned);
-
         // Build display string with partial hinting
-        let display_str = build_display_string(&cleaned);
-
-        log::debug!("DEBUG: Display string with hinting: '{}'", display_str);
+        // let display_str = build_display_string(&cleaned);
 
         // Show both editable field and formatted display with color validation
         ui.horizontal(|ui| {
@@ -96,10 +91,10 @@ pub fn render_datetime_editor(
                     .collect();
                 // Only update if we have exactly 14 digits (YYYYMMDDhhmmss)
                 if cleaned.len() == 14 {
-                    log::debug!("DEBUG: Attempting to parse 14 digits");
+                    // log::debug!("DEBUG: Attempting to parse 14 digits");
                     match chrono::NaiveDateTime::parse_from_str(&cleaned, "%Y%m%d%H%M%S") {
                         Ok(dt) => {
-                            log::debug!("DEBUG: Successfully parsed datetime: {:?}", dt);
+                            // log::debug!("DEBUG: Successfully parsed datetime: {:?}", dt);
                             *datetime = Some(dt);
                         }
                         Err(e) => {
@@ -108,33 +103,20 @@ pub fn render_datetime_editor(
                     }
                 } else if cleaned.is_empty() {
                     // User cleared the field
-                    log::debug!("DEBUG: User cleared the field");
                     *datetime = None;
-                } else {
-                    log::debug!(
-                        "DEBUG: Partial input ({} digits), keeping old datetime",
-                        cleaned.len()
-                    );
                 }
             }
         });
     } else {
         // Clear edit string when exiting edit mode
         if !state.edit_string.is_empty() {
-            log::debug!("DEBUG: Exiting edit mode, clearing datetime_edit");
             state.clear();
         }
 
         // Display format: YYYY.MM.DD  hh:mm:ss
         let datetime_str = datetime
-            .map(|dt| {
-                log::debug!("DEBUG: Displaying datetime: {:?}", dt);
-                dt.format("%Y.%m.%d  %H:%M:%S").to_string()
-            })
-            .unwrap_or_else(|| {
-                log::debug!("DEBUG: No datetime to display");
-                String::new()
-            });
+            .map(|dt| dt.format("%Y.%m.%d  %H:%M:%S").to_string())
+            .unwrap_or_default();
         ui.label(small_text(&datetime_str));
     }
 
@@ -142,6 +124,7 @@ pub fn render_datetime_editor(
 }
 
 /// Build display string with partial hinting
+#[allow(dead_code)]
 fn build_display_string(cleaned: &str) -> String {
     if cleaned.is_empty() {
         return "YYYY.MM.DD  hh:mm:ss".to_string();

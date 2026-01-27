@@ -474,15 +474,10 @@ impl ChamaOptics {
             );
 
             // Detect faces on ORIGINAL image BEFORE theming (macOS only)
-            // IMPORTANT: Skip detection if we have configured faces from Detection tab
-            #[cfg(target_os = "macos")]
+            // IMPORTANT: Only use faces if user has explicitly configured them in Detection tab
             let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> = {
                 if !task.configured_faces.is_empty() {
                     // Use configured faces from Detection tab - skip re-detection!
-                    log::info!(
-                        "[SKIP] [Face Detection] Using {} configured faces from Detection tab (skipping re-detection)",
-                        task.configured_faces.len()
-                    );
                     Some(
                         task.configured_faces
                             .iter()
@@ -490,54 +485,14 @@ impl ChamaOptics {
                             .collect(),
                     )
                 } else {
+                    // No configured faces - skip face detection entirely
+                    // Face detection should only run when explicitly ordered from Detection tab
                     log::info!(
-                        "🎯 [Face Detection] Pre-detecting faces on original image: {:?}",
-                        task.path
+                        "[INFO][Face Detection] No configured faces - skipping automatic face detection"
                     );
-
-                    let faces: Vec<(i32, i32, u32, u32)> =
-                        match &export_config.face_detection.engine {
-                            #[cfg(feature = "face_detection_visionkit")]
-                            crate::effect::face_detection::FaceDetectionEngine::VisionKit => {
-                                export_config.detect_visionkit(&task.path)
-                            }
-
-                            #[cfg(feature = "face_detection_insightface")]
-                            crate::effect::face_detection::FaceDetectionEngine::InsightFace => {
-                                // Load original image dimensions
-                                let orig_img = image::open(&task.path)?;
-                                let img_width = orig_img.width();
-                                let img_height = orig_img.height();
-
-                                let detector =
-                                    crate::effect::insightface_detector::InsightFaceDetector::new(
-                                        export_config.face_detection.speed_mode,
-                                        export_config.face_detection.provider,
-                                    );
-                                export_config
-                                    .run_detection(&detector, &task.path, img_width, img_height)
-                            }
-
-                            // Fallback when no face detection feature is enabled
-                            #[allow(unreachable_patterns)]
-                            _ => Vec::new(),
-                        };
-
-                    if !faces.is_empty() {
-                        log::info!(
-                            "[PASS] [Face Detection] Pre-detected {} face(s) on original image",
-                            faces.len()
-                        );
-                        Some(faces)
-                    } else {
-                        log::info!("[INFO][Face Detection] No faces detected on original image");
-                        None
-                    }
+                    None
                 }
             };
-
-            #[cfg(not(target_os = "macos"))]
-            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> = None;
 
             export_config
                 .theme_reg
