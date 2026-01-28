@@ -162,6 +162,7 @@ impl ImageProcessor {
             sticker_bytes: None,
             perceptual_hash: None,
             configured_faces: Vec::new(),
+            lut_id: None, // Core processor doesn't use LUT
         };
 
         // Use ExportConfig for theme application

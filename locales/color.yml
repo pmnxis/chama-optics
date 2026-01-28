@@ -73,6 +73,36 @@ color:
     en: "Select LUT File"
     ko: "LUT 파일 선택"
     ja: "LUTファイルを選択"
+  select_image_first:
+    en: "Select an image first"
+    ko: "먼저 이미지를 선택하세요"
+    ja: "最初に画像を選択してください"
+  clear_lut:
+    en: "Clear"
+    ko: "제거"
+    ja: "クリア"
+  apply_to_all:
+    en: "Apply to All Images"
+    ko: "모든 이미지에 적용"
+    ja: "すべての画像に適用"
+  clear_all:
+    en: "Clear All LUTs"
+    ko: "모든 LUT 제거"
+    ja: "すべてのLUTをクリア"
+
+  # Drag and drop hints
+  drop_images_hint:
+    en: "Drop images here to add"
+    ko: "이미지를 여기에 드롭하여 추가"
+    ja: "ここに画像をドロップして追加"
+  drop_lut_hint:
+    en: "Drop .cube files here to add LUTs"
+    ko: ".cube 파일을 여기에 드롭하여 LUT 추가"
+    ja: ".cubeファイルをここにドロップしてLUTを追加"
+  no_luts:
+    en: "No LUTs loaded. Click + or drop .cube files"
+    ko: "불러온 LUT이 없습니다. +를 클릭하거나 .cube 파일을 드롭하세요"
+    ja: "LUTがロードされていません。+をクリックするか.cubeファイルをドロップ"
 
   # Color Adjustments (Future)
   adjustments_section:

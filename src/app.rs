@@ -132,6 +132,10 @@ pub struct ChamaOptics {
     pub(crate) color_preview_cache_key: Option<(usize, Option<uuid::Uuid>)>,
 
     #[serde(skip)]
+    /// Cached LUT icon textures for gallery display (lut_id -> texture)
+    pub(crate) lut_icon_textures: std::collections::HashMap<uuid::Uuid, egui::TextureHandle>,
+
+    #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
 
     #[serde(skip)]
@@ -270,6 +274,7 @@ impl Default for ChamaOptics {
             color_original_texture: None,
             color_lut_texture: None,
             color_preview_cache_key: None,
+            lut_icon_textures: std::collections::HashMap::new(),
             packed_images: vec![],
             image_groups: None,
             preview_selected_index: None,
@@ -422,6 +427,8 @@ impl ChamaOptics {
             sticker_bytes: Option<Vec<u8>>,
             #[allow(dead_code)] // todo - windows issue, resolve later
             configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
+            /// LUT ID configured for this image (for color grading)
+            lut_id: Option<uuid::Uuid>,
         }
 
         // save each
@@ -433,6 +440,7 @@ impl ChamaOptics {
                 uuid::Uuid,
                 Option<image::DynamicImage>,
             >,
+            lut_storage: &mut crate::effect::lut_storage::LutStorage,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
             let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
@@ -440,8 +448,48 @@ impl ChamaOptics {
             // Use saved view_exif instead of reconstructed one
             pi.view_exif = task.view_exif.clone();
 
-            // Use sticker_bytes from task if available (prioritize over HashMap)
-            pi.sticker_bytes = task.sticker_bytes.clone();
+            // Restore lut_id from task
+            pi.lut_id = task.lut_id;
+
+            // Apply LUT to image if configured
+            // LUT is applied before stickers/theme in the pipeline
+            if let Some(lut_id) = task.lut_id {
+                log::info!("Export: Applying LUT {:?} to image {}", lut_id, idx);
+
+                // Load original image
+                let mut dyn_image = image::open(&task.path)?;
+
+                // Apply LUT
+                lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+
+                // Save LUT-processed image to sticker_bytes for theme to use
+                let original_ext = task
+                    .path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("jpg");
+
+                let format = match original_ext.to_lowercase().as_str() {
+                    "png" => image::ImageFormat::Png,
+                    "heic" | "heif" => image::ImageFormat::Jpeg,
+                    _ => image::ImageFormat::Jpeg,
+                };
+
+                let mut bytes = Vec::new();
+                if dyn_image
+                    .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+                    .is_ok()
+                {
+                    pi.sticker_bytes = Some(bytes);
+                    log::info!(
+                        "Export: Saved LUT-processed image to sticker_bytes for image {}",
+                        idx
+                    );
+                }
+            } else {
+                // No LUT - use sticker_bytes from task if available (prioritize over HashMap)
+                pi.sticker_bytes = task.sticker_bytes.clone();
+            }
 
             // Use sticker-processed image from HashMap as fallback
             let temp_path =
@@ -564,6 +612,7 @@ impl ChamaOptics {
                         }),
                         sticker_bytes: pi.sticker_bytes.clone(),
                         configured_faces: pi.configured_faces.clone(),
+                        lut_id: pi.lut_id,
                     }
                 })
                 .collect()
@@ -578,6 +627,7 @@ impl ChamaOptics {
                     postfix: None,
                     sticker_bytes: pi.sticker_bytes.clone(),
                     configured_faces: pi.configured_faces.clone(),
+                    lut_id: pi.lut_id,
                 })
                 .collect()
         };
@@ -603,6 +653,10 @@ impl ChamaOptics {
         for (uuid, val) in sticker_processed_images.iter() {
             log::info!("  - UUID {:?}: has image = {}", uuid, val.is_some());
         }
+
+        // Clone lut_storage for the background thread (for LUT application during export)
+        // Wrap in Mutex for thread-safe access during parallel processing
+        let lut_storage = std::sync::Mutex::new(self.lut_storage.clone_for_thread());
 
         // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
@@ -630,7 +684,16 @@ impl ChamaOptics {
                 tasks.par_iter().enumerate().for_each(|(idx, task)| {
                     log::info!("Processing image {}", idx);
 
-                    match __save_bulk_each(idx, task, &export_config, &sticker_processed_images) {
+                    // Get mutable access to lut_storage for this task
+                    let mut lut_storage_guard = lut_storage.lock().unwrap();
+
+                    match __save_bulk_each(
+                        idx,
+                        task,
+                        &export_config,
+                        &sticker_processed_images,
+                        &mut lut_storage_guard,
+                    ) {
                         Ok(_) => {
                             log::info!("Successfully saved image {}", idx);
                         }
@@ -638,6 +701,9 @@ impl ChamaOptics {
                             log::error!("Failed to save image {}: {e:?}", idx);
                         }
                     }
+
+                    // Drop the lock before updating progress
+                    drop(lut_storage_guard);
 
                     // Update progress counter AFTER processing
                     let current = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
@@ -980,6 +1046,52 @@ impl ChamaOptics {
                                 Err(e) => {
                                     log::error!("Failed to add sticker {}: {:?}", name, e);
                                 }
+                            }
+                        }
+                    }
+                    MainTab::Color => {
+                        // Color tab: .cube files go to LUT storage, images go to image queue
+                        for path in paths.iter() {
+                            let ext = path
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .unwrap_or("")
+                                .to_lowercase();
+
+                            if ext == "cube" {
+                                // Add as LUT
+                                let name = path
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("Unnamed LUT")
+                                    .to_string();
+
+                                match self.lut_storage.add_lut(name.clone(), path) {
+                                    Ok(id) => {
+                                        log::info!(
+                                            "Added LUT via drag-drop: {} (id: {})",
+                                            name,
+                                            id
+                                        );
+                                        // Auto-assign to current image if one is selected
+                                        if let Some(idx) = self.color_selected_index
+                                            && let Some(pi) = self.packed_images.get_mut(idx) {
+                                                pi.lut_id = Some(id);
+                                                log::info!(
+                                                    "Auto-assigned new LUT to image index {}",
+                                                    idx
+                                                );
+                                            }
+                                        // Invalidate preview cache
+                                        self.color_preview_cache_key = None;
+                                    }
+                                    Err(e) => {
+                                        log::error!("Failed to add LUT {}: {:?}", name, e);
+                                    }
+                                }
+                            } else {
+                                // Add as image
+                                self.pending_paths.push_back(path.clone());
                             }
                         }
                     }

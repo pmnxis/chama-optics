@@ -283,6 +283,7 @@ pub fn create_packed_image_from_data(
             sticker_bytes: None, // No sticker data from loader
             perceptual_hash: *perceptual_hash,
             configured_faces: Vec::new(), // No faces configured from loader
+            lut_id: None,                 // No LUT configured from loader
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

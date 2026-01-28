@@ -210,6 +210,7 @@ fn generate_preview_impl(
         perceptual_hash: None,
         // For now normal preview doesn't draw face effect.
         configured_faces: Vec::with_capacity(0),
+        lut_id: None, // iOS FFI doesn't use LUT yet
     };
 
     // 7. Apply theme
@@ -351,7 +352,8 @@ fn export_final_impl_with_exif_source(
         image_bytes,
         sticker_bytes: None,
         perceptual_hash: None,
-        configured_faces: Vec::with_capacity(0) // todo - check is this right?
+        configured_faces: Vec::with_capacity(0), // todo - check is this right?
+        lut_id: None,                            // iOS FFI doesn't use LUT yet
     };
 
     // 7. Apply theme with custom scale config if provided

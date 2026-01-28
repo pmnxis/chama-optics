@@ -11,12 +11,15 @@ use rust_i18n::t;
 
 impl ChamaOptics {
     /// Generate theme preview for selected image
-    /// Generates sticker-processed image on-demand based on current detection state
+    /// Generates LUT-processed and sticker-processed image on-demand based on current state
+    /// Pipeline: Load → LUT → Stickers → Theme
     pub(crate) fn generate_theme_preview(&mut self, ui_ctx: &egui::Context) -> Option<()> {
         let idx = self.preview_selected_index?;
 
-        // Extract path and theme_name before borrowing
-        let image_path = self.packed_images.get(idx)?.path.clone();
+        // Extract path, theme_name, and lut_id before borrowing
+        let packed_image = self.packed_images.get(idx)?;
+        let image_path = packed_image.path.clone();
+        let image_lut_id = packed_image.lut_id;
         let theme_name = self
             .export_config
             .theme_reg
@@ -24,27 +27,34 @@ impl ChamaOptics {
             .unique_name();
 
         // Check if we need to regenerate (cache invalidation)
-        let cache_key = (idx, theme_name.to_string());
+        // Cache key now includes lut_id for per-image LUT
+        let cache_key = (idx, format!("{}_{:?}", theme_name, image_lut_id));
         if self.theme_preview_cache_key.as_ref() == Some(&cache_key) {
             // Cache is still valid
             return Some(());
         }
 
-        // Generate sticker-processed image on-demand using current detection state
+        // Generate LUT-processed and sticker-processed image on-demand
         let preview_result = if !self.detected_faces.is_empty() {
             log::info!(
-                "Theme preview: Generating sticker-processed image on-demand for index {}",
+                "Theme preview: Generating LUT/sticker-processed image on-demand for index {}",
                 idx
             );
 
             // Load original image
-            let dyn_image = match image::open(&image_path) {
+            let mut dyn_image = match image::open(&image_path) {
                 Ok(img) => img,
                 Err(e) => {
                     log::error!("Failed to load image {:?}: {:?}", image_path, e);
                     return None;
                 }
             };
+
+            // Apply LUT first (if configured for this image)
+            if let Some(lut_id) = image_lut_id {
+                log::info!("Theme preview: Applying LUT {:?} to image", lut_id);
+                self.lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+            }
 
             // Apply stickers to image based on current detected faces
             let sticker_processed_image = {
@@ -160,11 +170,53 @@ impl ChamaOptics {
                 ))),
             }
         } else {
-            // No faces, just apply theme to original image
+            // No faces, apply LUT (if configured) then theme to original image
             log::info!(
-                "Theme preview: No faces detected, applying theme to original image for index {}",
+                "Theme preview: No faces detected, applying LUT/theme to original image for index {}",
                 idx
             );
+
+            // If LUT is configured, we need to apply it before theme
+            if let Some(lut_id) = image_lut_id {
+                // Load image, apply LUT, save to sticker_bytes so theme can use it
+                let mut dyn_image = match image::open(&image_path) {
+                    Ok(img) => img,
+                    Err(e) => {
+                        log::error!("Failed to load image {:?}: {:?}", image_path, e);
+                        return None;
+                    }
+                };
+
+                log::info!(
+                    "Theme preview: Applying LUT {:?} to image (no faces)",
+                    lut_id
+                );
+                self.lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+
+                // Save LUT-processed image to sticker_bytes for theme to use
+                let original_ext = image_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("jpg");
+
+                let format = match original_ext.to_lowercase().as_str() {
+                    "png" => image::ImageFormat::Png,
+                    "heic" | "heif" => image::ImageFormat::Jpeg,
+                    _ => image::ImageFormat::Jpeg,
+                };
+
+                let mut bytes = Vec::new();
+                if dyn_image
+                    .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+                    .is_ok()
+                    && let Some(packed_img) = self.packed_images.get_mut(idx) {
+                        packed_img.sticker_bytes = Some(bytes);
+                        log::info!(
+                            "Updated sticker_bytes in PackedImage[{}] with LUT-processed image",
+                            idx
+                        );
+                    }
+            }
 
             match self.packed_images.get(idx) {
                 Some(pi) => self

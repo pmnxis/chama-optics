@@ -260,12 +260,11 @@ impl LutStorage {
         }
 
         // Try to load from disk
-        if let Some(lut_item) = self.luts.iter().find(|l| l.id == id) {
-            if let Some(lut) = lut_item.load_lut() {
+        if let Some(lut_item) = self.luts.iter().find(|l| l.id == id)
+            && let Some(lut) = lut_item.load_lut() {
                 self.lut_cache.insert(id, lut);
                 return self.lut_cache.get(&id);
             }
-        }
 
         None
     }
@@ -382,23 +381,18 @@ impl LutStorage {
             }
 
             // Remove LUT button (only if a LUT is selected)
-            if self.selected_lut_id.is_some() {
-                if ui.button(t!("color.remove_lut")).clicked() {
-                    if let Some(id) = self.selected_lut_id {
+            if self.selected_lut_id.is_some()
+                && ui.button(t!("color.remove_lut")).clicked()
+                    && let Some(id) = self.selected_lut_id {
                         self.remove_lut(id);
                     }
-                }
-            }
         });
 
         // Show selected LUT info
         if let Some(lut_item) = self.get_selected_lut() {
             ui.horizontal(|ui| {
                 ui.label(t!("color.lut_info"));
-                ui.label(format!(
-                    "{} - {}",
-                    lut_item.name, lut_item.lut_size_info
-                ));
+                ui.label(format!("{} - {}", lut_item.name, lut_item.lut_size_info));
             });
         }
 

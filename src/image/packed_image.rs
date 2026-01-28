@@ -58,6 +58,10 @@ pub struct PackedImage {
     /// Configured face detection areas with effects
     /// User-configured face regions that will have effects applied during export
     pub configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
+
+    /// LUT ID configured for this image (None = no LUT applied)
+    /// References a LUT in the global LutStorage
+    pub lut_id: Option<Uuid>,
 }
 
 impl PackedImage {
@@ -221,6 +225,7 @@ impl PackedImage {
             sticker_bytes: None,   // No sticker data for manually loaded images
             perceptual_hash: None, // Not calculated for manually loaded images
             configured_faces: Vec::new(), // No faces configured yet
+            lut_id: None,          // No LUT configured yet
         })
     }
 
@@ -253,6 +258,7 @@ impl PackedImage {
             sticker_bytes: None, // CLI mode doesn't have sticker-processed images
             perceptual_hash: None, // CLI mode doesn't calculate hash
             configured_faces: Vec::new(), // No faces configured in CLI mode
+            lut_id: None,        // No LUT configured in CLI mode
         })
     }
 

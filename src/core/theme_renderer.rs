@@ -36,6 +36,7 @@ fn create_packed_image_from_dynamic(
         sticker_bytes: None,
         perceptual_hash: None,
         configured_faces: Vec::new(),
+        lut_id: None, // Core renderer doesn't use LUT
     })
 }
 
