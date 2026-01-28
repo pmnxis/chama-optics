@@ -7,7 +7,7 @@
 //! Face Detection Tab - Preview and edit face detection results with sticker assignment
 
 use crate::app::{ChamaOptics, FaceInteractionState, ResizeCorner};
-use crate::effect::sticker_storage::FaceWithSticker;
+use crate::effect::sticker_storage::FaceArea;
 use rust_i18n::t;
 
 impl ChamaOptics {
@@ -27,9 +27,9 @@ impl ChamaOptics {
             self.preview_selected_index = Some(0);
             // Load previously configured faces if available
             if let Some(img) = self.packed_images.first()
-                && let Some(configured_faces) = self.configured_faces_by_uuid.get(&img.uuid)
+                && !img.configured_faces.is_empty()
             {
-                self.detected_faces = configured_faces.clone();
+                self.detected_faces = img.configured_faces.clone();
                 self.selected_face_index = if self.detected_faces.is_empty() {
                     None
                 } else {
@@ -58,8 +58,8 @@ impl ChamaOptics {
 
                 // Load previously configured faces if available, otherwise clear
                 if let Some(img) = self.packed_images.get(idx) {
-                    if let Some(configured_faces) = self.configured_faces_by_uuid.get(&img.uuid) {
-                        self.detected_faces = configured_faces.clone();
+                    if !img.configured_faces.is_empty() {
+                        self.detected_faces = img.configured_faces.clone();
                         self.selected_face_index = if self.detected_faces.is_empty() {
                             None
                         } else {
@@ -149,9 +149,9 @@ impl ChamaOptics {
                     self.selected_face_index = None;
                     // Clear configured faces for current image
                     if let Some(idx) = self.preview_selected_index
-                        && let Some(img) = self.packed_images.get(idx)
+                        && let Some(img) = self.packed_images.get_mut(idx)
                     {
-                        self.configured_faces_by_uuid.remove(&img.uuid);
+                        img.configured_faces.clear();
                         self.detection_preview_cache_key = None;
                     }
                 }
@@ -181,10 +181,9 @@ impl ChamaOptics {
 
                 // Update configured faces
                 if let Some(idx) = self.preview_selected_index
-                    && let Some(img) = self.packed_images.get(idx)
+                    && let Some(img) = self.packed_images.get_mut(idx)
                 {
-                    self.configured_faces_by_uuid
-                        .insert(img.uuid, self.detected_faces.clone());
+                    img.configured_faces = self.detected_faces.clone();
                 }
             }
 
@@ -742,10 +741,9 @@ impl ChamaOptics {
 
             // Save updated configured faces for export to avoid re-detection
             if let Some(idx) = self.preview_selected_index
-                && let Some(img) = self.packed_images.get(idx)
+                && let Some(img) = self.packed_images.get_mut(idx)
             {
-                self.configured_faces_by_uuid
-                    .insert(img.uuid, self.detected_faces.clone());
+                img.configured_faces = self.detected_faces.clone();
                 log::info!("Saved configured faces for image {:?}", img.path);
             }
             return;
@@ -954,7 +952,7 @@ impl ChamaOptics {
 
                 // Create new face with default size (100x100 in original image coordinates)
                 let default_size = 100u32;
-                let new_face = FaceWithSticker::new(
+                let new_face = FaceArea::new(
                     img_x - (default_size as i32 / 2),
                     img_y - (default_size as i32 / 2),
                     default_size,
@@ -970,12 +968,7 @@ impl ChamaOptics {
     }
 
     /// Check if point is inside a face rectangle (pos is in screen coordinates)
-    fn is_point_in_face(
-        &self,
-        pos: egui::Pos2,
-        face: &FaceWithSticker,
-        image_rect: egui::Rect,
-    ) -> bool {
+    fn is_point_in_face(&self, pos: egui::Pos2, face: &FaceArea, image_rect: egui::Rect) -> bool {
         let texture_size = self
             .detection_preview_texture
             .as_ref()
@@ -1000,7 +993,7 @@ impl ChamaOptics {
     fn check_resize_handle(
         &self,
         pos: egui::Pos2,
-        face: &FaceWithSticker,
+        face: &FaceArea,
         image_rect: egui::Rect,
     ) -> Option<ResizeCorner> {
         const HANDLE_SIZE: f32 = 10.0;
@@ -1113,15 +1106,13 @@ impl ChamaOptics {
 
     /// Add a new face manually at the center of the current view
     fn add_face_manually(&mut self) {
-        if let Some(idx) = self.preview_selected_index
-            && let Some(packed_image) = self.packed_images.get(idx)
-        {
+        if let Some(idx) = self.preview_selected_index {
             // Get original image dimensions
             let (orig_w, orig_h) = self.detection_preview_original_size.unwrap_or((1000, 1000));
 
             // Create new face at center of image with default size (150x150)
             let default_size = 150u32;
-            let new_face = FaceWithSticker::new(
+            let new_face = FaceArea::new(
                 (orig_w as i32 - default_size as i32) / 2,
                 (orig_h as i32 - default_size as i32) / 2,
                 default_size,
@@ -1133,8 +1124,9 @@ impl ChamaOptics {
             self.detection_preview_cache_key = None;
 
             // Update configured faces
-            self.configured_faces_by_uuid
-                .insert(packed_image.uuid, self.detected_faces.clone());
+            if let Some(packed_image) = self.packed_images.get_mut(idx) {
+                packed_image.configured_faces = self.detected_faces.clone();
+            }
 
             log::info!("Manually added face at center of image");
         }
@@ -1268,7 +1260,7 @@ impl ChamaOptics {
         {
             // Verify this result is for the currently selected image
             if let Some(selected_idx) = self.preview_selected_index {
-                if let Some(selected_image) = self.packed_images.get(selected_idx) {
+                if let Some(selected_image) = self.packed_images.get_mut(selected_idx) {
                     if selected_image.uuid == image_uuid {
                         log::info!("Applying detection results for current image");
 
@@ -1289,7 +1281,7 @@ impl ChamaOptics {
                         self.detected_faces = faces
                             .into_iter()
                             .map(|(x, y, w, h)| {
-                                let mut face = FaceWithSticker::new(x, y, w, h);
+                                let mut face = FaceArea::new(x, y, w, h);
                                 // Apply default effect from settings
                                 face.effect_mode = self.default_face_effect;
                                 // Apply default sticker from storage (only if Sticker or None mode)
@@ -1311,8 +1303,7 @@ impl ChamaOptics {
                         };
 
                         // Save configured faces for export to avoid re-detection
-                        self.configured_faces_by_uuid
-                            .insert(image_uuid, self.detected_faces.clone());
+                        selected_image.configured_faces = self.detected_faces.clone();
 
                         faces_processed = true;
                     } else {
@@ -1408,7 +1399,7 @@ impl ChamaOptics {
     /// Generate a preview image (with effects and stickers applied) - synchronous version
     fn generate_detection_preview_sync(
         image_path: &std::path::Path,
-        detected_faces: &[crate::effect::sticker_storage::FaceWithSticker],
+        detected_faces: &[crate::effect::sticker_storage::FaceArea],
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
         mosaic_config: &crate::effect::mosaic::MosaicEffect,

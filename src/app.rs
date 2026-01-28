@@ -142,7 +142,7 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Detected faces for the current image (editable)
-    pub(crate) detected_faces: Vec<crate::effect::sticker_storage::FaceWithSticker>,
+    pub(crate) detected_faces: Vec<crate::effect::sticker_storage::FaceArea>,
 
     #[serde(skip)]
     /// Selected face index for editing
@@ -192,11 +192,6 @@ pub struct ChamaOptics {
     #[serde(skip)]
     /// Queue for face detection results from background thread
     pub detection_results_queue: DetectionResultsQueue,
-
-    #[serde(skip)]
-    /// Configured faces for each image (by UUID) - result of Detection tab editing
-    pub(crate) configured_faces_by_uuid:
-        std::collections::HashMap<uuid::Uuid, Vec<crate::effect::sticker_storage::FaceWithSticker>>,
 
     #[serde(skip)]
     /// Cached InsightFace detector for reuse
@@ -267,7 +262,6 @@ impl Default for ChamaOptics {
             detection_pending_orientation: None,
             detection_raw_image_size: None,
             detection_results_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
-            configured_faces_by_uuid: std::collections::HashMap::new(),
             #[cfg(feature = "face_detection_insightface")]
             insightface_detector: std::sync::Arc::new(std::sync::Mutex::new(None)),
             background_texture: None,
@@ -333,7 +327,6 @@ impl ChamaOptics {
         }
 
         // Clean up related data
-        self.configured_faces_by_uuid.remove(&removed_uuid);
         self.sticker_processed_images.remove(&removed_uuid);
 
         // Adjust preview_selected_index if needed
@@ -395,7 +388,7 @@ impl ChamaOptics {
             postfix: Option<String>,
             sticker_bytes: Option<Vec<u8>>,
             #[allow(dead_code)] // todo - windows issue, resolve later
-            configured_faces: Vec<crate::effect::sticker_storage::FaceWithSticker>,
+            configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
         }
 
         // save each
@@ -537,11 +530,7 @@ impl ChamaOptics {
                             }
                         }),
                         sticker_bytes: pi.sticker_bytes.clone(),
-                        configured_faces: self
-                            .configured_faces_by_uuid
-                            .get(&pi.uuid)
-                            .cloned()
-                            .unwrap_or_default(),
+                        configured_faces: pi.configured_faces.clone(),
                     }
                 })
                 .collect()
@@ -555,11 +544,7 @@ impl ChamaOptics {
                     prefix: None,
                     postfix: None,
                     sticker_bytes: pi.sticker_bytes.clone(),
-                    configured_faces: self
-                        .configured_faces_by_uuid
-                        .get(&pi.uuid)
-                        .cloned()
-                        .unwrap_or_default(),
+                    configured_faces: pi.configured_faces.clone(),
                 })
                 .collect()
         };
