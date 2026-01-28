@@ -5,11 +5,13 @@
  */
 
 pub mod border;
+pub mod color_adjustments;
 pub(crate) mod custom_weighted_sum;
 pub(crate) mod draw_with_transparency;
 pub mod face_detection;
 pub mod face_detectors;
 pub(crate) mod glow;
+pub mod lut_storage;
 pub(crate) mod mosaic;
 pub(crate) mod sticker;
 pub mod sticker_storage;

@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+tabs:
+  color:
+    en: "Color Grading"
+    ko: "컬러 그레이딩"
+    ja: "カラーグレーディング"
+  color_heading:
+    en: "Color Grading"
+    ko: "컬러 그레이딩"
+    ja: "カラーグレーディング"
+
+color:
+  select_image:
+    en: "Select an image to preview:"
+    ko: "미리보기할 이미지를 선택하세요:"
+    ja: "プレビューする画像を選択してください:"
+  preview_label:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
+  refresh_button:
+    en: "Refresh"
+    ko: "새로고침"
+    ja: "更新"
+  original:
+    en: "Original"
+    ko: "원본"
+    ja: "元画像"
+  lut_applied:
+    en: "LUT Applied"
+    ko: "LUT 적용됨"
+    ja: "LUT適用"
+  no_images:
+    en: "No images loaded"
+    ko: "불러온 이미지가 없습니다"
+    ja: "画像がロードされていません"
+  generating:
+    en: "Processing..."
+    ko: "처리 중..."
+    ja: "処理中..."
+
+  # LUT Settings
+  lut_settings:
+    en: "LUT Settings"
+    ko: "LUT 설정"
+    ja: "LUT設定"
+  lut_select:
+    en: "LUT:"
+    ko: "LUT:"
+    ja: "LUT:"
+  no_lut:
+    en: "None"
+    ko: "없음"
+    ja: "なし"
+  add_lut:
+    en: "+ Add LUT"
+    ko: "+ LUT 추가"
+    ja: "+ LUT追加"
+  remove_lut:
+    en: "Remove"
+    ko: "삭제"
+    ja: "削除"
+  lut_info:
+    en: "Info:"
+    ko: "정보:"
+    ja: "情報:"
+  select_lut_file:
+    en: "Select LUT File"
+    ko: "LUT 파일 선택"
+    ja: "LUTファイルを選択"
+
+  # Color Adjustments (Future)
+  adjustments_section:
+    en: "Color Adjustments (Coming Soon)"
+    ko: "색상 조정 (준비 중)"
+    ja: "カラー調整（準備中）"
+  adjustments_enabled:
+    en: "Enable Adjustments"
+    ko: "색상 조정 활성화"
+    ja: "調整を有効にする"
+  adjustments_coming_soon:
+    en: "(Coming Soon)"
+    ko: "(준비 중)"
+    ja: "（準備中）"
+  reset_adjustments:
+    en: "Reset"
+    ko: "초기화"
+    ja: "リセット"
+  exposure:
+    en: "Exposure"
+    ko: "노출"
+    ja: "露出"
+  contrast:
+    en: "Contrast"
+    ko: "대비"
+    ja: "コントラスト"
+  highlights:
+    en: "Highlights"
+    ko: "하이라이트"
+    ja: "ハイライト"
+  shadows:
+    en: "Shadows"
+    ko: "그림자"
+    ja: "シャドウ"
+  whites:
+    en: "Whites"
+    ko: "흰색 계열"
+    ja: "白レベル"
+  blacks:
+    en: "Blacks"
+    ko: "검은색 계열"
+    ja: "黒レベル"
+  clarity:
+    en: "Clarity"
+    ko: "선명도"
+    ja: "明瞭度"
+  vibrance:
+    en: "Vibrance"
+    ko: "활기"
+    ja: "自然な彩度"
+  saturation:
+    en: "Saturation"
+    ko: "채도"
+    ja: "彩度"

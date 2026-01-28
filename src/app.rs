@@ -36,6 +36,7 @@ pub enum MainTab {
     ImageList,
     Detection,
     ThemePreview,
+    Color,
     Sticker,
     ImportExport,
     Settings,
@@ -95,6 +96,12 @@ pub struct ChamaOptics {
     /// Default effect to apply to newly detected faces
     pub default_face_effect: crate::effect::FaceEffectMode,
 
+    /// LUT storage for color grading
+    pub lut_storage: crate::effect::lut_storage::LutStorage,
+
+    /// Color adjustments (future feature, placeholder)
+    pub color_adjustments: crate::effect::color_adjustments::ColorAdjustments,
+
     /// Mosaic block size for effect application
     pub mosaic_block_size: u32,
 
@@ -107,6 +114,22 @@ pub struct ChamaOptics {
     #[serde(skip)]
     /// Selected sticker ID for sticker preview tab
     pub(crate) selected_sticker_id: Option<uuid::Uuid>,
+
+    #[serde(skip)]
+    /// Selected image index for color tab
+    pub(crate) color_selected_index: Option<usize>,
+
+    #[serde(skip)]
+    /// Cached original image texture for color tab (left side)
+    pub(crate) color_original_texture: Option<egui::TextureHandle>,
+
+    #[serde(skip)]
+    /// Cached LUT-applied image texture for color tab (right side)
+    pub(crate) color_lut_texture: Option<egui::TextureHandle>,
+
+    #[serde(skip)]
+    /// Color preview cache key (image_index, lut_id)
+    pub(crate) color_preview_cache_key: Option<(usize, Option<uuid::Uuid>)>,
 
     #[serde(skip)]
     pub packed_images: Vec<PackedImage>,
@@ -245,7 +268,13 @@ impl Default for ChamaOptics {
             mosaic_block_size: 10, // Default mosaic block size (pixels)
             stroke_thickness: 3,   // Default stroke thickness (pixels)
             stroke_color: egui::Color32::DARK_RED, // Default stroke color (red)
+            lut_storage: crate::effect::lut_storage::LutStorage::new(),
+            color_adjustments: crate::effect::color_adjustments::ColorAdjustments::default(),
             selected_sticker_id: None,
+            color_selected_index: None,
+            color_original_texture: None,
+            color_lut_texture: None,
+            color_preview_cache_key: None,
             packed_images: vec![],
             image_groups: None,
             preview_selected_index: None,
@@ -294,6 +323,10 @@ impl ChamaOptics {
         self.detection_preview_texture = None;
         self.detected_faces.clear();
         self.selected_face_index = None;
+        // Color tab caches
+        self.color_preview_cache_key = None;
+        self.color_original_texture = None;
+        self.color_lut_texture = None;
     }
 
     /// Delete an image by index and handle related cleanup
@@ -1194,6 +1227,7 @@ impl ChamaOptics {
                 MainTab::ImageList => self.render_image_list_tab(ui),
                 MainTab::Detection => self.render_detection_tab(ui),
                 MainTab::ThemePreview => self.render_theme_preview_tab(ui),
+                MainTab::Color => self.render_color_tab(ui),
                 MainTab::Sticker => self.render_sticker_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),

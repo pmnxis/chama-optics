@@ -6,6 +6,7 @@
 
 //! Tab UI modules
 
+pub mod color;
 pub mod detection;
 pub mod image_list;
 pub mod import_export;

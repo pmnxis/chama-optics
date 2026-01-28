@@ -162,7 +162,19 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
 
                 ui.add_space(5.0);
 
-                // Tab 4: Sticker (🎭)
+                // Tab 4: Color Grading (🎨)
+                render_tab_button(
+                    ui,
+                    selected_tab,
+                    MainTab::Color,
+                    "🎨",
+                    "Color",
+                    &t!("tabs.color", default = "Color Grading"),
+                );
+
+                ui.add_space(5.0);
+
+                // Tab 5: Sticker (🎭)
                 render_tab_button(
                     ui,
                     selected_tab,
