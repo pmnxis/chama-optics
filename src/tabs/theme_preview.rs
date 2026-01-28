@@ -209,13 +209,14 @@ impl ChamaOptics {
                 if dyn_image
                     .write_to(&mut std::io::Cursor::new(&mut bytes), format)
                     .is_ok()
-                    && let Some(packed_img) = self.packed_images.get_mut(idx) {
-                        packed_img.sticker_bytes = Some(bytes);
-                        log::info!(
-                            "Updated sticker_bytes in PackedImage[{}] with LUT-processed image",
-                            idx
-                        );
-                    }
+                    && let Some(packed_img) = self.packed_images.get_mut(idx)
+                {
+                    packed_img.sticker_bytes = Some(bytes);
+                    log::info!(
+                        "Updated sticker_bytes in PackedImage[{}] with LUT-processed image",
+                        idx
+                    );
+                }
             }
 
             match self.packed_images.get(idx) {

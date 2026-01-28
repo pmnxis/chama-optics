@@ -1075,13 +1075,14 @@ impl ChamaOptics {
                                         );
                                         // Auto-assign to current image if one is selected
                                         if let Some(idx) = self.color_selected_index
-                                            && let Some(pi) = self.packed_images.get_mut(idx) {
-                                                pi.lut_id = Some(id);
-                                                log::info!(
-                                                    "Auto-assigned new LUT to image index {}",
-                                                    idx
-                                                );
-                                            }
+                                            && let Some(pi) = self.packed_images.get_mut(idx)
+                                        {
+                                            pi.lut_id = Some(id);
+                                            log::info!(
+                                                "Auto-assigned new LUT to image index {}",
+                                                idx
+                                            );
+                                        }
                                         // Invalidate preview cache
                                         self.color_preview_cache_key = None;
                                     }

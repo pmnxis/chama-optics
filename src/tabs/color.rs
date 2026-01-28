@@ -588,25 +588,27 @@ impl ChamaOptics {
                                         } else if image_response.clicked() {
                                             // Select this LUT for current image
                                             if let Some(idx) = self.color_selected_index
-                                                && let Some(pi) = self.packed_images.get_mut(idx) {
-                                                    pi.lut_id = Some(*lut_id);
-                                                    self.color_preview_cache_key = None;
-                                                    log::info!(
-                                                        "Selected LUT {} for image {}",
-                                                        lut_id,
-                                                        idx
-                                                    );
-                                                }
+                                                && let Some(pi) = self.packed_images.get_mut(idx)
+                                            {
+                                                pi.lut_id = Some(*lut_id);
+                                                self.color_preview_cache_key = None;
+                                                log::info!(
+                                                    "Selected LUT {} for image {}",
+                                                    lut_id,
+                                                    idx
+                                                );
+                                            }
                                         }
                                     }
                                 } else if image_response.clicked() {
                                     // Select this LUT for current image
                                     if let Some(idx) = self.color_selected_index
-                                        && let Some(pi) = self.packed_images.get_mut(idx) {
-                                            pi.lut_id = Some(*lut_id);
-                                            self.color_preview_cache_key = None;
-                                            log::info!("Selected LUT {} for image {}", lut_id, idx);
-                                        }
+                                        && let Some(pi) = self.packed_images.get_mut(idx)
+                                    {
+                                        pi.lut_id = Some(*lut_id);
+                                        self.color_preview_cache_key = None;
+                                        log::info!("Selected LUT {} for image {}", lut_id, idx);
+                                    }
                                 }
 
                                 ui.add_space(5.0);
@@ -680,11 +682,12 @@ impl ChamaOptics {
                 && ui
                     .button(t!("color.clear_lut", default = "Clear"))
                     .clicked()
-                    && let Some(pi) = self.packed_images.get_mut(idx) {
-                        pi.lut_id = None;
-                        self.color_preview_cache_key = None;
-                        log::info!("Cleared LUT for image index {}", idx);
-                    }
+                && let Some(pi) = self.packed_images.get_mut(idx)
+            {
+                pi.lut_id = None;
+                self.color_preview_cache_key = None;
+                log::info!("Cleared LUT for image index {}", idx);
+            }
         });
 
         ui.add_space(5.0);
@@ -768,10 +771,11 @@ impl ChamaOptics {
                     log::info!("Successfully added LUT: {} (id: {})", name, id);
                     // Auto-assign the newly added LUT to current image
                     if let Some(idx) = self.color_selected_index
-                        && let Some(pi) = self.packed_images.get_mut(idx) {
-                            pi.lut_id = Some(id);
-                            log::info!("Auto-assigned new LUT to image index {}", idx);
-                        }
+                        && let Some(pi) = self.packed_images.get_mut(idx)
+                    {
+                        pi.lut_id = Some(id);
+                        log::info!("Auto-assigned new LUT to image index {}", idx);
+                    }
                     // Invalidate preview cache
                     self.color_preview_cache_key = None;
                 }
