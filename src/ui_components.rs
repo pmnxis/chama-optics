@@ -113,6 +113,12 @@ fn render_version_info(
     // Right-to-left layout, so elements appear in reverse order
     update_checker.ui(ui);
     ui.add_space(20.0);
+
+    ui.label(format!(
+        "v{} ({})",
+        env!("PROJECT_VERSION"),
+        env!("GIT_COMMIT_SHORT_HASH")
+    ));
 }
 
 /// Render the left sidebar with tab icons
