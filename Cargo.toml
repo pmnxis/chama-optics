@@ -121,16 +121,6 @@ reqwest = { version = "0.12", features = [
     "json",
     "rustls-tls",
 ], default-features = false } # rustls is now the default TLS backend, instead of native-tls.
-# ONNX Runtime for face detection
-# macOS/iOS: Works perfectly with VisionKit
-# Windows: Trying ort 2.0.0-rc.10 (older version may have better ABI compatibility)
-# Linux: Currently broken due to C++ stdlib ABI issues
-ort = { git = "https://github.com/pykeio/ort", version = "2.0.0-rc.11", optional = true }
-wagahai_lut = "0.1.0"
-[target.'cfg(not(windows))'.dependencies]
-candle-core = { version = "0.9", optional = true }
-candle-nn = { version = "0.9", optional = true }
-half = { version = "2.4", optional = true, default-features = false }
 
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
@@ -140,6 +130,19 @@ libheif-rs = { version = "^2.6", default-features = false, features = [
 ], optional = true }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a", optional = true }
 
+# ONNX Runtime for face detection
+# macOS/iOS: Works perfectly with VisionKit
+# Windows: Trying ort 2.0.0-rc.10 (older version may have better ABI compatibility)
+# Linux: Currently broken due to C++ stdlib ABI issues
+ort = { git = "https://github.com/pykeio/ort", version = "2.0.0-rc.11", optional = true }
+
+# LUT SYSTEM
+wagahai_lut = "0.1.0"
+
+[target.'cfg(not(windows))'.dependencies]
+candle-core = { version = "0.9", optional = true }
+candle-nn = { version = "0.9", optional = true }
+half = { version = "2.4", optional = true, default-features = false }
 
 [profile.release]
 opt-level = 3
