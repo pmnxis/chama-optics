@@ -415,7 +415,7 @@ impl Default for StickerConfig {
 
 /// Face detection result with optional sticker and effect assignment
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FaceWithSticker {
+pub struct FaceArea {
     /// Face bounding box: (x, y, width, height)
     pub x: i32,
     pub y: i32,
@@ -428,7 +428,7 @@ pub struct FaceWithSticker {
     pub effect_mode: super::FaceEffectMode,
 }
 
-impl FaceWithSticker {
+impl FaceArea {
     pub fn new(x: i32, y: i32, width: u32, height: u32) -> Self {
         Self {
             x,
@@ -452,7 +452,7 @@ impl FaceWithSticker {
 /// Apply stickers to detected faces using the sticker storage
 pub fn apply_stickers_from_storage(
     mut image: DynamicImage,
-    faces: &[FaceWithSticker],
+    faces: &[FaceArea],
     storage: &StickerStorage,
     config: &StickerConfig,
 ) -> DynamicImage {
@@ -573,7 +573,7 @@ mod tests {
 
     #[test]
     fn test_face_with_sticker() {
-        let face = FaceWithSticker::new(10, 20, 100, 150);
+        let face = FaceArea::new(10, 20, 100, 150);
         assert_eq!(face.x, 10);
         assert_eq!(face.y, 20);
         assert_eq!(face.width, 100);

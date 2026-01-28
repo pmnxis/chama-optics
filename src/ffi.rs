@@ -13,6 +13,7 @@ use std::os::raw::c_char;
 use std::path::PathBuf;
 
 use crate::core::ImageProcessor;
+use chrono::{Datelike, Timelike};
 
 #[cfg(feature = "desktop")]
 use crate::core::ThemeType;
@@ -49,9 +50,23 @@ pub struct CFaceRectList {
     pub count: usize,
 }
 
+/// C-compatible datetime structure (all 0 if not available)
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct CDatetime {
+    pub year: u16,  // 0-65535 (more than enough for any realistic year)
+    pub month: u8,  // 1-12
+    pub day: u8,    // 1-31
+    pub hour: u8,   // 0-23
+    pub minute: u8, // 0-59
+    pub second: u8, // 0-59
+}
+
 /// C-compatible EXIF data structure
+/// IMPORTANT: Keep field order consistent with Swift definition to avoid alignment issues
 #[repr(C)]
 pub struct CExifData {
+    // Pointer fields first (all same size)
     pub camera_manufacturer: *const c_char,
     pub camera_model: *const c_char,
     pub lens_manufacturer: *const c_char,
@@ -59,8 +74,10 @@ pub struct CExifData {
     pub focal_length: *const c_char,
     pub f_number: *const c_char,
     pub exposure_time: *const c_char,
+
+    // Non-pointer fields last (grouped by size for alignment)
+    pub datetime: CDatetime,
     pub iso_speed: u32, // 0 if not available
-    pub datetime: *const c_char,
     pub has_exif: bool,
 }
 
@@ -140,9 +157,7 @@ pub extern "C" fn chama_optics_free_exif_data(exif_data: *mut CExifData) {
         if !exif_box.exposure_time.is_null() {
             let _ = CString::from_raw(exif_box.exposure_time as *mut c_char);
         }
-        if !exif_box.datetime.is_null() {
-            let _ = CString::from_raw(exif_box.datetime as *mut c_char);
-        }
+        // No datetime string to free anymore - using components instead
     }
 }
 
@@ -176,7 +191,21 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
         };
 
         let exif = &core_image.view_exif;
-        let has_exif = !exif.camera_model.is_empty() || !exif.lens_model.is_empty();
+
+        // Debug: Log EXIF field values
+        log::info!("DEBUG: exif.camera_mnf = '{}'", exif.camera_mnf);
+        log::info!("DEBUG: exif.camera_model = '{}'", exif.camera_model);
+        log::info!("DEBUG: exif.lens_mnf = '{}'", exif.lens_mnf);
+        log::info!("DEBUG: exif.lens_model = '{}'", exif.lens_model);
+
+        // Check if we have any meaningful EXIF data
+        let has_exif = !exif.camera_mnf.is_empty()
+            || !exif.camera_model.is_empty()
+            || !exif.lens_mnf.is_empty()
+            || !exif.lens_model.is_empty()
+            || exif.iso_speed.is_some();
+
+        log::info!("DEBUG: has_exif = {}", has_exif);
 
         // Helper to create CString or return null pointer
         let to_cstring = |s: &str| -> *const c_char {
@@ -189,10 +218,18 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
             }
         };
 
-        let datetime_str = exif
-            .datetime
-            .map(|dt| dt.format("%Y.%m.%d %H:%M:%S").to_string())
-            .unwrap_or_default();
+        // Extract datetime components from NaiveDateTime using traits
+        let (year, month, day, hour, minute, second) = match exif.datetime {
+            Some(dt) => (
+                dt.year() as u16,
+                dt.month() as u8,
+                dt.day() as u8,
+                dt.hour() as u8,
+                dt.minute() as u8,
+                dt.second() as u8,
+            ),
+            None => (0, 0, 0, 0, 0, 0),
+        };
 
         let exif_data = Box::new(CExifData {
             camera_manufacturer: to_cstring(&exif.camera_mnf),
@@ -203,7 +240,14 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
             f_number: to_cstring(&exif.fnumber),
             exposure_time: to_cstring(&exif.exposure),
             iso_speed: exif.iso_speed.unwrap_or(0),
-            datetime: to_cstring(&datetime_str),
+            datetime: CDatetime {
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+            },
             has_exif,
         });
 

@@ -161,6 +161,7 @@ impl ImageProcessor {
             image_bytes: None,
             sticker_bytes: None,
             perceptual_hash: None,
+            configured_faces: Vec::new(),
         };
 
         // Use ExportConfig for theme application

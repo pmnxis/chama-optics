@@ -35,6 +35,7 @@ fn create_packed_image_from_dynamic(
         image_bytes: None,
         sticker_bytes: None,
         perceptual_hash: None,
+        configured_faces: Vec::new(),
     })
 }
 
