@@ -25,6 +25,8 @@ pub enum Language {
     Ko,
     /// Japanese 日本語
     Ja,
+    /// Indonesian Bahasa Indonesia
+    Id,
 }
 
 impl Language {

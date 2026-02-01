@@ -13,46 +13,55 @@ export:
     en: "Save Format"
     ko: "저장 형식"
     ja: "保存形式"
+    id: "Format Penyimpanan"
 
   # JPEG quality
   jpeg_quality:
     en: "JPEG Quality"
     ko: "JPEG 품질"
     ja: "JPEG品質"
+    id: "Kualitas JPEG"
 
   # WebP quality
   webp_quality:
     en: "WebP Quality"
     ko: "WebP 품질"
     ja: "WebP品質"
+    id: "Kualitas WebP"
 
   # Quality levels
   quality_maximum:
     en: "Maximum quality (largest file size)"
     ko: "최고 품질 (가장 큰 파일 크기)"
     ja: "最高品質（最大ファイルサイズ）"
+    id: "Kualitas maksimum (ukuran berkas terbesar)"
   quality_high:
     en: "High quality"
     ko: "높은 품질"
     ja: "高品質"
+    id: "Kualitas tinggi"
   quality_good:
     en: "Good quality"
     ko: "좋은 품질"
     ja: "良好な品質"
+    id: "Kualitas baik"
   quality_medium:
     en: "Medium quality"
     ko: "중간 품질"
     ja: "中品質"
+    id: "Kualitas sedang"
   quality_low:
     en: "Low quality (smallest file size)"
     ko: "낮은 품질 (가장 작은 파일 크기)"
     ja: "低品質（最小ファイルサイズ）"
+    id: "Kualitas rendah (ukuran berkas terkecil)"
 
   # Footer
   image_export_footer:
     en: "Choose format for saving images to your photo library."
     ko: "포토 라이브러리에 저장할 이미지 형식을 선택하세요."
     ja: "写真ライブラリに保存する画像の形式を選択します。"
+    id: "Pilih format untuk menyimpan gambar ke galeri foto Anda."
 
 # Scale modes
 scale:
@@ -60,90 +69,112 @@ scale:
     en: "Scale Mode"
     ko: "스케일 모드"
     ja: "スケールモード"
+    id: "Mode Skala"
   mode_none:
     en: "None"
     ko: "없음"
     ja: "なし"
+    id: "Tidak ada"
   mode_divide:
     en: "Divide"
     ko: "나누기"
     ja: "割る"
+    id: "Bagi"
   mode_divide_by:
     en: "Divide by"
     ko: "나누기"
     ja: "割る"
+    id: "Bagi dengan"
   mode_divide_hint:
     en: "Divides both width and height by this value"
     ko: "너비와 높이를 이 값으로 나눕니다"
     ja: "幅と高さをこの値で割ります"
+    id: "Membagi lebar dan tinggi dengan nilai ini"
   mode_max_width:
     en: "Max Width"
     ko: "최대 너비"
     ja: "最大幅"
+    id: "Lebar Maksimal"
   mode_max_width_hint:
     en: "Resize to target width, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 목표 너비로 크기 조정"
     ja: "縦横比を維持して目標幅にリサイズ"
+    id: "Ubah ukuran ke lebar target, pertahankan rasio aspek"
   mode_max_height:
     en: "Max Height"
     ko: "최대 높이"
     ja: "最大高さ"
+    id: "Tinggi Maksimal"
   mode_max_height_hint:
     en: "Resize to target height, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 목표 높이로 크기 조정"
     ja: "縦横比を維持して目標高さにリサイズ"
+    id: "Ubah ukuran ke tinggi target, pertahankan rasio aspek"
   mode_longside:
     en: "Longside"
     ko: "긴 쪽"
     ja: "長辺"
+    id: "Sisi Panjang"
   mode_longside_hint:
     en: "Resize longest side to target length, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 가장 긴 쪽을 목표 길이로 크기 조정"
     ja: "縦横比を維持して最長辺を目標の長さにリサイズ"
+    id: "Ubah ukuran sisi terpanjang ke panjang target, pertahankan rasio aspek"
   mode_near_common_width:
     en: "Near Common (Width)"
     ko: "Near Common (너비)"
     ja: "Near Common（幅）"
+    id: "Dekat Umum (Lebar)"
   mode_near_common_width_hint:
     en: "Resize to nearest width that preserves original aspect ratio"
     ko: "원래 가로세로 비율을 보존하는 가장 가까운 너비로 크기 조정"
     ja: "元の縦横比を保持する最も近い幅にリサイズ"
+    id: "Ubah ukuran ke lebar terdekat yang mempertahankan rasio aspek asli"
   mode_near_common_height:
     en: "Near Common (Height)"
     ko: "Near Common (높이)"
     ja: "Near Common（高さ）"
+    id: "Dekat Umum (Tinggi)"
   mode_near_common_height_hint:
     en: "Resize to nearest height that preserves original aspect ratio"
     ko: "원래 가로세로 비율을 보존하는 가장 가까운 높이로 크기 조정"
     ja: "元の縦横比を保持する最も近い高さにリサイズ"
+    id: "Ubah ukuran ke tinggi terdekat yang mempertahankan rasio aspek asli"
   mode_resize_crop:
     en: "Resize and Crop"
     ko: "크기 조정 및 자르기"
     ja: "リサイズして切り抜き"
+    id: "Ubah Ukuran dan Potong"
   mode_resize_crop_hint:
     en: "Resize and crop to exact dimensions"
     ko: "정확한 크기로 크기 조정 및 자르기"
     ja: "正確な寸法にリサイズして切り抜き"
+    id: "Ubah ukuran dan potong ke dimensi yang tepat"
   target_width:
     en: "Target Width"
     ko: "목표 너비"
     ja: "目標幅"
+    id: "Lebar Target"
   target_height:
     en: "Target Height"
     ko: "목표 높이"
     ja: "目標高さ"
+    id: "Tinggi Target"
   width:
     en: "Width"
     ko: "너비"
     ja: "幅"
+    id: "Lebar"
   height:
     en: "Height"
     ko: "높이"
     ja: "高さ"
+    id: "Tinggi"
   image_scale_footer:
     en: "Resize images before saving. \"Near Common\" options preserve aspect ratio by finding nearest multiple of original's greatest common divisor."
     ko: "저장 전에 이미지 크기를 조정합니다. \"Near Common\" 옵션은 원래 최대공약수의 가장 가까운 배수를 찾아 가로세로 비율을 유지합니다."
     ja: "保存前に画像サイズを変更します。「Near Common」オプションは元の最大公約数の最も近い倍数を見つけて縦横比を維持します。"
+    id: "Ubah ukuran gambar sebelum menyimpan. Opsi \"Dekat Umum\" mempertahankan rasio aspek dengan menemukan kelipatan terdekat dari pembagi bersama terbesar asli."
 
 # Progress messages
 progress:
@@ -151,15 +182,19 @@ progress:
     en: "Loading images"
     ko: "이미지 불러오는 중"
     ja: "画像を読み込んでいます"
+    id: "Memuat gambar"
   loading_completed:
     en: "Loading completed"
     ko: "불러오기 완료"
     ja: "読み込み完了"
+    id: "Pemuatan selesai"
   saving_in_progress:
     en: "Saving images"
     ko: "이미지 저장 중"
     ja: "画像を保存しています"
+    id: "Menyimpan gambar"
   saving_completed:
     en: "Saving completed"
     ko: "저장 완료"
     ja: "保存完了"
+    id: "Penyimpanan selesai"

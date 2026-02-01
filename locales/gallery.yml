@@ -14,129 +14,158 @@ gallery:
     en: "No Images Yet"
     ko: "아직 이미지가 없습니다"
     ja: "まだ画像がありません"
+    id: "Belum Ada Gambar"
   empty_state_subtitle:
     en: "Add your first image to get started"
     ko: "첫 이미지를 추가해서 시작하세요"
     ja: "最初の画像を追加して始めましょう"
+    id: "Tambahkan gambar pertama Anda untuk memulai"
 
   # Add/remove actions
   add_image:
     en: "Add Image"
     ko: "이미지 추가"
     ja: "画像を追加"
+    id: "Tambah Gambar"
   save_all_images:
     en: "Save All Images"
     ko: "모든 이미지 저장"
     ja: "すべての画像を保存"
+    id: "Simpan Semua Gambar"
   save_all:
     en: "Save All"
     ko: "모두 저장"
     ja: "すべて保存"
+    id: "Simpan Semua"
   remove_all:
     en: "Remove All"
     ko: "모두 삭제"
     ja: "すべて削除"
+    id: "Hapus Semua"
   save_all_alert_title:
     en: "Save All Images"
     ko: "모든 이미지 저장"
     ja: "すべての画像を保存"
+    id: "Simpan Semua Gambar"
 
   # Detection related
   detect:
     en: "Detect"
     ko: "감지"
     ja: "検出"
+    id: "Deteksi"
   detect_all_faces:
     en: "Detect All Faces"
     ko: "모든 얼굴 감지"
     ja: "すべての顔を検出"
+    id: "Deteksi Semua Wajah"
   face_effect:
     en: "Face Effect"
     ko: "얼굴 효과"
     ja: "顔効果"
+    id: "Efek Wajah"
   face_effect_with_value:
     en: "Face Effect: %@"
     ko: "얼굴 효과: %@"
     ja: "顔効果：%@"
+    id: "Efek Wajah: %@"
 
   # Sticker assignment
   sticker_assignment:
     en: "Sticker Assignment"
     ko: "스티커 할당"
     ja: "ステッカーの割り当て"
+    id: "Penetapan Stiker"
   no_stickers_hint:
     en: "No stickers available in Settings. Go to Settings -> Sticker Storage to add stickers."
     ko: "설정에서 스티커가 없습니다. 설정 -> 스티커 저장소로 가서 스티커를 추가하세요."
     ja: "設定にステッカーがありません。設定->ステッカー保存庫に移動してステッカーを追加してください。"
+    id: "Tidak ada stiker tersedia di Pengaturan. Buka Pengaturan -> Penyimpanan Stiker untuk menambahkan stiker."
   no_sticker_assigned:
     en: "No Sticker"
     ko: "스티커 없음"
     ja: "ステッカーなし"
+    id: "Tidak Ada Stiker"
   no_sticker_available:
     en: "No stickers available"
     ko: "사용 가능한 스티커 없음"
     ja: "利用可能なステッカーがありません"
+    id: "Tidak ada stiker tersedia"
   sticker_with_name:
     en: "Sticker: %@"
     ko: "스티커: %@"
     ja: "ステッカー：%@"
+    id: "Stiker: %@"
 
   # Save messages
   save_success:
     en: "Saved %d out of %d images to Photos"
     ko: "%d/%d개 이미지를 포토에 저장했습니다"
     ja: "%d枚のうち%d枚をフォトに保存しました"
+    id: "Menyimpan %d dari %d gambar ke Foto"
   webp_saved:
     en: "WebP file saved to:\n%s\n\nOpen Files app to find it in ChamaOptics folder."
     ko: "WebP 파일이 다음 위치에 저장됨:\n%s\n\n파일 앱을 열어 ChamaOptics 폴더에서 확인하세요."
     ja: "WebPファイルが保存されました：\n%s\n\nファイルアプリを開いてChamaOpticsフォルダで確認してください。"
+    id: "Berkas WebP disimpan ke:\n%s\n\nBuka aplikasi Files untuk menemukannya di folder ChamaOptics."
   photo_saved:
     en: "Your photo has been saved to the Photos library."
     ko: "사진이 포토 라이브러리에 저장되었습니다."
     ja: "写真がフォトライブラリに保存されました。"
+    id: "Foto Anda telah disimpan ke galeri Foto."
   photo_saved_title:
     en: "Photo Saved!"
     ko: "사진 저장됨!"
     ja: "写真を保存しました！"
+    id: "Foto Tersimpan!"
   save_failed:
     en: "Failed to save photo. Please check permissions."
     ko: "사진 저장 실패. 권한을 확인하세요."
     ja: "写真の保存に失敗しました。権限を確認してください。"
+    id: "Gagal menyimpan foto. Harap periksa izin."
 
   # Loading states
   loading_image:
     en: "Loading image..."
     ko: "이미지 로드 중..."
     ja: "画像を読み込んでいます..."
+    id: "Memuat gambar..."
   saving:
     en: "Saving..."
     ko: "저장 중..."
     ja: "保存中..."
+    id: "Menyimpan..."
 
   # EXIF section (iOS specific hint)
   tap_load_exif_hint:
     en: "Tap 'Load EXIF' to view metadata"
     ko: "메타데이터를 보려면 'EXIF 로드'를 탭하세요"
     ja: "メタデータを表示するには「EXIFを読み込む」をタップしてください"
+    id: "Ketuk 'Muat EXIF' untuk melihat metadata"
 
   # Detection speed modes
   speed_fastest_desc:
     en: "Quick scan, may miss small faces"
     ko: "빠른 스캔, 작은 얼굴을 놓칠 수 있음"
     ja: "クイックスキャン、小さな顔を見逃す可能性があります"
+    id: "Pemindaian cepat, mungkin melewatkan wajah kecil"
   speed_fast_desc:
     en: "Fast detection with good accuracy"
     ko: "빠른 감지, 좋은 정확도"
     ja: "高速検出、良好な精度"
+    id: "Deteksi cepat dengan akurasi baik"
   speed_normal_desc:
     en: "Balanced speed and accuracy (recommended)"
     ko: "속도와 정확도의 균형 (추천)"
     ja: "速度と精度のバランス（推奨）"
+    id: "Kecepatan dan akurasi seimbang (direkomendasikan)"
   speed_slow_desc:
     en: "Slower but more thorough"
     ko: "느리지만 더 철저함"
     ja: "遅いですがより徹底的"
+    id: "Lebih lambat tapi lebih menyeluruh"
   speed_slowest_desc:
     en: "Most thorough, detects smallest faces"
     ko: "가장 철저함, 가장 작은 얼굴 감지"
     ja: "最も徹底的、最小の顔を検出"
+    id: "Paling menyeluruh, mendeteksi wajah terkecil"

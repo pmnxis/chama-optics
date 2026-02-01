@@ -14,263 +14,323 @@ face_detection:
     en: "Face Detection"
     ko: "얼굴 인식"
     ja: "顔認識"
+    id: "Deteksi Wajah"
   label:
     en: "Face detection config"
     ko: "얼굴 감지 설정"
     ja: "顔検出設定"
+    id: "Konfigurasi deteksi wajah"
 
   # Image selection
   select_image:
     en: "Select image"
     ko: "이미지 선택"
     ja: "画像選択"
+    id: "Pilih gambar"
   select_image_first:
     en: "Select an image to preview"
     ko: "미리보기할 이미지를 선택하세요"
     ja: "プレビューする画像を選択してください"
+    id: "Pilih gambar untuk pratinjau"
   no_images:
     en: "No images loaded. Go to Image List tab to add images."
     ko: "이미지가 로드되지 않았습니다. 이미지 리스트 탭으로 이동하여 이미지를 추가하세요."
     ja: "画像が読み込まれていません。画像リストタブに移動して画像を追加してください。"
+    id: "Tidak ada gambar dimuat. Buka tab Daftar Gambar untuk menambahkan gambar."
   no_images_short:
     en: "No images"
     ko: "이미지 없음"
     ja: "画像なし"
+    id: "Tidak ada gambar"
   preview:
     en: "Preview"
     ko: "미리보기"
     ja: "プレビュー"
+    id: "Pratinjau"
 
   # Detection actions
   detect_faces:
     en: "Detect Faces"
     ko: "얼굴 감지"
     ja: "顔検出"
+    id: "Deteksi Wajah"
   detect_faces_button:
     en: "Detect Faces (%@)"
     ko: "얼굴 감지 (%@)"
     ja: "顔を検出（%@）"
+    id: "Deteksi Wajah (%@)"
   clear_all:
     en: "Clear All"
     ko: "전체 삭제"
     ja: "すべてクリア"
+    id: "Hapus Semua"
   reset_view:
     en: "Reset view"
     ko: "보기 초기화"
     ja: "表示をリセット"
+    id: "Atur ulang tampilan"
 
   # Detection results
   faces_found:
     en: "face(s) found"
     ko: "개 얼굴 발견"
     ja: "件の顔が見つかりました"
+    id: "wajah ditemukan"
   faces_found_format:
     en: "%d face(s) detected"
     ko: "%d개 얼굴 감지됨"
     ja: "%d個の顔を検出"
+    id: "%d wajah terdeteksi"
   no_faces:
     en: "No faces detected yet. Click 'Detect Faces' to start."
     ko: "아직 인식된 얼굴이 없습니다. '얼굴 인식'을 클릭하여 시작하세요."
     ja: "まだ顔が認識されていません。「顔認識」をクリックして開始してください。"
+    id: "Belum ada wajah terdeteksi. Klik 'Deteksi Wajah' untuk memulai."
   no_faces_short:
     en: "No faces"
     ko: "얼굴 없음"
     ja: "顔なし"
+    id: "Tidak ada wajah"
   no_faces_in_image:
     en: "No faces detected in image"
     ko: "이미지에서 감지된 얼굴이 없습니다"
     ja: "画像で検出された顔がありません"
+    id: "Tidak ada wajah terdeteksi dalam gambar"
 
   # Face selection
   faces_and_stickers:
     en: "Faces & Stickers"
     ko: "얼굴 & 스티커"
     ja: "顔＆ステッカー"
+    id: "Wajah & Stiker"
   face_label_format:
     en: "Face #%{n1} (%{n2}x%{n3})"
     ko: "얼굴 #%{n1} (%{n2}x%{n3})"
     ja: "顔 #%{n1} (%{n2}x%{n3})"
+    id: "Wajah #%{n1} (%{n2}x%{n3})"
   face_number:
     en: "Face #%d"
     ko: "얼굴 #%d"
     ja: "顔 #%d"
+    id: "Wajah #%d"
   face_number_simple:
     en: "Face #%d"
     ko: "얼굴 #%d"
     ja: "顔 #%d"
+    id: "Wajah #%d"
   selected_face:
     en: "Selected Face #%{n}"
     ko: "선택된 얼굴 #%{n}"
     ja: "選択された顔 #%{n}"
+    id: "Wajah Terpilih #%{n}"
   no_face_selected:
     en: "No face selected"
     ko: "얼굴 선택되지 않음"
     ja: "顔が選択されていません"
+    id: "Tidak ada wajah dipilih"
   position_format:
     en: "Pos: (%d, %d)"
     ko: "위치: (%d, %d)"
     ja: "位置：(%d, %d)"
+    id: "Pos: (%d, %d)"
   size_format:
     en: "Size: %d x %d"
     ko: "크기: %d x %d"
     ja: "サイズ：%d x %d"
+    id: "Ukuran: %d x %d"
   edit_faces:
     en: "Edit Faces"
     ko: "얼굴 편집"
     ja: "顔を編集"
+    id: "Sunting Wajah"
   add_face:
     en: "Add Face"
     ko: "얼굴 추가"
     ja: "顔を追加"
+    id: "Tambah Wajah"
 
   # Sticker assignment
   assign_sticker:
     en: "Sticker:"
     ko: "스티커:"
     ja: "ステッカー:"
+    id: "Stiker:"
   sticker_hint:
     en: "Add stickers in Sticker tab"
     ko: "스티커 탭에서 스티커를 추가하세요"
     ja: "スティッカータブでステッカーを追加してください"
+    id: "Tambahkan stiker di tab Stiker"
   tap_face_to_assign_sticker:
     en: "Tap a face to assign a sticker"
     ko: "스티커를 할당하려면 얼굴을 탭하세요"
     ja: "ステッカーを割り当てるには顔をタップしてください"
+    id: "Ketuk wajah untuk menetapkan stiker"
   sticker_with_name:
     en: "Sticker: %@"
     ko: "스티커: %@"
     ja: "ステッカー：%@"
+    id: "Stiker: %@"
   no_sticker_available:
     en: "No sticker available"
     ko: "스티커 없음"
     ja: "ステッカーなし"
+    id: "Tidak ada stiker tersedia"
   no_sticker_assigned:
     en: "No sticker assigned"
     ko: "스티커 할당 안됨"
     ja: "ステッカーが割り当てられていません"
+    id: "Tidak ada stiker ditetapkan"
 
   # Detection engine config
   detail_of_detection_engine:
     en: "Detail of face detection engine"
     ko: "얼굴 감지 엔진 설정"
     ja: "検出エンジン詳細設定"
+    id: "Detail mesin deteksi wajah"
   detection_engine:
     en: "Detection Engine"
     ko: "감지 엔진"
     ja: "検出エンジン"
+    id: "Mesin Deteksi"
   engine:
     en: "Engine"
     ko: "엔진"
     ja: "エンジン"
+    id: "Mesin"
 
   # Speed modes
   speed_mode:
     en: "Speed Mode"
     ko: "속도 모드"
     ja: "速度モード"
+    id: "Mode Kecepatan"
   speed_mode_hint:
     en: "Balance between speed and accuracy (affects processing depth)"
     ko: "속도와 정확도 사이의 균형 (처리 깊이에 영향)"
     ja: "速度と精度のバランス（処理深度に影響）"
+    id: "Keseimbangan antara kecepatan dan akurasi (mempengaruhi kedalaman pemrosesan)"
   speed_mode_fastest:
     en: "Fastest (Single or two-person photo)"
     ko: "최고속 (단독/두명 있는 사진)"
     ja: "最速（1人または2人の写真）"
+    id: "Tercepat (Foto satu atau dua orang)"
   speed_mode_fast:
     en: "Fast (3-4 people in unusual aspect ratio photo)"
     ko: "빠름 (종횡비가 특이한 사진에서 3-4명 있는 사진)"
     ja: "高速（縦横比が特殊な写真に3～4人）"
+    id: "Cepat (3-4 orang dalam foto rasio aspek tidak biasa)"
   speed_mode_normal:
     en: "Normal (Group photo with 10+ people)"
     ko: "보통 (10명 이상의 사진)"
     ja: "標準（10人以上の写真）"
+    id: "Normal (Foto kelompok dengan 10+ orang)"
   speed_mode_slow:
     en: "Slow (Group photo with 40-50 people)"
     ko: "느림 (40~50명의 단체사진)"
     ja: "低速（40～50人の団体写真）"
+    id: "Lambat (Foto kelompok dengan 40-50 orang)"
   speed_mode_slowest:
     en: "Slowest (Group photo with 50-100 people)"
     ko: "가장느림 (50~100명의 단체사진)"
     ja: "最低速（50～100人の団体写真）"
+    id: "Paling Lambat (Foto kelompok dengan 50-100 orang)"
 
   # Execution provider
   execution_provider:
     en: "Execution provider"
     ko: "실행 제공자"
     ja: "実行プロバイダー"
+    id: "Penyedia eksekusi"
   execution_provider_hint:
     en: "Hardware acceleration backend (CPU/OnnxAuto/CoreML)"
     ko: "하드웨어 가속 백엔드 (CPU/OnnxAuto/CoreML)"
     ja: "ハードウェアアクセラレーションバックエンド（CPU/OnnxAuto/CoreML）"
+    id: "Backend akselerasi perangkat keras (CPU/OnnxAuto/CoreML)"
   provider_cpu:
     en: "CPU (universal)"
     ko: "CPU (호환성 좋음)"
     ja: "CPU（互換性あり）"
+    id: "CPU (universal)"
   provider_onnx_auto:
     en: "OnnxAuto (auto-detect)"
     ko: "OnnxAuto (자동 감지)"
     ja: "OnnxAuto（自動検出）"
+    id: "OnnxAuto (deteksi otomatis)"
   provider_coreml:
     en: "CoreML (Apple Silicon)"
     ko: "CoreML (Apple Silicon)"
     ja: "CoreML (Apple Silicon)"
+    id: "CoreML (Apple Silicon)"
 
   # Recursive detection
   recursive_detection:
     en: "Recursive face detection"
     ko: "재귀적 얼굴 감지"
     ja: "再帰的顔検出"
+    id: "Deteksi wajah rekursif"
   recursive_min_size:
     en: "Minimum region size"
     ko: "최소 영역 크기"
     ja: "最小領域サイズ"
+    id: "Ukuran wilayah minimum"
   recursive_min_size_hint:
     en: "Minimum size of a region to search recursively (32-256 pixels)"
     ko: "재귀적으로 검색할 영역의 최소 크기 (32-256 픽셀)"
     ja: "再帰的に検索する領域の最小サイズ（32-256ピクセル）"
+    id: "Ukuran minimum wilayah untuk pencarian rekursif (32-256 piksel)"
   recursive_overlap:
     en: "Overlap search"
     ko: "중복 검색"
     ja: "重複検索"
+    id: "Pencarian tumpang tindih"
   recursive_overlap_ratio:
     en: "Overlap ratio"
     ko: "중복 비율"
     ja: "重複比率"
+    id: "Rasio tumpang tindih"
   recursive_overlap_ratio_hint:
     en: "Overlap percentage for region division (0-50%)"
     ko: "영역 분할 시 중복 퍼센트 (0-50%)"
     ja: "領域分割時の重複パーセンテージ（0-50%）"
+    id: "Persentase tumpang tindih untuk pembagian wilayah (0-50%)"
 
   # Mask/blur settings
   mask_faces:
     en: "Mask faces (blur)"
     ko: "얼굴 마스킹 (블러)"
     ja: "顔をマスキング（ぼかし）"
+    id: "Tutupi wajah (blur)"
   mask_blur_radius:
     en: "Blur radius"
     ko: "블러 반경"
     ja: "ぼかし半径"
+    id: "Radius blur"
   mask_blur_radius_hint:
     en: "Strength of the blur effect applied to detected faces (1-100 pixels)"
     ko: "감지된 얼굴에 적용할 블러 효과의 강도 (1-100 픽셀)"
     ja: "検出された顔に適用するぼかし効果の強度（1-100ピクセル）"
+    id: "Kekuatan efek blur yang diterapkan pada wajah terdeteksi (1-100 piksel)"
 
   # Border settings
   border_thickness:
     en: "Border thickness"
     ko: "테두리 두께"
     ja: "枠線の太さ"
+    id: "Ketebalan bingkai"
   border_thickness_hint:
     en: "Thickness of the face detection rectangle border in pixels"
     ko: "얼굴 감지 사각형 테두리의 두께 (픽셀 단위)"
     ja: "顔検出矩形の枠線の太さ（ピクセル単位）"
+    id: "Ketebalan bingkai persegi panjang deteksi wajah dalam piksel"
 
   # Face detection editor (iOS)
   face_detection_editor:
     en: "Face Detection Editor"
     ko: "얼굴 감지 편집기"
     ja: "顔検出エディタ"
+    id: "Editor Deteksi Wajah"
   select_photo:
     en: "Select Photo"
     ko: "사진 선택"
     ja: "写真を選択"
+    id: "Pilih Foto"

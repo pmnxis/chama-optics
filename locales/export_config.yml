@@ -9,41 +9,51 @@ export_config:
     en: "Export config"
     ko: "사진 저장 설정"
     ja: "設定をエクスポート"
+    id: "Konfigurasi ekspor"
   detail_of_export:
     en: "Detail of export config"
     ko: "상세 저장 설정"
     ja: "詳細設定をエクスポート"
+    id: "Detail konfigurasi ekspor"
   output_name:
     label:
       en: "Save"
       ko: "사진 저장"
       ja: "写真 保存"
+      id: "Simpan"
     postfix:
       en: "Prefix"
       ko: "접두어"
       ja: "接頭辞"
+      id: "Awalan"
     prefix:
       en: "Postfix"
       ko: "접미어"
       ja: "接尾辞"
+      id: "Akhiran"
     save_directory:
       en: "Save folder"
       ko: "저장 폴더"
       ja: "保存フォルダ"
+      id: "Folder penyimpanan"
     select_directory:
       en: "Select folder"
       ko: "폴더 선택"
       ja: "フォルダ選択"
+      id: "Pilih folder"
     remove_after_bulk_save:
       en: "Remove from list after bulk save"
       ko: "사진 전체저장 후 목록 초기화"
       ja: "一括保存後に一覧を初期化"
+      id: "Hapus dari daftar setelah penyimpanan massal"
   open_folder:
     label:
       en: "🔗Open Folder"
       ko: "🔗폴더 열기"
       ja: "🔗フォルダを開く"
+      id: "🔗Buka Folder"
     description:
-      en: "Opens the folder in your system’s file explorer where all files are saved."
+      en: "Opens the folder in your system's file explorer where all files are saved."
       ko: "전체 저장 시 파일들이 저장되는 경로를 탐색기로 엽니다."
       ja: "すべてのファイルが保存されるフォルダをエクスプローラーで開きます。"
+      id: "Membuka folder di file explorer sistem Anda tempat semua berkas disimpan."

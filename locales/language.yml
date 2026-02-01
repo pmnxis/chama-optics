@@ -9,15 +9,24 @@ language:
     en: "Language"
     ko: "언어 (Language)"
     ja: "言語 (Language)"
+    id: "Bahasa"
   en:
     en: "English"
     ko: "영어 (English)"
     ja: "英語 (English)"
+    id: "Inggris (English)"
   ko:
     en: "Korean (한국어)"
     ko: "한국어"
     ja: "韓国語 (한국어)"
+    id: "Korea (한국어)"
   ja:
     en: "Japanese (日本語)"
     ko: "일본어 (日本語)"
     ja: "日本語"
+    id: "Jepang (日本語)"
+  id:
+    en: "Indonesian (Bahasa Indonesia)"
+    ko: "인도네시아어 (Bahasa Indonesia)"
+    ja: "インドネシア語 (Bahasa Indonesia)"
+    id: "Bahasa Indonesia"

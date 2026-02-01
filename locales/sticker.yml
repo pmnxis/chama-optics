@@ -13,69 +13,84 @@ sticker:
     en: "Sticker Storage"
     ko: "스티커 저장소"
     ja: "ステッカー保存"
+    id: "Penyimpanan Stiker"
   stickers:
     en: "Stickers"
     ko: "스티커"
     ja: "ステッカー"
+    id: "Stiker"
   settings:
     en: "Sticker Settings"
     ko: "스티커 설정"
     ja: "ステッカー設定"
+    id: "Pengaturan Stiker"
 
   # Default sticker
   default_sticker:
     en: "Default Sticker:"
     ko: "기본 스티커:"
     ja: "デフォルトステッカー:"
+    id: "Stiker Bawaan:"
   set_default:
     en: "Set as default"
     ko: "기본값으로 설정"
     ja: "デフォルトに設定"
+    id: "Tetapkan sebagai bawaan"
   default_indicator:
     en: "Default"
     ko: "기본값"
     ja: "デフォルト"
+    id: "Bawaan"
 
   # Actions
   add_sticker:
     en: "Add Sticker"
     ko: "스티커 추가"
     ja: "ステッカー追加"
+    id: "Tambah Stiker"
 
   # Sticker parameters
   scale:
     en: "Scale:"
     ko: "크기:"
     ja: "サイズ:"
+    id: "Skala:"
   offset_x:
     en: "Offset X:"
     ko: "오프셋 X:"
     ja: "オフセットX:"
+    id: "Offset X:"
   offset_y:
     en: "Offset Y:"
     ko: "오프셋 Y:"
     ja: "オフセットY:"
+    id: "Offset Y:"
 
   # Preview
   preview:
     en: "Sticker Preview"
     ko: "스티커 미리보기"
     ja: "ステッカープレビュー"
+    id: "Pratinjau Stiker"
   selected_sticker:
     en: "Selected Sticker:"
     ko: "선택된 스티커:"
     ja: "選択されたステッカー:"
+    id: "Stiker Terpilih:"
 
   # Status and warnings
   hash_warning:
     en: "Some sticker files have been modified since they were added. Please verify or re-add them."
     ko: "일부 스티커 파일이 추가된 후 수정되었습니다. 확인하거나 다시 추가하세요."
     ja: "一部のステッカーファイルが追加後に変更されました。確認または再追加してください。"
+    id: "Beberapa berkas stiker telah dimodifikasi sejak ditambahkan. Harap verifikasi atau tambahkan kembali."
   file_missing:
     en: "File missing"
     ko: "파일 누락"
     ja: "ファイルなし"
+    id: "Berkas hilang"
   file_modified:
     en: "Modified"
     ko: "수정됨"
     ja: "変更済み"
+    id: "Dimodifikasi"

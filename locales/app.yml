@@ -27,6 +27,7 @@ app:
     en: "Chama Optics"
     ko: "Chama Optics"
     ja: "Chama Optics"
+    id: "Chama Optics"
 
   # File menu (EGUI desktop)
   file_menu:
@@ -34,10 +35,12 @@ app:
       en: "File"
       ko: "파일"
       ja: "ファイル"
+      id: "Berkas"
     quit:
       en: "Quit"
       ko: "종료"
       ja: "終了"
+      id: "Keluar"
 
   # Open files (EGUI desktop)
   open_files:
@@ -45,10 +48,12 @@ app:
       en: "Drag drop image here"
       ko: "여기에 이미지를 드래그&드롭"
       ja: "ここに画像をドラッグ＆ドロップ"
+      id: "Seret dan letakkan gambar di sini"
     button:
       en: "Add file"
       ko: "파일 추가"
       ja: "ファイルを追加"
+      id: "Tambah berkas"
 
   # Images list (EGUI desktop)
   images:
@@ -56,14 +61,17 @@ app:
       en: "Images"
       ko: "사진 목록"
       ja: "画像一覧"
+      id: "Gambar"
     save_all:
       en: "Save all"
       ko: "전체 저장"
       ja: "すべて保存"
+      id: "Simpan semua"
     remove_all:
       en: "Remove all"
       ko: "전체 삭제"
       ja: "すべて削除"
+      id: "Hapus semua"
 
   # Image grouping (EGUI desktop)
   image_grouping:
@@ -71,27 +79,34 @@ app:
       en: "Use default"
       ko: "기본값 사용"
       ja: "デフォルトを使用"
+      id: "Gunakan default"
     prefix_label:
       en: "Prefix:"
       ko: "접두어:"
       ja: "プレフィックス:"
+      id: "Awalan:"
     postfix_label:
       en: "Postfix:"
       ko: "접미어:"
       ja: "サフィックス:"
+      id: "Akhiran:"
     suggestion_hint:
       en: "Suggestion: %{suggestion}"
       ko: "제안: %{suggestion}"
       ja: "提案: %{suggestion}"
+      id: "Saran: %{suggestion}"
     ungrouped_label:
       en: "Ungrouped"
       ko: "그룹 없음"
       ja: "未グループ"
+      id: "Tanpa grup"
     group_label_format:
       en: "%{name} (%{count} images)"
       ko: "%{name} (%{count}개)"
       ja: "%{name} (%{count}枚)"
+      id: "%{name} (%{count} gambar)"
     time_unit:
       en: " sec"
       ko: " 초"
       ja: " 秒"
+      id: "sec"

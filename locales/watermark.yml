@@ -9,68 +9,85 @@ watermark:
     en: "Enabled watermark"
     ko: "워터마크 활성화"
     ja: "ウォーターマーク活性化"
+    id: "Aktifkan tanda air"
   text:
     en: "Watermark text"
     ko: "워터마크 문장"
     ja: "ウォーターマーク文章"
+    id: "Teks tanda air"
   blend_mode:
     label:
       en: "Blend mode"
       ko: "블렌드 모드"
       ja: "ブレンドモード"
+      id: "Mode pencampuran"
     normal:
       en: "Normal"
       ko: "일반"
       ja: "ノーマル"
+      id: "Normal"
     screen:
       en: "Screen"
       ko: "스크린"
       ja: "スクリーン"
+      id: "Layar"
     normal_hint:
       en: "Use standard blending"
       ko: "기본 합성 방식 사용"
       ja: "標準的な合成モードを使用"
+      id: "Gunakan pencampuran standar"
     screen_hint:
       en: "Use bright overlay blending (like Photoshop Screen mode)"
       ko: "포토샵의 Screen 모드처럼 밝게 합성"
       ja: "Photoshopのスクリーンモードのように明るく合成"
+      id: "Gunakan pencampuran lapisan terang (seperti mode Screen Photoshop)"
   position:
     en: "Position"
     ko: "위치"
     ja: "位置"
+    id: "Posisi"
     1:
       en: "Top Left"
       ko: "좌상단"
       ja: "左上"
+      id: "Kiri Atas"
     2:
       en: "Top Center"
       ko: "상단 중앙"
       ja: "上中央"
+      id: "Tengah Atas"
     3:
       en: "Top Right"
       ko: "우상단"
       ja: "右上"
+      id: "Kanan Atas"
     4:
       en: "Middle Left"
       ko: "좌측 중앙"
       ja: "左中央"
+      id: "Kiri Tengah"
     5:
       en: "Center"
       ko: "중앙"
       ja: "中央"
+      id: "Tengah"
     6:
       en: "Middle Right"
       ko: "우측 중앙"
       ja: "右中央"
+      id: "Kanan Tengah"
     7:
       en: "Bottom Left"
       ko: "좌하단"
       ja: "左下"
+      id: "Kiri Bawah"
     8:
       en: "Bottom Center"
       ko: "하단 중앙"
       ja: "下中央"
+      id: "Tengah Bawah"
     9:
       en: "Bottom Right"
       ko: "우하단"
       ja: "右下"
+      id: "Kanan Bawah"

@@ -12,15 +12,19 @@ fonts:
     en: "Font Type"
     ko: "폰트 유형"
     ja: "フォントタイプ"
+    id: "Jenis Font"
   font:
     en: "Font"
     ko: "폰트"
     ja: "フォント"
+    id: "Font"
   weight:
     en: "Weight"
     ko: "글꼴 굵기"
     ja: "太さ"
+    id: "Ketebalan"
   select_font:
     en: "Select Font"
     ko: "폰트 선택"
     ja: "フォントを選択"
+    id: "Pilih Font"

@@ -15,26 +15,32 @@ effects:
       en: "Border"
       ko: "테두리"
       ja: "枠線"
+      id: "Bingkai"
     padding:
       en: "Frame padding"
       ko: "프레임 여백"
       ja: "フレーム余白"
+      id: "Padding bingkai"
     padding_description:
       en: "Adjust how much space to leave around the image."
       ko: "이미지 주변에 얼마나 여백을 둘지 설정합니다."
       ja: "画像の周囲にどのくらい余白を設けるかを設定します。"
+      id: "Sesuaikan berapa banyak ruang yang akan ditinggalkan di sekitar gambar."
     default:
       en: "Default"
       ko: "기본값"
       ja: "デフォルト"
+      id: "Bawaan"
     default_desc:
       en: "Return border configuration to default"
       ko: "테두리 설정을 기본값으로 되돌리기"
       ja: "枠線設定をデフォルトに戻す"
+      id: "Kembalikan konfigurasi bingkai ke pengaturan bawaan"
     preview_desc:
       en: "Actual results may vary depending on photo size."
       ko: "실제 결과는 사진 크기마다 다릅니다."
       ja: "実際の結果は写真サイズによって異なります。"
+      id: "Hasil sebenarnya mungkin berbeda tergantung ukuran foto."
 
   # Padding mode
   padding_mode:
@@ -42,22 +48,27 @@ effects:
       en: "Padding mode"
       ko: "여백 모드"
       ja: "余白モード"
+      id: "Mode padding"
     absolute:
       en: "Absolute"
       ko: "절대값"
       ja: "固定値"
+      id: "Absolut"
     absolute_hint:
       en: "Use a fixed padding value (e.g., 100px)."
       ko: "고정된 여백 크기(예: 100px)를 사용합니다."
       ja: "固定の余白値(例: 100px)を使用します。"
+      id: "Gunakan nilai padding tetap (mis. 100px)."
     relative:
       en: "Relative"
       ko: "상대값"
       ja: "相対値"
+      id: "Relatif"
     relative_hint:
       en: "Scale padding relative to 2000px width (e.g., 100 -> 100px at 2000px)."
       ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 -> 2000px 기준 100px)."
       ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 -> 2000pxで100px)。"
+      id: "Skala padding relatif terhadap lebar 2000px (mis. 100 -> 100px pada 2000px)."
 
   # Mosaic and stroke settings
   mosaic_and_stroke:
@@ -65,19 +76,24 @@ effects:
       en: "Mosaic / Stroke Settings"
       ko: "모자이크 / 테두리 설정"
       ja: "モザイク／枠線設定"
+      id: "Pengaturan Mosaik / Goresan"
     mosaic_block_size:
       en: "Mosaic Block Size"
       ko: "모자이크 블럭 사이즈"
       ja: "モザイクブロックサイズ"
+      id: "Ukuran Blok Mosaik"
     mosaic_block_size_hint:
       en: "Size of mosaic blocks in pixels"
       ko: "모자이크 블록의 픽셀 크기"
       ja: "モザイクブロックのピクセルサイズ"
+      id: "Ukuran blok mosaik dalam piksel"
     stroke_color:
       en: "Stroke Border Color"
       ko: "테두리 색상"
       ja: "枠線の色"
+      id: "Warna Goresan Bingkai"
     stroke_border_thickness:
       en: "Stroke Border Thickness"
       ko: "테두리 두께"
       ja: "枠線の太さ"
+      id: "Ketebalan Goresan Bingkai"

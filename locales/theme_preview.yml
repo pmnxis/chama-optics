@@ -13,107 +13,131 @@ theme_preview:
     en: "Select an image to preview:"
     ko: "미리보기할 이미지를 선택하세요:"
     ja: "プレビューする画像を選択してください:"
+    id: "Pilih gambar untuk pratinjau:"
   select_image_mobile:
     en: "Select an image to preview"
     ko: "미리보기할 이미지를 선택하세요"
     ja: "プレビューする画像を選択してください"
+    id: "Pilih gambar untuk pratinjau"
   change_photo:
     en: "Change Photo"
     ko: "사진 변경"
     ja: "写真を変更"
+    id: "Ganti Foto"
   select_image_hint:
     en: "Select an image from the gallery above"
     ko: "위의 갤러리에서 이미지를 선택하세요"
     ja: "上のギャラリーから画像を選択してください"
+    id: "Pilih gambar dari galeri di atas"
 
   # Preview label
   preview_label:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+    id: "Pratinjau Tema"
 
   # Status messages
   generating:
     en: "Generating preview..."
     ko: "미리보기 생성 중..."
     ja: "プレビューを生成しています..."
+    id: "Membuat pratinjau..."
   preview_placeholder:
     en: "Theme preview will be shown here"
     ko: "테마 미리보기가 여기에 표시됩니다"
     ja: "テーマプレビューがここに表示されます"
+    id: "Pratinjau tema akan ditampilkan di sini"
   no_images:
     en: "Load images from the Image List tab to preview themes"
     ko: "이미지 리스트 탭에서 사진을 불러오면 테마 미리보기를 볼 수 있습니다"
     ja: "画像リストタブから画像を読み込むとテーマをプレビューできます"
+    id: "Muat gambar dari tab Daftar Gambar untuk pratinjau tema"
   no_images_mobile:
     en: "Add images in Gallery tab to preview themes"
     ko: "갤러리 탭에서 이미지를 추가하여 테마를 미리보세요"
     ja: "ギャラリータブで画像を追加してテーマをプレビューしてください"
+    id: "Tambahkan gambar di tab Galeri untuk pratinjau tema"
 
   # Theme settings
   theme_settings:
     en: "Theme Parameters"
     ko: "테마 파라미터"
     ja: "テーマパラメータ"
+    id: "Parameter Tema"
 
   # Refresh
   refresh_button:
     en: "Refresh Preview"
     ko: "미리보기 새로고침"
     ja: "プレビュー更新"
+    id: "Segarkan Pratinjau"
   refresh_button_mobile:
     en: "Apply Theme"
     ko: "테마 적용"
     ja: "テーマを適用"
+    id: "Terapkan Tema"
   original:
     en: "Original"
     ko: "원본"
     ja: "オリジナル"
+    id: "Asli"
 
   # Status
   status_ready:
     en: "Ready"
     ko: "준비 완료"
     ja: "準備完了"
+    id: "Siap"
   error_loading:
     en: "Failed to load image data"
     ko: "이미지 데이터 로드 실패"
     ja: "画像データの読み込みに失敗"
+    id: "Gagal memuat data gambar"
   error_decoding:
     en: "Failed to decode image"
     ko: "이미지 디코딩 실패"
     ja: "画像のデコードに失敗"
+    id: "Gagal mendekode gambar"
   image_loaded:
     en: "Image loaded"
     ko: "이미지 로드됨"
     ja: "画像が読み込まれました"
+    id: "Gambar dimuat"
   error_prefix:
     en: "Error: "
     ko: "오류: "
     ja: "エラー: "
+    id: "Kesalahan: "
 
   # Theme status
   no_theme_applied:
     en: "No theme applied (Nothing selected)"
     ko: "테마 적용 안됨 (Nothing 선택됨)"
     ja: "テーマ適用なし（Nothing選択中）"
+    id: "Tidak ada tema diterapkan (Tidak ada yang dipilih)"
   theme_applied:
     en: "Theme applied!"
     ko: "테마 적용됨!"
     ja: "テーマ適用完了！"
+    id: "Tema diterapkan!"
   output_not_created:
     en: "Output file not created"
     ko: "출력 파일 생성 안됨"
     ja: "出力ファイルが作成されませんでした"
+    id: "Berkas keluaran tidak dibuat"
   theme_failed:
     en: "Theme application failed"
     ko: "테마 적용 실패"
     ja: "テーマ適用に失敗"
+    id: "Penerapan tema gagal"
   theme_with_value:
     en: "Theme: %@"
     ko: "테마: %@"
     ja: "テーマ：%@"
+    id: "Tema: %@"
   date_with_value:
     en: "Date: %@"
     ko: "날짜: %@"
     ja: "日付：%@"
+    id: "Tanggal: %@"

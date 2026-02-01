@@ -13,69 +13,82 @@ tabs:
     en: "Image List"
     ko: "이미지 리스트"
     ja: "画像リスト"
+    id: "Daftar Gambar"
   # iOS-specific short version
   image_list_short:
     en: "Gallery"
     ko: "갤러리"
     ja: "ギャラリー"
+    id: "Galeri"
 
   # Theme preview tab
   theme_preview:
     en: "Theme Preview"
     ko: "테마 미리보기"
     ja: "テーマプレビュー"
+    id: "Pratinjau Tema"
   # iOS-specific short version
   theme_preview_short:
     en: "Themes"
     ko: "테마"
     ja: "テーマ"
+    id: "Tema"
   theme_preview_heading:
     en: "Themes & Preview"
     ko: "테마 & 미리보기"
     ja: "テーマ＆プレビュー"
+    id: "Tema & Pratinjau"
 
   # Face detection tab
   detection:
     en: "Face Detection"
     ko: "얼굴 인식"
     ja: "顔認識"
+    id: "Deteksi Wajah"
 
   # Color grading tab (for iOS)
   color_grading:
     en: "Color Grading"
     ko: "색보정"
     ja: "カラーグレーディング"
+    id: "Penilaian Warna"
   color_grading_short:
     en: "Color"
     ko: "색상"
     ja: "カラー"
+    id: "Warna"
 
   # Sticker storage tab
   sticker:
     en: "Sticker Storage"
     ko: "스티커 저장소"
     ja: "ステッカー保存"
+    id: "Penyimpanan Stiker"
 
   # Import/Export settings tab
   import_export:
     en: "Import&Export Settings"
     ko: "입출력 설정"
     ja: "入出力設定"
+    id: "Pengaturan Impor & Ekspor"
 
   # Settings tab
   settings:
     en: "Settings"
     ko: "설정"
     ja: "設定"
+    id: "Pengaturan"
 
   # Misc heading (used in EGUI sidebar)
   misc_heading:
     en: "Misc"
     ko: "기타"
     ja: "その他"
+    id: "Lain-lain"
 
   # About tab
   about:
     en: "About"
     ko: "정보"
     ja: "概要"
+    id: "Tentang"

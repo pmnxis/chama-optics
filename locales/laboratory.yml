@@ -13,10 +13,12 @@ laboratory:
     en: "Laboratory (Experimental Features)"
     ko: "실험실 (실험적 기능)"
     ja: "実験室（実験的機能）"
+    id: "Laboratorium (Fitur Eksperimental)"
   warning:
     en: "These features are experimental and may change or be removed in future versions."
     ko: "이 기능들은 실험적이며 향후 버전에서 변경되거나 제거될 수 있습니다."
     ja: "これらの機能は実験的であり、将来のバージョンで変更または削除される可能性があります。"
+    id: "Fitur-fitur ini bersifat eksperimental dan mungkin berubah atau dihapus di versi mendatang."
 
   # Group similar images
   group_similar:
@@ -24,51 +26,64 @@ laboratory:
       en: "Group Similar Images"
       ko: "유사한 이미지 그룹화"
       ja: "類似画像のグループ化"
+      id: "Kelompokkan Gambar Serupa"
     group_by_date:
       en: "Group by same date (year/month/day)"
       ko: "같은 날짜로 그룹화 (년/월/일)"
       ja: "同じ日付でグループ化（年/月/日）"
+      id: "Kelompokkan berdasarkan tanggal yang sama (tahun/bulan/hari)"
     group_by_time:
       en: "Group by time proximity"
       ko: "촬영 시간으로 그룹화"
       ja: "撮影時間でグループ化"
+      id: "Kelompokkan berdasarkan kedekatan waktu"
     group_by_camera_mnf:
       en: "Group by camera manufacturer"
       ko: "카메라 제조사로 그룹화"
       ja: "カメラメーカーでグループ化"
+      id: "Kelompokkan berdasarkan pembuat kamera"
     group_by_camera:
       en: "Group by camera model"
       ko: "카메라 모델로 그룹화"
       ja: "カメラモデルでグループ化"
+      id: "Kelompokkan berdasarkan model kamera"
     group_by_lens:
       en: "Group by lens model"
       ko: "렌즈 모델로 그룹화"
       ja: "レンズモデルでグループ化"
+      id: "Kelompokkan berdasarkan model lensa"
     group_by_similarity:
       en: "Group by image similarity"
       ko: "이미지 유사도로 그룹화"
       ja: "画像の類似性でグループ化"
+      id: "Kelompokkan berdasarkan kemiripan gambar"
     similarity_warning:
       en: "Warning: This feature is experimental and may not work correctly yet"
       ko: "경고: 이 기능은 실험적이며 아직 제대로 작동하지 않을 수 있습니다"
       ja: "警告：この機能は実験的であり、まだ正しく動作しない可能性があります"
+      id: "Peringatan: Fitur ini bersifat eksperimental dan mungkin belum bekerja dengan benar"
     time_threshold:
       en: "Time threshold (seconds)"
       ko: "시간 임계값 (초)"
       ja: "時間しきい値（秒）"
+      id: "Ambang waktu (detik)"
     similarity_threshold:
       en: "Similarity threshold (0.0-1.0)"
       ko: "유사도 임계값 (0.0-1.0)"
       ja: "類似度しきい値（0.0-1.0）"
+      id: "Ambang kemiripan (0.0-1.0)"
     apply_grouping:
       en: "Apply Grouping"
       ko: "그룹화 적용"
       ja: "グループ化を適用"
+      id: "Terapkan Pengelompokan"
     clear_grouping:
       en: "Clear Grouping"
       ko: "그룹화 해제"
       ja: "グループ化を解除"
+      id: "Hapus Pengelompokan"
     groups_found:
       en: "groups found"
       ko: "개 그룹 발견"
       ja: "グループが見つかりました"
+      id: "kelompok ditemukan"

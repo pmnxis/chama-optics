@@ -10,98 +10,120 @@ theme_ffi:
     en: "Theme"
     ko: "테마"
     ja: "テーマ"
+    id: "Tema"
   settings:
     en: "Detail theme settings"
     ko: "상세 테마 설정"
     ja: "テーマの詳細設定"
-  
+    id: "Pengaturan tema detail"
+
   # Font settings
   font_size:
     en: "Font size"
     ko: "폰트 사이즈"
     ja: "フォントサイズ"
+    id: "Ukuran font"
   font_color:
     en: "Font color"
     ko: "폰트 색상"
     ja: "フォントカラー"
+    id: "Warna font"
   font_height_ratio:
     en: "Font height ratio"
     ko: "폰트 높이 비율"
     ja: "フォント高さ比率"
-  
+    id: "Rasio tinggi font"
+
   # Border settings
   border:
     en: "Border"
     ko: "테두리"
     ja: "枠線"
+    id: "Bingkai"
   border_color:
     en: "Border color"
     ko: "테두리 색상"
     ja: "枠線カラー"
+    id: "Warna bingkai"
   border_thickness:
     en: "Border thickness"
     ko: "테두리 두께"
     ja: "枠線の太さ"
-  
+    id: "Ketebalan bingkai"
+
   # Logo settings
   logo:
     en: "Logo"
     ko: "로고"
     ja: "ロゴ"
+    id: "Logo"
   logo_height:
     en: "Logo height"
     ko: "로고 높이"
     ja: "ロゴの高さ"
-  
+    id: "Tinggi logo"
+
   # EXIF information
   exif:
     en: "EXIF Information"
     ko: "EXIF 정보"
     ja: "EXIF情報"
+    id: "Informasi EXIF"
   # Position settings
   position:
     en: "Position"
     ko: "위치"
     ja: "位置"
+    id: "Posisi"
   top_left:
     en: "Top Left"
     ko: "좌상단"
     ja: "左上"
+    id: "Kiri Atas"
   top_right:
     en: "Top Right"
     ko: "우상단"
     ja: "右上"
+    id: "Kanan Atas"
   top_center:
     en: "Top Center"
     ko: "상단 중앙"
     ja: "上中央"
+    id: "Tengah Atas"
   bottom_left:
     en: "Bottom Left"
     ko: "좌하단"
     ja: "左下"
+    id: "Kiri Bawah"
   bottom_right:
     en: "Bottom Right"
     ko: "우하단"
     ja: "右下"
+    id: "Kanan Bawah"
   bottom_center:
     en: "Bottom Center"
     ko: "하단 중앙"
     ja: "下中央"
-  
+    id: "Tengah Bawah"
+
   # Other settings
   glow:
     en: "Glow effect"
     ko: "글로우 효과"
     ja: "グロー効果"
+    id: "Efek cahaya"
   glow_range:
     en: "Glow range"
     ko: "글로우 범위"
     ja: "グロー範囲"
+    id: "Jangkauan cahaya"
   show_logo:
     en: "Show logo"
     ko: "로고 표시"
     ja: "ロゴを表示"
+    id: "Tampilkan logo"
   show_exif:
     en: "Show EXIF"
     ko: "EXIF 표시"
     ja: "EXIFを表示"
+    id: "Tampilkan EXIF"

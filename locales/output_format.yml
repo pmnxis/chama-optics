@@ -9,7 +9,9 @@ output_format:
     en: "format"
     ko: "포맷"
     ja: "フォーマット"
+    id: "format"
   quality:
     en: "Quality"
     ko: "품질"
     ja: "品質"
+    id: "Kualitas"

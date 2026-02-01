@@ -9,77 +9,92 @@ theme:
     en: "Theme"
     ko: "테마"
     ja: "テーマ"
+    id: "Tema"
   settings:
     en: "Detail theme settings"
     ko: "상세 테마 설정"
     ja: "テーマの詳細設定"
+    id: "Pengaturan tema detail"
   font_size:
     en: "Font size"
     ko: "폰트 사이즈"
     ja: "フォントサイズ"
+    id: "Ukuran font"
   font_size_description:
     en: "The default font size is %{default}, and it is applied relative to this base value rather than in pixels."
     ko: "폰트 사이즈의 기본값은 %{default} 이며 px가 아닌 기본값에서 상대적인 크기로 적용됩니다."
     ja: "フォントサイズの基本値は %{default} であり、px ではなくこの基準値に対して相対的に適用されます。"
+    id: "Ukuran font default adalah %{default}, dan diterapkan relatif terhadap nilai dasar ini daripada dalam piksel."
   # From here actual themes here
   nothing:
     en: "Nothing"
     ko: "효과 없음"
     ja: "なし"
+    id: "Tidak ada"
   film:
     en: "Film"
     ko: "필름"
     ja: "フィルム"
+    id: "Film"
   film_glow:
     en: "Film Glow"
     ko: "필름 글로우"
     ja: "フィルムグロー"
+    id: "Film Glow"
   film_date:
     en: "Film Date"
     ko: "필름 날짜"
     ja: "フィルム日付"
+    id: "Tanggal Film"
 
   just_frame:
     title:
       en: "Just frame"
       ko: "단순 프레임"
       ja: "単純余白"
+      id: "Hanya bingkai"
 
   one_line:
     title:
       en: "One Line"
       ko: "한줄짜리"
       ja: "一行 テーマ"
+      id: "Satu Baris"
 
   two_line:
     title:
       en: "Two Line"
       ko: "두줄짜리"
       ja: "二行 テーマ"
+      id: "Dua Baris"
 
   shot_on_one_line:
     title:
       en: "Shot on one line"
       ko: "한 줄에 담긴 순간"
       ja: "一行に刻む瞬間"
+      id: "Dipotret dalam satu baris"
 
   shot_on_two_line:
     title:
       en: "Shot on two line"
       ko: "두 줄에 담긴 순간"
       ja: "二行に刻む瞬間"
+      id: "Dipotret dalam dua baris"
 
   strap:
     title:
       en: "Strap"
       ko: "스트랩"
       ja: "ストラップ"
+      id: "Tali"
 
   date_config:
     date_font_select:
       en: "Select date font"
       ko: "날짜 폰트 선택"
       ja: "日付選択"
+      id: "Pilih font tanggal"
 
   # Some config
   film_config:
@@ -87,28 +102,34 @@ theme:
       en: "Glow effect"
       ko: "글로우 효과"
       ja: "グロー効果"
+      id: "Efek cahaya"
     glow_range:
       en: "Glow range"
       ko: "글로우 범위"
       ja: "グロー範囲"
+      id: "Rentang cahaya"
     hide_camera_exif:
       label:
         en: "Hide Camera & Lens Info"
         ko: "카메라 및 렌즈 정보 숨기기"
         ja: "カメラとレンズ情報を非表示にする"
+        id: "Sembunyikan Info Kamera & Lensa"
       description:
         en: "Hides the camera model and lens information from EXIF data when displaying photos."
         ko: "사진을 표시할 때 EXIF 데이터의 카메라 기종과 렌즈 정보를 숨깁니다."
         ja: "写真表示時にEXIFデータ内のカメラ機種とレンズ情報を非表示にします。"
+        id: "Menyembunyikan model kamera dan informasi lensa dari data EXIF saat menampilkan foto."
     show_photo_style:
       label:
         en: "Show Photo Style"
         ko: "포토 스타일 표시"
         ja: "フォトスタイル表示"
+        id: "Tampilkan Gaya Foto"
       description:
         en: "Displays the Photo Style or LUT name for Panasonic Lumix cameras, or the Picture Control name for Nikon cameras, extracted from EXIF MakerNote data."
         ko: "EXIF MakerNote 데이터에서 추출한 Panasonic Lumix의 포토 스타일 또는 LUT 이름, 혹은 Nikon 카메라의 픽처 컨트롤 이름을 표시합니다."
         ja: "EXIFのMakerNoteデータから取得したPanasonic LumixのフォトスタイルまたはLUT名、またはNikonカメラのピクチャーコントロール名を表示します。"
+        id: "Menampilkan nama Photo Style atau LUT untuk kamera Panasonic Lumix, atau nama Picture Control untuk kamera Nikon, yang diekstrak dari data EXIF MakerNote."
 
   # For Monitor
   monitor:
@@ -116,225 +137,274 @@ theme:
       en: "Monitor"
       ko: "모니터"
       ja: "モニター"
+      id: "Monitor"
 
   monitor_config:
     font_color:
       en: "Font color"
       ko: "폰트 색상"
       ja: "フォントカラー"
+      id: "Font color"
     center_align:
       label:
         en: "Center alignm"
         ko: "가운데 정렬"
         ja: "中央揃え方式"
+        id: "Center alignm"
       simple:
         en: "Simple alignment"
         ko: "단순정렬"
         ja: "シンプル配置"
+        id: "Simple alignment"
       simple_hint:
         en: "Simply centers four text items within four equally divided spaces."
         ko: "단순히 4개의 텍스트를 4개로 나눈 공간에 가운데 정렬합니다."
         ja: "4つのテキストを4分割されたスペース内で中央揃えします。"
+        id: "Simply centers four text items within four equally divided spaces."
       spacing:
         en: "Even spacing"
         ko: "일정간격"
         ja: "均等間隔"
+        id: "Even spacing"
       spacing_hint:
         en: "Arranges the four text items so they maintain an even spacing across the width."
         ko: "4개의 텍스트들이 일정한 간격을 가지고 너비를 가질 수 있도록 배치합니다."
         ja: "4つのテキストが一定の間隔を保ちながら横幅に配置されます。"
+        id: "Arranges the four text items so they maintain an even spacing across the width."
 
     exif_bottom_0:
       en: "Text 0"
       ko: "텍스트0"
       ja: "テキスト0"
+      id: "Text 0"
       font:
         en: "Text 0 Font"
         ko: "텍스트0 폰트"
         ja: "テキスト0 フォント"
+        id: "Text 0 Font"
 
     exif_bottom_1:
       en: "Text 1"
       ko: "텍스트1"
       ja: "テキスト1"
+      id: "Text 1"
       font:
         en: "Text 1 Font"
         ko: "텍스트1 폰트"
         ja: "テキスト1 フォント"
+        id: "Text 1 Font"
 
     exif_bottom_2:
       en: "Text 2"
       ko: "텍스트2"
       ja: "テキスト2"
+      id: "Text 2"
       font:
         en: "Text 2 Font"
         ko: "텍스트2 폰트"
         ja: "テキスト2 フォント"
+        id: "Text 2 Font"
 
     exif_bottom_3:
       en: "Text 3"
       ko: "텍스트3"
       ja: "テキスト3"
+      id: "Text 3"
       font:
         en: "Text 3 Font"
         ko: "텍스트3 폰트"
         ja: "テキスト3 フォント"
+        id: "Text 3 Font"
 
   font_height_ratio:
     first:
       en: "First font height ratio"
       ko: "첫 번째 폰트 높이 비율"
       ja: "1つ目のフォント高さ比率"
+      id: "Rasio tinggi font pertama"
     second:
       en: "Second font height ratio"
       ko: "두 번째 폰트 높이 비율"
       ja: "2つ目のフォント高さ比率"
+      id: "Rasio tinggi font kedua"
     label:
       en: "Font height ratio"
       ko: "폰트 높이 비율"
       ja: "フォント高さ比率"
+      id: "Rasio tinggi font"
     hint:
       en: "Adjusts the vertical scaling ratio of the font relative to its base size."
       ko: "폰트의 기본 크기에 대해 세로 비율을 조정합니다."
       ja: "フォントの基準サイズに対して縦方向の比率を調整します。"
+      id: "Menyesuaikan rasio skala vertikal font relatif terhadap ukuran dasarnya."
 
   lightroom:
     title:
       en: "Lightroom"
       ko: "라이트룸"
       ja: "ライトルーム"
+      id: "Lightroom"
 
   #GLOBAL Translation
   font_color:
     en: "Font color"
     ko: "폰트 색상"
     ja: "フォントカラー"
+    id: "Warna font"
 
   exif_left_top:
     en: "Top Left"
     ko: "좌상단"
     ja: "左上"
+    id: "Kiri Atas"
     font:
       en: "Top Left Font"
       ko: "좌상단 폰트"
       ja: "左上 フォント"
+      id: "Font Kiri Atas"
 
   exif_right_top:
     en: "Top Right"
     ko: "우상단"
     ja: "右上"
+    id: "Kanan Atas"
     font:
       en: "Top Right Font"
       ko: "우상단 폰트"
       ja: "右上 フォント"
+      id: "Font Kanan Atas"
 
   exif_left_bot:
     en: "Bottom Left"
     ko: "좌하단"
     ja: "左下"
+    id: "Kiri Bawah"
     font:
       en: "Bottom Left Font"
       ko: "좌하단 폰트"
       ja: "左下 フォント"
+      id: "Font Kiri Bawah"
 
   exif_right_bot:
     en: "Bottom Right"
     ko: "우하단"
     ja: "右下"
+    id: "Kanan Bawah"
     font:
       en: "Bottom Right Font"
       ko: "우하단 폰트"
       ja: "右下 フォント"
+      id: "Font Kanan Bawah"
 
   exif_center_bot:
     en: "Bottom Center"
     ko: "하단 중앙"
     ja: "下中央"
+    id: "Tengah Bawah"
     font:
       en: "Bottom Center Font"
       ko: "하단 중앙 폰트"
       ja: "下中央 フォント"
+      id: "Font Tengah Bawah"
 
   exif_center_top:
     en: "Top Center"
     ko: "상단 중앙"
     ja: "上中央"
+    id: "Tengah Atas"
     font:
       en: "Top Center Font"
       ko: "상단 중앙 폰트"
       ja: "上中央 フォント"
+      id: "Font Tengah Atas"
 
   logo_height:
     en: "Logo height"
     ko: "로고 높이"
     ja: "ロゴの高さ"
+    id: "Tinggi logo"
     font:
       en: "Logo Height Font"
       ko: "로고 높이 폰트"
       ja: "ロゴの高さ フォント"
+      id: "Font Tinggi Logo"
 
   bottom1:
     en: "First Bottom"
     ko: "첫번째 하단"
     ja: "下段 1"
+    id: "Bawah Pertama"
     font:
       en: "First Bottom Font"
       ko: "첫번째 하단 폰트"
       ja: "下段 1 フォント"
+      id: "Font Bawah Pertama"
 
   bottom2:
     en: "Second Bottom"
     ko: "두번째 하단"
     ja: "下段 2"
+    id: "Bawah Kedua"
     font:
       en: "Second Bottom Font"
       ko: "두번째 하단 폰트"
       ja: "下段 2 フォント"
+      id: "Font Bawah Kedua"
 
   bottom3:
     en: "Third Bottom"
     ko: "세번째 하단"
     ja: "下段 3"
+    id: "Bawah Ketiga"
     font:
       en: "Third Bottom Font"
       ko: "세번째 하단 폰트"
       ja: "下段 3 フォント"
+      id: "Font Bawah Ketiga"
   
   border:
     en: "Border"
     ko: "테두리"
     ja: "枠線"
+    id: "Bingkai"
     color:
       en: "Border Color"
       ko: "테두리 색상"
       ja: "枠線の色"
+      id: "Warna Bingkai"
     left:
       en: "Left Border"
       ko: "왼쪽 테두리"
       ja: "左枠線"
+      id: "Bingkai Kiri"
     right:
       en: "Right Border"
       ko: "오른쪽 테두리"
       ja: "右枠線"
+      id: "Bingkai Kanan"
     top:
       en: "Top Border"
       ko: "위쪽 테두리"
       ja: "上枠線"
+      id: "Bingkai Atas"
     bottom:
       en: "Bottom Border"
       ko: "아래쪽 테두리"
       ja: "下枠線"
+      id: "Bingkai Bawah"
   
   glow_color:
     en: "Glow Effect Color"
-    ko: "글로우 효과 색상"  
+    ko: "글로우 효과 색상"
     ja: "グロー効果カラー"
+    id: "Warna Efek Cahaya"
 
   template_format_hint:
     title:
       en: "About Template Format"
       ko: "탬플릿 문자열에 관하여"
       ja: "フィールド名に関して"
+      id: "Tentang Format Template"
     description:
       en: |
         You can customize how EXIF info is shown using `{}` placeholders.  
@@ -366,7 +436,7 @@ theme:
           → **결과:** `ISO200 F1.8 1/125s` (`[{focal}mm]` 전체가 숨겨짐)
 
       ja: |
-        `{}` 内に EXIF フィールド名を入力すると、その値が自動的に置き換えられます。  
+        `{}` 内に EXIF フィールド名を入力すると、その値が自動的に置き換えられます。
         値が空または存在しない場合、対応する `[...]` ブロック全体が非表示になります。
 
         **例:**
@@ -374,7 +444,22 @@ theme:
         [ISO{iso_speed}] [{focal}mm] [F{fnumber}] [{exposure}s]
         ```
 
-        - `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"` の場合  
+        - `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"` の場合
           → **結果:** `ISO200 35mm F1.8 1/125s`
-        - `focal` が空の場合  
+        - `focal` が空の場合
           → **結果:** `ISO200 F1.8 1/125s` (`[{focal}mm]` ブロックは表示されません)
+
+      id: |
+        Anda dapat menyesuaikan cara informasi EXIF ditampilkan menggunakan placeholder `{}`.
+        Setiap `{key}` akan diganti dengan nilai yang sesuai dari metadata foto.
+        Jika nilainya kosong atau tidak ada, seluruh blok yang dibungkus dalam `[...]` akan disembunyikan secara otomatis.
+
+        **Contoh:**
+        ```
+        [ISO{iso_speed}] [{focal}mm] [F{fnumber}] [{exposure}s]
+        ```
+
+        - Jika `iso_speed = 200`, `focal = "35"`, `fnumber = "1.8"`, `exposure = "1/125"`,
+          → **Hasil:** `ISO200 35mm F1.8 1/125s`
+        - Jika `focal` kosong,
+          → **Hasil:** `ISO200 F1.8 1/125s` (bagian `[{focal}mm]` dilewati)

@@ -13,302 +13,370 @@ settings:
     en: "Version Information"
     ko: "버전 정보"
     ja: "バージョン情報"
+    id: "Informasi Versi"
 
   # UI theme
   theme:
     en: "UI Theme"
     ko: "UI 색상"
     ja: "UIテーマ"
+    id: "Tema UI"
   theme_system:
     en: "System"
     ko: "시스템"
     ja: "システム"
+    id: "Sistem"
   theme_dark:
     en: "Dark"
     ko: "다크"
     ja: "ダーク"
+    id: "Gelap"
   theme_light:
     en: "Light"
     ko: "라이트"
     ja: "ライト"
+    id: "Terang"
 
   # Language
   language:
     en: "Language"
     ko: "언어"
     ja: "言語"
+    id: "Bahasa"
 
   # Theme name display
   theme_name_display:
     en: "Theme Name Display"
     ko: "테마 이름 표시"
     ja: "テーマ名表示"
+    id: "Tampilan Nama Tema"
   show_theme_name_in_english:
     en: "Show theme names in English"
     ko: "테마 이름을 영어로 표시"
     ja: "テーマ名を英語で表示"
+    id: "Tampilkan nama tema dalam bahasa Inggris"
 
   # Temporary directory
   temp_dir:
     en: "Temporary Directory"
     ko: "임시 디렉토리"
     ja: "一時ディレクトリ"
+    id: "Direktori Sementara"
   temp_dir_hint:
     en: "Directory for intermediate processing files"
     ko: "중간 처리 파일을 위한 디렉토리"
     ja: "中間処理ファイル用のディレクトリ"
+    id: "Direktori untuk berkas pemrosesan sementara"
 
   # Face detection settings
   face_detection:
     en: "Face Detection"
     ko: "얼굴 감지"
     ja: "顔検出"
+    id: "Deteksi Wajah"
   detection_speed:
     en: "Detection Speed"
     ko: "감지 속도"
     ja: "検出速度"
+    id: "Kecepatan Deteksi"
   detection_speed_footer:
     en: "Higher speed settings detect faces faster but may miss smaller or partially obscured faces. Normal mode is recommended for most use cases."
     ko: "더 높은 속도 설정은 얼굴을 더 빠르게 감지하지만 작은 얼굴이나 부분적으로 가려진 얼굴을 놓칠 수 있습니다. 대부분의 경우 일반 모드를 권장합니다."
     ja: "より高い速度設定は顔をより速く検出しますが、小さな顔や部分的に隠れた顔を見逃す可能性があります。ほとんどのケースで標準モードを推奨します。"
+    id: "Pengaturan kecepatan lebih tinggi mendeteksi wajah lebih cepat tetapi mungkin melewatkan wajah kecil atau yang tertutup sebagian. Mode normal direkomendasikan untuk sebagian besar kasus."
 
   # Sticker settings
   sticker_size:
     en: "Sticker Size"
     ko: "스티커 크기"
     ja: "ステッカーのサイズ"
+    id: "Ukuran Stiker"
   sticker_size_hint:
     en: "Size of sticker relative to face detection area. Aspect ratio is always preserved."
     ko: "얼굴 감지 영역에 상대적인 스티커 크기. 가로세로 비율은 항상 유지됩니다."
     ja: "顔検出領域に対するステッカーのサイズ。縦横比は常に維持されます。"
+    id: "Ukuran stiker relatif terhadap area deteksi wajah. Rasio aspek selalu dipertahankan."
   sticker_settings_footer:
     en: "Adjust sticker placement and size. These settings apply to all stickers when exporting images."
     ko: "스티커 위치와 크기를 조정합니다. 이 설정들은 이미지 내보내기 시 모든 스티커에 적용됩니다."
     ja: "ステッカーの配置とサイズを調整します。これらの設定は画像のエクスポート時にすべてのステッカーに適用されます。"
+    id: "Sesuaikan penempatan dan ukuran stiker. Pengaturan ini berlaku untuk semua stiker saat mengekspor gambar."
   no_stickers_available:
     en: "No stickers available. Add stickers in Sticker Storage below."
     ko: "사용 가능한 스티커가 없습니다. 아래의 스티커 저장소에서 스티커를 추가하세요."
     ja: "使用可能なステッカーがありません。下のステッカー保存庫でステッカーを追加してください。"
+    id: "Tidak ada stiker tersedia. Tambahkan stiker di Penyimpanan Stiker di bawah."
   no_stickers_yet:
     en: "No Stickers Yet"
     ko: "아직 스티커가 없습니다"
     ja: "まだステッカーがありません"
+    id: "Belum Ada Stiker"
   add_stickers_hint:
     en: "Add stickers to apply to detected faces"
     ko: "감지된 얼굴에 적용할 스티커를 추가하세요"
     ja: "検出された顔に適用するステッカーを追加してください"
+    id: "Tambahkan stiker untuk diterapkan pada wajah terdeteksi"
   sticker_added:
     en: "Added:"
     ko: "추가됨:"
     ja: "追加済み："
+    id: "Ditambahkan:"
   sticker_storage_footer:
     en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results."
     ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요."
     ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。"
+    id: "Tambahkan stiker kustom untuk diterapkan pada wajah terdeteksi. Gunakan gambar PNG transparan untuk hasil terbaik."
 
   # Default face effect
   default_face_effect:
     en: "Default Face Effect"
     ko: "기본 얼굴 효과"
     ja: "デフォルトの顔効果"
+    id: "Efek Wajah Bawaan"
   default_sticker:
     en: "Default Sticker"
     ko: "기본 스티커"
     ja: "デフォルトステッカー"
+    id: "Stiker Bawaan"
   default_sticker_hint:
     en: "This sticker will be applied to all detected faces unless manually changed per-face"
     ko: "이 스티커는 얼굴별로 수동으로 변경하지 않는 한 모든 감지된 얼굴에 적용됩니다"
     ja: "このステッカーは、顔ごとに手動で変更しない限り、検出されたすべての顔に適用されます"
+    id: "Stiker ini akan diterapkan ke semua wajah terdeteksi kecuali diubah secara manual per wajah"
   face_effects_footer:
     en: "Choose default effect applied to detected faces when exporting images."
     ko: "이미지 내보내기 시 감지된 얼굴에 적용할 기본 효과를 선택하세요."
     ja: "画像のエクスポート時に検出された顔に適用するデフォルトの効果を選択します。"
+    id: "Pilih efek bawaan yang diterapkan pada wajah terdeteksi saat mengekspor gambar."
 
   # Mosaic/stroke
   mosaic_block_size:
     en: "Mosaic Block Size"
     ko: "모자이크 블록 크기"
     ja: "モザイクブロックサイズ"
+    id: "Ukuran Blok Mosaik"
   mosaic_block_size_hint:
     en: "Larger blocks provide more privacy but less detail"
     ko: "더 큰 블록은 더 많은 프라이버시를 제공하지만 디테일이 적습니다"
     ja: "より大きなブロックはより高いプライバシーを提供しますが、ディテールは少なくなります"
+    id: "Blok lebih besar memberikan lebih banyak privasi tetapi detail lebih sedikit"
   stroke_thickness:
     en: "Stroke Thickness"
     ko: "스트로크 두께"
     ja: "ストロークの太さ"
+    id: "Ketebalan Goresan"
   stroke_thickness_hint:
     en: "Border thickness around detected faces"
     ko: "감지된 얼굴 주변의 테두리 두께"
     ja: "検出された顔の周囲の枠線の太さ"
+    id: "Ketebalan bingkai di sekitar wajah terdeteksi"
   mosaic_stroke_hint:
     en: "Combines mosaic blur with colored border"
     ko: "모자이크 블러와 색상 테두리 결합"
     ja: "モザイクぼかしと色付き枠線を組み合わせます"
+    id: "Menggabungkan blur mosaik dengan bingkai berwarna"
 
   # Offset settings
   offset_x:
     en: "Offset X"
     ko: "오프셋 X"
     ja: "オフセットX"
+    id: "Offset X"
   offset_x_hint:
     en: "Horizontal offset as percentage of sticker size (negative = left, positive = right)"
     ko: "스티커 크기의 백분율로 수평 오프셋 (음수 = 왼쪽, 양수 = 오른쪽)"
     ja: "ステッカーサイズのパーセンテージによる水平オフセット（負数＝左、正数＝右）"
+    id: "Offset horizontal sebagai persentase ukuran stiker (negatif = kiri, positif = kanan)"
   offset_y:
     en: "Offset Y"
     ko: "오프셋 Y"
     ja: "オフセットY"
+    id: "Offset Y"
   offset_y_hint:
     en: "Vertical offset as percentage of sticker size (negative = up, positive = down)"
     ko: "스티커 크기의 백분율로 수직 오프셋 (음수 = 위, 양수 = 아래)"
     ja: "ステッカーサイズのパーセンテージによる垂直オフセット（負数＝上、正数＝下）"
+    id: "Offset vertikal sebagai persentase ukuran stiker (negatif = atas, positif = bawah)"
 
   # Reset
   reset_all_theme_parameters:
     en: "Reset All Theme Parameters"
     ko: "모든 테마 파라미터 초기화"
     ja: "すべてのテーマパラメータをリセット"
+    id: "Atur Ulang Semua Parameter Tema"
   about_and_reset_footer:
     en: "Reset all theme parameters to their default values. This cannot be undone."
     ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
     ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+    id: "Atur ulang semua parameter tema ke nilai default. Tindakan ini tidak dapat dibatalkan."
   reset_footer:
     en: "Reset all theme parameters to their default values. This cannot be undone."
     ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
     ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+    id: "Atur ulang semua parameter tema ke nilai default. Tindakan ini tidak dapat dibatalkan."
 
   # About
   about:
     en: "About"
     ko: "앱 정보"
     ja: "アプリについて"
+    id: "Tentang"
   about_footer:
     en: "ChamaOptics Mobile version and license information"
     ko: "ChamaOptics Mobile 버전 및 라이선스 정보"
     ja: "ChamaOptics Mobileのバージョンおよびライセンス情報"
+    id: "Informasi versi dan lisensi ChamaOptics Mobile"
 
   # Save format and quality (iOS settings)
   save_format:
     en: "Save Format"
     ko: "저장 형식"
     ja: "保存形式"
+    id: "Format Penyimpanan"
   jpeg_quality:
     en: "JPEG Quality"
     ko: "JPEG 품질"
     ja: "JPEG品質"
+    id: "Kualitas JPEG"
   webp_quality:
     en: "WebP Quality"
     ko: "WebP 품질"
     ja: "WebP品質"
+    id: "Kualitas WebP"
   quality_maximum:
     en: "Maximum quality (largest file size)"
     ko: "최고 품질 (가장 큰 파일 크기)"
     ja: "最高品質（最大ファイルサイズ）"
+    id: "Kualitas maksimum (ukuran berkas terbesar)"
   quality_high:
     en: "High quality"
     ko: "높은 품질"
     ja: "高品質"
+    id: "Kualitas tinggi"
   quality_good:
     en: "Good quality"
     ko: "좋은 품질"
     ja: "良好な品質"
+    id: "Kualitas baik"
   quality_medium:
     en: "Medium quality"
     ko: "중간 품질"
     ja: "中品質"
+    id: "Kualitas sedang"
   quality_low:
     en: "Low quality (smallest file size)"
     ko: "낮은 품질 (가장 작은 파일 크기)"
     ja: "低品質（最小ファイルサイズ）"
+    id: "Kualitas rendah (ukuran berkas terkecil)"
 
   # Scale modes (iOS settings)
   scale_mode:
     en: "Scale Mode"
     ko: "스케일 모드"
     ja: "スケールモード"
+    id: "Mode Skala"
   scale_mode_none:
     en: "None"
     ko: "없음"
     ja: "なし"
+    id: "Tidak ada"
   scale_mode_divide:
     en: "Divide by"
     ko: "나누기"
     ja: "割る"
+    id: "Bagi dengan"
   scale_mode_divide_label:
     en: "Divide"
     ko: "나누기"
     ja: "割る"
+    id: "Bagi"
   scale_mode_divide_hint:
     en: "Divides both width and height by this value"
     ko: "너비와 높이를 이 값으로 나눕니다"
     ja: "幅と高さをこの値で割ります"
+    id: "Membagi lebar dan tinggi dengan nilai ini"
   scale_mode_max_width:
     en: "Max Width"
     ko: "최대 너비"
     ja: "最大幅"
+    id: "Lebar Maksimum"
   scale_mode_max_width_hint:
     en: "Resize to target width, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 목표 너비로 크기 조정"
     ja: "縦横比を維持して目標幅にリサイズ"
+    id: "Ubah ukuran ke lebar target, mempertahankan rasio aspek"
   scale_mode_max_height:
     en: "Max Height"
     ko: "최대 높이"
     ja: "最大高さ"
+    id: "Tinggi Maksimum"
   scale_mode_max_height_hint:
     en: "Resize to target height, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 목표 높이로 크기 조정"
     ja: "縦横比を維持して目標高さにリサイズ"
+    id: "Ubah ukuran ke tinggi target, mempertahankan rasio aspek"
   scale_mode_longside:
     en: "Longside"
     ko: "긴 쪽"
     ja: "長辺"
+    id: "Sisi Panjang"
   scale_mode_longside_hint:
     en: "Resize longest side to target length, maintaining aspect ratio"
     ko: "가로세로 비율 유지하며 가장 긴 쪽을 목표 길이로 크기 조정"
     ja: "縦横比を維持して最長辺を目標の長さにリサイズ"
+    id: "Ubah ukuran sisi terpanjang ke panjang target, mempertahankan rasio aspek"
   scale_mode_near_common_width:
     en: "Near Common (Width)"
     ko: "Near Common (너비)"
     ja: "Near Common（幅）"
+    id: "Mendekati Umum (Lebar)"
   scale_mode_near_common_width_hint:
     en: "Resize to nearest width that preserves original aspect ratio"
     ko: "원래 가로세로 비율을 보존하는 가장 가까운 너비로 크기 조정"
     ja: "元の縦横比を保持する最も近い幅にリサイズ"
+    id: "Ubah ukuran ke lebar terdekat yang mempertahankan rasio aspek asli"
   scale_mode_near_common_height:
     en: "Near Common (Height)"
     ko: "Near Common (높이)"
     ja: "Near Common（高さ）"
+    id: "Mendekati Umum (Tinggi)"
   scale_mode_near_common_height_hint:
     en: "Resize to nearest height that preserves original aspect ratio"
     ko: "원래 가로세로 비율을 보존하는 가장 가까운 높이로 크기 조정"
     ja: "元の縦横比を保持する最も近い高さにリサイズ"
+    id: "Ubah ukuran ke tinggi terdekat yang mempertahankan rasio aspek asli"
   scale_mode_resize_crop:
     en: "Resize and Crop"
     ko: "크기 조정 및 자르기"
     ja: "リサイズして切り抜き"
+    id: "Ubah Ukuran dan Potong"
   scale_mode_width:
     en: "Width"
     ko: "너비"
     ja: "幅"
+    id: "Lebar"
   scale_mode_height:
     en: "Height"
     ko: "높이"
     ja: "高さ"
+    id: "Tinggi"
   scale_mode_target_width:
     en: "Target Width"
     ko: "목표 너비"
     ja: "目標幅"
+    id: "Lebar Target"
   scale_mode_target_height:
     en: "Target Height"
     ko: "목표 높이"
     ja: "目標高さ"
+    id: "Tinggi Target"
 
   # Sticker add button
   add_sticker:
     en: "Add Sticker"
     ko: "스티커 추가"
     ja: "ステッカーを追加"
+    id: "Tambah Stiker"
 
 # Update check
 update:
@@ -316,27 +384,34 @@ update:
     en: "Release not checked"
     ko: "아직 릴리스를 확인하지 않았습니다"
     ja: "リリースはまだ確認されていません"
+    id: "Rilis belum diperiksa"
   checking:
     en: "Checking for updates..."
     ko: "업데이트 확인중..."
     ja: "アップデートを確認中..."
+    id: "Memeriksa pembaruan..."
   label:
     en: "New version available:"
     ko: "새 버전이 있습니다:"
     ja: "新しいバージョンがあります:"
+    id: "Versi baru tersedia:"
   no_info:
     en: "New update found, but no version info."
     ko: "새 버전이 있지만 정보가 없습니다."
     ja: "新しいバージョンが見つかりましたが、情報がありません。"
+    id: "Pembaruan baru ditemukan, tetapi tidak ada informasi versi."
   checked:
     en: "You are using the latest version."
     ko: "최신 버전을 사용 중입니다."
     ja: "最新バージョンを使用しています。"
+    id: "Anda menggunakan versi terbaru."
   status_unavailable:
     en: "Status unavailable"
     ko: "상태를 읽을 수 없습니다."
     ja: "ステータスを読み取れません。"
+    id: "Status tidak tersedia"
   read_fail:
     en: "Failed to read new version info."
     ko: "새 버전 정보를 읽지 못했습니다."
     ja: "新しいバージョン情報を読み取れませんでした。"
+    id: "Gagal membaca informasi versi baru."

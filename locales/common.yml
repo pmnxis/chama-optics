@@ -14,66 +14,82 @@ common:
       en: "Save"
       ko: "저장"
       ja: "保存"
+      id: "Simpan"
     cancel:
       en: "Cancel"
       ko: "취소"
       ja: "キャンセル"
+      id: "Batal"
     apply:
       en: "Apply"
       ko: "적용"
       ja: "適用"
+      id: "Terapkan"
     reset:
       en: "Reset"
       ko: "초기화"
       ja: "リセット"
+      id: "Atur Ulang"
     reset_mobile:
       en: "Reset"
       ko: "초기화"
       ja: "リセット"
+      id: "Atur Ulang"
     delete:
       en: "Delete"
       ko: "삭제"
       ja: "削除"
+      id: "Hapus"
     edit:
       en: "Edit"
       ko: "편집"
       ja: "編集"
+      id: "Sunting"
     done:
       en: "Done"
       ko: "완료"
       ja: "完了"
+      id: "Selesai"
     close:
       en: "Close"
       ko: "닫기"
       ja: "閉じる"
+      id: "Tutup"
     add:
       en: "Add"
       ko: "추가"
       ja: "追加"
+      id: "Tambah"
     remove:
       en: "Remove"
       ko: "제거"
       ja: "削除"
+      id: "Hapus"
     clear:
       en: "Clear"
       ko: "클리어"
       ja: "クリア"
+      id: "Bersihkan"
     refresh:
       en: "Refresh"
       ko: "새로고침"
       ja: "更新"
+      id: "Segarkan"
     select:
       en: "Select"
       ko: "선택"
       ja: "選択"
+      id: "Pilih"
     confirm:
       en: "Confirm"
       ko: "확인"
       ja: "確認"
+      id: "Konfirmasi"
     group:
       en: "Group"
       ko: "그룹"
       ja: "グループ"
+      id: "Kelompok"
 
   # Status messages
   status:
@@ -81,38 +97,47 @@ common:
       en: "Loading..."
       ko: "로딩 중..."
       ja: "読み込み中..."
+      id: "Memuat..."
     processing:
       en: "Processing..."
       ko: "처리 중..."
       ja: "処理中..."
+      id: "Memproses..."
     saving:
       en: "Saving..."
       ko: "저장 중..."
       ja: "保存中..."
+      id: "Menyimpan..."
     error:
       en: "Error"
       ko: "오류"
       ja: "エラー"
+      id: "Kesalahan"
     success:
       en: "Success"
       ko: "성공"
       ja: "成功"
+      id: "Berhasil"
     ready:
       en: "Ready"
       ko: "준비 완료"
       ja: "準備完了"
+      id: "Siap"
     generating:
       en: "Generating..."
       ko: "생성 중..."
       ja: "生成中..."
+      id: "Membuat..."
     detecting:
       en: "Detecting..."
       ko: "감지 중..."
       ja: "検出中..."
+      id: "Mendeteksi..."
     completed:
       en: "Completed"
       ko: "완료"
       ja: "完了"
+      id: "Selesai"
 
   # Position labels (used in watermark, theme positions, etc.)
   positions:
@@ -120,38 +145,47 @@ common:
       en: "Top Left"
       ko: "좌상단"
       ja: "左上"
+      id: "Kiri Atas"
     top_center:
       en: "Top Center"
       ko: "상단 중앙"
       ja: "上中央"
+      id: "Tengah Atas"
     top_right:
       en: "Top Right"
       ko: "우상단"
       ja: "右上"
+      id: "Kanan Atas"
     middle_left:
       en: "Middle Left"
       ko: "좌측 중앙"
       ja: "左中央"
+      id: "Kiri Tengah"
     center:
       en: "Center"
       ko: "중앙"
       ja: "中央"
+      id: "Tengah"
     middle_right:
       en: "Middle Right"
       ko: "우측 중앙"
       ja: "右中央"
+      id: "Kanan Tengah"
     bottom_left:
       en: "Bottom Left"
       ko: "좌하단"
       ja: "左下"
+      id: "Kiri Bawah"
     bottom_center:
       en: "Bottom Center"
       ko: "하단 중앙"
       ja: "下中央"
+      id: "Tengah Bawah"
     bottom_right:
       en: "Bottom Right"
       ko: "우하단"
       ja: "右下"
+      id: "Kanan Bawah"
 
   # Units
   units:
@@ -159,18 +193,22 @@ common:
       en: "px"
       ko: "픽셀"
       ja: "ピクセル"
+      id: "px"
     seconds:
       en: "sec"
       ko: "초"
       ja: "秒"
+      id: "detik"
     percent:
       en: "%"
       ko: "%"
       ja: "%"
+      id: "%"
     ev:
       en: "EV"
       ko: "EV"
       ja: "EV"
+      id: "EV"
 
   # Common labels
   labels:
@@ -178,46 +216,57 @@ common:
       en: "None"
       ko: "없음"
       ja: "なし"
+      id: "Tidak ada"
     all:
       en: "All"
       ko: "전체"
       ja: "すべて"
+      id: "Semua"
     preview:
       en: "Preview"
       ko: "미리보기"
       ja: "プレビュー"
+      id: "Pratinjau"
     original:
       en: "Original"
       ko: "원본"
       ja: "元画像"
+      id: "Asli"
     settings:
       en: "Settings"
       ko: "설정"
       ja: "設定"
+      id: "Pengaturan"
     enabled:
       en: "Enabled"
       ko: "활성화"
       ja: "有効"
+      id: "Diaktifkan"
     disabled:
       en: "Disabled"
       ko: "비활성화"
       ja: "無効"
+      id: "Dinonaktifkan"
     default:
       en: "Default"
       ko: "기본값"
       ja: "デフォルト"
+      id: "Bawaan"
     custom:
       en: "Custom"
       ko: "사용자 지정"
       ja: "カスタム"
+      id: "Kustom"
     info:
       en: "Info"
       ko: "정보"
       ja: "情報"
+      id: "Info"
     warning:
       en: "Warning"
       ko: "경고"
       ja: "警告"
+      id: "Peringatan"
 
   # EXIF field labels (shared between gallery and face detection)
   exif:
@@ -225,75 +274,93 @@ common:
       en: "Camera Make"
       ko: "카메라 제조사"
       ja: "カメラメーカー"
+      id: "Pembuat Kamera"
     camera_model:
       en: "Camera Model"
       ko: "카메라 모델"
       ja: "カメラモデル"
+      id: "Model Kamera"
     lens_model:
       en: "Lens Model"
       ko: "렌즈 모델"
       ja: "レンズモデル"
+      id: "Model Lensa"
     focal_length:
       en: "Focal Length"
       ko: "초점 거리"
       ja: "焦点距離"
+      id: "Panjang Fokus"
     aperture:
       en: "Aperture"
       ko: "조리개"
       ja: "絞り"
+      id: "Bukaan"
     shutter_speed:
       en: "Shutter Speed"
       ko: "셔터 속도"
       ja: "シャッター速度"
+      id: "Kecepatan Rana"
     iso_speed:
       en: "ISO"
       ko: "ISO"
       ja: "ISO"
+      id: "ISO"
     date_time:
       en: "Date/Time"
       ko: "날짜/시간"
       ja: "日付/時刻"
+      id: "Tanggal/Waktu"
     exif_information:
       en: "EXIF Information"
       ko: "EXIF 정보"
       ja: "EXIF情報"
+      id: "Informasi EXIF"
     exif_unavailable:
       en: "EXIF Unavailable"
       ko: "EXIF 사용 불가"
       ja: "EXIF利用不可"
+      id: "EXIF Tidak Tersedia"
     load_exif:
       en: "Load EXIF"
       ko: "EXIF 로드"
       ja: "EXIFを読み込む"
+      id: "Muat EXIF"
     # Example placeholders
     example_camera:
       en: "e.g. Canon"
       ko: "예: Canon"
       ja: "例：Canon"
+      id: "mis. Canon"
     example_camera_model:
       en: "e.g. EOS R5"
       ko: "예: EOS R5"
       ja: "例：EOS R5"
+      id: "mis. EOS R5"
     example_lens_model:
       en: "e.g. RF 24-70mm F2.8"
       ko: "예: RF 24-70mm F2.8"
       ja: "例：RF 24-70mm F2.8"
+      id: "mis. RF 24-70mm F2.8"
     example_focal_length:
       en: "e.g. 50mm"
       ko: "예: 50mm"
       ja: "例：50mm"
+      id: "mis. 50mm"
     example_aperture:
       en: "e.g. f/2.8"
       ko: "예: f/2.8"
       ja: "例：f/2.8"
+      id: "mis. f/2.8"
     example_shutter_speed:
       en: "e.g. 1/250s"
       ko: "예: 1/250s"
       ja: "例：1/250s"
+      id: "mis. 1/250s"
     example_date_time:
       en: "e.g. 2024-01-01 12:00:00"
       ko: "예: 2024-01-01 12:00:00"
       ja: "例：2024-01-01 12:00:00"
+      id: "mis. 2024-01-01 12:00:00"
 
   # Border/direction labels
   directions:
@@ -301,18 +368,22 @@ common:
       en: "Top"
       ko: "위쪽"
       ja: "上"
+      id: "Atas"
     bottom:
       en: "Bottom"
       ko: "아래쪽"
       ja: "下"
+      id: "Bawah"
     left:
       en: "Left"
       ko: "왼쪽"
       ja: "左"
+      id: "Kiri"
     right:
       en: "Right"
       ko: "오른쪽"
       ja: "右"
+      id: "Kanan"
 
   # Color labels
   colors:
@@ -320,11 +391,14 @@ common:
       en: "Color"
       ko: "색상"
       ja: "色"
+      id: "Warna"
     font_color:
       en: "Font Color"
       ko: "폰트 색상"
       ja: "フォントカラー"
+      id: "Warna Font"
     border_color:
       en: "Border Color"
       ko: "테두리 색상"
       ja: "枠線の色"
+      id: "Warna Bingkai"

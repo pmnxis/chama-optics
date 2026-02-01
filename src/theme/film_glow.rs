@@ -34,7 +34,7 @@ pub struct FilmGlow {
 
     #[param(
         slider,
-        label_key = "theme.glow_gain",
+        label_key = "theme.glow_range",
         min = 0,
         max = 20,
         default_const = "DEFAULT_GLOW_GAIN"

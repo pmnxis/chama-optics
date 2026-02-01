@@ -9,80 +9,97 @@ fonts_selector:
     en: "Select a font"
     ko: "폰트 선택"
     ja: "フォントを選択"
+    id: "Pilih font"
   variable_fonts:
     en: "↔ Variable Fonts"
     ko: "↔ 프로그램 내장 가변폭 폰트"
     ja: "↔ 内蔵可変フォント"
+    id: "↔ Font Variabel"
   builtin_fonts:
     en: "⛶ Built-in Fonts"
     ko: "⛶ 프로그램 내장 폰트"
     ja: "⛶ 内蔵フォント"
+    id: "⛶ Font Bawaan"
   system_fonts:
     en: "💻 System Fonts"
     ko: "💻 시스템 폰트"
     ja: "💻 システムフォント"
+    id: "💻 Font Sistem"
   system_fonts_loading:
     en: "⏳ Loading system fonts..."
     ko: "⏳ 시스템 폰트 로딩중..."
     ja: "⏳ システムフォントを読み込み中..."
+    id: "⏳ Memuat font sistem..."
   default:
     en: "Default"
     ko: "기본값"
     ja: "デフォルト"
+    id: "Bawaan"
   variable:
     label:
       en: "Variable"
       ko: "가변폭"
       ja: "可変冷"
+      id: "Variabel"
     hint:
       en: "A variable font built into the program that allows fine-grained adjustment of weight and width."
       ko: "프로그램 내장 가변폭 폰트로, 글씨 굵기와 폭을 세세하게 조절할 수 있습니다."
       ja: "プログラム内蔵の可変フォントで、文字の太さや幅を細かく調整できます。"
+      id: "Font variabel bawaan program yang memungkinkan penyesuaian detail ketebalan dan lebar."
 
   others:
     label:
       en: "Standard"
       ko: "기본형"
       ja: "標準冷"
+      id: "Standar"
     hint:
       en: "A standard font that is either built into the program or provided by the operating system."
       ko: "프로그램 내장 또는 운영체제에 내장된 일반 폰트를 선택할 수 있습니다."
       ja: "プログラム内蔵またはOSに搭載されている標準フォントを選択できます。"
+      id: "Font standar yang tertanam dalam program atau disediakan oleh sistem operasi."
 
 text_align:
   bottom_text_align:
     en: "Bottom Text Align"
     ko: "하단 텍스트 정렬"
     ja: "下段テキスト揃え"
+    id: "Perataan Teks Bawah"
   top_text_align:
     en: "Top Text Align"
     ko: "상단 텍스트 정렬"
     ja: "上段テキスト揃え"
+    id: "Perataan Teks Atas"
 
   left:
     en: "Left Align"
     ko: "왼쪽 정렬"
     ja: "左揃え"
+    id: "Rata Kiri"
   left_hint:
     en: "Align text to the left"
     ko: "텍스트를 왼쪽으로 정렬합니다."
     ja: "テキストを左側に揃えます。"
+    id: "Ratakan teks ke kiri"
 
   center:
     en: "Center Align"
     ko: "가운데 정렬"
     ja: "中央揃え"
+    id: "Rata Tengah"
   center_hint:
     en: "Align text to the center"
     ko: "텍스트를 가운데로 정렬합니다."
     ja: "テキストを中央に揃えます。"
+    id: "Ratakan teks ke tengah"
 
   right:
     en: "Right Align"
     ko: "오른쪽 정렬"
     ja: "右揃え"
+    id: "Rata Kanan"
   right_hint:
     en: "Align text to the right"
     ko: "텍스트를 오른쪽으로 정렬합니다."
     ja: "テキストを右側に揃えます。"
-  
+    id: "Ratakan teks ke kanan"

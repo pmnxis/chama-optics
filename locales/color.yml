@@ -9,155 +9,192 @@ tabs:
     en: "Color Grading"
     ko: "컬러 그레이딩"
     ja: "カラーグレーディング"
+    id: "Penilaian Warna"
   color_heading:
     en: "Color Grading"
     ko: "컬러 그레이딩"
     ja: "カラーグレーディング"
+    id: "Penilaian Warna"
 
 color:
   select_image:
     en: "Select an image to preview:"
     ko: "미리보기할 이미지를 선택하세요:"
     ja: "プレビューする画像を選択してください:"
+    id: "Pilih gambar untuk pratinjau:"
   preview_label:
     en: "Preview"
     ko: "미리보기"
     ja: "プレビュー"
+    id: "Pratinjau"
   refresh_button:
     en: "Refresh"
     ko: "새로고침"
     ja: "更新"
+    id: "Segarkan"
   original:
     en: "Original"
     ko: "원본"
     ja: "元画像"
+    id: "Asli"
   lut_applied:
     en: "LUT Applied"
     ko: "LUT 적용됨"
     ja: "LUT適用"
+    id: "LUT Diterapkan"
   no_images:
     en: "No images loaded"
     ko: "불러온 이미지가 없습니다"
     ja: "画像がロードされていません"
+    id: "Tidak ada gambar dimuat"
   no_images_hint:
     en: "Go to the Gallery tab to add images, then come back to apply LUTs"
     ko: "갤러리 탭으로 이동하여 이미지를 추가한 후 돌아와서 LUT을 적용하세요"
     ja: "ギャラリータブに移動して画像を追加してから、ここに戻ってLUTを適用してください"
+    id: "Buka tab Galeri untuk menambahkan gambar, lalu kembali untuk menerapkan LUT"
   generating:
     en: "Processing..."
     ko: "처리 중..."
     ja: "処理中..."
+    id: "Memproses..."
 
   # LUT Settings
   lut_settings:
     en: "LUT Settings"
     ko: "LUT 설정"
     ja: "LUT設定"
+    id: "Pengaturan LUT"
   lut_select:
     en: "LUT:"
     ko: "LUT:"
     ja: "LUT:"
+    id: "LUT:"
   no_lut:
     en: "None"
     ko: "없음"
     ja: "なし"
+    id: "Tidak ada"
   add_lut:
     en: "+ Add LUT"
     ko: "+ LUT 추가"
     ja: "+ LUT追加"
+    id: "+ Tambah LUT"
   remove_lut:
     en: "Remove"
     ko: "삭제"
     ja: "削除"
+    id: "Hapus"
   lut_info:
     en: "Info:"
     ko: "정보:"
     ja: "情報:"
+    id: "Info:"
   select_lut_file:
     en: "Select LUT File"
     ko: "LUT 파일 선택"
     ja: "LUTファイルを選択"
+    id: "Pilih Berkas LUT"
   select_image_first:
     en: "Select an image first"
     ko: "먼저 이미지를 선택하세요"
     ja: "最初に画像を選択してください"
+    id: "Pilih gambar terlebih dahulu"
   clear_lut:
     en: "Clear"
     ko: "제거"
     ja: "クリア"
+    id: "Bersihkan"
   apply_to_all:
     en: "Apply to All Images"
     ko: "모든 이미지에 적용"
     ja: "すべての画像に適用"
+    id: "Terapkan ke Semua Gambar"
   clear_all:
     en: "Clear All LUTs"
     ko: "모든 LUT 제거"
     ja: "すべてのLUTをクリア"
+    id: "Bersihkan Semua LUT"
 
   # Drag and drop hints
   drop_images_hint:
     en: "Drop images here to add"
     ko: "이미지를 여기에 드롭하여 추가"
     ja: "ここに画像をドロップして追加"
+    id: "Letakkan gambar di sini untuk menambahkan"
   drop_lut_hint:
     en: "Drop .cube files here to add LUTs"
     ko: ".cube 파일을 여기에 드롭하여 LUT 추가"
     ja: ".cubeファイルをここにドロップしてLUTを追加"
+    id: "Letakkan berkas .cube di sini untuk menambahkan LUT"
   no_luts:
     en: "No LUTs loaded. Click + or drop .cube files"
     ko: "불러온 LUT이 없습니다. +를 클릭하거나 .cube 파일을 드롭하세요"
     ja: "LUTがロードされていません。+をクリックするか.cubeファイルをドロップ"
+    id: "Tidak ada LUT dimuat. Klik + atau letakkan berkas .cube"
 
   # Color Adjustments
   adjustments_section:
     en: "Color Adjustments"
     ko: "색상 조정"
     ja: "カラー調整"
+    id: "Penyesuaian Warna"
   adjustments_enabled:
     en: "Enable Adjustments"
     ko: "색상 조정 활성화"
     ja: "調整を有効にする"
+    id: "Aktifkan Penyesuaian"
   adjustments_coming_soon:
     en: ""
     ko: ""
     ja: ""
+    id: ""
   reset_adjustments:
     en: "Reset"
     ko: "초기화"
     ja: "リセット"
+    id: "Atur Ulang"
   exposure:
     en: "Exposure"
     ko: "노출"
     ja: "露出"
+    id: "Pencahayaan"
   contrast:
     en: "Contrast"
     ko: "대비"
     ja: "コントラスト"
+    id: "Kontras"
   highlights:
     en: "Highlights"
     ko: "하이라이트"
     ja: "ハイライト"
+    id: "Sorotan"
   shadows:
     en: "Shadows"
     ko: "그림자"
     ja: "シャドウ"
+    id: "Bayangan"
   whites:
     en: "Whites"
     ko: "흰색 계열"
     ja: "白レベル"
+    id: "Putih"
   blacks:
     en: "Blacks"
     ko: "검은색 계열"
     ja: "黒レベル"
+    id: "Hitam"
   clarity:
     en: "Clarity"
     ko: "선명도"
     ja: "明瞭度"
+    id: "Kejernihan"
   vibrance:
     en: "Vibrance"
     ko: "활기"
     ja: "自然な彩度"
+    id: "Kecerahan"
   saturation:
     en: "Saturation"
     ko: "채도"
     ja: "彩度"
+    id: "Saturasi"
