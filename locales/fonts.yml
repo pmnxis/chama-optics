@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Font selection translations
+# Used in both EGUI (desktop) and iOS
+
+_version: 2
+
+fonts:
+  font_type:
+    en: "Font Type"
+    ko: "폰트 유형"
+    ja: "フォントタイプ"
+  font:
+    en: "Font"
+    ko: "폰트"
+    ja: "フォント"
+  weight:
+    en: "Weight"
+    ko: "글꼴 굵기"
+    ja: "太さ"
+  select_font:
+    en: "Select Font"
+    ko: "폰트 선택"
+    ja: "フォントを選択"

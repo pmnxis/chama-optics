@@ -1,0 +1,220 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Settings screen translations
+# Used in both EGUI (desktop) and iOS settings
+
+_version: 2
+
+settings:
+  # Version info
+  version_info:
+    en: "Version Information"
+    ko: "버전 정보"
+    ja: "バージョン情報"
+
+  # UI theme
+  theme:
+    en: "UI Theme"
+    ko: "UI 색상"
+    ja: "UIテーマ"
+  theme_system:
+    en: "System"
+    ko: "시스템"
+    ja: "システム"
+  theme_dark:
+    en: "Dark"
+    ko: "다크"
+    ja: "ダーク"
+  theme_light:
+    en: "Light"
+    ko: "라이트"
+    ja: "ライト"
+
+  # Language
+  language:
+    en: "Language"
+    ko: "언어"
+    ja: "言語"
+
+  # Theme name display
+  theme_name_display:
+    en: "Theme Name Display"
+    ko: "테마 이름 표시"
+    ja: "テーマ名表示"
+  show_theme_name_in_english:
+    en: "Show theme names in English"
+    ko: "테마 이름을 영어로 표시"
+    ja: "テーマ名を英語で表示"
+
+  # Temporary directory
+  temp_dir:
+    en: "Temporary Directory"
+    ko: "임시 디렉토리"
+    ja: "一時ディレクトリ"
+  temp_dir_hint:
+    en: "Directory for intermediate processing files"
+    ko: "중간 처리 파일을 위한 디렉토리"
+    ja: "中間処理ファイル用のディレクトリ"
+
+  # Face detection settings
+  face_detection:
+    en: "Face Detection"
+    ko: "얼굴 감지"
+    ja: "顔検出"
+  detection_speed:
+    en: "Detection Speed"
+    ko: "감지 속도"
+    ja: "検出速度"
+  detection_speed_footer:
+    en: "Higher speed settings detect faces faster but may miss smaller or partially obscured faces. Normal mode is recommended for most use cases."
+    ko: "더 높은 속도 설정은 얼굴을 더 빠르게 감지하지만 작은 얼굴이나 부분적으로 가려진 얼굴을 놓칠 수 있습니다. 대부분의 경우 일반 모드를 권장합니다."
+    ja: "より高い速度設定は顔をより速く検出しますが、小さな顔や部分的に隠れた顔を見逃す可能性があります。ほとんどのケースで標準モードを推奨します。"
+
+  # Sticker settings
+  sticker_size:
+    en: "Sticker Size"
+    ko: "스티커 크기"
+    ja: "ステッカーのサイズ"
+  sticker_size_hint:
+    en: "Size of sticker relative to face detection area. Aspect ratio is always preserved."
+    ko: "얼굴 감지 영역에 상대적인 스티커 크기. 가로세로 비율은 항상 유지됩니다."
+    ja: "顔検出領域に対するステッカーのサイズ。縦横比は常に維持されます。"
+  sticker_settings_footer:
+    en: "Adjust sticker placement and size. These settings apply to all stickers when exporting images."
+    ko: "스티커 위치와 크기를 조정합니다. 이 설정들은 이미지 내보내기 시 모든 스티커에 적용됩니다."
+    ja: "ステッカーの配置とサイズを調整します。これらの設定は画像のエクスポート時にすべてのステッカーに適用されます。"
+  no_stickers_available:
+    en: "No stickers available. Add stickers in Sticker Storage below."
+    ko: "사용 가능한 스티커가 없습니다. 아래의 스티커 저장소에서 스티커를 추가하세요."
+    ja: "使用可能なステッカーがありません。下のステッカー保存庫でステッカーを追加してください。"
+  no_stickers_yet:
+    en: "No Stickers Yet"
+    ko: "아직 스티커가 없습니다"
+    ja: "まだステッカーがありません"
+  add_stickers_hint:
+    en: "Add stickers to apply to detected faces"
+    ko: "감지된 얼굴에 적용할 스티커를 추가하세요"
+    ja: "検出された顔に適用するステッカーを追加してください"
+  sticker_added:
+    en: "Added:"
+    ko: "추가됨:"
+    ja: "追加済み："
+  sticker_storage_footer:
+    en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results."
+    ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요."
+    ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。"
+
+  # Default face effect
+  default_face_effect:
+    en: "Default Face Effect"
+    ko: "기본 얼굴 효과"
+    ja: "デフォルトの顔効果"
+  default_sticker:
+    en: "Default Sticker"
+    ko: "기본 스티커"
+    ja: "デフォルトステッカー"
+  default_sticker_hint:
+    en: "This sticker will be applied to all detected faces unless manually changed per-face"
+    ko: "이 스티커는 얼굴별로 수동으로 변경하지 않는 한 모든 감지된 얼굴에 적용됩니다"
+    ja: "このステッカーは、顔ごとに手動で変更しない限り、検出されたすべての顔に適用されます"
+  face_effects_footer:
+    en: "Choose default effect applied to detected faces when exporting images."
+    ko: "이미지 내보내기 시 감지된 얼굴에 적용할 기본 효과를 선택하세요."
+    ja: "画像のエクスポート時に検出された顔に適用するデフォルトの効果を選択します。"
+
+  # Mosaic/stroke
+  mosaic_block_size:
+    en: "Mosaic Block Size"
+    ko: "모자이크 블록 크기"
+    ja: "モザイクブロックサイズ"
+  mosaic_block_size_hint:
+    en: "Larger blocks provide more privacy but less detail"
+    ko: "더 큰 블록은 더 많은 프라이버시를 제공하지만 디테일이 적습니다"
+    ja: "より大きなブロックはより高いプライバシーを提供しますが、ディテールは少なくなります"
+  stroke_thickness:
+    en: "Stroke Thickness"
+    ko: "스트로크 두께"
+    ja: "ストロークの太さ"
+  stroke_thickness_hint:
+    en: "Border thickness around detected faces"
+    ko: "감지된 얼굴 주변의 테두리 두께"
+    ja: "検出された顔の周囲の枠線の太さ"
+  mosaic_stroke_hint:
+    en: "Combines mosaic blur with colored border"
+    ko: "모자이크 블러와 색상 테두리 결합"
+    ja: "モザイクぼかしと色付き枠線を組み合わせます"
+
+  # Offset settings
+  offset_x:
+    en: "Offset X"
+    ko: "오프셋 X"
+    ja: "オフセットX"
+  offset_x_hint:
+    en: "Horizontal offset as percentage of sticker size (negative = left, positive = right)"
+    ko: "스티커 크기의 백분율로 수평 오프셋 (음수 = 왼쪽, 양수 = 오른쪽)"
+    ja: "ステッカーサイズのパーセンテージによる水平オフセット（負数＝左、正数＝右）"
+  offset_y:
+    en: "Offset Y"
+    ko: "오프셋 Y"
+    ja: "オフセットY"
+  offset_y_hint:
+    en: "Vertical offset as percentage of sticker size (negative = up, positive = down)"
+    ko: "스티커 크기의 백분율로 수직 오프셋 (음수 = 위, 양수 = 아래)"
+    ja: "ステッカーサイズのパーセンテージによる垂直オフセット（負数＝上、正数＝下）"
+
+  # Reset
+  reset_all_theme_parameters:
+    en: "Reset All Theme Parameters"
+    ko: "모든 테마 파라미터 초기화"
+    ja: "すべてのテーマパラメータをリセット"
+  about_and_reset_footer:
+    en: "Reset all theme parameters to their default values. This cannot be undone."
+    ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
+    ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+  reset_footer:
+    en: "Reset all theme parameters to their default values. This cannot be undone."
+    ko: "모든 테마 파라미터를 기본값으로 초기화합니다. 이 작업은 되돌릴 수 없습니다."
+    ja: "すべてのテーマパラメータをデフォルト値にリセットします。これは元に戻せません。"
+
+  # About
+  about:
+    en: "About"
+    ko: "앱 정보"
+    ja: "アプリについて"
+  about_footer:
+    en: "ChamaOptics Mobile version and license information"
+    ko: "ChamaOptics Mobile 버전 및 라이선스 정보"
+    ja: "ChamaOptics Mobileのバージョンおよびライセンス情報"
+
+# Update check
+update:
+  not_checked:
+    en: "Release not checked"
+    ko: "아직 릴리스를 확인하지 않았습니다"
+    ja: "リリースはまだ確認されていません"
+  checking:
+    en: "Checking for updates..."
+    ko: "업데이트 확인중..."
+    ja: "アップデートを確認中..."
+  label:
+    en: "New version available:"
+    ko: "새 버전이 있습니다:"
+    ja: "新しいバージョンがあります:"
+  no_info:
+    en: "New update found, but no version info."
+    ko: "새 버전이 있지만 정보가 없습니다."
+    ja: "新しいバージョンが見つかりましたが、情報がありません。"
+  checked:
+    en: "You are using the latest version."
+    ko: "최신 버전을 사용 중입니다."
+    ja: "最新バージョンを使用しています。"
+  status_unavailable:
+    en: "Status unavailable"
+    ko: "상태를 읽을 수 없습니다."
+    ja: "ステータスを読み取れません。"
+  read_fail:
+    en: "Failed to read new version info."
+    ko: "새 버전 정보를 읽지 못했습니다."
+    ja: "新しいバージョン情報を読み取れませんでした。"

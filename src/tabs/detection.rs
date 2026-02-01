@@ -13,12 +13,12 @@ use rust_i18n::t;
 impl ChamaOptics {
     /// Render the face detection preview and editing tab
     pub fn render_detection_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("detection.title", default = "Face Detection"));
+        ui.heading(t!("face_detection.title", default = "Face Detection"));
         ui.separator();
 
         // Image selection
         if self.packed_images.is_empty() {
-            ui.label(t!("detection.no_images"));
+            ui.label(t!("face_detection.no_images"));
             return;
         }
 
@@ -39,7 +39,7 @@ impl ChamaOptics {
         }
 
         // Horizontal image gallery
-        ui.label(t!("detection.select_image"));
+        ui.label(t!("face_detection.select_image"));
         use crate::ui_components::render_horizontal_gallery;
 
         let current_selected = self.preview_selected_index;
@@ -130,7 +130,7 @@ impl ChamaOptics {
 
             ui.separator();
 
-            if ui.button(t!("detection.detect_faces")).clicked()
+            if ui.button(t!("face_detection.detect_faces")).clicked()
                 && !self.detection_progress.is_complete()
             {
                 self.run_face_detection();
@@ -141,10 +141,10 @@ impl ChamaOptics {
                 ui.label(format!(
                     "{} {}",
                     self.detected_faces.len(),
-                    t!("detection.faces_found")
+                    t!("face_detection.faces_found")
                 ));
 
-                if ui.button(t!("detection.clear_all")).clicked() {
+                if ui.button(t!("face_detection.clear_all")).clicked() {
                     self.detected_faces.clear();
                     self.selected_face_index = None;
                     // Clear configured faces for current image
@@ -202,7 +202,7 @@ impl ChamaOptics {
 
             if ui
                 .button("🔄")
-                .on_hover_text(t!("detection.reset_view"))
+                .on_hover_text(t!("face_detection.reset_view"))
                 .clicked()
             {
                 self.detection_zoom = 1.0;
@@ -247,7 +247,7 @@ impl ChamaOptics {
                             available_height - ui.spacing().window_margin.sum().y - 20.0,
                         ));
 
-                        ui.label(t!("detection.preview"));
+                        ui.label(t!("face_detection.preview"));
 
                         if let Some(idx) = self.preview_selected_index {
                             if let Some(packed_image) = self.packed_images.get(idx) {
@@ -298,7 +298,7 @@ impl ChamaOptics {
                                 }
                             }
                         } else {
-                            ui.label(t!("detection.select_image_first"));
+                            ui.label(t!("face_detection.select_image_first"));
                         }
                     });
                 },
@@ -310,11 +310,11 @@ impl ChamaOptics {
                 egui::Layout::top_down(egui::Align::LEFT),
                 |ui| {
                     ui.group(|ui| {
-                        ui.label(t!("detection.faces_and_stickers"));
+                        ui.label(t!("face_detection.faces_and_stickers"));
                         ui.separator();
 
                         if self.detected_faces.is_empty() {
-                            ui.label(t!("detection.no_faces"));
+                            ui.label(t!("face_detection.no_faces"));
                         } else {
                             // Face list
                             egui::ScrollArea::vertical()
@@ -379,7 +379,7 @@ impl ChamaOptics {
                             if let Some(selected_idx) = self.selected_face_index
                                 && selected_idx < self.detected_faces.len()
                             {
-                                ui.label(t!("detection.selected_face", n = selected_idx + 1));
+                                ui.label(t!("face_detection.selected_face", n = selected_idx + 1));
 
                                 // Effect picker
                                 ui.horizontal(|ui| {
@@ -431,7 +431,7 @@ impl ChamaOptics {
 
                                 if show_sticker_picker {
                                     ui.horizontal(|ui| {
-                                        ui.label(t!("detection.assign_sticker"));
+                                        ui.label(t!("face_detection.assign_sticker"));
 
                                         let current_sticker_name = self.detected_faces
                                             [selected_idx]
@@ -498,7 +498,7 @@ impl ChamaOptics {
         if self.sticker_storage.stickers.is_empty() {
             ui.add_space(10.0);
             ui.label(
-                egui::RichText::new(t!("detection.sticker_hint"))
+                egui::RichText::new(t!("face_detection.sticker_hint"))
                     .weak()
                     .italics(),
             );

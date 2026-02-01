@@ -24,8 +24,8 @@ impl ChamaOptics {
         let image_lut_id = packed_image.lut_id;
 
         // Check if we need to regenerate (cache invalidation)
-        // Cache key now uses per-image lut_id
-        let cache_key = (idx, image_lut_id);
+        // Cache key includes per-image lut_id and color adjustments
+        let cache_key = (idx, image_lut_id, self.color_adjustments.clone());
         if self.color_preview_cache_key.as_ref() == Some(&cache_key) {
             // Cache is still valid
             return Some(());
@@ -74,21 +74,33 @@ impl ChamaOptics {
         );
         self.color_original_texture = Some(original_texture);
 
-        // Create LUT-applied texture (if LUT is configured for this image)
-        if let Some(lut_id) = image_lut_id {
-            let mut lut_image = image::DynamicImage::ImageRgba8(original_rgba.clone());
-            self.lut_storage.apply_lut_to_image(lut_id, &mut lut_image);
+        // Create processed texture (color adjustments + LUT)
+        let mut processed_image = image::DynamicImage::ImageRgba8(original_rgba.clone());
 
-            let lut_rgba = lut_image.to_rgba8();
-            let lut_color_image = egui::ColorImage::from_rgba_unmultiplied(size, &lut_rgba);
-            let lut_texture = ui_ctx.load_texture(
-                format!("color_lut_{}", idx),
-                lut_color_image,
+        // Apply color adjustments first
+        self.color_adjustments.apply(&mut processed_image);
+
+        // Apply LUT if configured for this image
+        if let Some(lut_id) = image_lut_id {
+            self.lut_storage
+                .apply_lut_to_image(lut_id, &mut processed_image);
+        }
+
+        // Check if any processing was done (color adjustments or LUT)
+        let has_processing = !self.color_adjustments.is_identity() || image_lut_id.is_some();
+
+        if has_processing {
+            let processed_rgba = processed_image.to_rgba8();
+            let processed_color_image =
+                egui::ColorImage::from_rgba_unmultiplied(size, &processed_rgba);
+            let processed_texture = ui_ctx.load_texture(
+                format!("color_processed_{}", idx),
+                processed_color_image,
                 egui::TextureOptions::LINEAR,
             );
-            self.color_lut_texture = Some(lut_texture);
+            self.color_lut_texture = Some(processed_texture);
         } else {
-            // No LUT configured for this image - show same as original
+            // No processing applied - show same as original
             self.color_lut_texture = self.color_original_texture.clone();
         }
 
@@ -204,14 +216,31 @@ impl ChamaOptics {
 
                         ui.add_space(5.0);
 
-                        // Right side: LUT-applied image
+                        // Right side: Processed image (color adjustments + LUT)
                         ui.allocate_ui_with_layout(
                             egui::vec2(half_width, preview_height),
                             egui::Layout::top_down(egui::Align::Center),
                             |ui| {
                                 ui.group(|ui| {
-                                    let lut_label = current_lut_name.as_deref().unwrap_or("No LUT");
-                                    ui.label(egui::RichText::new(lut_label).strong());
+                                    // Build label showing what processing is applied
+                                    let has_adjustments = !self.color_adjustments.is_identity();
+                                    let processed_label = match (has_adjustments, &current_lut_name)
+                                    {
+                                        (true, Some(lut)) => format!(
+                                            "{} + {}",
+                                            t!("color.adjustments", default = "Adjustments"),
+                                            lut
+                                        ),
+                                        (true, None) => {
+                                            t!("color.adjustments", default = "Adjustments")
+                                                .to_string()
+                                        }
+                                        (false, Some(lut)) => lut.clone(),
+                                        (false, None) => {
+                                            t!("color.original", default = "Original").to_string()
+                                        }
+                                    };
+                                    ui.label(egui::RichText::new(processed_label).strong());
 
                                     self.render_preview_image(ui, &self.color_lut_texture.clone());
                                 });
@@ -266,16 +295,18 @@ impl ChamaOptics {
                 ui.add_space(10.0);
                 ui.separator();
 
-                // Future: Color adjustments panel (collapsed/placeholder)
+                // Color adjustments panel
+                let adjustments_before = self.color_adjustments.clone();
                 ui.collapsing(
-                    t!(
-                        "color.adjustments_section",
-                        default = "Color Adjustments (Coming Soon)"
-                    ),
+                    t!("color.adjustments_section", default = "Color Adjustments"),
                     |ui| {
                         self.color_adjustments.update_ui(ui);
                     },
                 );
+                // Invalidate cache if color adjustments changed
+                if self.color_adjustments != adjustments_before {
+                    self.color_preview_cache_key = None;
+                }
             });
     }
 

@@ -128,8 +128,12 @@ pub struct ChamaOptics {
     pub(crate) color_lut_texture: Option<egui::TextureHandle>,
 
     #[serde(skip)]
-    /// Color preview cache key (image_index, lut_id)
-    pub(crate) color_preview_cache_key: Option<(usize, Option<uuid::Uuid>)>,
+    /// Color preview cache key (image_index, lut_id, color_adjustments)
+    pub(crate) color_preview_cache_key: Option<(
+        usize,
+        Option<uuid::Uuid>,
+        crate::effect::color_adjustments::ColorAdjustments,
+    )>,
 
     #[serde(skip)]
     /// Cached LUT icon textures for gallery display (lut_id -> texture)
@@ -800,7 +804,7 @@ impl ChamaOptics {
                                         "app.image_grouping.group_label_format",
                                         name = format!(
                                             "{} {}",
-                                            t!("app.default.group"),
+                                            t!("common.actions.group"),
                                             group_idx + 1
                                         ),
                                         count = group.image_uuids.len()
@@ -819,7 +823,7 @@ impl ChamaOptics {
                                         // Delete group button
                                         if ui
                                             .button("🗑")
-                                            .on_hover_text(t!("app.default.delete"))
+                                            .on_hover_text(t!("common.actions.delete"))
                                             .clicked()
                                         {
                                             remove_group_idx = Some(group_idx);

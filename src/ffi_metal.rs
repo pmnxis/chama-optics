@@ -2031,7 +2031,8 @@ lazy_static::lazy_static! {
     /// Global LUT storage for iOS
     /// Uses a Mutex to allow thread-safe access from Swift
     static ref LUT_STORAGE: Mutex<crate::effect::lut_storage::LutStorage> = {
-        let mut storage = crate::effect::lut_storage::LutStorage::new();
+        // let mut storage = crate::effect::lut_storage::LutStorage::new();
+        let storage = crate::effect::lut_storage::LutStorage::new();
         // Set iOS-specific storage path
         #[cfg(target_os = "ios")]
         {
@@ -2073,11 +2074,13 @@ pub unsafe extern "C" fn chama_lut_set_storage_path(path: *const c_char) {
         return;
     }
 
-    let path_str = match CStr::from_ptr(path).to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            log::error!("chama_lut_set_storage_path: invalid UTF-8: {}", e);
-            return;
+    let path_str = unsafe {
+        match CStr::from_ptr(path).to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("chama_lut_set_storage_path: invalid UTF-8: {}", e);
+                return;
+            }
         }
     };
 
@@ -2563,6 +2566,271 @@ pub unsafe extern "C" fn chama_free_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
             let _ = CString::from_raw(ptr);
+        }
+    }
+}
+
+// ============================================================================
+// Color Adjustments FFI
+// ============================================================================
+
+/// C-compatible struct for color adjustments parameters
+#[repr(C)]
+pub struct CColorAdjustments {
+    pub enabled: bool,
+    pub exposure: f32,
+    pub contrast: i32,
+    pub highlights: i32,
+    pub shadows: i32,
+    pub whites: i32,
+    pub blacks: i32,
+    pub clarity: i32,
+    pub vibrance: i32,
+    pub saturation: i32,
+}
+
+/// Apply color adjustments to an image
+///
+/// # Parameters
+/// - `image_path`: Path to input image
+/// - `output_path`: Path for output image
+/// - `adjustments`: Pointer to CColorAdjustments struct
+/// - `output_format`: Output format (0=JPEG, 1=PNG, 2=WebP)
+/// - `quality`: Quality for JPEG/WebP (1-100)
+///
+/// # Safety
+/// - All path pointers must be valid null-terminated C strings
+/// - `adjustments` must point to a valid CColorAdjustments struct
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_color_adjustments_apply(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    adjustments: *const CColorAdjustments,
+    output_format: COutputFormat,
+    quality: u8,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || adjustments.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let adj = unsafe { &*adjustments };
+
+    log::info!(
+        "Applying color adjustments to image: {} (exposure={}, contrast={}, saturation={})",
+        image_path_str,
+        adj.exposure,
+        adj.contrast,
+        adj.saturation
+    );
+
+    // Load image
+    let mut dyn_image = match image::open(image_path_str) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Failed to load image: {}", e);
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    // Convert C struct to Rust struct
+    let color_adj = crate::effect::color_adjustments::ColorAdjustments {
+        enabled: adj.enabled,
+        exposure: adj.exposure,
+        contrast: adj.contrast,
+        highlights: adj.highlights,
+        shadows: adj.shadows,
+        whites: adj.whites,
+        blacks: adj.blacks,
+        clarity: adj.clarity,
+        vibrance: adj.vibrance,
+        saturation: adj.saturation,
+    };
+
+    // Apply adjustments
+    color_adj.apply(&mut dyn_image);
+
+    // Save with specified format and quality
+    let save_result = match output_format {
+        COutputFormat::Jpeg => {
+            use image::codecs::jpeg::JpegEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut encoder = JpegEncoder::new_with_quality(file, quality);
+            encoder.encode_image(&dyn_image)
+        }
+        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
+        COutputFormat::Webp => {
+            use image::codecs::webp::WebPEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let rgba = dyn_image.to_rgba8();
+            WebPEncoder::new_lossless(file).encode(
+                rgba.as_raw(),
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+        }
+    };
+
+    match save_result {
+        Ok(_) => {
+            log::info!("Successfully saved adjusted image to: {}", output_path_str);
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to save image: {}", e);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+/// Apply color adjustments from JSON parameters
+///
+/// # Parameters
+/// - `image_path`: Path to input image
+/// - `output_path`: Path for output image
+/// - `adjustments_json`: JSON string with adjustment parameters
+/// - `output_format`: Output format (0=JPEG, 1=PNG, 2=WebP)
+/// - `quality`: Quality for JPEG/WebP (1-100)
+///
+/// JSON format:
+/// ```json
+/// {
+///     "enabled": true,
+///     "exposure": 0.0,
+///     "contrast": 0,
+///     "highlights": 0,
+///     "shadows": 0,
+///     "whites": 0,
+///     "blacks": 0,
+///     "clarity": 0,
+///     "vibrance": 0,
+///     "saturation": 0
+/// }
+/// ```
+///
+/// # Safety
+/// - All pointers must be valid null-terminated C strings
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_color_adjustments_apply_json(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    adjustments_json: *const c_char,
+    output_format: COutputFormat,
+    quality: u8,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || adjustments_json.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let json_str = match unsafe { CStr::from_ptr(adjustments_json) }.to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidParameters,
+    };
+
+    // Parse JSON into ColorAdjustments
+    let color_adj: crate::effect::color_adjustments::ColorAdjustments =
+        match serde_json::from_str(json_str) {
+            Ok(adj) => adj,
+            Err(e) => {
+                log::error!("Failed to parse color adjustments JSON: {}", e);
+                return ChamaError::InvalidParameters;
+            }
+        };
+
+    log::info!(
+        "Applying color adjustments (JSON) to image: {} (exposure={}, contrast={}, saturation={})",
+        image_path_str,
+        color_adj.exposure,
+        color_adj.contrast,
+        color_adj.saturation
+    );
+
+    // Load image
+    let mut dyn_image = match image::open(image_path_str) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Failed to load image: {}", e);
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    // Apply adjustments
+    color_adj.apply(&mut dyn_image);
+
+    // Save with specified format and quality
+    let save_result = match output_format {
+        COutputFormat::Jpeg => {
+            use image::codecs::jpeg::JpegEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let mut encoder = JpegEncoder::new_with_quality(file, quality);
+            encoder.encode_image(&dyn_image)
+        }
+        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
+        COutputFormat::Webp => {
+            use image::codecs::webp::WebPEncoder;
+            let file = match std::fs::File::create(output_path_str) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create output file: {}", e);
+                    return ChamaError::ImageProcessError;
+                }
+            };
+            let rgba = dyn_image.to_rgba8();
+            WebPEncoder::new_lossless(file).encode(
+                rgba.as_raw(),
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+        }
+    };
+
+    match save_result {
+        Ok(_) => {
+            log::info!("Successfully saved adjusted image to: {}", output_path_str);
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to save image: {}", e);
+            ChamaError::ImageProcessError
         }
     }
 }

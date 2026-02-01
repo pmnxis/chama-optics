@@ -133,7 +133,7 @@ impl Border {
     ) {
         macro_rules! side_show {
             ($ui: expr, $side:ident, $px_word: expr) => {
-                $ui.label(t!(concat!("effect.border.", stringify!($side))));
+                $ui.label(t!(concat!("effects.border.", stringify!($side))));
                 $ui.horizontal(|ui| {
                     ui.add(
                         egui::DragValue::new(&mut self.$side)
@@ -141,13 +141,13 @@ impl Border {
                             .range(limit.$side.0..=limit.$side.1),
                     );
                     ui.label($px_word)
-                        .on_hover_text(t!("effect.border.padding_description"))
+                        .on_hover_text(t!("effects.border.padding_description"))
                 });
             };
         }
 
         let px_word = if self.is_relative {
-            t!("effect.border.padding")
+            t!("effects.border.padding")
         } else {
             t!("scale_config.px_std")
         };
@@ -170,7 +170,7 @@ impl Border {
                     side_show!(ui, left, px_word);
                     ui.end_row();
 
-                    ui.label(t!("effect.border.color"));
+                    ui.label(t!("effects.border.color"));
                     egui::widgets::color_picker::color_edit_button_srgba(
                         ui,
                         &mut self.color,
@@ -178,20 +178,20 @@ impl Border {
                     );
                     ui.end_row();
 
-                    ui.label(t!("effect.border.padding_mode.label"));
+                    ui.label(t!("effects.border.padding_mode.label"));
                     ui.horizontal(|ui| {
                         ui.selectable_value(
                             &mut self.is_relative,
                             false,
-                            t!("effect.border.padding_mode.absolute"),
+                            t!("effects.border.padding_mode.absolute"),
                         )
-                        .on_hover_text(t!("effect.border.padding_mode.absolute_hint"));
+                        .on_hover_text(t!("effects.border.padding_mode.absolute_hint"));
                         ui.selectable_value(
                             &mut self.is_relative,
                             true,
-                            t!("effect.border.padding_mode.relative"),
+                            t!("effects.border.padding_mode.relative"),
                         )
-                        .on_hover_text(t!("effect.border.padding_mode.relative_hint"));
+                        .on_hover_text(t!("effects.border.padding_mode.relative_hint"));
                     });
                     ui.end_row();
                 });
@@ -253,7 +253,7 @@ impl Border {
                         ret
                     },
                     egui::Align2::CENTER_TOP,
-                    t!("effect.border.preview_desc"),
+                    t!("effects.border.preview_desc"),
                     egui::FontId::proportional(6.0),
                     egui::Color32::LIGHT_BLUE,
                 );
@@ -262,8 +262,8 @@ impl Border {
                 ui.add_space(8.0);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::BOTTOM), |ui| {
                     if ui
-                        .button(t!("effect.border.default"))
-                        .on_hover_text(t!("effect.border.default_desc"))
+                        .button(t!("effects.border.default"))
+                        .on_hover_text(t!("effects.border.default_desc"))
                         .clicked()
                     {
                         *self = default.clone();

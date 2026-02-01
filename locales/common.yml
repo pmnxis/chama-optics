@@ -1,0 +1,326 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Common translations shared across EGUI (desktop) and iOS
+# These are platform-agnostic UI elements
+
+_version: 2
+
+common:
+  # Action buttons
+  actions:
+    save:
+      en: "Save"
+      ko: "저장"
+      ja: "保存"
+    cancel:
+      en: "Cancel"
+      ko: "취소"
+      ja: "キャンセル"
+    apply:
+      en: "Apply"
+      ko: "적용"
+      ja: "適用"
+    reset:
+      en: "Reset"
+      ko: "초기화"
+      ja: "リセット"
+    delete:
+      en: "Delete"
+      ko: "삭제"
+      ja: "削除"
+    edit:
+      en: "Edit"
+      ko: "편집"
+      ja: "編集"
+    done:
+      en: "Done"
+      ko: "완료"
+      ja: "完了"
+    close:
+      en: "Close"
+      ko: "닫기"
+      ja: "閉じる"
+    add:
+      en: "Add"
+      ko: "추가"
+      ja: "追加"
+    remove:
+      en: "Remove"
+      ko: "제거"
+      ja: "削除"
+    clear:
+      en: "Clear"
+      ko: "클리어"
+      ja: "クリア"
+    refresh:
+      en: "Refresh"
+      ko: "새로고침"
+      ja: "更新"
+    select:
+      en: "Select"
+      ko: "선택"
+      ja: "選択"
+    confirm:
+      en: "Confirm"
+      ko: "확인"
+      ja: "確認"
+    group:
+      en: "Group"
+      ko: "그룹"
+      ja: "グループ"
+
+  # Status messages
+  status:
+    loading:
+      en: "Loading..."
+      ko: "로딩 중..."
+      ja: "読み込み中..."
+    processing:
+      en: "Processing..."
+      ko: "처리 중..."
+      ja: "処理中..."
+    saving:
+      en: "Saving..."
+      ko: "저장 중..."
+      ja: "保存中..."
+    error:
+      en: "Error"
+      ko: "오류"
+      ja: "エラー"
+    success:
+      en: "Success"
+      ko: "성공"
+      ja: "成功"
+    ready:
+      en: "Ready"
+      ko: "준비 완료"
+      ja: "準備完了"
+    generating:
+      en: "Generating..."
+      ko: "생성 중..."
+      ja: "生成中..."
+    detecting:
+      en: "Detecting..."
+      ko: "감지 중..."
+      ja: "検出中..."
+    completed:
+      en: "Completed"
+      ko: "완료"
+      ja: "完了"
+
+  # Position labels (used in watermark, theme positions, etc.)
+  positions:
+    top_left:
+      en: "Top Left"
+      ko: "좌상단"
+      ja: "左上"
+    top_center:
+      en: "Top Center"
+      ko: "상단 중앙"
+      ja: "上中央"
+    top_right:
+      en: "Top Right"
+      ko: "우상단"
+      ja: "右上"
+    middle_left:
+      en: "Middle Left"
+      ko: "좌측 중앙"
+      ja: "左中央"
+    center:
+      en: "Center"
+      ko: "중앙"
+      ja: "中央"
+    middle_right:
+      en: "Middle Right"
+      ko: "우측 중앙"
+      ja: "右中央"
+    bottom_left:
+      en: "Bottom Left"
+      ko: "좌하단"
+      ja: "左下"
+    bottom_center:
+      en: "Bottom Center"
+      ko: "하단 중앙"
+      ja: "下中央"
+    bottom_right:
+      en: "Bottom Right"
+      ko: "우하단"
+      ja: "右下"
+
+  # Units
+  units:
+    pixels:
+      en: "px"
+      ko: "픽셀"
+      ja: "ピクセル"
+    seconds:
+      en: "sec"
+      ko: "초"
+      ja: "秒"
+    percent:
+      en: "%"
+      ko: "%"
+      ja: "%"
+    ev:
+      en: "EV"
+      ko: "EV"
+      ja: "EV"
+
+  # Common labels
+  labels:
+    none:
+      en: "None"
+      ko: "없음"
+      ja: "なし"
+    all:
+      en: "All"
+      ko: "전체"
+      ja: "すべて"
+    preview:
+      en: "Preview"
+      ko: "미리보기"
+      ja: "プレビュー"
+    original:
+      en: "Original"
+      ko: "원본"
+      ja: "元画像"
+    settings:
+      en: "Settings"
+      ko: "설정"
+      ja: "設定"
+    enabled:
+      en: "Enabled"
+      ko: "활성화"
+      ja: "有効"
+    disabled:
+      en: "Disabled"
+      ko: "비활성화"
+      ja: "無効"
+    default:
+      en: "Default"
+      ko: "기본값"
+      ja: "デフォルト"
+    custom:
+      en: "Custom"
+      ko: "사용자 지정"
+      ja: "カスタム"
+    info:
+      en: "Info"
+      ko: "정보"
+      ja: "情報"
+    warning:
+      en: "Warning"
+      ko: "경고"
+      ja: "警告"
+
+  # EXIF field labels (shared between gallery and face detection)
+  exif:
+    camera_make:
+      en: "Camera Make"
+      ko: "카메라 제조사"
+      ja: "カメラメーカー"
+    camera_model:
+      en: "Camera Model"
+      ko: "카메라 모델"
+      ja: "カメラモデル"
+    lens_model:
+      en: "Lens Model"
+      ko: "렌즈 모델"
+      ja: "レンズモデル"
+    focal_length:
+      en: "Focal Length"
+      ko: "초점 거리"
+      ja: "焦点距離"
+    aperture:
+      en: "Aperture"
+      ko: "조리개"
+      ja: "絞り"
+    shutter_speed:
+      en: "Shutter Speed"
+      ko: "셔터 속도"
+      ja: "シャッター速度"
+    iso_speed:
+      en: "ISO"
+      ko: "ISO"
+      ja: "ISO"
+    date_time:
+      en: "Date/Time"
+      ko: "날짜/시간"
+      ja: "日付/時刻"
+    exif_information:
+      en: "EXIF Information"
+      ko: "EXIF 정보"
+      ja: "EXIF情報"
+    exif_unavailable:
+      en: "EXIF Unavailable"
+      ko: "EXIF 사용 불가"
+      ja: "EXIF利用不可"
+    load_exif:
+      en: "Load EXIF"
+      ko: "EXIF 로드"
+      ja: "EXIFを読み込む"
+    # Example placeholders
+    example_camera:
+      en: "e.g. Canon"
+      ko: "예: Canon"
+      ja: "例：Canon"
+    example_camera_model:
+      en: "e.g. EOS R5"
+      ko: "예: EOS R5"
+      ja: "例：EOS R5"
+    example_lens_model:
+      en: "e.g. RF 24-70mm F2.8"
+      ko: "예: RF 24-70mm F2.8"
+      ja: "例：RF 24-70mm F2.8"
+    example_focal_length:
+      en: "e.g. 50mm"
+      ko: "예: 50mm"
+      ja: "例：50mm"
+    example_aperture:
+      en: "e.g. f/2.8"
+      ko: "예: f/2.8"
+      ja: "例：f/2.8"
+    example_shutter_speed:
+      en: "e.g. 1/250s"
+      ko: "예: 1/250s"
+      ja: "例：1/250s"
+    example_date_time:
+      en: "e.g. 2024-01-01 12:00:00"
+      ko: "예: 2024-01-01 12:00:00"
+      ja: "例：2024-01-01 12:00:00"
+
+  # Border/direction labels
+  directions:
+    top:
+      en: "Top"
+      ko: "위쪽"
+      ja: "上"
+    bottom:
+      en: "Bottom"
+      ko: "아래쪽"
+      ja: "下"
+    left:
+      en: "Left"
+      ko: "왼쪽"
+      ja: "左"
+    right:
+      en: "Right"
+      ko: "오른쪽"
+      ja: "右"
+
+  # Color labels
+  colors:
+    color:
+      en: "Color"
+      ko: "색상"
+      ja: "色"
+    font_color:
+      en: "Font Color"
+      ko: "폰트 색상"
+      ja: "フォントカラー"
+    border_color:
+      en: "Border Color"
+      ko: "테두리 색상"
+      ja: "枠線の色"

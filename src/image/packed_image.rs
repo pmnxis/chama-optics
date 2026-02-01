@@ -330,9 +330,9 @@ impl PackedImage {
     fn update_editable_button(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let btn_text = if self.editable {
-                t!("app.default.apply")
+                t!("common.actions.apply")
             } else {
-                t!("app.default.edit")
+                t!("common.actions.edit")
             };
             if ui.button(btn_text).clicked() {
                 self.editable = !self.editable;
@@ -377,7 +377,7 @@ impl PackedImage {
                                 #[cfg(feature = "desktop")]
                                 if ui
                                     .add(
-                                        egui::Button::new(t!("app.default.save"))
+                                        egui::Button::new(t!("common.actions.save"))
                                             .fill(egui::Color32::GREEN),
                                     )
                                     .clicked()
@@ -407,7 +407,7 @@ impl PackedImage {
 
                                 if ui
                                     .add(
-                                        egui::Button::new(t!("app.default.delete"))
+                                        egui::Button::new(t!("common.actions.delete"))
                                             .fill(egui::Color32::RED),
                                     )
                                     .clicked()

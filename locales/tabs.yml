@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Tab labels for navigation
+# Used in both EGUI (desktop) and iOS navigation
+
+_version: 2
+
+tabs:
+  # Image list / Gallery tab
+  image_list:
+    en: "Image List"
+    ko: "이미지 리스트"
+    ja: "画像リスト"
+  # iOS-specific short version
+  image_list_short:
+    en: "Gallery"
+    ko: "갤러리"
+    ja: "ギャラリー"
+
+  # Theme preview tab
+  theme_preview:
+    en: "Theme Preview"
+    ko: "테마 미리보기"
+    ja: "テーマプレビュー"
+  # iOS-specific short version
+  theme_preview_short:
+    en: "Themes"
+    ko: "테마"
+    ja: "テーマ"
+  theme_preview_heading:
+    en: "Themes & Preview"
+    ko: "테마 & 미리보기"
+    ja: "テーマ＆プレビュー"
+
+  # Face detection tab
+  detection:
+    en: "Face Detection"
+    ko: "얼굴 인식"
+    ja: "顔認識"
+
+  # Color grading tab (for iOS)
+  color_grading:
+    en: "Color Grading"
+    ko: "색보정"
+    ja: "カラーグレーディング"
+  color_grading_short:
+    en: "Color"
+    ko: "색상"
+    ja: "カラー"
+
+  # Sticker storage tab
+  sticker:
+    en: "Sticker Storage"
+    ko: "스티커 저장소"
+    ja: "ステッカー保存"
+
+  # Import/Export settings tab
+  import_export:
+    en: "Import&Export Settings"
+    ko: "입출력 설정"
+    ja: "入出力設定"
+
+  # Settings tab
+  settings:
+    en: "Settings"
+    ko: "설정"
+    ja: "設定"
+
+  # Misc heading (used in EGUI sidebar)
+  misc_heading:
+    en: "Misc"
+    ko: "기타"
+    ja: "その他"
+
+  # About tab
+  about:
+    en: "About"
+    ko: "정보"
+    ja: "概要"

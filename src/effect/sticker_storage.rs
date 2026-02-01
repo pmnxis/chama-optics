@@ -262,12 +262,12 @@ impl StickerStorage {
     /// Render UI for sticker storage management
     #[cfg(feature = "egui")]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("effect.sticker_storage.title"));
+        ui.heading(t!("sticker.title"));
         ui.separator();
 
         // Default sticker selection
         ui.horizontal(|ui| {
-            ui.label(t!("effect.sticker_storage.default_sticker"));
+            ui.label(t!("sticker.default_sticker"));
 
             egui::ComboBox::from_id_salt("default_sticker_combo")
                 .selected_text(
@@ -304,7 +304,7 @@ impl StickerStorage {
         // Sticker list
         ui.label(format!(
             "{} ({})",
-            t!("effect.sticker_storage.stickers"),
+            t!("sticker.stickers"),
             self.stickers.len()
         ));
 
@@ -326,11 +326,7 @@ impl StickerStorage {
 
                         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                             // Delete button
-                            if ui
-                                .button("🗑")
-                                .on_hover_text(t!("effect.sticker_storage.delete"))
-                                .clicked()
-                            {
+                            if ui.button("🗑").on_hover_text(t!("sticker.delete")).clicked() {
                                 to_remove = Some(sticker.id);
                             }
 
@@ -338,7 +334,7 @@ impl StickerStorage {
                             if self.default_sticker_id != Some(sticker.id)
                                 && ui
                                     .button("⭐")
-                                    .on_hover_text(t!("effect.sticker_storage.set_default"))
+                                    .on_hover_text(t!("sticker.set_default"))
                                     .clicked()
                             {
                                 set_as_default = Some(sticker.id);
@@ -362,9 +358,7 @@ impl StickerStorage {
 
         // Add sticker button (requires file dialog)
         #[cfg(feature = "rfd")]
-        if ui
-            .button(t!("effect.sticker_storage.add_sticker"))
-            .clicked()
+        if ui.button(t!("sticker.add_sticker")).clicked()
             && let Some(path) = rfd::FileDialog::new()
                 .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif"])
                 .pick_file()

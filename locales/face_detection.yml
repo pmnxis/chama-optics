@@ -2,82 +2,164 @@
 #
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
+# Face Detection translations
+# Merged from detection.yml and face_detection.yml
+# Used in both EGUI (desktop) and iOS face detection features
+
 _version: 2
 
 face_detection:
+  # Main labels
+  title:
+    en: "Face Detection"
+    ko: "얼굴 인식"
+    ja: "顔認識"
   label:
     en: "Face detection config"
     ko: "얼굴 감지 설정"
     ja: "顔検出設定"
+
+  # Image selection
   select_image:
     en: "Select image"
     ko: "이미지 선택"
     ja: "画像選択"
+  select_image_first:
+    en: "Select an image to preview"
+    ko: "미리보기할 이미지를 선택하세요"
+    ja: "プレビューする画像を選択してください"
   no_images:
+    en: "No images loaded. Go to Image List tab to add images."
+    ko: "이미지가 로드되지 않았습니다. 이미지 리스트 탭으로 이동하여 이미지를 추가하세요."
+    ja: "画像が読み込まれていません。画像リストタブに移動して画像を追加してください。"
+  no_images_short:
     en: "No images"
     ko: "이미지 없음"
     ja: "画像なし"
-  preview:
-    en: "Preview"
-    ko: "미리보기"
-    ja: "プレビュー"
-  faces_found:
-    en: "{} faces found"
-    ko: "{} 개 얼굴 발견됨"
-    ja: "{}個の顔が検出されました"
+
+  # Detection actions
   detect_faces:
     en: "Detect Faces"
     ko: "얼굴 감지"
     ja: "顔検出"
-  faces_and_stickers:
-    en: "Faces and stickers"
-    ko: "얼굴과 스티커"
-    ja: "顔とステッカー"
+  detect_faces_button:
+    en: "Detect Faces (%@)"
+    ko: "얼굴 감지 (%@)"
+    ja: "顔を検出（%@）"
+  clear_all:
+    en: "Clear All"
+    ko: "전체 삭제"
+    ja: "すべてクリア"
+  reset_view:
+    en: "Reset view"
+    ko: "보기 초기화"
+    ja: "表示をリセット"
+
+  # Detection results
+  faces_found:
+    en: "face(s) found"
+    ko: "개 얼굴 발견"
+    ja: "件の顔が見つかりました"
+  faces_found_format:
+    en: "%d face(s) detected"
+    ko: "%d개 얼굴 감지됨"
+    ja: "%d個の顔を検出"
   no_faces:
+    en: "No faces detected yet. Click 'Detect Faces' to start."
+    ko: "아직 인식된 얼굴이 없습니다. '얼굴 인식'을 클릭하여 시작하세요."
+    ja: "まだ顔が認識されていません。「顔認識」をクリックして開始してください。"
+  no_faces_short:
     en: "No faces"
     ko: "얼굴 없음"
     ja: "顔なし"
+  no_faces_in_image:
+    en: "No faces detected in image"
+    ko: "이미지에서 감지된 얼굴이 없습니다"
+    ja: "画像で検出された顔がありません"
+
+  # Face selection
   faces_and_stickers:
-    en: "Faces and stickers"
-    ko: "얼굴과 스티커"
-    ja: "顔とステッカー"
+    en: "Faces & Stickers"
+    ko: "얼굴 & 스티커"
+    ja: "顔＆ステッカー"
   face_label_format:
-    en: "Face #{} ({}x{})"
-    ko: "얼굴 #{} ({}x{})"
-    ja: "顔 #{}（{}x{}）"
+    en: "Face #%{n1} (%{n2}x%{n3})"
+    ko: "얼굴 #%{n1} (%{n2}x%{n3})"
+    ja: "顔 #%{n1} (%{n2}x%{n3})"
+  face_number:
+    en: "Face #%d"
+    ko: "얼굴 #%d"
+    ja: "顔 #%d"
   selected_face:
-    en: "Selected face #{}"
-    ko: "선택된 얼굴 #{}"
-    ja: "選択された顔 #{}"
-  assign_sticker:
-    en: "Assign sticker"
-    ko: "스티커 할당"
-    ja: "ステッカーを割り当て"
-  sticker_hint:
-    en: "Add stickers in Sticker tab (top-right)"
-    ko: "스티커 탭에서 추가 (우측 상단)"
-    ja: "ステッカータブ（右上）で追加"
-  face_selected_format:
-    en: "Face #{} selected"
-    ko: "얼굴 #{} 선택됨"
-    ja: "顔 #{}が選択されました"
+    en: "Selected Face #%{n}"
+    ko: "선택된 얼굴 #%{n}"
+    ja: "選択された顔 #%{n}"
   no_face_selected:
     en: "No face selected"
     ko: "얼굴 선택되지 않음"
     ja: "顔が選択されていません"
-# Configuration
+  position_format:
+    en: "Pos: (%d, %d)"
+    ko: "위치: (%d, %d)"
+    ja: "位置：(%d, %d)"
+  size_format:
+    en: "Size: %d x %d"
+    ko: "크기: %d x %d"
+    ja: "サイズ：%d x %d"
+  edit_faces:
+    en: "Edit Faces"
+    ko: "얼굴 편집"
+    ja: "顔を編集"
+  add_face:
+    en: "Add Face"
+    ko: "얼굴 추가"
+    ja: "顔を追加"
+
+  # Sticker assignment
+  assign_sticker:
+    en: "Sticker:"
+    ko: "스티커:"
+    ja: "ステッカー:"
+  sticker_hint:
+    en: "Add stickers in Sticker tab"
+    ko: "스티커 탭에서 스티커를 추가하세요"
+    ja: "スティッカータブでステッカーを追加してください"
+  tap_face_to_assign_sticker:
+    en: "Tap a face to assign a sticker"
+    ko: "스티커를 할당하려면 얼굴을 탭하세요"
+    ja: "ステッカーを割り当てるには顔をタップしてください"
+  sticker_with_name:
+    en: "Sticker: %@"
+    ko: "스티커: %@"
+    ja: "ステッカー：%@"
+  no_sticker_available:
+    en: "No sticker available"
+    ko: "스티커 없음"
+    ja: "ステッカーなし"
+  no_sticker_assigned:
+    en: "No sticker assigned"
+    ko: "스티커 할당 안됨"
+    ja: "ステッカーが割り当てられていません"
+
+  # Detection engine config
   detail_of_detection_engine:
     en: "Detail of face detection engine"
     ko: "얼굴 감지 엔진 설정"
-    ja: "検出エンジンエクスポート"
-  engine:
-    en: "Detection engine"
+    ja: "検出エンジン詳細設定"
+  detection_engine:
+    en: "Detection Engine"
     ko: "감지 엔진"
     ja: "検出エンジン"
+  engine:
+    en: "Engine"
+    ko: "엔진"
+    ja: "エンジン"
+
+  # Speed modes
   speed_mode:
-    en: "Detection speed mode"
-    ko: "감지 속도 모드"
-    ja: "検出速度モード"
+    en: "Speed Mode"
+    ko: "속도 모드"
+    ja: "速度モード"
   speed_mode_hint:
     en: "Balance between speed and accuracy (affects processing depth)"
     ko: "속도와 정확도 사이의 균형 (처리 깊이에 영향)"
@@ -87,7 +169,7 @@ face_detection:
     ko: "최고속 (단독/두명 있는 사진)"
     ja: "最速（1人または2人の写真）"
   speed_mode_fast:
-    en: "Fast (3–4 people in unusual aspect ratio photo)"
+    en: "Fast (3-4 people in unusual aspect ratio photo)"
     ko: "빠름 (종횡비가 특이한 사진에서 3-4명 있는 사진)"
     ja: "高速（縦横比が特殊な写真に3～4人）"
   speed_mode_normal:
@@ -102,6 +184,8 @@ face_detection:
     en: "Slowest (Group photo with 50-100 people)"
     ko: "가장느림 (50~100명의 단체사진)"
     ja: "最低速（50～100人の団体写真）"
+
+  # Execution provider
   execution_provider:
     en: "Execution provider"
     ko: "실행 제공자"
@@ -122,6 +206,8 @@ face_detection:
     en: "CoreML (Apple Silicon)"
     ko: "CoreML (Apple Silicon)"
     ja: "CoreML (Apple Silicon)"
+
+  # Recursive detection
   recursive_detection:
     en: "Recursive face detection"
     ko: "재귀적 얼굴 감지"
@@ -142,14 +228,12 @@ face_detection:
     en: "Overlap ratio"
     ko: "중복 비율"
     ja: "重複比率"
-  recursive_percentage:
-    en: "%"
-    ko: "%"
-    ja: "%"
   recursive_overlap_ratio_hint:
     en: "Overlap percentage for region division (0-50%)"
     ko: "영역 분할 시 중복 퍼센트 (0-50%)"
     ja: "領域分割時の重複パーセンテージ（0-50%）"
+
+  # Mask/blur settings
   mask_faces:
     en: "Mask faces (blur)"
     ko: "얼굴 마스킹 (블러)"
@@ -162,10 +246,8 @@ face_detection:
     en: "Strength of the blur effect applied to detected faces (1-100 pixels)"
     ko: "감지된 얼굴에 적용할 블러 효과의 강도 (1-100 픽셀)"
     ja: "検出された顔に適用するぼかし効果の強度（1-100ピクセル）"
-  border_color:
-    en: "Border color"
-    ko: "테두리 색상"
-    ja: "枠線の色"
+
+  # Border settings
   border_thickness:
     en: "Border thickness"
     ko: "테두리 두께"
@@ -174,7 +256,13 @@ face_detection:
     en: "Thickness of the face detection rectangle border in pixels"
     ko: "얼굴 감지 사각형 테두리의 두께 (픽셀 단위)"
     ja: "顔検出矩形の枠線の太さ（ピクセル単位）"
-  pixels:
-    en: "px"
-    ko: "픽셀"
-    ja: "ピクセル"
+
+  # Face detection editor (iOS)
+  face_detection_editor:
+    en: "Face Detection Editor"
+    ko: "얼굴 감지 편집기"
+    ja: "顔検出エディタ"
+  select_photo:
+    en: "Select Photo"
+    ko: "사진 선택"
+    ja: "写真を選択"

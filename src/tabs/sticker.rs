@@ -20,7 +20,7 @@ impl ChamaOptics {
             .id_salt("sticker_tab_scroll")
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                ui.heading(t!("effect.sticker_storage.title"));
+                ui.heading(t!("sticker.title"));
                 ui.separator();
 
                 // Verify stickers on load (check for hash mismatches)
@@ -34,10 +34,7 @@ impl ChamaOptics {
 
                 // Show hash mismatch warning
                 if has_hash_warnings {
-                    ui.colored_label(
-                        ui.visuals().warn_fg_color,
-                        t!("effect.sticker_storage.hash_warning"),
-                    );
+                    ui.colored_label(ui.visuals().warn_fg_color, t!("sticker.hash_warning"));
                     ui.add_space(5.0);
                 }
 
@@ -45,7 +42,7 @@ impl ChamaOptics {
                 ui.separator();
 
                 // Sticker application settings
-                ui.heading(t!("effect.sticker_storage.settings"));
+                ui.heading(t!("sticker.settings"));
                 ui.add_space(5.0);
 
                 egui::Grid::new("sticker_settings_grid")
@@ -54,12 +51,12 @@ impl ChamaOptics {
                     .striped(true)
                     .show(ui, |ui| {
                         // Scale
-                        ui.label(t!("effect.sticker_storage.scale"));
+                        ui.label(t!("sticker.scale"));
                         ui.add(egui::Slider::new(&mut self.sticker_config.scale, 0.5..=2.0));
                         ui.end_row();
 
                         // Offset X
-                        ui.label(t!("effect.sticker_storage.offset_x"));
+                        ui.label(t!("sticker.offset_x"));
                         let offset_x_display = self.sticker_config.offset_x;
                         ui.add(
                             egui::Slider::new(&mut self.sticker_config.offset_x, -100..=100)
@@ -68,7 +65,7 @@ impl ChamaOptics {
                         ui.end_row();
 
                         // Offset Y
-                        ui.label(t!("effect.sticker_storage.offset_y"));
+                        ui.label(t!("sticker.offset_y"));
                         let offset_y_display = self.sticker_config.offset_y;
                         ui.add(
                             egui::Slider::new(&mut self.sticker_config.offset_y, -100..=100)
@@ -80,16 +77,16 @@ impl ChamaOptics {
                         ui.end_row();
 
                         // Mosaic and Stroke settings (merged into Sticker settings)
-                        ui.heading(t!("effect.default_effect.mosaic_and_stroke_settings"));
+                        ui.heading(t!("effects.mosaic_and_stroke.mosaic_and_stroke_settings"));
                         ui.end_row();
 
                         // Mosaic block size
-                        ui.label(t!("effect.default_effect.mosaic_block_size"));
+                        ui.label(t!("effects.mosaic_and_stroke.mosaic_block_size"));
                         ui.add(egui::Slider::new(&mut self.mosaic_block_size, 2..=400))
-                            .on_hover_text(t!("effect.default_effect.mosaic_block_size_hint"));
+                            .on_hover_text(t!("effects.mosaic_and_stroke.mosaic_block_size_hint"));
                         ui.end_row();
 
-                        ui.label(t!("effect.default_effect.stroke_color"));
+                        ui.label(t!("effects.mosaic_and_stroke.stroke_color"));
                         ui.horizontal(|ui| {
                             egui::color_picker::color_edit_button_srgba(
                                 ui,
@@ -100,7 +97,7 @@ impl ChamaOptics {
                         ui.end_row();
 
                         // Border thickness
-                        ui.label(t!("effect.default_effect.stroke_border_thickness"));
+                        ui.label(t!("effects.mosaic_and_stroke.stroke_border_thickness"));
                         ui.add(egui::Slider::new(&mut self.stroke_thickness, 1..=20))
                             .on_hover_text("Thickness of stroke border in pixels");
                         ui.end_row();
@@ -110,7 +107,7 @@ impl ChamaOptics {
                 // Sticker preview section with images
                 if !self.sticker_storage.stickers.is_empty() {
                     ui.separator();
-                    ui.heading(t!("effect.sticker_storage.preview"));
+                    ui.heading(t!("sticker.preview"));
                     ui.add_space(10.0);
 
                     // Sticker gallery - horizontal scrollable thumbnails at top
@@ -282,7 +279,7 @@ impl ChamaOptics {
 
                             ui.vertical(|ui| {
                                 ui.horizontal(|ui| {
-                                    ui.label(t!("effect.sticker_storage.selected_sticker"));
+                                    ui.label(t!("sticker.selected_sticker"));
                                     ui.label(egui::RichText::new(&sticker_name).strong());
 
                                     // Right-align action buttons
@@ -292,7 +289,7 @@ impl ChamaOptics {
                                             // Delete button (always visible in preview)
                                             if ui
                                                 .button("🗑")
-                                                .on_hover_text(t!("effect.sticker_storage.delete"))
+                                                .on_hover_text(t!("sticker.delete"))
                                                 .clicked()
                                             {
                                                 self.sticker_storage.remove_sticker(selected_id);
@@ -395,9 +392,7 @@ impl ChamaOptics {
                 // Add sticker button
                 ui.add_space(10.0);
                 #[cfg(feature = "rfd")]
-                if ui
-                    .button(t!("effect.sticker_storage.add_sticker"))
-                    .clicked()
+                if ui.button(t!("sticker.add_sticker")).clicked()
                     && let Some(path) = rfd::FileDialog::new()
                         .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif"])
                         .pick_file()
