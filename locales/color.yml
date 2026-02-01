@@ -108,19 +108,19 @@ color:
     ko: "불러온 LUT이 없습니다. +를 클릭하거나 .cube 파일을 드롭하세요"
     ja: "LUTがロードされていません。+をクリックするか.cubeファイルをドロップ"
 
-  # Color Adjustments (Future)
+  # Color Adjustments
   adjustments_section:
-    en: "Color Adjustments (Coming Soon)"
-    ko: "색상 조정 (준비 중)"
-    ja: "カラー調整（準備中）"
+    en: "Color Adjustments"
+    ko: "색상 조정"
+    ja: "カラー調整"
   adjustments_enabled:
     en: "Enable Adjustments"
     ko: "색상 조정 활성화"
     ja: "調整を有効にする"
   adjustments_coming_soon:
-    en: "(Coming Soon)"
-    ko: "(준비 중)"
-    ja: "（準備中）"
+    en: ""
+    ko: ""
+    ja: ""
   reset_adjustments:
     en: "Reset"
     ko: "초기화"
