@@ -1183,6 +1183,7 @@ impl ChamaOptics {
             crate::image::loader::spawn_parallel_loader(
                 all_paths,
                 self.import_config.get_alt_fnumber,
+                self.import_config.use_35mm_focal_length,
                 self.load_progress.counter(),
                 self.loaded_image_queue.clone(),
                 ui.ctx().clone(),

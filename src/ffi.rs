@@ -163,9 +163,18 @@ pub extern "C" fn chama_optics_free_exif_data(exif_data: *mut CExifData) {
 
 /// Extract EXIF data from an image file
 /// Returns a CExifData pointer that must be freed with chama_optics_free_exif_data
+///
+/// # Arguments
+/// * `image_path` - Path to the image file
+/// * `get_alt_fnumber` - If true, attempt to recover F-number from lens information
+/// * `use_35mm_focal_length` - If true, use 35mm equivalent focal length instead of physical
 #[unsafe(no_mangle)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut CExifData {
+pub extern "C" fn chama_optics_extract_exif(
+    image_path: *const c_char,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
+) -> *mut CExifData {
     if image_path.is_null() {
         return std::ptr::null_mut();
     }
@@ -182,13 +191,23 @@ pub extern "C" fn chama_optics_extract_exif(image_path: *const c_char) -> *mut C
         let path_buf = PathBuf::from(path_str);
 
         // Load to CoreImage to get EXIF data
-        let core_image = match crate::core::CoreImage::from_path(path_buf) {
+        let mut core_image = match crate::core::CoreImage::from_path(path_buf) {
             Ok(img) => img,
             Err(e) => {
                 log::error!("Failed to load image for EXIF extraction: {}", e);
                 return std::ptr::null_mut();
             }
         };
+
+        // Apply configuration options to EXIF data
+        if get_alt_fnumber {
+            core_image.view_exif.replace_with_fnumber_alt_when_invalid();
+        }
+        if use_35mm_focal_length {
+            core_image
+                .view_exif
+                .use_35mm_focal_length(&core_image.src_exif);
+        }
 
         let exif = &core_image.view_exif;
 

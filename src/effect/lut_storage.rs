@@ -318,6 +318,19 @@ impl LutStorage {
         }
     }
 
+    /// Update all LUT file paths to use the current storage directory
+    /// This is needed on iOS where app container paths can change between launches
+    pub fn update_file_paths(&mut self) {
+        for lut_item in &mut self.luts {
+            // Extract just the filename from the current path
+            if let Some(filename) = lut_item.file_path.file_name() {
+                // Reconstruct path using current storage_directory
+                let new_path = self.storage_directory.join(filename);
+                lut_item.file_path = new_path;
+            }
+        }
+    }
+
     /// Verify all LUTs and update hash mismatch flags
     pub fn verify_all_luts(&mut self) {
         for lut_item in &mut self.luts {

@@ -85,6 +85,33 @@ settings:
     ja: "より高い速度設定は顔をより速く検出しますが、小さな顔や部分的に隠れた顔を見逃す可能性があります。ほとんどのケースで標準モードを推奨します。"
     id: "Pengaturan kecepatan lebih tinggi mendeteksi wajah lebih cepat tetapi mungkin melewatkan wajah kecil atau yang tertutup sebagian. Mode normal direkomendasikan untuk sebagian besar kasus."
 
+  # EXIF Configuration
+  exif_config:
+    en: "EXIF Configuration"
+    ko: "EXIF 설정"
+    ja: "EXIF設定"
+    id: "Konfigurasi EXIF"
+  use_35mm_focal_length:
+    en: "Use 35mm Equivalent Focal Length"
+    ko: "35mm 환산 초점거리 사용"
+    ja: "35mm換算焦点距離を使用"
+    id: "Gunakan Panjang Fokus Setara 35mm"
+  use_35mm_focal_length_hint:
+    en: "When enabled, displays the 35mm equivalent focal length instead of the physical focal length (e.g., shows '26mm' instead of '5.7mm' for iPhone photos)."
+    ko: "활성화하면 실제 렌즈의 물리적 초점거리 대신 35mm 환산 초점거리를 표시합니다 (예: 아이폰 사진의 경우 '5.7mm' 대신 '26mm'를 표시)."
+    ja: "有効にすると、物理的な焦点距離の代わりに35mm換算焦点距離を表示します（例：iPhoneの写真で「5.7mm」の代わりに「26mm」を表示）。"
+    id: "Jika diaktifkan, menampilkan panjang fokus setara 35mm alih-alih panjang fokus fisik (mis. menampilkan '26mm' alih-alih '5.7mm' untuk foto iPhone)."
+  f_number_recovery:
+    en: "F-number Recovery"
+    ko: "F조리개값 복구시도"
+    ja: "F値の復元を試みる"
+    id: "Pemulihan F-number"
+  f_number_recovery_hint:
+    en: "If the EXIF aperture value is missing or invalid, attempts to recover it by parsing the lens information. Useful for manual-focus lenses."
+    ko: "사진의 EXIF정보에서 F조리개값을 구하지못하는 경우, Lens의 이름에서 최대개방 조리개값을 유추하여 F조리개값으로 대체사용합니다."
+    ja: "EXIFの絞り値が存在しない、または無効な場合、レンズ情報を解析してF値を復元しようとします。マニュアルフォーカスレンズに有効です。"
+    id: "Jika nilai bukaan EXIF hilang atau tidak valid, mencoba memulihkannya dengan mengurai informasi lensa. Berguna untuk lensa fokus manual."
+
   # Sticker settings
   sticker_size:
     en: "Sticker Size"

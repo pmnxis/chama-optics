@@ -244,8 +244,10 @@ fn export_final_impl(
         params_json,
         font_path,
         font_weight,
-        None, // Use default scale config
-        None, // Use default export config (WebP)
+        None,  // Use default scale config
+        None,  // Use default export config (WebP)
+        false, // get_alt_fnumber - default to false
+        false, // use_35mm_focal_length - default to false
     )
 }
 
@@ -262,6 +264,8 @@ fn export_final_impl_with_exif_source(
     font_weight: u32,
     scale_config: Option<crate::scale_config::ScaleConfig>,
     output_format_config: Option<COutputFormatConfig>,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
 ) -> Result<(), PreviewError> {
     // For final export, always load full resolution
     let _dyn_image = image::open(image_path).map_err(PreviewError::ImageLoad)?;
@@ -289,6 +293,14 @@ fn export_final_impl_with_exif_source(
 
     let original_exif = crate::image::exif_impl::OriginalExif::new(exif);
     let mut view_exif = crate::image::exif_impl::SimplifiedExif::from(&original_exif);
+
+    // Apply import configuration settings
+    if get_alt_fnumber {
+        view_exif.replace_with_fnumber_alt_when_invalid();
+    }
+    if use_35mm_focal_length {
+        view_exif.use_35mm_focal_length(&original_exif);
+    }
 
     // If image_path differs from exif_source_path, the image has already been processed
     // (e.g., face effects applied via load_image_direct which applies orientation).
@@ -1134,8 +1146,10 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
         params_json_str,
         font_path_str,
         font_weight,
-        None, // No custom scale config - use default
-        None, // Use default export config (WebP)
+        None,  // No custom scale config - use default
+        None,  // Use default export config (WebP)
+        false, // get_alt_fnumber - default to false
+        false, // use_35mm_focal_length - default to false
     ) {
         Ok(_) => {
             log::info!("✅ Theme applied successfully with EXIF from original");
@@ -1180,6 +1194,8 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
     font_weight: u32,
     scale_config: *const CScaleConfig,
     output_format_config: *const COutputFormatConfig,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
 ) -> ChamaError {
     if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
         return ChamaError::InvalidPath;
@@ -1288,6 +1304,8 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
         font_weight,
         core_scale_config,
         export_config_option,
+        get_alt_fnumber,
+        use_35mm_focal_length,
     ) {
         Ok(_) => {
             log::info!("✅ Theme applied successfully with EXIF from original");
@@ -1937,7 +1955,9 @@ pub unsafe extern "C" fn chama_export_combined(
                 font_path,
                 config_ref.font_weight,
                 core_scale_config,
-                None, // Use default export config (WebP)
+                None,  // Use default export config (WebP)
+                false, // get_alt_fnumber - default to false
+                false, // use_35mm_focal_length - default to false
             );
 
             // Clean up temp file
@@ -2543,6 +2563,9 @@ pub unsafe extern "C" fn chama_lut_load_state() -> bool {
             let current_dir = storage.storage_directory.clone();
             *storage = loaded_storage;
             storage.storage_directory = current_dir;
+
+            // Update file paths to use current storage directory (fixes iOS container UUID changes)
+            storage.update_file_paths();
 
             // Verify all LUTs
             storage.verify_all_luts();

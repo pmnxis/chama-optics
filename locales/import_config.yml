@@ -21,3 +21,14 @@ import_config:
       ko: "사진의 EXIF정보에서 F조리개값을 구하지못하는 경우, Lens의 이름에서 최대개방 조리개값을 유추하여 F조리개값으로 대체사용합니다."
       ja: "EXIFの絞り値が存在しない、または無効な場合、レンズ情報を解析してF値を復元しようとします。レンズ名に絞り値が含まれているマニュアルフォーカスレンズ/(例:「F0.95」や「f3.5-5.6」など)に有効です。"
       id: "Jika nilai bukaan EXIF hilang atau tidak valid, opsi ini mencoba memulihkannya dengan mengurai informasi lensa. Berguna untuk lensa fokus manual yang menyematkan data bukaan dalam nama lensa (mis. 'F0.95', 'f3.5-5.6')."
+  use_35mm_focal_length:
+    name:
+      en: "Use 35mm Equivalent Focal Length"
+      ko: "35mm 환산 초점거리 사용"
+      ja: "35mm換算焦点距離を使用"
+      id: "Gunakan Panjang Fokus Setara 35mm"
+    description:
+      en: "When enabled, displays the 35mm equivalent focal length instead of the physical focal length. This makes it easier to compare focal lengths across different sensor sizes (e.g., shows '26mm' instead of '5.7mm' for iPhone photos)."
+      ko: "활성화하면 실제 렌즈의 물리적 초점거리 대신 35mm 환산 초점거리를 표시합니다. 서로 다른 센서 크기의 초점거리를 비교하기 쉽게 만듭니다 (예: 아이폰 사진의 경우 '5.7mm' 대신 '26mm'를 표시)."
+      ja: "有効にすると、物理的な焦点距離の代わりに35mm換算焦点距離を表示します。異なるセンサーサイズ間で焦点距離を比較しやすくなります（例：iPhoneの写真で「5.7mm」の代わりに「26mm」を表示）。"
+      id: "Jika diaktifkan, menampilkan panjang fokus setara 35mm alih-alih panjang fokus fisik. Ini memudahkan perbandingan panjang fokus di berbagai ukuran sensor (mis. menampilkan '26mm' alih-alih '5.7mm' untuk foto iPhone)."

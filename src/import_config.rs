@@ -12,6 +12,11 @@ pub struct ImportConfig {
     /// try to extract the minimum aperture value from lens information.
     /// Useful for some manual-focus lenses.
     pub get_alt_fnumber: bool,
+
+    /// If true, use 35mm equivalent focal length instead of physical focal length.
+    /// Useful for comparing focal lengths across different sensor sizes.
+    /// iOS default: true, EGUI default: false
+    pub use_35mm_focal_length: bool,
 }
 
 impl ImportConfig {
@@ -28,6 +33,12 @@ impl ImportConfig {
                 t!("import_config.f_number_recovery.name"),
             )
             .on_hover_text(t!("import_config.f_number_recovery.description"));
+
+            ui.checkbox(
+                &mut self.use_35mm_focal_length,
+                t!("import_config.use_35mm_focal_length.name"),
+            )
+            .on_hover_text(t!("import_config.use_35mm_focal_length.description"));
         });
     }
 }

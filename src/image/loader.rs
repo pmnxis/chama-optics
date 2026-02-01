@@ -84,6 +84,7 @@ fn calculate_perceptual_hash_from_thumbnail(thumbnail: &egui::ColorImage) -> Opt
 pub fn load_image_data(
     path: &PathBuf,
     get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
 ) -> Result<LoadedImageData, image::ImageError> {
     use std::io::Seek;
 
@@ -104,6 +105,9 @@ pub fn load_image_data(
     let mut view_exif = SimplifiedExif::from(&original_exif);
     if get_alt_fnumber {
         view_exif.replace_with_fnumber_alt_when_invalid();
+    }
+    if use_35mm_focal_length {
+        view_exif.use_35mm_focal_length(&original_exif);
     }
 
     buf_reader
@@ -143,6 +147,7 @@ pub fn load_image_from_memory(
     bytes: &[u8],
     filename: &str,
     get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
 ) -> Result<LoadedImageData, image::ImageError> {
     use std::io::{Cursor, Seek};
 
@@ -161,6 +166,9 @@ pub fn load_image_from_memory(
     let mut view_exif = SimplifiedExif::from(&original_exif);
     if get_alt_fnumber {
         view_exif.replace_with_fnumber_alt_when_invalid();
+    }
+    if use_35mm_focal_length {
+        view_exif.use_35mm_focal_length(&original_exif);
     }
 
     cursor
@@ -204,6 +212,7 @@ pub fn load_image_from_memory(
 pub fn spawn_parallel_loader(
     paths: Vec<PathBuf>,
     get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
     progress_counter: Arc<AtomicUsize>,
     result_queue: LoadedImageQueue,
     ctx: egui::Context,
@@ -223,7 +232,7 @@ pub fn spawn_parallel_loader(
         // Process in parallel and push to queue immediately upon completion
         pool.install(|| {
             paths.par_iter().for_each(|path| {
-                match load_image_data(path, get_alt_fnumber) {
+                match load_image_data(path, get_alt_fnumber, use_35mm_focal_length) {
                     Ok(loaded_data) => {
                         // Push to queue immediately
                         if let Ok(mut queue) = result_queue.lock() {

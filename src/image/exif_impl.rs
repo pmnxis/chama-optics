@@ -143,9 +143,19 @@ impl OriginalExif {
         self.get_exif_trim_string(Tag::LensModel)
     }
 
-    /// Focal length with mm
+    /// Physical focal length (actual lens focal length)
+    /// This returns the physical focal length of the lens
     pub fn focal(&self) -> String {
         self.get_exif_value(Tag::FocalLength)
+    }
+
+    /// Get 35mm equivalent focal length if available
+    /// Returns None if FocalLengthIn35mmFilm is not present in EXIF
+    pub fn focal_35mm(&self) -> Option<u32> {
+        self.0.as_ref().and_then(|exif| {
+            exif.get_field(Tag::FocalLengthIn35mmFilm, In::PRIMARY)
+                .and_then(|f| f.value.get_uint(0))
+        })
     }
 
     /// Lens aperture (F-number)
@@ -397,6 +407,16 @@ impl SimplifiedExif {
             && let Some(x) = self.get_fnumber_alt()
         {
             self.fnumber = x;
+            return true;
+        }
+        false
+    }
+
+    /// Replace focal length with 35mm equivalent if available
+    /// Returns true if replacement was successful
+    pub fn use_35mm_focal_length(&mut self, original_exif: &OriginalExif) -> bool {
+        if let Some(focal_35mm) = original_exif.focal_35mm() {
+            self.focal = format!("{}", focal_35mm);
             return true;
         }
         false
