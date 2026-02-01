@@ -45,6 +45,10 @@ theme_preview:
     en: "Load images from the Image List tab to preview themes"
     ko: "이미지 리스트 탭에서 사진을 불러오면 테마 미리보기를 볼 수 있습니다"
     ja: "画像リストタブから画像を読み込むとテーマをプレビューできます"
+  no_images_mobile:
+    en: "Add images in Gallery tab to preview themes"
+    ko: "갤러리 탭에서 이미지를 추가하여 테마를 미리보세요"
+    ja: "ギャラリータブで画像を追加してテーマをプレビューしてください"
 
   # Theme settings
   theme_settings:
@@ -57,6 +61,14 @@ theme_preview:
     en: "Refresh Preview"
     ko: "미리보기 새로고침"
     ja: "プレビュー更新"
+  refresh_button_mobile:
+    en: "Apply Theme"
+    ko: "테마 적용"
+    ja: "テーマを適用"
+  original:
+    en: "Original"
+    ko: "원본"
+    ja: "オリジナル"
 
   # Status
   status_ready:

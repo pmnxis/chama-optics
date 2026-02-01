@@ -2032,16 +2032,21 @@ lazy_static::lazy_static! {
     /// Uses a Mutex to allow thread-safe access from Swift
     static ref LUT_STORAGE: Mutex<crate::effect::lut_storage::LutStorage> = {
         // let mut storage = crate::effect::lut_storage::LutStorage::new();
-        let storage = crate::effect::lut_storage::LutStorage::new();
         // Set iOS-specific storage path
         #[cfg(target_os = "ios")]
         {
+            let mut storage = crate::effect::lut_storage::LutStorage::new();
             if let Some(docs_dir) = dirs::document_dir() {
                 storage.storage_directory = docs_dir.join("ChamaOptics").join("luts");
                 let _ = storage.ensure_directory();
             }
+            Mutex::new(storage)
         }
-        Mutex::new(storage)
+        #[cfg(not(target_os = "ios"))]
+        {
+            let storage = crate::effect::lut_storage::LutStorage::new();
+            Mutex::new(storage)
+        }
     };
 }
 

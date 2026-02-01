@@ -464,6 +464,11 @@ macro_rules! update_param {
                     }
                 )*
                 _ => {
+                    // On iOS, skip warning for .font keys as they're handled separately
+                    #[cfg(feature = "ios_integration")]
+                    if key.ends_with(".font") {
+                        continue;
+                    }
                     log::warn!("Unknown parameter: {}", key);
                 }
             }

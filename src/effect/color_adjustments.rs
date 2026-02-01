@@ -14,8 +14,10 @@
 //! - Inline functions for critical paths
 
 use rayon::prelude::*;
-use rust_i18n::t;
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "desktop")]
+use rust_i18n::t;
 
 /// Color adjustment parameters (Lightroom-style)
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -650,7 +650,7 @@ impl VariableTextSlot {
     #[cfg(feature = "ios_integration")]
     fn get_font_from_file(&self) -> ab_glyph::FontArc {
         use ab_glyph::FontArc;
-        use std::path::PathBuf;
+        use std::path::{Path, PathBuf};
 
         if self.font_file.is_empty() {
             panic!("Font loading failed on iOS: font_file is empty");
@@ -662,7 +662,34 @@ impl VariableTextSlot {
             // If no base dir set, try using font_file as-is (might be full path)
             PathBuf::from(&self.font_file)
         } else {
-            PathBuf::from(&base_dir).join(&self.font_file)
+            let font_path = Path::new(&self.font_file);
+
+            // If it's an absolute path that exists, use it directly
+            if font_path.is_absolute() && font_path.exists() {
+                font_path.to_path_buf()
+            } else if let Some(filename) = font_path.file_name().and_then(|n| n.to_str()) {
+                // Check if this is a stale /tmp path (old container UUID)
+                // Try to find the same filename in current /tmp directory
+                if self.font_file.contains("/tmp/") {
+                    let tmp_path = std::env::temp_dir().join(filename);
+                    if tmp_path.exists() {
+                        log::debug!(
+                            "Found font in current /tmp (old path was stale): {:?}",
+                            tmp_path
+                        );
+                        tmp_path
+                    } else {
+                        // /tmp font doesn't exist in current session, fall back to app bundle
+                        PathBuf::from(&base_dir).join(filename)
+                    }
+                } else {
+                    // Fall back to app bundle (handles old container UUID for built-in fonts)
+                    PathBuf::from(&base_dir).join(filename)
+                }
+            } else {
+                // Can't extract filename, use font_file as-is
+                PathBuf::from(&self.font_file)
+            }
         };
 
         log::debug!("Loading font from: {:?}", full_path);

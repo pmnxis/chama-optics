@@ -167,6 +167,17 @@ pub(crate) fn draw_text_with_fallback<I>(
     I: image::GenericImage<Pixel = image::Rgba<u8>>,
 {
     // iOS: no fallback, just use primary font directly
+    log::debug!(
+        "Drawing text at ({}, {}) with scale {:?}, color {:?}: '{}'",
+        x,
+        y,
+        scale,
+        color,
+        text
+    );
+    if text.is_empty() {
+        log::warn!("Attempting to draw empty text at ({}, {})", x, y);
+    }
     imageproc::drawing::draw_text_mut(image, color, x, y, scale, primary_font, text);
 }
 

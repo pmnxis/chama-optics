@@ -68,6 +68,18 @@ gallery:
     en: "No stickers available in Settings. Go to Settings -> Sticker Storage to add stickers."
     ko: "설정에서 스티커가 없습니다. 설정 -> 스티커 저장소로 가서 스티커를 추가하세요."
     ja: "設定にステッカーがありません。設定->ステッカー保存庫に移動してステッカーを追加してください。"
+  no_sticker_assigned:
+    en: "No Sticker"
+    ko: "스티커 없음"
+    ja: "ステッカーなし"
+  no_sticker_available:
+    en: "No stickers available"
+    ko: "사용 가능한 스티커 없음"
+    ja: "利用可能なステッカーがありません"
+  sticker_with_name:
+    en: "Sticker: %@"
+    ko: "스티커: %@"
+    ja: "ステッカー：%@"
 
   # Save messages
   save_success:
@@ -96,6 +108,10 @@ gallery:
     en: "Loading image..."
     ko: "이미지 로드 중..."
     ja: "画像を読み込んでいます..."
+  saving:
+    en: "Saving..."
+    ko: "저장 중..."
+    ja: "保存中..."
 
   # EXIF section (iOS specific hint)
   tap_load_exif_hint:

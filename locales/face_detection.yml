@@ -36,6 +36,10 @@ face_detection:
     en: "No images"
     ko: "이미지 없음"
     ja: "画像なし"
+  preview:
+    en: "Preview"
+    ko: "미리보기"
+    ja: "プレビュー"
 
   # Detection actions
   detect_faces:
@@ -87,6 +91,10 @@ face_detection:
     ko: "얼굴 #%{n1} (%{n2}x%{n3})"
     ja: "顔 #%{n1} (%{n2}x%{n3})"
   face_number:
+    en: "Face #%d"
+    ko: "얼굴 #%d"
+    ja: "顔 #%d"
+  face_number_simple:
     en: "Face #%d"
     ko: "얼굴 #%d"
     ja: "顔 #%d"

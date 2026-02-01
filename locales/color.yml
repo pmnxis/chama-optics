@@ -39,6 +39,10 @@ color:
     en: "No images loaded"
     ko: "불러온 이미지가 없습니다"
     ja: "画像がロードされていません"
+  no_images_hint:
+    en: "Go to the Gallery tab to add images, then come back to apply LUTs"
+    ko: "갤러리 탭으로 이동하여 이미지를 추가한 후 돌아와서 LUT을 적용하세요"
+    ja: "ギャラリータブに移動して画像を追加してから、ここに戻ってLUTを適用してください"
   generating:
     en: "Processing..."
     ko: "처리 중..."

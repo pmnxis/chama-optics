@@ -7,12 +7,14 @@
 //! that can be applied to images for color grading.
 
 use image::DynamicImage;
-use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 use wagahai_lut::{CubeLut, CubeParser, LutType};
+
+#[cfg(feature = "desktop")]
+use rust_i18n::t;
 
 /// A single LUT item with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]

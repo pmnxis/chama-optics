@@ -634,6 +634,18 @@ impl SimplifiedExif {
         let json_value = serde_json::to_value(self).unwrap();
         let map = json_value.as_object().unwrap();
 
+        // Debug logging to see what EXIF data we have
+        log::debug!("format_custom called with template: '{}'", fmt);
+        log::debug!(
+            "EXIF data: camera_mnf='{}', camera_model='{}', lens_mnf='{}', lens_model='{}', focal='{}', iso_speed={:?}",
+            self.camera_mnf,
+            self.camera_model,
+            self.lens_mnf,
+            self.lens_model,
+            self.focal,
+            self.iso_speed
+        );
+
         let mut result = String::new();
         let mut chars = fmt.chars().peekable();
 
