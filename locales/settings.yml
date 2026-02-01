@@ -406,6 +406,37 @@ settings:
     id: "Tambah Stiker"
 
 # Update check
+  experimental:
+    en: "Experimental"
+    ko: "실험적 기능"
+    ja: "実験的"
+    id: "Eksperimental"
+  show_verbose_exif:
+    en: "Show Verbose EXIF"
+    ko: "상세 EXIF 정보 표시"
+    ja: "詳細なEXIF情報を表示"
+    id: "Tampilkan EXIF Lengkap"
+  show_verbose_exif_description:
+    en: "Display detailed EXIF information including maker notes for advanced users"
+    ko: "고급 사용자를 위한 제조사 노트를 포함한 상세한 EXIF 정보 표시"
+    ja: "上級ユーザー向けのメーカーノートを含む詳細なEXIF情報を表示"
+    id: "Tampilkan informasi EXIF terperinci termasuk catatan pembuat untuk pengguna lanjutan"
+
+  experimental:
+    en: "Experimental"
+    ko: "실험적 기능"
+    ja: "実験的"
+    id: "Eksperimental"
+  show_verbose_exif:
+    en: "Show Verbose EXIF"
+    ko: "상세 EXIF 정보 표시"
+    ja: "詳細なEXIF情報を表示"
+    id: "Tampilkan EXIF Lengkap"
+  show_verbose_exif_description:
+    en: "Display detailed EXIF information including maker notes for advanced users"
+    ko: "고급 사용자를 위한 제조사 노트를 포함한 상세한 EXIF 정보 표시"
+    ja: "上級ユーザー向けのメーカーノートを含む詳細なEXIF情報を表示"
+    id: "Tampilkan informasi EXIF terperinci termasuk catatan pembuat untuk pengguna lanjutan"
 update:
   not_checked:
     en: "Release not checked"
@@ -442,3 +473,6 @@ update:
     ko: "새 버전 정보를 읽지 못했습니다."
     ja: "新しいバージョン情報を読み取れませんでした。"
     id: "Gagal membaca informasi versi baru."
+  experimental:
+    en: "Experimental"
+    ko: "실험적 기능"

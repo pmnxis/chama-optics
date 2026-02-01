@@ -175,3 +175,13 @@ gallery:
     ko: "가장 철저함, 가장 작은 얼굴 감지"
     ja: "最も徹底的、最小の顔を検出"
     id: "Paling menyeluruh, mendeteksi wajah terkecil"
+  exif_verbose:
+    en: "EXIF Verbose"
+    ko: "상세 EXIF"
+    ja: "詳細なEXIF"
+    id: "EXIF Lengkap"
+  exif_verbose_title:
+    en: "Verbose EXIF Information"
+    ko: "상세 EXIF 정보"
+    ja: "詳細なEXIF情報"
+    id: "Informasi EXIF Lengkap"

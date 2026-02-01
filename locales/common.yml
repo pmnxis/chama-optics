@@ -402,3 +402,8 @@ common:
       ko: "테두리 색상"
       ja: "枠線の色"
       id: "Warna Bingkai"
+  done:
+    en: "Done"
+    ko: "완료"
+    ja: "完了"
+    id: "Selesai"
