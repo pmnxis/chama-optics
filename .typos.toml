@@ -1,10 +1,28 @@
-# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
-#
-# SPDX-License-Identifier: CC0-1.0
+# Typos configuration for chama-optics
 
-# See details : https://github.com/crate-ci/typos
 [default.extend-words]
-egui = "egui"
-chama = "chama"
-haachama = "haachama"
-wdth = "wdth"
+# Indonesian language words
+Tema = "Tema"           # Theme
+Sistem = "Sistem"       # System
+sistem = "sistem"       # system (lowercase)
+mis = "mis"             # abbreviation for "misalnya" (for example, e.g.)
+foto = "foto"           # photo
+Foto = "Foto"           # Photo
+Absolut = "Absolut"     # Absolute
+Blok = "Blok"           # Block
+blok = "blok"           # block (lowercase)
+Variabel = "Variabel"   # Variable
+variabel = "variabel"   # variable (lowercase)
+Standar = "Standar"     # Standard
+standar = "standar"     # standard (lowercase)
+vertikal = "vertikal"   # vertical
+grup = "grup"           # group
+Faktor = "Faktor"       # Factor
+
+# Technical terms
+wdth = "wdth"           # Font variable axis for width
+wght = "wght"           # Font variable axis for weight
+
+[files]
+# Optionally ignore specific files if needed
+# extend-exclude = []
