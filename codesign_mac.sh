@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: MIT
 # set -e
 
-KEYCHAIN_NAME="build.keychain.haatonworld"
-KEYCHAIN_PASSWORD="temporaryPassWord1234"
+KEYCHAIN_NAME="${KEYCHAIN_NAME:-build.keychain.haatonworld}"
+KEYCHAIN_PASSWORD="${KEYCHAIN_PASSWORD:-temporaryPassWord1234}"
 
 # ---- Config ----
 APP_PATH="target/release/bundle/osx/Chama Optics.app"
@@ -13,7 +13,7 @@ APP_NAME="Chama Optics"
 KEY_FILE="cert.key"     # private (PEM)
 CRT_FILE="cert.crt"     # cenrtification (PEM)
 P12_FILE="cert.p12"     # generated PKCS#12 temporary
-# P12_PASS="p12pass"      # p12 password, temporary
+P12_PASS="${P12_PASS:-p12pass}"      # p12 password, from env or default
 DMG_NAME="${APP_NAME}.dmg"
 ZIP_NAME="${APP_NAME}.zip"
 
@@ -106,7 +106,12 @@ fi
 
 # ---- 2. Create PKCS#12 bundle for import (security prefers p12 for private key import) ----
 info "Creating PKCS#12 bundle ($P12_FILE)..."
-openssl pkcs12 -export -inkey "$KEY_FILE" -in "$CRT_FILE" -out "$P12_FILE" -passout pass:"$P12_PASS" -name "$IDENTITY_CN"
+# Use -legacy for OpenSSL 3.x compatibility
+if openssl version | grep -q "OpenSSL 3"; then
+  openssl pkcs12 -export -legacy -inkey "$KEY_FILE" -in "$CRT_FILE" -out "$P12_FILE" -passout pass:"$P12_PASS" -name "$IDENTITY_CN"
+else
+  openssl pkcs12 -export -inkey "$KEY_FILE" -in "$CRT_FILE" -out "$P12_FILE" -passout pass:"$P12_PASS" -name "$IDENTITY_CN"
+fi
 
 # ---- 3. Create temporary keychain and import cert/key ----
 info "Creating temporary keychain: $KEYCHAIN_NAME"
