@@ -64,6 +64,12 @@ fn save_jpeg_moz<P: AsRef<Path>>(
     quality: u8,
 ) -> Result<(), image::ImageError> {
     use mozjpeg::ColorSpace;
+
+    // Ensure parent directory exists
+    if let Some(parent) = path.as_ref().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let mut comp = mozjpeg::Compress::new(ColorSpace::JCS_RGB);
     comp.set_size(img.width() as usize, img.height() as usize);
     comp.set_quality(quality as f32);
@@ -84,6 +90,12 @@ fn save_webp<P: AsRef<Path>>(
     quality: u8,
 ) -> Result<(), image::ImageError> {
     use webp::Encoder;
+
+    // Ensure parent directory exists
+    if let Some(parent) = path.as_ref().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let encoder = Encoder::from_rgb(&img, img.width(), img.height());
     let webp_data = encoder.encode(quality as f32);
     std::fs::write(path, &*webp_data)?;
@@ -92,6 +104,12 @@ fn save_webp<P: AsRef<Path>>(
 
 fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> Result<(), image::ImageError> {
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+
+    // Ensure parent directory exists
+    if let Some(parent) = path.as_ref().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
     let file = std::fs::File::create(path)?;
     let writer = std::io::BufWriter::new(file);
     let encoder = PngEncoder::new_with_quality(writer, CompressionType::Best, FilterType::Adaptive);
