@@ -1,6 +1,14 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: CC0-1.0
+
 # Typos configuration for chama-optics
 
 [default.extend-words]
+egui = "egui"
+chama = "chama"
+haachama = "haachama"
+
 # Indonesian language words
 Tema = "Tema"           # Theme
 Sistem = "Sistem"       # System

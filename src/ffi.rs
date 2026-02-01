@@ -303,76 +303,17 @@ pub extern "C" fn chama_optics_extract_verbose_exif(image_path: *const c_char) -
             }
         };
 
-        // Read EXIF data from file
-        let file = match std::fs::File::open(path_str) {
-            Ok(f) => f,
-            Err(e) => {
-                log::error!("Failed to open image file: {}", e);
-                return std::ptr::null_mut();
-            }
-        };
-
-        let mut bufreader = std::io::BufReader::new(&file);
-        let exifreader = match exif::Reader::new().read_from_container(&mut bufreader) {
-            Ok(reader) => reader,
-            Err(e) => {
-                log::error!("Failed to read EXIF data: {}", e);
-                return std::ptr::null_mut();
-            }
-        };
-
-        // Collect all EXIF fields into a vector of objects
-        let mut fields = Vec::new();
-        for field in exifreader.fields() {
-            let tag_name = format!("{}", field.tag);
-            let ifd_name = format!("{:?}", field.ifd_num);
-
-            // Skip the raw MakerNote field - exif-rs already parses individual maker note
-            // fields which will appear separately in the field list
-            if field.tag == exif::Tag::MakerNote {
-                // Add a placeholder indicating maker note vendor if detected
-                if let Ok(vendor) = exifreader.maker_note_vendor() {
-                    let vendor_field = serde_json::json!({
-                        "tag": "MakerNote (Vendor Detected)",
-                        "ifd": format!("{:?}", field.ifd_num),
-                        "value": format!("{:?}", vendor),
-                    });
-                    fields.push(vendor_field);
+        // Use the implementation from exif_impl
+        match crate::image::exif_impl::extract_verbose_exif(path_str) {
+            Ok(json_string) => match CString::new(json_string) {
+                Ok(c_string) => c_string.into_raw(),
+                Err(_) => {
+                    log::error!("Failed to create C string from JSON");
+                    std::ptr::null_mut()
                 }
-                continue;
-            }
-
-            let value_display = field.display_value().to_string();
-
-            // Create a field object
-            let field_obj = serde_json::json!({
-                "tag": tag_name,
-                "ifd": ifd_name,
-                "value": value_display,
-            });
-
-            fields.push(field_obj);
-        }
-
-        // Create JSON object with all fields
-        let json = serde_json::json!({
-            "fields": fields,
-        });
-
-        // Convert to JSON string
-        let json_string = match serde_json::to_string_pretty(&json) {
-            Ok(s) => s,
+            },
             Err(e) => {
-                log::error!("Failed to serialize EXIF data to JSON: {}", e);
-                return std::ptr::null_mut();
-            }
-        };
-
-        // Convert to C string
-        match CString::new(json_string) {
-            Ok(c_string) => c_string.into_raw(),
-            Err(_) => {
-                log::error!("Failed to create C string from JSON");
+                log::error!("Failed to extract verbose EXIF: {}", e);
                 std::ptr::null_mut()
             }
         }

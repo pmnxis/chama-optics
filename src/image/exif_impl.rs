@@ -726,6 +726,135 @@ impl SimplifiedExif {
     }
 }
 
+/// Extract verbose EXIF data including all fields and maker notes
+/// Returns a JSON string with all EXIF fields
+#[cfg(feature = "ios_integration")]
+pub fn extract_verbose_exif(path: &str) -> Result<String, String> {
+    use std::io::BufReader;
+
+    // Read EXIF data from file
+    let file =
+        std::fs::File::open(path).map_err(|e| format!("Failed to open image file: {}", e))?;
+
+    let mut bufreader = BufReader::new(&file);
+    let exifreader = exif::Reader::new()
+        .read_from_container(&mut bufreader)
+        .map_err(|e| format!("Failed to read EXIF data: {}", e))?;
+
+    // Check maker note vendor before processing fields
+    log::info!("📝 Checking MakerNote vendor...");
+    match exifreader.maker_note_vendor() {
+        Ok(vendor) => log::info!("[OKAY] MakerNote vendor detected: {:?}", vendor),
+        Err(e) => log::info!("[WARN] No MakerNote vendor detected: {:?}", e),
+    }
+
+    // Collect all EXIF fields into a vector of objects
+    let mut fields = Vec::new();
+    let mut maker_note_tag_found = false;
+    let mut ifd2_count = 0;
+
+    for field in exifreader.fields() {
+        let tag_name = format!("{}", field.tag);
+
+        // Format IFD name - prefix maker note IFDs with "MakeNote-"
+        // Standard IFDs are In(0) and In(1), maker notes are typically In(2+)
+        let ifd_base = format!("{:?}", field.ifd_num);
+        let is_maker_note_ifd = matches!(field.ifd_num, exif::In(n) if n >= 2);
+        if is_maker_note_ifd {
+            ifd2_count += 1;
+        }
+        let ifd_name = if is_maker_note_ifd {
+            let formatted = format!("MakeNote-{}", ifd_base);
+            log::info!(
+                "🏷️ Field '{}' has IFD {:?}, formatted as '{}'",
+                tag_name,
+                field.ifd_num,
+                formatted
+            );
+            formatted
+        } else {
+            ifd_base
+        };
+
+        // Get display value for this field
+        let value_display = field.display_value().to_string();
+
+        // Handle MakerNote tag specially
+        if field.tag == exif::Tag::MakerNote {
+            maker_note_tag_found = true;
+            log::info!("Found MakerNote tag in IFD {:?}", field.ifd_num);
+
+            // Force MakeNote- prefix for the MakerNote tag IFD
+            let maker_note_ifd = format!("MakeNote-{:?}", field.ifd_num);
+
+            // Show vendor if detected, otherwise show raw data
+            let maker_note_value = if let Ok(vendor) = exifreader.maker_note_vendor() {
+                log::info!("Vendor detected: {:?}", vendor);
+                format!("{:?} (Raw data: {} bytes)", vendor, value_display.len())
+            } else {
+                format!("Unknown vendor (Raw data: {} bytes)", value_display.len())
+            };
+
+            let vendor_field = serde_json::json!({
+                "tag": "MakerNote",
+                "ifd": maker_note_ifd,
+                "value": maker_note_value,
+            });
+            fields.push(vendor_field);
+            continue;
+        }
+
+        // Create a field object
+        let field_obj = serde_json::json!({
+            "tag": tag_name,
+            "ifd": ifd_name,
+            "value": value_display,
+        });
+
+        fields.push(field_obj);
+    }
+
+    // Extract ALL maker note fields using the maker_note_fields() iterator
+    if let Ok(vendor) = exifreader.maker_note_vendor() {
+        log::info!("Extracting ALL maker note fields for vendor: {:?}", vendor);
+
+        for maker_field in exifreader.maker_note_fields() {
+            let tag_name = format!("{}", maker_field.tag);
+            let value_display = maker_field.display_value().to_string();
+            let ifd_name = format!("MakeNote-{:?}", vendor);
+
+            let field_obj = serde_json::json!({
+                "tag": tag_name,
+                "ifd": ifd_name,
+                "value": value_display,
+            });
+            fields.push(field_obj);
+            ifd2_count += 1;
+            log::debug!(
+                "MakerNote field: {} = {}",
+                tag_name,
+                value_display.chars().take(50).collect::<String>()
+            );
+        }
+
+        log::info!("Extracted {} maker note fields", ifd2_count);
+    }
+
+    // Summary logging
+    log::info!("EXIF Summary:");
+    log::info!("  Total fields: {}", fields.len());
+    log::info!("  MakerNote tag found: {}", maker_note_tag_found);
+    log::info!("  Fields with IFD >= 2: {}", ifd2_count);
+
+    // Create JSON object with all fields
+    let json = serde_json::json!({
+        "fields": fields,
+    });
+
+    // Convert to JSON string
+    serde_json::to_string_pretty(&json).map_err(|e| format!("Failed to serialize EXIF data: {}", e))
+}
+
 #[allow(dead_code)]
 fn hex_dump(s: &str) {
     for (i, b) in s.as_bytes().iter().enumerate() {

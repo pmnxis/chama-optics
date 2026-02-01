@@ -36,7 +36,8 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] When loading HEIF / JPEG images, generate thumbnails by prioritizing the Thumbnail / Preview metadata inside EXIF instead of resizing pixels from the full image (improves performance)
 - [ ] Feature to create 4-cut or 2-cut photos with idol images, similar to photo sticker booths
 - [x] Function to group similar photos or images taken around the same time
-- [ ] Preset and adjustment controls for contrast, brightness, grain, texture, and LUT
+- [x] Adjustment controls for contrast, brightness, grain, texture, and LUT
+- [ ] Preset for color grading and complex procedure by EXIF or user request
 
 
 ## Building and Running
@@ -97,7 +98,7 @@ cargo bundle --release
 - ✅ File dialogs
 - ✅ System fonts
 - ✅ HEIF/HEIC support (with vcpkg)
-- ⚠️ Face detection: CPU only (No GPU/NPU support yet)
+- ✅ Face detection: Due to driver condition.
 
 ### Face Detection Options
 
@@ -184,7 +185,7 @@ cargo bundle --release
 - ✅ System fonts
 - ✅ HEIF/HEIC support (with libheif)
 - ✅ Wayland and X11 support
-- ⚠️ Face detection: CPU only (No GPU/NPU support yet)
+- ⚠️ Face detection: Not tested
 
 #### Known Limitations on Linux
 
@@ -194,6 +195,14 @@ The `--features face_detection_insightface` flag may have compatibility issues o
 **Recommendation:**
 - Default build (without `face_detection_insightface`): ✅ Recommended
 - With `face_detection_insightface` feature: ⚠️ Experimental, may require additional system dependencies
+
+
+### iOS FFI
+```bash
+./build_ios.sh
+```
+
+Used with iOS xcode swift native project.
 
 ### License
 Most of the code depends on the NON-AI-MIT license, while some portions are under the MIT or Apache 2.0 licenses.

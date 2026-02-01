@@ -4,28 +4,10 @@ SPDX-PackageSupplier = "Jinwoo Park <pmnxis@gmail.com>"
 SPDX-PackageDownloadLocation = "https://github.com/pmnxis/chama-optics-make-note"
 
 [[annotations]]
-path = ["ios/ChamaOptics/ChamaOptics.xcodeproj/project.pbxproj", "ios/ChamaOptics/ChamaOptics.xcodeproj/project.xcworkspace/contents.xcworkspacedata"]
+path = ["locales/*.yml"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "© 2025 Jinwoo Park (pmnxis@gmail.com)"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = "ios/ChamaOptics/ChamaOptics/Assets.xcassets/AppIcon.appiconset/**"
-precedence = "aggregate"
-SPDX-FileCopyrightText = "© 2025 Jinwoo Park (pmnxis@gmail.com)"
-SPDX-License-Identifier = "LicenseRef-Non-AI-CC-BY-NC"
-
-[[annotations]]
-path = ["ios/ChamaOptics/ChamaOptics/Assets.xcassets/**.json", "ios/ChamaOptics/ChamaOptics/Assets.xcassets/AccentColor.colorset/**.json", "ios/ChamaOptics/Info.plist"]
-precedence = "aggregate"
-SPDX-FileCopyrightText = "© 2025 Jinwoo Park (pmnxis@gmail.com)"
-SPDX-License-Identifier = "MIT"
-
-[[annotations]]
-path = ["ios/README.md", "ios/SETUP.md", "ios/XCODE_PROJECT_SETUP.md", "ios/Package.swift"]
-precedence = "aggregate"
-SPDX-FileCopyrightText = "© 2025 Jinwoo Park (pmnxis@gmail.com)"
-SPDX-License-Identifier = "MIT"
+SPDX-License-Identifier = "MIT OR Apache-2.0"
 
 [[annotations]]
 path = ["assets/dark-background.png", "assets/light-background.png"]
