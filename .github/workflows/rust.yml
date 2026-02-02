@@ -263,8 +263,18 @@ jobs:
       if: matrix.os == 'macos-15'
       run: ./build_mac.sh
 
-    - name: Sign macOS App
-      if: matrix.os == 'macos-15'
+    - name: Sign macOS App (Apple Developer Certificate)
+      if: matrix.os == 'macos-15' && vars.APPLE_SIGN == '1'
+      env:
+        APPLE_CERT_B64: ${{ secrets.APPLE_CERT_B64 }}
+        APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+        APPLE_ID_APP_PASSWORD: ${{ secrets.APPLE_ID_APP_PASSWORD }}
+      run: bash ./apple_codesign_mac.sh
+
+    - name: Sign macOS App (Self-Signed Certificate)
+      if: matrix.os == 'macos-15' && vars.APPLE_SIGN != '1'
       env:
         CERT_KEY_B64: ${{ secrets.CERT_KEY_B64 }}
         CERT_CRT_B64: ${{ secrets.CERT_CRT_B64 }}

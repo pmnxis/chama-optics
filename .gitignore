@@ -37,6 +37,7 @@ test_image
 .cargo/
 libheif
 .cargo/config.toml
+secret/
 
 # Fort testing
 face_detection_output/
