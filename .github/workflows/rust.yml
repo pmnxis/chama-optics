@@ -264,6 +264,7 @@ jobs:
       run: ./build_mac.sh
 
     - name: Sign macOS App (Apple Developer Certificate)
+      id: apple_sign
       if: matrix.os == 'macos-15' && vars.APPLE_SIGN == '1'
       env:
         APPLE_CERT_B64: ${{ secrets.APPLE_CERT_B64 }}
@@ -298,6 +299,25 @@ jobs:
         asset_name: ChamaOptics-arm64.dmg
         asset_content_type: application/zip
 
+    # Save notarization info for Phase 2 workflow (Apple signing only)
+    - name: Upload notarization submission ID
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15' && vars.APPLE_SIGN == '1'
+      uses: actions/upload-artifact@v4
+      with:
+        name: notarization-info
+        path: |
+          notarization_submission_id.txt
+        retention-days: 7
+
+    # Save app bundle for stapling in Phase 2 (Apple signing only)
+    - name: Upload app bundle for stapling
+      if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'macos-15' && vars.APPLE_SIGN == '1'
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-bundle
+        path: target/release/bundle/osx/Chama Optics.app
+        retention-days: 7
+
     # windows
     - name: Upload Windows 2022 Release exe
       if: startsWith(github.ref, 'refs/tags/v') && matrix.os == 'windows-2022'
@@ -323,6 +343,8 @@ jobs:
     name: Publish release
     needs: [build_job, release_job]
     runs-on: ubuntu-24.04
+    # Skip auto-publish when Apple signing is enabled (Phase 2 will publish after stapling)
+    if: vars.APPLE_SIGN != '1'
     steps:
     - name: Test id
       run: echo "${{ needs.release_job.outputs.release_id }}"

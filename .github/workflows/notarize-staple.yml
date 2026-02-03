@@ -1,0 +1,232 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+# SPDX-License-Identifier: MIT
+#
+# Phase 2 Workflow: Check notarization status, staple, and publish release
+# This workflow is triggered manually after Phase 1 (build + notarization submit)
+
+name: Notarize Staple & Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.1.9)'
+        required: true
+        type: string
+      run_id:
+        description: 'Run ID from Phase 1 build (for downloading artifacts)'
+        required: true
+        type: string
+      submission_id:
+        description: 'Notarization submission ID (optional, will read from artifact if not provided)'
+        required: false
+        type: string
+
+env:
+  APP_NAME: "Chama Optics"
+  FINAL_DMG: "ChamaOptics-arm64.dmg"
+
+jobs:
+  staple_and_publish:
+    name: Staple and Publish
+    runs-on: macos-15
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download notarization info artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: notarization-info
+        path: ./notarization-info
+        run-id: ${{ inputs.run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download app bundle artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: app-bundle
+        path: ./app-bundle
+        run-id: ${{ inputs.run_id }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Get submission ID
+      id: get_submission_id
+      run: |
+        if [ -n "${{ inputs.submission_id }}" ]; then
+          SUBMISSION_ID="${{ inputs.submission_id }}"
+        elif [ -f "./notarization-info/notarization_submission_id.txt" ]; then
+          SUBMISSION_ID=$(cat ./notarization-info/notarization_submission_id.txt)
+        else
+          echo "ERROR: No submission ID provided and artifact not found"
+          exit 1
+        fi
+        echo "submission_id=$SUBMISSION_ID" >> $GITHUB_OUTPUT
+        echo "Submission ID: $SUBMISSION_ID"
+
+    - name: Check notarization status
+      id: check_status
+      env:
+        APPLE_ID_EMAIL: ${{ secrets.APPLE_ID_EMAIL }}
+        APPLE_ID_APP_PASSWORD: ${{ secrets.APPLE_ID_APP_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        SUBMISSION_ID="${{ steps.get_submission_id.outputs.submission_id }}"
+        echo "Checking notarization status for: $SUBMISSION_ID"
+
+        STATUS_OUTPUT=$(xcrun notarytool info "$SUBMISSION_ID" \
+          --apple-id "$APPLE_ID_EMAIL" \
+          --password "$APPLE_ID_APP_PASSWORD" \
+          --team-id "$APPLE_TEAM_ID" 2>&1)
+
+        echo "$STATUS_OUTPUT"
+
+        STATUS=$(echo "$STATUS_OUTPUT" | grep -i "status:" | head -n1 | awk '{print $NF}')
+        echo "status=$STATUS" >> $GITHUB_OUTPUT
+
+        if [ "$STATUS" = "Accepted" ]; then
+          echo "Notarization accepted!"
+        elif [ "$STATUS" = "In" ] || [ "$STATUS" = "Progress" ]; then
+          echo "ERROR: Notarization still in progress. Please wait and try again."
+          exit 1
+        else
+          echo "ERROR: Notarization failed or invalid. Status: $STATUS"
+          echo "Getting detailed log..."
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID_EMAIL" \
+            --password "$APPLE_ID_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" || true
+          exit 1
+        fi
+
+    - name: Prepare app bundle path
+      run: |
+        # The artifact extracts the app bundle contents
+        # We need to reconstruct the .app directory structure
+        mkdir -p "./target/release/bundle/osx"
+        if [ -d "./app-bundle/Chama Optics.app" ]; then
+          cp -R "./app-bundle/Chama Optics.app" "./target/release/bundle/osx/"
+        else
+          # Artifact might have extracted without the .app wrapper
+          mkdir -p "./target/release/bundle/osx/Chama Optics.app"
+          cp -R ./app-bundle/* "./target/release/bundle/osx/Chama Optics.app/"
+        fi
+        ls -la "./target/release/bundle/osx/"
+
+    - name: Staple notarization ticket
+      run: |
+        APP_PATH="./target/release/bundle/osx/${{ env.APP_NAME }}.app"
+        echo "Stapling: $APP_PATH"
+        xcrun stapler staple "$APP_PATH"
+        echo "Stapling completed!"
+
+        # Verify stapling
+        xcrun stapler validate "$APP_PATH"
+
+    - name: Create stapled DMG
+      run: |
+        APP_PATH="./target/release/bundle/osx/${{ env.APP_NAME }}.app"
+        BACKGROUND_IMG="./assets/background.jpg"
+        STAGING_DIR="/tmp/${{ env.APP_NAME }}_dmg_staging"
+        DMG_RW="/tmp/${{ env.APP_NAME }}-temp.dmg"
+
+        # Cleanup
+        rm -rf "$STAGING_DIR" "$DMG_RW" "${{ env.FINAL_DMG }}"
+        mkdir -p "$STAGING_DIR"
+
+        # Copy stapled app
+        cp -R "$APP_PATH" "$STAGING_DIR/"
+        ln -s /Applications "$STAGING_DIR/Applications"
+
+        # Create DMG
+        hdiutil create -volname "${{ env.APP_NAME }}" \
+          -srcfolder "$STAGING_DIR" \
+          -ov -format UDRW "$DMG_RW"
+
+        DEVICE=$(hdiutil attach -readwrite -noverify -noautoopen "$DMG_RW" | grep '^/dev/' | head -n1 | awk '{print $1}')
+
+        mkdir -p "/Volumes/${{ env.APP_NAME }}/.background"
+
+        # Handle background image
+        WINDOW_WIDTH=800
+        WINDOW_HEIGHT=500
+        TMP_BG_STD="/tmp/dmg_bg_std.jpg"
+
+        sips -z "$WINDOW_HEIGHT" "$WINDOW_WIDTH" "$BACKGROUND_IMG" --out "$TMP_BG_STD" 2>/dev/null || cp "$BACKGROUND_IMG" "$TMP_BG_STD"
+        cp "$TMP_BG_STD" "/Volumes/${{ env.APP_NAME }}/.background/background.tiff"
+        rm -f "$TMP_BG_STD"
+
+        # Configure Finder layout
+        osascript <<EOF
+        tell application "Finder"
+          tell disk "${{ env.APP_NAME }}"
+            open
+            set current view of container window to icon view
+            set toolbar visible of container window to false
+            set statusbar visible of container window to false
+            set the bounds of container window to {100, 100, 900, 600}
+            set viewOptions to the icon view options of container window
+            set arrangement of viewOptions to not arranged
+            set icon size of viewOptions to 128
+            set background picture of viewOptions to file ".background:background.tiff"
+            set label position of viewOptions to bottom
+            set shows icon preview of viewOptions to false
+            set position of item "${{ env.APP_NAME }}.app" of container window to {275, 260}
+            set position of item "Applications" of container window to {525, 260}
+            update without registering applications
+            delay 2
+            close
+            open
+            delay 2
+            eject
+          end tell
+        end tell
+        EOF
+
+        hdiutil detach "$DEVICE"
+        hdiutil convert "$DMG_RW" -format UDZO -imagekey zlib-level=9 -o "${{ env.FINAL_DMG }}"
+
+        rm -rf "$STAGING_DIR" "$DMG_RW"
+        echo "Stapled DMG created: ${{ env.FINAL_DMG }}"
+        ls -la "${{ env.FINAL_DMG }}"
+
+    - name: Get release info
+      id: get_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        RELEASE_INFO=$(gh release view "${{ inputs.tag }}" --json id,uploadUrl)
+        RELEASE_ID=$(echo "$RELEASE_INFO" | jq -r '.id')
+        echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
+        echo "Release ID: $RELEASE_ID"
+
+    - name: Delete old DMG from release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release delete-asset "${{ inputs.tag }}" "${{ env.FINAL_DMG }}" --yes || echo "Asset not found, continuing..."
+
+    - name: Upload stapled DMG to release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload "${{ inputs.tag }}" "${{ env.FINAL_DMG }}" --clobber
+
+    - name: Publish release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release edit "${{ inputs.tag }}" --draft=false
+        echo "Release ${{ inputs.tag }} published!"
+
+    - name: Summary
+      run: |
+        echo "============================================================"
+        echo "[SUCCESS] Notarization Staple & Publish Complete"
+        echo ""
+        echo "  Tag: ${{ inputs.tag }}"
+        echo "  Submission ID: ${{ steps.get_submission_id.outputs.submission_id }}"
+        echo "  Status: ${{ steps.check_status.outputs.status }}"
+        echo "  DMG: ${{ env.FINAL_DMG }} (stapled)"
+        echo ""
+        echo "  Release is now published and ready for download!"
+        echo "============================================================"

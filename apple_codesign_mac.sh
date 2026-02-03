@@ -162,24 +162,50 @@ codesign $CODESIGN_OPTS --deep --sign "$IDENTITY" --keychain "$KEYCHAIN_NAME" "$
 info "Verifying signature..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH" || warn "Verification reported issues"
 
-# ---- 7. Notarization (if enabled) ----
+# ---- 7. Notarization submission (async - does not wait) ----
+SUBMISSION_ID=""
 if [ "$ENABLE_NOTARIZATION" = true ]; then
     info "Creating ZIP for notarization..."
     NOTARIZE_ZIP="/tmp/${APP_NAME}-notarize.zip"
     ditto -c -k --keepParent "$APP_PATH" "$NOTARIZE_ZIP"
 
-    info "Submitting for notarization (this may take several minutes)..."
-    xcrun notarytool submit "$NOTARIZE_ZIP" \
+    info "Submitting for notarization (async mode - will not wait)..."
+    SUBMIT_OUTPUT=$(xcrun notarytool submit "$NOTARIZE_ZIP" \
         --apple-id "$APPLE_ID_EMAIL" \
         --password "$APPLE_ID_APP_PASSWORD" \
-        --team-id "$APPLE_TEAM_ID" \
-        --wait
+        --team-id "$APPLE_TEAM_ID" 2>&1)
 
-    info "Stapling notarization ticket..."
-    xcrun stapler staple "$APP_PATH"
+    echo "$SUBMIT_OUTPUT"
+
+    # Extract submission ID from output
+    SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep -i "id:" | head -n1 | awk '{print $NF}')
+
+    if [ -n "$SUBMISSION_ID" ]; then
+        info "Notarization submitted successfully!"
+        info "Submission ID: $SUBMISSION_ID"
+
+        # Save submission ID to file for CI/CD pickup
+        echo "$SUBMISSION_ID" > notarization_submission_id.txt
+        info "Submission ID saved to: notarization_submission_id.txt"
+
+        # Also output in GitHub Actions format
+        if [ -n "${GITHUB_OUTPUT:-}" ]; then
+            echo "submission_id=$SUBMISSION_ID" >> "$GITHUB_OUTPUT"
+        fi
+    else
+        warn "Could not extract submission ID from output"
+        warn "You may need to check manually with: xcrun notarytool history"
+    fi
 
     rm -f "$NOTARIZE_ZIP"
-    info "Notarization completed successfully!"
+
+    info ""
+    info "NOTE: Notarization is processing asynchronously."
+    info "Check status later with:"
+    info "  xcrun notarytool info $SUBMISSION_ID --apple-id \$APPLE_ID_EMAIL --password \$APPLE_ID_APP_PASSWORD --team-id \$APPLE_TEAM_ID"
+    info ""
+    info "After notarization is accepted, staple with:"
+    info "  xcrun stapler staple \"$APP_PATH\""
 else
     warn "Skipping notarization (credentials not provided)"
 fi
@@ -257,8 +283,14 @@ rm -rf "$MOUNT_DIR" "$STAGING_DIR" "$DMG_RW"
 echo ""
 echo "============================================================"
 echo "[SUCCESS] Apple-signed DMG created: $FINAL_DMG"
-if [ "$ENABLE_NOTARIZATION" = true ]; then
-    echo "          Notarization: COMPLETE (Gatekeeper approved)"
+if [ "$ENABLE_NOTARIZATION" = true ] && [ -n "$SUBMISSION_ID" ]; then
+    echo "          Notarization: SUBMITTED (async)"
+    echo "          Submission ID: $SUBMISSION_ID"
+    echo ""
+    echo "          DMG is NOT stapled yet."
+    echo "          After Apple approves, run Phase 2 workflow to staple and publish."
+elif [ "$ENABLE_NOTARIZATION" = true ]; then
+    echo "          Notarization: SUBMISSION FAILED"
 else
     echo "          Notarization: SKIPPED"
 fi
