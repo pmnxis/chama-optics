@@ -96,6 +96,11 @@ gallery:
     ko: "스티커: %@"
     ja: "ステッカー：%@"
     id: "Stiker: %@"
+  tap_face_to_configure:
+    en: "Tap a face on the image to configure it"
+    ko: "이미지에서 얼굴을 터치하여 설정하세요"
+    ja: "画像上の顔をタップして設定してください"
+    id: "Ketuk wajah di gambar untuk mengonfigurasinya"
 
   # Save messages
   save_success:
