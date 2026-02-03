@@ -275,7 +275,8 @@ tell application "Finder"
 end tell
 EOF
 
-hdiutil detach "$DEVICE"
+# Detach (may already be ejected by osascript, so ignore errors)
+hdiutil detach "$DEVICE" 2>/dev/null || true
 hdiutil convert "$DMG_RW" -format UDZO -imagekey zlib-level=9 -o "$FINAL_DMG"
 
 rm -rf "$MOUNT_DIR" "$STAGING_DIR" "$DMG_RW"

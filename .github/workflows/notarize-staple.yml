@@ -24,7 +24,6 @@ on:
 
 env:
   APP_NAME: "Chama Optics"
-  FINAL_DMG: "ChamaOptics-arm64.dmg"
 
 jobs:
   staple_and_publish:
@@ -32,6 +31,10 @@ jobs:
     runs-on: macos-15
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set DMG filename
+      id: dmg_name
+      run: echo "filename=chama-optics-macos_arm64-${{ inputs.tag }}.dmg" >> $GITHUB_OUTPUT
 
     - name: Download notarization info artifact
       uses: actions/download-artifact@v4
@@ -130,7 +133,7 @@ jobs:
         DMG_RW="/tmp/${{ env.APP_NAME }}-temp.dmg"
 
         # Cleanup
-        rm -rf "$STAGING_DIR" "$DMG_RW" "${{ env.FINAL_DMG }}"
+        rm -rf "$STAGING_DIR" "$DMG_RW" "${{ steps.dmg_name.outputs.filename }}"
         mkdir -p "$STAGING_DIR"
 
         # Copy stapled app
@@ -182,12 +185,13 @@ jobs:
         end tell
         EOF
 
-        hdiutil detach "$DEVICE"
-        hdiutil convert "$DMG_RW" -format UDZO -imagekey zlib-level=9 -o "${{ env.FINAL_DMG }}"
+        # Detach (may already be ejected by osascript, so ignore errors)
+        hdiutil detach "$DEVICE" 2>/dev/null || true
+        hdiutil convert "$DMG_RW" -format UDZO -imagekey zlib-level=9 -o "${{ steps.dmg_name.outputs.filename }}"
 
         rm -rf "$STAGING_DIR" "$DMG_RW"
-        echo "Stapled DMG created: ${{ env.FINAL_DMG }}"
-        ls -la "${{ env.FINAL_DMG }}"
+        echo "Stapled DMG created: ${{ steps.dmg_name.outputs.filename }}"
+        ls -la "${{ steps.dmg_name.outputs.filename }}"
 
     - name: Get release info
       id: get_release
@@ -203,13 +207,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release delete-asset "${{ inputs.tag }}" "${{ env.FINAL_DMG }}" --yes || echo "Asset not found, continuing..."
+        gh release delete-asset "${{ inputs.tag }}" "${{ steps.dmg_name.outputs.filename }}" --yes || echo "Asset not found, continuing..."
 
     - name: Upload stapled DMG to release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh release upload "${{ inputs.tag }}" "${{ env.FINAL_DMG }}" --clobber
+        gh release upload "${{ inputs.tag }}" "${{ steps.dmg_name.outputs.filename }}" --clobber
 
     - name: Publish release
       env:
@@ -226,7 +230,7 @@ jobs:
         echo "  Tag: ${{ inputs.tag }}"
         echo "  Submission ID: ${{ steps.get_submission_id.outputs.submission_id }}"
         echo "  Status: ${{ steps.check_status.outputs.status }}"
-        echo "  DMG: ${{ env.FINAL_DMG }} (stapled)"
+        echo "  DMG: ${{ steps.dmg_name.outputs.filename }} (stapled)"
         echo ""
         echo "  Release is now published and ready for download!"
         echo "============================================================"

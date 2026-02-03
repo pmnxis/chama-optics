@@ -305,7 +305,8 @@ EOF
 
 # ========== Detach DMG ==========
 echo "Detaching DMG..."
-hdiutil detach "$DEVICE"
+# May already be ejected by osascript, so ignore errors
+hdiutil detach "$DEVICE" 2>/dev/null || true
 
 # ========== Convert to final compressed DMG ==========
 echo "Compressing final DMG..."
