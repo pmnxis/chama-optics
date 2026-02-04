@@ -869,14 +869,14 @@ impl FaceDetection {
                                 ExecutionProvider::CPUExecutionProvider,
                                 t!("face_detection.provider_cpu"),
                             )
-                            .on_hover_text("CPU execution - compatible with all platforms");
+                            .on_hover_text(t!("face_detection.provider_cpu_hint"));
 
                             ui.selectable_value(
                                 &mut self.provider,
                                 ExecutionProvider::OnnxAuto,
                                 t!("face_detection.provider_onnx_auto"),
                             )
-                            .on_hover_text("Auto-detect best available provider");
+                            .on_hover_text(t!("face_detection.provider_onnx_auto_hint"));
 
                             #[cfg(target_os = "macos")]
                             ui.selectable_value(
@@ -884,7 +884,7 @@ impl FaceDetection {
                                 ExecutionProvider::CoreMLExecutionProvider,
                                 t!("face_detection.provider_coreml"),
                             )
-                            .on_hover_text("Apple Silicon acceleration - macOS only");
+                            .on_hover_text(t!("face_detection.provider_coreml_hint"));
                         });
 
                     ui.separator();

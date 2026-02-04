@@ -31,6 +31,7 @@ pub(crate) use export_config::scale_config;
 pub(crate) mod fonts;
 #[cfg(not(feature = "ios_integration"))]
 pub(crate) mod langs;
+pub(crate) mod resources; // Unified resource management (fonts, models, logos)
 pub(crate) use art::ART_UNIFY;
 #[cfg(not(feature = "ios_integration"))]
 pub(crate) use fonts::FONTS_UNIFY;

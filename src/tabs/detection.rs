@@ -110,7 +110,7 @@ impl ChamaOptics {
         // Detection controls and zoom controls
         ui.horizontal(|ui| {
             // Default effect selector
-            ui.label("Default Effect:");
+            ui.label(t!("tabs.detection.default_effect"));
             egui::ComboBox::from_id_salt("default_effect_combo")
                 .selected_text(self.default_face_effect.display_name())
                 .width(120.0)
@@ -161,8 +161,8 @@ impl ChamaOptics {
 
             // Manual add face button
             if ui
-                .button("➕ Face")
-                .on_hover_text("Add face area manually at center of view")
+                .button(t!("face_detection.add_face"))
+                .on_hover_text(t!("face_detection.add_face_hint"))
                 .clicked()
             {
                 self.add_face_manually();
@@ -171,8 +171,8 @@ impl ChamaOptics {
             // Delete selected face button
             if let Some(selected_idx) = self.selected_face_index
                 && ui
-                    .button("🗑 Face")
-                    .on_hover_text("Delete selected face area")
+                    .button(t!("face_detection.delete_face"))
+                    .on_hover_text(t!("face_detection.delete_face_hint"))
                     .clicked()
             {
                 self.detected_faces.remove(selected_idx);
@@ -383,7 +383,7 @@ impl ChamaOptics {
 
                                 // Effect picker
                                 ui.horizontal(|ui| {
-                                    ui.label("Effect");
+                                    ui.label(t!("tabs.detection.effect"));
 
                                     egui::ComboBox::from_id_salt("face_effect_combo")
                                         .selected_text(

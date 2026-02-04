@@ -14,9 +14,6 @@ use ort::{session::Session, value::Tensor};
 #[cfg(feature = "face_detection_insightface")]
 use std::{path::Path, sync::RwLock};
 
-#[cfg(feature = "face_detection_insightface")]
-static MODEL_BYTES: &[u8] = include_bytes!(env!("INSIGHTFACE_MODEL_PATH"));
-
 /// Detection speed modes based on Python test results
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg(feature = "face_detection_insightface")]
@@ -132,12 +129,9 @@ impl InsightFaceDetector {
         #[cfg(not(any(target_os = "macos", target_os = "ios")))]
         let actual_provider = provider;
 
-        // Load InsightFace face detection model from path set by build.rs (INSIGHTFACE_MODEL_PATH)
-        let model_bytes = MODEL_BYTES.to_vec();
-        log::info!(
-            "Using InsightFace model from INSIGHTFACE_MODEL_PATH ({} bytes)",
-            model_bytes.len()
-        );
+        // Load model bytes - try external first, fallback to embedded
+        let model_bytes = Self::load_model_bytes();
+        log::info!("Loaded InsightFace model ({} bytes)", model_bytes.len());
 
         // Create ONNX Runtime session with specified provider
         let session_builder = Session::builder()
@@ -162,9 +156,9 @@ impl InsightFaceDetector {
 
         let session = session
             .commit_from_memory(&model_bytes)
-            .expect("Failed to load ONNX model from embedded bytes");
+            .expect("Failed to load ONNX model");
 
-        log::info!("InsightFace ONNX model loaded successfully from embedded bytes");
+        log::info!("InsightFace ONNX model loaded successfully");
 
         Self {
             session: RwLock::new(session),
@@ -173,6 +167,26 @@ impl InsightFaceDetector {
             overlap_ratio: 0.1, // 10% overlap for sliding windows
             speed_mode,
             provider,
+        }
+    }
+
+    /// Load model bytes from external Resources/ or embedded constant
+    fn load_model_bytes() -> Vec<u8> {
+        // With ext_res: load from Resources/ directory (returns Vec<u8>)
+        #[cfg(feature = "ext_res")]
+        {
+            use crate::resources;
+            const MODEL_NAME: &str = "det_10g.onnx";
+            resources::load_model(MODEL_NAME)
+                .unwrap_or_else(|| panic!("Failed to load InsightFace model: {}", MODEL_NAME))
+        }
+
+        // Without ext_res: use embedded constant (more efficient)
+        #[cfg(not(feature = "ext_res"))]
+        {
+            // Static constant for embedded model
+            static MODEL_BYTES: &[u8] = include_bytes!(env!("INSIGHTFACE_MODEL_PATH"));
+            MODEL_BYTES.to_vec()
         }
     }
 

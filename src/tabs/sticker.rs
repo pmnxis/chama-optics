@@ -77,7 +77,7 @@ impl ChamaOptics {
                         ui.end_row();
 
                         // Mosaic and Stroke settings (merged into Sticker settings)
-                        ui.heading(t!("effects.mosaic_and_stroke.mosaic_and_stroke_settings"));
+                        ui.heading(t!("effects.mosaic_and_stroke.title"));
                         ui.end_row();
 
                         // Mosaic block size
@@ -99,7 +99,9 @@ impl ChamaOptics {
                         // Border thickness
                         ui.label(t!("effects.mosaic_and_stroke.stroke_border_thickness"));
                         ui.add(egui::Slider::new(&mut self.stroke_thickness, 1..=20))
-                            .on_hover_text("Thickness of stroke border in pixels");
+                            .on_hover_text(t!(
+                                "effects.mosaic_and_stroke.stroke_border_thickness_hint"
+                            ));
                         ui.end_row();
                     });
                 ui.add_space(5.0);
