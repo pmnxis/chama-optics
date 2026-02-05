@@ -414,8 +414,9 @@ pub struct VariableTextSlotDefault {
 #[cfg(feature = "ios_integration")]
 pub const FONT_FILE_BARLOW: &str = "Barlow-Variable-Remapped.ttf";
 
+// Re-export from theme module for consistency
 #[cfg(feature = "ios_integration")]
-pub const FONT_FILE_DIGITAL7: &str = "digital-7.ttf";
+pub(crate) use crate::theme::DEFAULT_DIGITAL7_FONT_FILE as FONT_FILE_DIGITAL7;
 
 // Desktop implementation
 #[cfg(not(feature = "ios_integration"))]

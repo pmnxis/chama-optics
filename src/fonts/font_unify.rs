@@ -120,8 +120,18 @@ pub enum BuiltinFontIndex {
     Digital7Italic,
 }
 
+// Embedded fonts version (no ext_res)
+#[cfg(not(feature = "ext_res"))]
 pub struct FontsUnify {
     pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFonts; 4],
+    pub(self) system_fonts: Arc<RwLock<Vec<SystemFont>>>,
+}
+
+// External resources version (ext_res enabled)
+// Fonts are loaded at runtime from Resources directory
+#[cfg(feature = "ext_res")]
+pub struct FontsUnify {
+    pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFontsExt; 4],
     pub(self) system_fonts: Arc<RwLock<Vec<SystemFont>>>,
 }
 
@@ -164,6 +174,29 @@ impl FontsUnify {
             ],
             system_fonts,
         }
+    }
+
+    /// Load builtin font data - for embedded fonts returns slice, for ext_res loads from file
+    #[cfg(not(feature = "ext_res"))]
+    fn load_builtin_font(&'static self, index: usize) -> Result<FontArc, FontError> {
+        let font = self
+            .builtin_fonts
+            .get(index)
+            .ok_or(FontError::InvalidIndex(index))?;
+        FontArc::try_from_slice(font.data)
+            .map_err(|_| FontError::FailedToGet(font.name.to_string()))
+    }
+
+    /// Load builtin font data - for ext_res loads from Resources directory
+    #[cfg(feature = "ext_res")]
+    fn load_builtin_font(&'static self, index: usize) -> Result<FontArc, FontError> {
+        let font = self
+            .builtin_fonts
+            .get(index)
+            .ok_or(FontError::InvalidIndex(index))?;
+        let data = crate::resources::load_font(font.filename)
+            .ok_or_else(|| FontError::FileNotFound(font.filename.to_string()))?;
+        FontArc::try_from_vec(data).map_err(|_| FontError::FailedToLoad(font.filename.to_string()))
     }
 
     pub fn builtin_select(&'static self, index: BuiltinFontIndex) -> FontSelection {
@@ -216,8 +249,7 @@ impl FontsUnify {
                     index,
                     path: None,
                 },
-                font: FontArc::try_from_slice(self.builtin_fonts[index].data)
-                    .map_err(|_| FontError::FailedToGet(name.clone()))?,
+                font: self.load_builtin_font(index)?,
             });
         }
 
@@ -274,8 +306,7 @@ impl FontsUnify {
                     index,
                     path: None,
                 },
-                font: FontArc::try_from_slice(self.builtin_fonts[index].data)
-                    .map_err(|_| FontError::FailedToGet(name.clone()))?,
+                font: self.load_builtin_font(index)?,
             });
         }
 
@@ -334,14 +365,7 @@ impl FontsUnify {
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         let prev_idx = select.select.index;
         match select.select.sort {
-            FontSort::Builtin => {
-                let font = self
-                    .builtin_fonts
-                    .get(prev_idx)
-                    .ok_or(FontError::InvalidIndex(prev_idx))?;
-                FontArc::try_from_slice(font.data)
-                    .map_err(|_| FontError::FailedToGet(font.name.to_string()))
-            }
+            FontSort::Builtin => self.load_builtin_font(prev_idx),
 
             FontSort::System => {
                 let sys_lock = self.system_fonts.read().unwrap();
@@ -362,12 +386,7 @@ impl FontsUnify {
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         // WASM: Only builtin fonts
         let prev_idx = select.select.index;
-        let font = self
-            .builtin_fonts
-            .get(prev_idx)
-            .ok_or(FontError::InvalidIndex(prev_idx))?;
-        FontArc::try_from_slice(font.data)
-            .map_err(|_| FontError::FailedToGet(font.name.to_string()))
+        self.load_builtin_font(prev_idx)
     }
 
     #[allow(dead_code)]

@@ -29,8 +29,8 @@ identifier = "com.github.pmnxis.chamaoptics"
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(has_logo_asset_path)',
+    'cfg(has_insightface_model)',
     'cfg(target_os)',
-    'cfg(mobile_ui)',
 ] }
 
 [features]
@@ -48,7 +48,6 @@ desktop = [
 ]
 # libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
 libheif = ["libheif-rs"]
-mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]
 # Disable logging - for Xcode Release/TestFlight builds (logging enabled by default for Debug)

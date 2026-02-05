@@ -60,7 +60,7 @@ const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
 #[cfg(feature = "ios_integration")]
-const DEFAULT_FONT_FILE: &str = "digital-7.ttf";
+use super::DEFAULT_DIGITAL7_FONT_FILE;
 
 #[cfg(not(feature = "ios_integration"))]
 impl core::default::Default for FilmGlow {
@@ -84,7 +84,7 @@ impl core::default::Default for FilmGlow {
         let [r, g, b, a] = FILM_COLOR.data();
         let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
-            font_file: DEFAULT_FONT_FILE.to_string(),
+            font_file: DEFAULT_DIGITAL7_FONT_FILE.to_string(),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE,

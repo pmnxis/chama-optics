@@ -17,7 +17,7 @@ use rust_i18n::t;
 #[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmDate {
     pub font: crate::FontSelection,
-    pub font_date: crate::FontSelection,
+    pub font_italic: crate::FontSelection,
 
     #[param(color, label_key = "theme.font_color", default = "rgb(255, 138, 0)")]
     pub font_color: egui::Color32,
@@ -52,7 +52,7 @@ pub struct FilmDate {
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct FilmDate {
     pub font_file: String,
-    pub font_date_file: String,
+    pub font_italic_file: String,
     pub font_color: egui::Color32,
     pub glow_color: egui::Color32,
     pub font_size: u32,
@@ -66,9 +66,7 @@ const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
 #[cfg(feature = "ios_integration")]
-const DEFAULT_FONT_FILE: &str = "digital-7.ttf";
-#[cfg(feature = "ios_integration")]
-const DEFAULT_FONT_DATE_FILE: &str = "digital-7-italic.ttf";
+use super::{DEFAULT_DIGITAL7_FONT_FILE, DEFAULT_DIGITAL7_ITALIC_FILE};
 
 #[cfg(not(feature = "ios_integration"))]
 impl core::default::Default for FilmDate {
@@ -77,7 +75,7 @@ impl core::default::Default for FilmDate {
         let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
             font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7),
-            font_date: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7Italic),
+            font_italic: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7Italic),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE,
@@ -94,8 +92,8 @@ impl core::default::Default for FilmDate {
         let [r, g, b, a] = FILM_COLOR.data();
         let [gr, gg, gb, ga] = FILM_COLOR_GLOW.data();
         Self {
-            font_file: DEFAULT_FONT_FILE.to_string(),
-            font_date_file: DEFAULT_FONT_DATE_FILE.to_string(),
+            font_file: DEFAULT_DIGITAL7_FONT_FILE.to_string(),
+            font_italic_file: DEFAULT_DIGITAL7_ITALIC_FILE.to_string(),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             glow_color: egui::Color32::from_rgba_unmultiplied_const(gr, gg, gb, ga),
             font_size: DEFAULT_FONT_SIZE,
@@ -198,11 +196,11 @@ impl Theme for FilmDate {
         #[cfg(not(feature = "ios_integration"))]
         let font = crate::FONTS_UNIFY.search(&self.font)?;
         #[cfg(not(feature = "ios_integration"))]
-        let font_date = crate::FONTS_UNIFY.search(&self.font_date)?;
+        let font_italic = crate::FONTS_UNIFY.search(&self.font_italic)?;
         #[cfg(feature = "ios_integration")]
         let font = Self::load_font(&self.font_file)?;
         #[cfg(feature = "ios_integration")]
-        let font_date = Self::load_font(&self.font_date_file)?;
+        let font_italic = Self::load_font(&self.font_italic_file)?;
 
         #[rustfmt::skip]
         macro_rules! draw {
@@ -259,11 +257,11 @@ impl Theme for FilmDate {
         let y: f32 = base_y as f32;
 
         let (datetime_w, _) =
-            crate::theme::text_dimensions_with_fallback(datetime_scale, &font_date, 400, &date);
+            crate::theme::text_dimensions_with_fallback(datetime_scale, &font_italic, 400, &date);
 
         let x_right = dyn_w as f32 - margin as f32;
         let x_datetime = (x_right - datetime_w).round() as i32;
-        draw!(x_datetime, y, &font_date, datetime_scale, &date);
+        draw!(x_datetime, y, &font_italic, datetime_scale, &date);
 
         let rgba_image = dyn_image
             .as_mut_rgba8()
@@ -322,7 +320,7 @@ impl Theme for FilmDate {
 
             self.font.update_ui_with_default_label(ui);
 
-            self.font_date
+            self.font_italic
                 .update_ui_with_label(ui, t!("theme.date_config.date_font_select"));
         });
     }

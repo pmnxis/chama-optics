@@ -5,10 +5,9 @@
  */
 
 use libheif_rs::{Channel, ColorSpace, HeifContext, LibHeif, RgbChroma};
-use std::path::PathBuf;
+use std::path::Path;
 
-#[allow(clippy::ptr_arg)]
-pub(crate) fn load_heif(path: &PathBuf) -> Result<image::DynamicImage, Box<dyn std::error::Error>> {
+pub(crate) fn load_heif(path: &Path) -> Result<image::DynamicImage, Box<dyn std::error::Error>> {
     let lib = LibHeif::new();
 
     let ctx = HeifContext::read_from_file(path.to_str().expect("Invalid path"))?;

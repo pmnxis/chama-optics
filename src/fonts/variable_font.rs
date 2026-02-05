@@ -52,7 +52,9 @@ impl VariableFontPack {
 
 // Variable fonts only loaded for desktop/web builds
 // iOS loads fonts from app bundle via FFI, not from embedded data
-#[cfg(not(feature = "ios_integration"))]
+
+// ===== EMBEDDED VERSION (no ext_res) =====
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
 lazy_static::lazy_static! {
     static ref BARLOW: VariableFontPack = VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
@@ -78,6 +80,64 @@ lazy_static::lazy_static! {
         label: crate::fonts::FONT_SHSANS.name,
         font: ab_glyph::FontRef::try_from_slice(
         crate::fonts::FONT_SHSANS.data).expect("Failed to load Source Han Sans variable font"),
+        default: 300,
+        start: 200,
+        end_include: 800,
+    };
+
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 3] = [
+        &*BARLOW,
+        &*BARLOW_NARROW,
+        &*SOURCE_HAN_SANS,
+    ];
+}
+
+// ===== EXTERNAL RESOURCES VERSION (ext_res enabled) =====
+// Fonts are loaded at runtime from Resources directory
+// Uses leaked Box to create 'static lifetime for FontRef
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+lazy_static::lazy_static! {
+    // Load and leak font data to get 'static lifetime
+    static ref BARLOW_DATA: &'static [u8] = {
+        let data = crate::resources::load_font(crate::fonts::FONT_BARLOW.filename)
+            .expect("Failed to load Barlow font from Resources");
+        Box::leak(data.into_boxed_slice())
+    };
+
+    static ref BARLOW_NARROW_DATA: &'static [u8] = {
+        let data = crate::resources::load_font(crate::fonts::FONT_BARLOW_NARROW.filename)
+            .expect("Failed to load Barlow Narrow font from Resources");
+        Box::leak(data.into_boxed_slice())
+    };
+
+    static ref SOURCE_HAN_SANS_DATA: &'static [u8] = {
+        let data = crate::resources::load_font(crate::fonts::FONT_SHSANS.filename)
+            .expect("Failed to load Source Han Sans font from Resources");
+        Box::leak(data.into_boxed_slice())
+    };
+
+    static ref BARLOW: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_BARLOW.name,
+        font: ab_glyph::FontRef::try_from_slice(&BARLOW_DATA)
+            .expect("Failed to parse Barlow variable font"),
+        default: 300,
+        start: 100,
+        end_include: 900,
+    };
+
+    static ref BARLOW_NARROW: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_BARLOW_NARROW.name,
+        font: ab_glyph::FontRef::try_from_slice(&BARLOW_NARROW_DATA)
+            .expect("Failed to parse Barlow narrow variable font"),
+        default: 400,
+        start: 100,
+        end_include: 900,
+    };
+
+    static ref SOURCE_HAN_SANS: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_SHSANS.name,
+        font: ab_glyph::FontRef::try_from_slice(&SOURCE_HAN_SANS_DATA)
+            .expect("Failed to parse Source Han Sans variable font"),
         default: 300,
         start: 200,
         end_include: 800,

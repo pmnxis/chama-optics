@@ -9,7 +9,23 @@
 //! When `ext_res` feature is enabled, loads from Resources/ directory
 //! Otherwise, uses embedded resources (include_bytes!)
 
+#[cfg(feature = "ext_res")]
 use std::path::PathBuf;
+
+// Embedded font data (const statics - compiled into binary when ext_res is disabled)
+#[cfg(not(feature = "ext_res"))]
+const FONT_D2CODING: &[u8] = include_bytes!("../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc");
+#[cfg(not(feature = "ext_res"))]
+const FONT_SOURCE_HAN_SANS: &[u8] = include_bytes!("../assets/fonts/SourceHanSansVF-remapped.otf");
+#[cfg(not(feature = "ext_res"))]
+const FONT_BARLOW: &[u8] = include_bytes!("../assets/fonts/Barlow-Variable-Remapped.ttf");
+#[cfg(not(feature = "ext_res"))]
+const FONT_BARLOW_NARROW: &[u8] =
+    include_bytes!("../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf");
+
+// Embedded model data (const static - compiled into binary when ext_res is disabled)
+#[cfg(all(not(feature = "ext_res"), has_insightface_model))]
+const MODEL_INSIGHTFACE: &[u8] = include_bytes!(env!("INSIGHTFACE_MODEL_PATH"));
 
 /// Get the Resources directory path for the current platform
 /// Searches multiple locations to support both bundled apps and cargo run
@@ -95,6 +111,7 @@ fn get_resources_dir() -> Option<PathBuf> {
 }
 
 /// Load a font file by name
+#[allow(dead_code)]
 pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
     #[cfg(feature = "ext_res")]
     {
@@ -125,21 +142,13 @@ pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
 
     #[cfg(not(feature = "ext_res"))]
     {
-        // Use embedded fonts (include_bytes!)
+        // Use embedded fonts (const statics)
         log::debug!("Loading embedded font: {}", font_name);
         match font_name {
-            "D2Coding-Ver1.3.2-20180524-all.ttc" => {
-                Some(include_bytes!("../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc").to_vec())
-            }
-            "SourceHanSansVF-remapped.otf" => {
-                Some(include_bytes!("../assets/fonts/SourceHanSansVF-remapped.otf").to_vec())
-            }
-            "Barlow-Variable-Remapped.ttf" => {
-                Some(include_bytes!("../assets/fonts/Barlow-Variable-Remapped.ttf").to_vec())
-            }
-            "Barlow-Variable-Remapped-Narrow.ttf" => {
-                Some(include_bytes!("../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf").to_vec())
-            }
+            "D2Coding-Ver1.3.2-20180524-all.ttc" => Some(FONT_D2CODING.to_vec()),
+            "SourceHanSansVF-remapped.otf" => Some(FONT_SOURCE_HAN_SANS.to_vec()),
+            "Barlow-Variable-Remapped.ttf" => Some(FONT_BARLOW.to_vec()),
+            "Barlow-Variable-Remapped-Narrow.ttf" => Some(FONT_BARLOW_NARROW.to_vec()),
             _ => {
                 log::warn!("Unknown embedded font: {}", font_name);
                 None
@@ -149,6 +158,7 @@ pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
 }
 
 /// Load a model file by name
+#[allow(dead_code)]
 pub fn load_model(model_name: &str) -> Option<Vec<u8>> {
     #[cfg(feature = "ext_res")]
     {
@@ -182,12 +192,11 @@ pub fn load_model(model_name: &str) -> Option<Vec<u8>> {
 
     #[cfg(not(feature = "ext_res"))]
     {
-        // Use embedded model (include_bytes!)
+        // Use embedded model (const static)
         log::debug!("Loading embedded model: {}", model_name);
         match model_name {
-            "det_10g.onnx" if option_env!("INSIGHTFACE_MODEL_PATH").is_some() => {
-                Some(include_bytes!(env!("INSIGHTFACE_MODEL_PATH")).to_vec())
-            }
+            #[cfg(has_insightface_model)]
+            "det_10g.onnx" => Some(MODEL_INSIGHTFACE.to_vec()),
             _ => {
                 log::warn!("Unknown embedded model: {}", model_name);
                 None
@@ -197,6 +206,7 @@ pub fn load_model(model_name: &str) -> Option<Vec<u8>> {
 }
 
 /// Load a logo/SVG file by name
+#[allow(dead_code)]
 pub fn load_logo(logo_name: &str) -> Option<Vec<u8>> {
     #[cfg(feature = "ext_res")]
     {
@@ -236,6 +246,7 @@ pub fn load_logo(logo_name: &str) -> Option<Vec<u8>> {
 }
 
 /// List available fonts
+#[allow(dead_code)]
 pub fn list_available_fonts() -> Vec<String> {
     let mut fonts = Vec::new();
 

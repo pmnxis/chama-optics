@@ -13,55 +13,98 @@ pub(crate) mod builtin_fonts;
 pub(crate) mod font_unify;
 pub(crate) mod variable_font;
 
-#[cfg(not(feature = "ios_integration"))]
+// Font definitions - data loaded based on feature flags
+// iOS loads fonts from app bundle via file paths passed through FFI
+// ext_res: Load from Resources/Fonts/ directory at runtime
+// Default (no ext_res): Embed in binary using include_bytes!()
+//
+// Note: These constants are used by font_unify.rs for the builtin font system
+
+// ===== EMBEDDED FONTS (when ext_res is NOT enabled) =====
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
 pub struct BuiltInFonts {
     pub name: &'static str,
     pub data: &'static [u8],
-    // For iOS, data field is not included - fonts loaded from app bundle via FFI
 }
 
-// Font definitions - data loaded based on feature flags
-// iOS loads fonts from app bundle via file paths passed through FFI
-// ext_res: Load from Resources/Fonts/ directory (for egui fonts)
-// Default (no ext_res): Embed in binary using include_bytes!() (for egui fonts)
-//
-// Note: These constants are used by font_unify.rs for the builtin font system
-// They are always embedded for non-iOS builds to support ab_glyph font rendering
-
-#[cfg(not(feature = "ios_integration"))]
-const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
     data: include_bytes!("../../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc"),
 };
 
-#[cfg(not(feature = "ios_integration"))]
-const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
     name: "Source Han Sans",
     data: include_bytes!("../../assets/fonts/SourceHanSansVF-remapped.otf"),
 };
 
-#[cfg(not(feature = "ios_integration"))]
-const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
     name: "Barlow",
     data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped.ttf"),
 };
 
-#[cfg(not(feature = "ios_integration"))]
-const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
     name: "Barlow Narrow",
     data: include_bytes!("../../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf"),
 };
 
-#[cfg(not(feature = "ios_integration"))]
-const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
     name: "Digital 7",
     data: include_bytes!(env!("DIGITAL_7_FONT_PATH")),
 };
 
-#[cfg(not(feature = "ios_integration"))]
-const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
+#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     name: "Digital 7 Italic",
     data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
+};
+
+// ===== EXTERNAL FONTS (when ext_res IS enabled) =====
+// Fonts are loaded at runtime from Resources/Fonts/ directory
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub struct BuiltInFontsExt {
+    pub name: &'static str,
+    pub filename: &'static str,
+}
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_D2CODING: BuiltInFontsExt = BuiltInFontsExt {
+    name: "D2Coding-Nerd",
+    filename: "D2Coding-Ver1.3.2-20180524-all.ttc",
+};
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_SHSANS: BuiltInFontsExt = BuiltInFontsExt {
+    name: "Source Han Sans",
+    filename: "SourceHanSansVF-remapped.otf",
+};
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_BARLOW: BuiltInFontsExt = BuiltInFontsExt {
+    name: "Barlow",
+    filename: "Barlow-Variable-Remapped.ttf",
+};
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_BARLOW_NARROW: BuiltInFontsExt = BuiltInFontsExt {
+    name: "Barlow Narrow",
+    filename: "Barlow-Variable-Remapped-Narrow.ttf",
+};
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_DIGITAL_7: BuiltInFontsExt = BuiltInFontsExt {
+    name: "Digital 7",
+    filename: "digital-7.ttf",
+};
+
+#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFontsExt = BuiltInFontsExt {
+    name: "Digital 7 Italic",
+    filename: "digital-7-italic.ttf",
 };
 
 #[cfg(not(feature = "ios_integration"))]

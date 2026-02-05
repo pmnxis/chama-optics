@@ -59,10 +59,6 @@ mod util;
 // Theme module - needed by iOS FFI
 pub mod theme;
 
-// Mobile UI optimizations (GUI-only)
-#[cfg(not(feature = "ios_integration"))]
-pub mod mobile;
-
 // Headless core library (no GUI dependencies)
 pub mod core;
 

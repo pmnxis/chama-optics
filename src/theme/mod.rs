@@ -25,6 +25,12 @@ pub(crate) mod two_line;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
+// Common font file constants for iOS (digital-7 font family)
+#[cfg(feature = "ios_integration")]
+pub(crate) const DEFAULT_DIGITAL7_FONT_FILE: &str = "digital-7.ttf";
+#[cfg(feature = "ios_integration")]
+pub(crate) const DEFAULT_DIGITAL7_ITALIC_FILE: &str = "digital-7-italic.ttf";
+
 pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
     let [r, g, b, a] = color.to_array();
     image::Rgba([r, g, b, a])

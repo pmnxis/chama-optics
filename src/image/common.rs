@@ -198,7 +198,7 @@ pub(crate) fn __load_image(
 }
 
 pub(crate) fn __load_image_from_vec(
-    path: &std::path::PathBuf, // just hint
+    path: &std::path::Path, // just hint
     v: std::vec::Vec<u8>,
 ) -> Result<(image::DynamicImage, bool), image::ImageError> {
     let img_format = path

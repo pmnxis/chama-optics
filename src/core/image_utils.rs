@@ -55,7 +55,7 @@ pub fn resize_image(
 /// Load an image from path
 /// Returns (DynamicImage, needs_orientation_applied)
 pub fn load_image(
-    path: &std::path::PathBuf,
+    path: &std::path::Path,
     buf_reader: &mut std::io::BufReader<std::fs::File>,
 ) -> Result<(image::DynamicImage, bool), image::ImageError> {
     let img_format = path

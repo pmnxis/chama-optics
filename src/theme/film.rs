@@ -45,7 +45,7 @@ pub struct Film {
 const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 153, 0, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 #[cfg(feature = "ios_integration")]
-const DEFAULT_FONT_FILE: &str = "digital-7.ttf";
+use super::DEFAULT_DIGITAL7_FONT_FILE;
 
 #[cfg(not(feature = "ios_integration"))]
 impl core::default::Default for Film {
@@ -69,7 +69,7 @@ impl core::default::Default for Film {
         let [r, g, b, a] = FILM_COLOR.data();
 
         Self {
-            font_file: DEFAULT_FONT_FILE.to_string(),
+            font_file: DEFAULT_DIGITAL7_FONT_FILE.to_string(),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             font_size: DEFAULT_FONT_SIZE,
             show_ps: false,
