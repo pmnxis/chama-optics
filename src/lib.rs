@@ -74,6 +74,10 @@ pub mod ffi;
 #[cfg(feature = "ios_integration")]
 pub mod ffi_metal;
 
+// Apple native HEIF decoder (iOS mandatory, macOS optional)
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+pub mod ffi_apple_heif;
+
 // Metal renderer for iOS/macOS egui integration
 #[cfg(all(
     feature = "metal_rendering",

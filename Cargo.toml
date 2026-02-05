@@ -41,12 +41,13 @@ desktop = [
     "rfd",
     "egui-file-dialog",
     "sys-locale",
-    "libheif-rs",
     "font-kit",
     # Note: ext_res removed from default
     # macOS: Use --features "desktop,ext_res" (recommended for notarization)
     # Windows/Linux: Use default (fonts/models embedded in binary)
 ]
+# libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
+libheif = ["libheif-rs"]
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]

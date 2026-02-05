@@ -16,11 +16,11 @@ inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.c
 
 It analyzes the EXIF data embedded in photos along with the user’s settings to resize, compress, and tag images before saving them, while also offering additional convenient features.
 
-This program is developed in [Rust](https://rust-lang.org/) using the [eframe](https://github.com/emilk/egui/tree/master/crates/eframe)/[egui](https://github.com/emilk/egui/) framework, along with libraries such as libheif and exif-rs.
+This program is developed in [Rust](https://rust-lang.org/) using the [eframe](https://github.com/emilk/egui/tree/master/crates/eframe)/[egui](https://github.com/emilk/egui/) framework, along with libraries such as exif-rs.
 
 ## Current Status
 - [x] Read JPEG/PNG and other common formats
-- [x] Read HEIF photos (libheif)
+- [x] Read HEIF photos (native Apple ImageIO on macOS/iOS, libheif on Windows/Linux)
 - [x] Read EXIF data (supports up to 2.3.x standard; not yet compliant with 3.0)
 - [x] Save photos with selected frames and settings
 - [x] Themes from genally use in another case
@@ -54,8 +54,8 @@ cargo run --release --features face_detection_insightface
 2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/) with "C++ build tools"
 3. (Optional) Install vcpkg for HEIF support
 
-#### Using vcpkg for HEIF support (Optional)
-For HEIF/HEIC image support, you need libheif. The easiest way on Windows is using vcpkg:
+#### Using vcpkg for HEIF support (Required for HEIC/HEIF images)
+For HEIF/HEIC image support on Windows, you need libheif via vcpkg:
 
 ```bat
 git clone https://github.com/microsoft/vcpkg.git
@@ -66,6 +66,8 @@ vcpkg install libheif:x64-windows-static-md
 vcpkg install libheif:x64-windows-static
 cd ..
 ```
+
+> **Note:** Build with `--features libheif` to enable HEIF support on Windows.
 
 #### Building
 Use the provided build script:
@@ -109,7 +111,8 @@ cargo bundle --release
 
 ### macOS
 ```sh
-brew install pkgconf libheif
+# Note: libheif is NOT needed on macOS - native Apple ImageIO is used for HEIF support
+brew install nasm  # Required for mozjpeg JPEG encoding
 cargo run --release
 # When make *.app
 ./build_mac.sh
@@ -131,7 +134,7 @@ open -n "Chama Optics.app"
 sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
     libxkbcommon-dev libssl-dev pkg-config fontconfig
 
-# Optional: HEIF support
+# HEIF support (required for HEIC/HEIF images on Linux)
 sudo apt-get install libheif-dev libde265-dev x265
 
 # Optional: Build libheif from source (if needed)
@@ -143,7 +146,7 @@ source ./build_deps_debian.sh
 sudo dnf install clang clang-devel clang-tools-extra libxkbcommon-devel \
     pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel
 
-# Optional: HEIF support
+# HEIF support (required for HEIC/HEIF images on Linux)
 sudo dnf install libheif-devel libde265-devel x265-devel
 ```
 
@@ -151,6 +154,9 @@ sudo dnf install libheif-devel libde265-devel x265-devel
 ```bash
 sudo pacman -S base-devel pkg-config fontconfig libheif
 ```
+
+> **Note:** On Linux/Windows, use `--features libheif` to enable HEIF support.
+> On macOS/iOS, native Apple ImageIO is used instead (no libheif needed).
 
 #### Building
 Use the provided build script:
@@ -183,7 +189,7 @@ cargo bundle --release
 - ✅ Full GUI support
 - ✅ File dialogs
 - ✅ System fonts
-- ✅ HEIF/HEIC support (with libheif)
+- ✅ HEIF/HEIC support (with `--features libheif`)
 - ✅ Wayland and X11 support
 - ⚠️ Face detection: Not tested
 

@@ -75,8 +75,8 @@ pub fn load_image(
             match heic_suppose_or_err {
                 image::ImageError::Unsupported(unsp_e) => {
                     if img_format.is_none() {
-                        // Try HEIC loader if available
-                        #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+                        // Try HEIC loader if available (libheif on Windows/Linux)
+                        #[cfg(feature = "libheif")]
                         {
                             crate::image::heic::load_heif(path)
                                 .map(|img| (img, false))
@@ -93,7 +93,7 @@ pub fn load_image(
                                     )
                                 })
                         }
-                        #[cfg(any(not(feature = "desktop"), feature = "ios_integration"))]
+                        #[cfg(not(feature = "libheif"))]
                         {
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
