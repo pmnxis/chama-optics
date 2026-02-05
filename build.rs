@@ -163,6 +163,14 @@ fn main() {
     let now = chrono::Utc::now().to_rfc3339();
     println!("cargo:rustc-env=BUILD_TIME={now}");
 
+    // Link Apple frameworks for HEIF support (iOS/macOS)
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        println!("cargo:rustc-link-lib=framework=ImageIO");
+        println!("cargo:rustc-link-lib=framework=CoreGraphics");
+        println!("cargo:rustc-link-lib=framework=CoreFoundation");
+    }
+
     // Generate swift-bridge code for Metal rendering (iOS/macOS only)
     // Skip this on Windows and Linux
     #[cfg(all(

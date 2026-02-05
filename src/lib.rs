@@ -65,13 +65,21 @@ pub mod mobile;
 // Headless core library (no GUI dependencies)
 pub mod core;
 
-// FFI for iOS/macOS Swift integration
-#[cfg(any(target_os = "ios", feature = "ios_integration"))]
-pub mod ffi;
+// Legacy FFI - DEPRECATED (functions moved to ffi_ios and ffi_apple)
+// #[cfg(any(target_os = "ios", feature = "ios_integration"))]
+// pub mod ffi;
 
-// Metal FFI for iOS Swift integration (full theme support)
+// iOS FFI for Swift integration (full theme support with Metal rendering)
 #[cfg(feature = "ios_integration")]
-pub mod ffi_metal;
+pub mod ffi_ios;
+
+// Apple FFI for both iOS and macOS (shared platform-agnostic functions)
+#[cfg(any(target_os = "ios", target_os = "macos", feature = "ios_integration"))]
+pub mod ffi_apple;
+
+// Apple native HEIF decoder (iOS mandatory, macOS optional)
+#[cfg(any(target_os = "ios", target_os = "macos"))]
+pub mod ffi_apple_heif;
 
 // Metal renderer for iOS/macOS egui integration
 #[cfg(all(

@@ -182,7 +182,7 @@ pub(crate) fn __load_image_from_vec(
         .filter(|ext| !ext.is_empty())
         .and_then(image::ImageFormat::from_extension);
 
-    let buf_reader = std::io::BufReader::new(std::io::Cursor::new(v));
+    let buf_reader = std::io::BufReader::new(std::io::Cursor::new(v.clone()));
 
     let decoder = if let Some(fmt) = img_format {
         image::ImageReader::with_format(
@@ -227,6 +227,27 @@ pub(crate) fn __load_image_from_vec(
                     }
                     #[cfg(any(not(feature = "desktop"), feature = "ios_integration"))]
                     {
+                        // Try Apple native HEIF decoder for iOS/macOS
+                        #[cfg(any(target_os = "ios", target_os = "macos"))]
+                        {
+                            if crate::ffi_apple_heif::is_heif_format(path) {
+                                log::info!("📦 Detected HEIF format in bytes, using Apple native decoder");
+                                return crate::ffi_apple_heif::decode_heif_from_data(&v)
+                                    .map(|img| (img, false))
+                                    .map_err(|e| {
+                                        image::error::ImageError::Unsupported(
+                                            image::error::UnsupportedError::from_format_and_kind(
+                                                image::error::ImageFormatHint::PathExtension(
+                                                    path.to_path_buf(),
+                                                ),
+                                                image::error::UnsupportedErrorKind::GenericFeature(
+                                                    format!("Apple HEIF decoder error: {}", e),
+                                                ),
+                                            ),
+                                        )
+                                    });
+                            }
+                        }
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
                 }

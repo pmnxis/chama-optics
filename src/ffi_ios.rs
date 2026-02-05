@@ -1,7 +1,7 @@
 /*
  * SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
  *
- * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
+ * SPDX-License-Identifier: MIT
  */
 
 //! FFI interface for Metal-based iOS/macOS integration
@@ -14,7 +14,7 @@
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Internal Error Types
@@ -46,6 +46,32 @@ impl std::fmt::Display for PreviewError {
 }
 
 impl std::error::Error for PreviewError {}
+
+// ============================================================================
+// Image Loading with HEIF Support
+// ============================================================================
+
+/// Load image with Apple native HEIF support on iOS/macOS
+/// Falls back to standard image::open for non-HEIF formats
+fn load_image_with_heif_support(path: &Path) -> Result<image::DynamicImage, image::ImageError> {
+    #[cfg(any(target_os = "ios", target_os = "macos"))]
+    {
+        // Check if file is HEIF format
+        if crate::ffi_apple_heif::is_heif_format(path) {
+            log::info!("Detected HEIF format, using Apple native decoder");
+            return crate::ffi_apple_heif::decode_heif(path).map_err(|e| {
+                log::error!("Apple HEIF decoder failed: {}", e);
+                image::ImageError::Decoding(image::error::DecodingError::new(
+                    image::error::ImageFormatHint::Unknown,
+                    e,
+                ))
+            });
+        }
+    }
+
+    // For non-HEIF or non-Apple platforms, use standard decoder
+    image::open(path)
+}
 
 // ============================================================================
 // Preview Extraction
@@ -158,7 +184,7 @@ fn generate_preview_impl(
         preview
     } else {
         log::info!("⚠️ No EXIF preview, loading full image");
-        image::open(image_path).map_err(PreviewError::ImageLoad)?
+        load_image_with_heif_support(Path::new(image_path)).map_err(PreviewError::ImageLoad)?
     };
 
     // 2. Parse EXIF for metadata
@@ -268,7 +294,8 @@ fn export_final_impl_with_exif_source(
     use_35mm_focal_length: bool,
 ) -> Result<(), PreviewError> {
     // For final export, always load full resolution
-    let _dyn_image = image::open(image_path).map_err(PreviewError::ImageLoad)?;
+    let _dyn_image =
+        load_image_with_heif_support(Path::new(image_path)).map_err(PreviewError::ImageLoad)?;
 
     log::info!(
         "✅ Loaded full resolution image: {}x{}",
@@ -1061,6 +1088,154 @@ pub unsafe extern "C" fn chama_optics_apply_theme(
     unsafe { chama_generate_preview(image_path, output_path, &config) }
 }
 
+/// Apply theme to image from raw RGBA pixel data (for HEIF/HEIC support)
+///
+/// This function accepts raw RGBA pixel data decoded by Apple's native image APIs,
+/// avoiding lossy JPEG conversion and leveraging iOS/macOS native HEIF decoding.
+///
+/// # Parameters
+/// - `rgba_data`: Pointer to RGBA pixel data (4 bytes per pixel)
+/// - `width`: Image width in pixels
+/// - `height`: Image height in pixels
+/// - `data_length`: Total data length (must equal width * height * 4)
+/// - `exif_source_path`: Path to original image for EXIF extraction (can be null)
+/// - `output_path`: Path for the output file
+/// - `theme_name`: Name of the theme to apply
+/// - `params_json`: Theme parameters as JSON string
+/// - `font_path`: Path to the font file
+/// - `font_weight`: Font weight (100-900)
+///
+/// # Returns
+/// ChamaError enum (0 = Success, non-zero = error code)
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_optics_apply_theme_from_rgba(
+    rgba_data: *const u8,
+    width: u32,
+    height: u32,
+    data_length: usize,
+    _exif_source_path: *const c_char,
+    output_path: *const c_char,
+    theme_name: *const c_char,
+    params_json: *const c_char,
+    font_path: *const c_char,
+    font_weight: u32,
+) -> ChamaError {
+    // Validate inputs
+    if rgba_data.is_null() || output_path.is_null() || theme_name.is_null() {
+        log::error!("Null pointer in apply_theme_from_rgba");
+        return ChamaError::InvalidPath;
+    }
+
+    // Validate data length
+    let expected_length = (width as usize) * (height as usize) * 4;
+    if data_length != expected_length {
+        log::error!(
+            "Invalid RGBA data length: expected {}, got {}",
+            expected_length,
+            data_length
+        );
+        return ChamaError::ImageLoadError;
+    }
+
+    log::info!("Applying theme from RGBA data: {}x{}", width, height);
+
+    // Convert C strings
+    let output_path_str = unsafe {
+        match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return ChamaError::InvalidPath;
+            }
+        }
+    };
+
+    let theme_name_str = unsafe {
+        match CStr::from_ptr(theme_name).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in theme name");
+                return ChamaError::InvalidTheme;
+            }
+        }
+    };
+
+    let params_json_str = if params_json.is_null() {
+        "{}"
+    } else {
+        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
+    };
+
+    let font_path_str = if font_path.is_null() {
+        ""
+    } else {
+        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
+    };
+
+    // Convert raw RGBA data to DynamicImage
+    let rgba_slice = unsafe { std::slice::from_raw_parts(rgba_data, data_length) };
+    let rgba_vec = rgba_slice.to_vec();
+
+    let img_buffer = match image::RgbaImage::from_raw(width, height, rgba_vec) {
+        Some(buffer) => buffer,
+        None => {
+            log::error!("Failed to create RgbaImage from raw data");
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    let dynamic_img = image::DynamicImage::ImageRgba8(img_buffer);
+    log::info!("Successfully created DynamicImage from RGBA data");
+
+    // Save RGBA image to a temporary file
+    let temp_dir = std::env::temp_dir();
+    let temp_image_path = temp_dir.join(format!("chama_rgba_{}.jpg", uuid::Uuid::new_v4()));
+
+    if let Err(e) = dynamic_img.save(&temp_image_path) {
+        log::error!("Failed to save temp image: {}", e);
+        return ChamaError::ImageProcessError;
+    }
+
+    log::info!(
+        "Saved RGBA data to temp file: {}",
+        temp_image_path.display()
+    );
+
+    // Call existing preview generation logic with temp file
+    let temp_path_str = temp_image_path.to_str().unwrap_or("");
+
+    let result = match generate_preview_impl(
+        temp_path_str,
+        output_path_str,
+        theme_name_str,
+        params_json_str,
+        font_path_str,
+        font_weight,
+    ) {
+        Ok(()) => {
+            log::info!("Successfully applied theme from RGBA data");
+            ChamaError::Success
+        }
+        Err(e) => {
+            log::error!("Failed to apply theme: {}", e);
+            match e {
+                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
+                PreviewError::InvalidFont => ChamaError::InvalidFont,
+                PreviewError::InvalidParameters(_) => ChamaError::InvalidParameters,
+                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
+                PreviewError::ImageProcess(_) => ChamaError::ImageProcessError,
+                PreviewError::ExifError => ChamaError::ExifError,
+                PreviewError::IoError(_) => ChamaError::InvalidPath,
+            }
+        }
+    };
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&temp_image_path);
+
+    result
+}
+
 /// Apply theme to image with separate EXIF source
 ///
 /// This function is useful when the image has been modified (e.g., stickers applied)
@@ -1683,7 +1858,7 @@ pub unsafe extern "C" fn chama_scale_image(
 pub unsafe extern "C" fn chama_export_combined(
     image_path: *const c_char,
     output_path: *const c_char,
-    face_rects: *const crate::ffi::CFaceRect,
+    face_rects: *const CFaceRect,
     face_count: usize,
     config: *const CombinedExportConfig,
 ) -> ChamaError {
@@ -2928,6 +3103,713 @@ mod tests {
             assert!(themes[0]["label"].is_string());
 
             chama_free_string(themes_ptr);
+        }
+    }
+}
+
+// ============================================================================
+// Functions moved from ffi.rs
+// ============================================================================
+
+use crate::core::ImageProcessor;
+
+/// C-compatible face rectangle
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct CFaceRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// Array of face rectangles
+#[repr(C)]
+pub struct CFaceRectList {
+    pub faces: *mut CFaceRect,
+    pub count: usize,
+}
+
+/// Opaque pointer to ChamaOptics instance (now using headless core)
+pub struct ChamaOpticsHandle {
+    processor: ImageProcessor,
+}
+
+// Note: chama_optics_init(), chama_optics_version(), and chama_optics_free_string()
+// are now in ffi_apple.rs (shared platform-agnostic functions)
+
+/// Create a new ChamaOptics instance
+#[unsafe(no_mangle)]
+pub extern "C" fn chama_optics_create() -> *mut ChamaOpticsHandle {
+    log::info!("Creating ChamaOptics instance");
+    Box::into_raw(Box::new(ChamaOpticsHandle {
+        processor: ImageProcessor::new(),
+    }))
+}
+
+/// Destroy a ChamaOptics instance
+#[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_destroy(handle: *mut ChamaOpticsHandle) {
+    if !handle.is_null() {
+        unsafe {
+            let _ = Box::from_raw(handle);
+        }
+        log::info!("ChamaOptics instance destroyed");
+    }
+}
+
+/// Apply Mosaic effect to detected face areas
+#[cfg(feature = "ios_integration")]
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_apply_mosaic(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    mosaic_size: u32,      // Size of mosaic blocks in pixels
+    effect_intensity: f32, // 0.0 to 1.0, blend intensity
+) -> bool {
+    if handle.is_null() || image_path.is_null() || output_path.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        // Create Mosaic effect config
+        let mosaic_config = crate::effect::mosaic::MosaicEffect {
+            block_size: mosaic_size,
+            intensity: effect_intensity,
+        };
+
+        // Apply Mosaic effect - pass slice to apply() method
+        log::info!(
+            "Applying Mosaic effect: size={}, intensity={}, {} faces",
+            mosaic_size,
+            effect_intensity,
+            face_areas.len()
+        );
+
+        if let Err(e) =
+            crate::effect::mosaic::MosaicEffect::apply(&mut dyn_image, &face_areas, &mosaic_config)
+        {
+            log::error!("Failed to apply Mosaic effect: {}", e);
+            return false;
+        }
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied Mosaic effect and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
+        }
+    }
+}
+
+/// Apply Stroke effect to detected face areas
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_apply_stroke(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    stroke_color_r: u8,
+    stroke_color_g: u8,
+    stroke_color_b: u8,
+    stroke_color_a: u8,
+    stroke_thickness: u32,
+) -> bool {
+    if handle.is_null() || image_path.is_null() || output_path.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        // Create Stroke effect config
+        let stroke_config = crate::effect::stroke::StrokeEffect {
+            thickness: stroke_thickness,
+            color: (
+                stroke_color_r,
+                stroke_color_g,
+                stroke_color_b,
+                stroke_color_a,
+            ),
+        };
+
+        // Apply Stroke effect - pass slice to apply() method
+        log::info!(
+            "Applying Stroke effect: thickness=({}, {}, {}, {}, {}), {} faces",
+            stroke_thickness,
+            stroke_color_r,
+            stroke_color_g,
+            stroke_color_b,
+            stroke_color_a,
+            face_areas.len()
+        );
+
+        if let Err(e) =
+            crate::effect::stroke::StrokeEffect::apply(&mut dyn_image, &face_areas, &stroke_config)
+        {
+            log::error!("Failed to apply Stroke effect: {}", e);
+            return false;
+        }
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied Stroke effect and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
+        }
+    }
+}
+
+/// Apply Sticker to detected face areas using built-in sticker ID
+/// For custom image stickers, use chama_optics_apply_sticker_from_path instead
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[cfg(target_os = "ios")]
+pub extern "C" fn chama_optics_apply_sticker(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    sticker_id: *const c_char, // ID of sticker to apply
+    sticker_scale: f32,        // Scale factor for sticker
+    sticker_offset_x: i32,     // X offset from face center
+    sticker_offset_y: i32,     // Y offset from face center
+) -> bool {
+    if handle.is_null() || image_path.is_null() || output_path.is_null() || sticker_id.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let sticker_str = match CStr::from_ptr(sticker_id).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in sticker ID");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        log::info!(
+            "Applying Sticker: id={}, scale={}, offset=({}, {}), {} faces",
+            sticker_str,
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+            face_areas.len()
+        );
+
+        // Apply sticker effect with built-in sticker
+        let config = crate::effect::sticker::StickerConfig::with_builtin(
+            sticker_str.to_string(),
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+        );
+
+        dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied Sticker effect and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
+        }
+    }
+}
+
+/// Apply Sticker to detected face areas using a custom image path
+/// This is the preferred method for iOS which loads sticker images from file paths
+#[unsafe(no_mangle)]
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+#[cfg(target_os = "ios")]
+pub extern "C" fn chama_optics_apply_sticker_from_path(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    sticker_image_path: *const c_char, // Path to sticker image file (PNG, JPG, etc.)
+    sticker_scale: f32,                // Scale factor for sticker
+    sticker_offset_x: i32,             // X offset from face center
+    sticker_offset_y: i32,             // Y offset from face center
+) -> bool {
+    if handle.is_null()
+        || image_path.is_null()
+        || output_path.is_null()
+        || sticker_image_path.is_null()
+    {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let sticker_path_str = match CStr::from_ptr(sticker_image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in sticker image path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        log::info!(
+            "Applying Sticker from path: {}, scale={}, offset=({}, {}), {} faces",
+            sticker_path_str,
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+            face_areas.len()
+        );
+
+        // Apply sticker effect with image path
+        let sticker_path_buf = std::path::PathBuf::from(sticker_path_str);
+        let config = crate::effect::sticker::StickerConfig::with_image_path(
+            sticker_path_buf,
+            sticker_scale,
+            sticker_offset_x,
+            sticker_offset_y,
+        );
+
+        dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied Sticker from path and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
+        }
+    }
+}
+
+// Additional iOS face detection functions
+
+/// Load an image from path
+#[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_load_image(
+    handle: *mut ChamaOpticsHandle,
+    path: *const c_char,
+) -> bool {
+    if handle.is_null() || path.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let path_str = match CStr::from_ptr(path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+        let path_buf = PathBuf::from(path_str);
+
+        match handle_ref.processor.load_image(path_buf) {
+            Ok(index) => {
+                log::info!("Successfully loaded image at index {}: {}", index, path_str);
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", path_str, e);
+                false
+            }
+        }
+    }
+}
+
+/// Detect faces in an image using VisionKit
+/// Returns a list of face rectangles
+/// The returned list must be freed with chama_optics_free_face_rect_list
+#[cfg(target_os = "ios")]
+#[unsafe(no_mangle)]
+pub extern "C" fn chama_optics_detect_faces_ios(
+    _handle: *mut ChamaOpticsHandle,
+    _image_path: *const c_char,
+) -> *mut CFaceRectList {
+    // This is a placeholder - actual implementation will be in Swift
+    // The Swift side will call VisionKit and return face rectangles
+    // For now, return empty list
+    log::info!("Face detection placeholder called on iOS");
+    let faces: Vec<CFaceRect> = vec![];
+    let mut faces = faces.into_boxed_slice();
+    let list = Box::new(CFaceRectList {
+        faces: faces.as_mut_ptr(),
+        count: faces.len(),
+    });
+    std::mem::forget(faces);
+    Box::into_raw(list)
+}
+
+/// Apply face detection rectangles to an image
+/// This function takes face rectangles from VisionKit and applies them to image
+#[unsafe(no_mangle)]
+#[cfg(target_os = "ios")]
+pub extern "C" fn chama_optics_apply_face_detection(
+    handle: *mut ChamaOpticsHandle,
+    face_rects: *const CFaceRect,
+    face_count: usize,
+    image_path: *const c_char,
+    output_path: *const c_char,
+    engine_type: u32, // 0 = VisionKit, 3 = InsightFace
+    border_color_r: u8,
+    border_color_g: u8,
+    border_color_b: u8,
+    border_color_a: u8,
+    border_thickness: u32,
+    mask_faces: bool,
+    _mask_blur_radius: f32,
+    _speed_mode: u32, // 0 = Fastest, 1 = Fast, 2 = Normal, 3 = Slow, 4 = Slowest
+) -> bool {
+    if handle.is_null() || image_path.is_null() || output_path.is_null() {
+        return false;
+    }
+
+    unsafe {
+        let image_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return false;
+            }
+        };
+
+        let output_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => {
+                log::error!("Invalid UTF-8 in output path");
+                return false;
+            }
+        };
+
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image {}: {}", image_str, e);
+                return false;
+            }
+        };
+
+        // Collect face rectangles
+        let mut face_areas = vec![];
+        if !face_rects.is_null() && face_count > 0 {
+            for i in 0..face_count {
+                let face_rect = *face_rects.add(i);
+                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+            }
+        }
+
+        // Create FaceDetection config with engine
+        let border_color = egui::Color32::from_rgba_unmultiplied(
+            border_color_r,
+            border_color_g,
+            border_color_b,
+            border_color_a,
+        );
+
+        #[cfg(feature = "face_detection_insightface")]
+        let speed_mode = match _speed_mode {
+            0 => crate::effect::insightface_detector::SpeedMode::Fastest,
+            1 => crate::effect::insightface_detector::SpeedMode::Fast,
+            2 => crate::effect::insightface_detector::SpeedMode::Normal,
+            3 => crate::effect::insightface_detector::SpeedMode::Slow,
+            4 => crate::effect::insightface_detector::SpeedMode::Slowest,
+            _ => {
+                log::warn!("Invalid speed_mode {}, using Normal", _speed_mode);
+                crate::effect::insightface_detector::SpeedMode::Normal
+            }
+        };
+
+        let engine = match engine_type {
+            3 => {
+                #[cfg(feature = "face_detection_insightface")]
+                {
+                    crate::effect::face_detection::FaceDetectionEngine::InsightFace
+                }
+                #[cfg(not(feature = "face_detection_insightface"))]
+                {
+                    log::warn!("InsightFace requested but feature not enabled");
+                    #[cfg(feature = "face_detection_visionkit")]
+                    {
+                        crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                    }
+                    #[cfg(not(feature = "face_detection_visionkit"))]
+                    {
+                        log::error!("No face detection engine available!");
+                        return false;
+                    }
+                }
+            }
+            _ => {
+                #[cfg(feature = "face_detection_visionkit")]
+                {
+                    crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                }
+                #[cfg(not(feature = "face_detection_visionkit"))]
+                {
+                    log::warn!("VisionKit requested but feature not enabled");
+                    #[cfg(feature = "face_detection_insightface")]
+                    {
+                        crate::effect::face_detection::FaceDetectionEngine::InsightFace
+                    }
+                    #[cfg(not(feature = "face_detection_insightface"))]
+                    {
+                        log::error!("No face detection engine available!");
+                        return false;
+                    }
+                }
+            }
+        };
+
+        let face_detection = crate::effect::face_detection::FaceDetection {
+            engine,
+            border_color,
+            border_thickness,
+            mask_faces,
+            #[cfg(feature = "face_detection_insightface")]
+            speed_mode,
+            #[cfg(feature = "face_detection_insightface")]
+            provider: crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
+            recursive_detection: false,
+            recursive_min_size: 64,
+            recursive_max_depth: 4,
+            recursive_overlap: true,
+            recursive_overlap_ratio: 0.25,
+            effect_mode: crate::effect::face_detection::FaceEffectMode::None,
+            mosaic_block_size: 10,
+        };
+
+        // Apply face detection - pass owned Vec (not borrowed reference)
+        if let Err(e) = face_detection.apply(&mut dyn_image, face_areas) {
+            log::error!("Failed to apply face detection: {}", e);
+            return false;
+        }
+
+        // Save image
+        let output_path_buf = std::path::PathBuf::from(output_str);
+        match handle_ref
+            .processor
+            .save_image_direct(&dyn_image, &output_path_buf)
+        {
+            Ok(_) => {
+                log::info!(
+                    "Successfully applied face detection and saved to {}",
+                    output_str
+                );
+                true
+            }
+            Err(e) => {
+                log::error!("Failed to save image: {}", e);
+                false
+            }
         }
     }
 }

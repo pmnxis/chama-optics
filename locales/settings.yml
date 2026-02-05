@@ -421,6 +421,26 @@ settings:
     ko: "고급 사용자를 위한 제조사 노트를 포함한 상세한 EXIF 정보 표시"
     ja: "上級ユーザー向けのメーカーノートを含む詳細なEXIF情報を表示"
     id: "Tampilkan informasi EXIF terperinci termasuk catatan pembuat untuk pengguna lanjutan"
+  show_debug_messages:
+    en: "Show Debug Messages"
+    ko: "디버그 메시지 표시"
+    ja: "デバッグメッセージを表示"
+    id: "Tampilkan Pesan Debug"
+  show_debug_messages_description:
+    en: "Display detailed debug information and logs"
+    ko: "상세한 디버그 정보 및 로그 표시"
+    ja: "詳細なデバッグ情報とログを表示"
+    id: "Tampilkan informasi debug dan log terperinci"
+  debug_log:
+    en: "Debug Log"
+    ko: "디버그 로그"
+    ja: "デバッグログ"
+    id: "Log Debug"
+  debug_log_description:
+    en: "View debug logs from theme preview"
+    ko: "테마 미리보기의 디버그 로그 보기"
+    ja: "テーマプレビューのデバッグログを表示"
+    id: "Lihat log debug dari pratinjau tema"
 
   experimental:
     en: "Experimental"
@@ -437,6 +457,17 @@ settings:
     ko: "고급 사용자를 위한 제조사 노트를 포함한 상세한 EXIF 정보 표시"
     ja: "上級ユーザー向けのメーカーノートを含む詳細なEXIF情報を表示"
     id: "Tampilkan informasi EXIF terperinci termasuk catatan pembuat untuk pengguna lanjutan"
+debug_log:
+  no_logs:
+    en: "No debug logs yet"
+    ko: "디버그 로그가 아직 없습니다"
+    ja: "デバッグログはまだありません"
+    id: "Belum ada log debug"
+  hint:
+    en: "Debug logs will appear here when you apply themes"
+    ko: "테마를 적용하면 디버그 로그가 여기에 표시됩니다"
+    ja: "テーマを適用するとデバッグログがここに表示されます"
+    id: "Log debug akan muncul di sini saat Anda menerapkan tema"
 update:
   not_checked:
     en: "Release not checked"

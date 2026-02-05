@@ -47,6 +47,8 @@ desktop = [
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]
+# Disable logging - for Xcode Release/TestFlight builds (logging enabled by default for Debug)
+disable_logging = ["log/max_level_off", "log/release_max_level_off"]
 # Theme support for iOS (without egui GUI dependencies) - not currently used
 theme_ios = ["egui"]
 # Metal rendering for iOS/macOS integration
@@ -82,6 +84,7 @@ eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751af
     "wayland",
     "x11",
 ], optional = true }
+# Logging: enabled by default, disabled with disable_logging feature
 log = "0.4.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
