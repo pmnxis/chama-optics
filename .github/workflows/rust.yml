@@ -22,10 +22,6 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: '0'
-    - name: Install libheif dependencies (macOS)
-      run: |
-        brew update
-        brew install libheif pkg-config
     - name: Install kokai
       run: cargo install kokai
     - name: Make changelog
@@ -54,10 +50,6 @@ jobs:
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
           restore-keys: |
             logo-assets-
-      - name: Install libheif dependencies (macOS)
-        run: |
-          brew update
-          brew install libheif pkg-config
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -68,7 +60,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --all-features
+          args: --features desktop,face_detection_insightface
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@master
       - name: Save logo assets cache
@@ -91,10 +83,6 @@ jobs:
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
           restore-keys: |
             logo-assets-
-      - name: Install libheif dependencies (macOS)
-        run: |
-          brew update
-          brew install libheif pkg-config
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -105,7 +93,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --lib
+          args: --lib --features desktop
       - name: Save logo assets cache
         if: always() && steps.cache-logo-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -164,10 +152,6 @@ jobs:
           key: logo-assets-${{ hashFiles('assets/logo_mnf.csv') }}-complete
           restore-keys: |
             logo-assets-
-      - name: Install libheif dependencies (macOS)
-        run: |
-          brew update
-          brew install libheif pkg-config
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -179,7 +163,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --features desktop,face_detection_insightface -- -D warnings
       - name: Save logo assets cache
         if: always() && steps.cache-logo-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -236,13 +220,7 @@ jobs:
       run: cargo install universal2
       if: matrix.os == 'macos-15'
 
-    - name: Install libheif dependencies (macOS)
-      if: matrix.os == 'macos-15'
-      run: |
-        brew update
-        brew install libheif x265 libde265 pkg-config
-
-    # windows
+    # windows - libheif is still needed (no native HEIF support)
     - name: Install libheif dependencies (Windows)
       if: matrix.os == 'windows-2022'
       shell: pwsh
@@ -251,12 +229,23 @@ jobs:
         vcpkg install libheif:x64-windows-static-md
         vcpkg install libheif:x64-windows-static
 
-    # common
-    - uses: actions-rs/cargo@v1
+    # macOS build (no libheif - uses native Apple ImageIO)
+    - name: Build macOS
+      if: matrix.os == 'macos-15'
+      uses: actions-rs/cargo@v1
       with:
         use-cross: true
         command: build
         args: --verbose --release --features face_detection_insightface --target=${{ matrix.TARGET }}
+
+    # Windows build (with libheif)
+    - name: Build Windows
+      if: matrix.os == 'windows-2022'
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --verbose --release --features face_detection_insightface,libheif --target=${{ matrix.TARGET }}
 
     # macOS
     - name: Install cargo bundle

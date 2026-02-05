@@ -328,10 +328,11 @@ pub fn decode_heif_from_data(data: &[u8]) -> Result<image::DynamicImage, String>
 }
 
 /// Check if a file is HEIF/HEIC format by extension
+/// Includes .hif which is used by Panasonic/Leica cameras for HEIF files
 pub fn is_heif_format(path: &Path) -> bool {
     if let Some(ext) = path.extension() {
         let ext_lower = ext.to_string_lossy().to_lowercase();
-        matches!(ext_lower.as_str(), "heic" | "heif")
+        matches!(ext_lower.as_str(), "heic" | "heif" | "hif")
     } else {
         false
     }
@@ -347,6 +348,8 @@ mod tests {
         assert!(is_heif_format(Path::new("test.HEIC")));
         assert!(is_heif_format(Path::new("test.heif")));
         assert!(is_heif_format(Path::new("test.HEIF")));
+        assert!(is_heif_format(Path::new("test.hif")));
+        assert!(is_heif_format(Path::new("test.HIF")));
         assert!(!is_heif_format(Path::new("test.jpg")));
         assert!(!is_heif_format(Path::new("test.png")));
     }

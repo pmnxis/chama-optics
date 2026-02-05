@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-#[cfg(all(feature = "desktop", not(feature = "ios_integration")))] // todo! - heif for iOS
+// libheif is only used on Windows/Linux (macOS/iOS use native Apple ImageIO)
+#[cfg(feature = "libheif")]
 pub(crate) mod heic;
 
 #[allow(dead_code)]

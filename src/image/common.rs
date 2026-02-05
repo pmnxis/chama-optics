@@ -138,7 +138,8 @@ pub(crate) fn __load_image(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+                    // libheif is only used on Windows/Linux
+                    #[cfg(feature = "libheif")]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -161,8 +162,31 @@ pub(crate) fn __load_image(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(any(feature = "ios_integration", not(feature = "desktop")))]
+                    #[cfg(not(feature = "libheif"))]
                     {
+                        // Try Apple native HEIF decoder for iOS/macOS
+                        #[cfg(any(target_os = "ios", target_os = "macos"))]
+                        {
+                            if crate::ffi_apple_heif::is_heif_format(path) {
+                                log::info!(
+                                    "📦 Detected HEIF format, using Apple native decoder"
+                                );
+                                return crate::ffi_apple_heif::decode_heif(path)
+                                    .map(|img| (img, false))
+                                    .map_err(|e| {
+                                        image::error::ImageError::Unsupported(
+                                            image::error::UnsupportedError::from_format_and_kind(
+                                                image::error::ImageFormatHint::PathExtension(
+                                                    path.to_path_buf(),
+                                                ),
+                                                image::error::UnsupportedErrorKind::GenericFeature(
+                                                    format!("Apple HEIF decoder error: {}", e),
+                                                ),
+                                            ),
+                                        )
+                                    });
+                            }
+                        }
                         Err(image::error::ImageError::Unsupported(unsp_e))
                     }
                 }
@@ -202,7 +226,8 @@ pub(crate) fn __load_image_from_vec(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+                    // libheif is only used on Windows/Linux
+                    #[cfg(feature = "libheif")]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -225,7 +250,7 @@ pub(crate) fn __load_image_from_vec(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(any(not(feature = "desktop"), feature = "ios_integration"))]
+                    #[cfg(not(feature = "libheif"))]
                     {
                         // Try Apple native HEIF decoder for iOS/macOS
                         #[cfg(any(target_os = "ios", target_os = "macos"))]

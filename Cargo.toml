@@ -41,9 +41,13 @@ desktop = [
     "rfd",
     "egui-file-dialog",
     "sys-locale",
-    "libheif-rs",
     "font-kit",
+    # Note: ext_res removed from default
+    # macOS: Use --features "desktop,ext_res" (recommended for notarization)
+    # Windows/Linux: Use default (fonts/models embedded in binary)
 ]
+# libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
+libheif = ["libheif-rs"]
 mobile_ui = []
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]
@@ -56,6 +60,14 @@ metal_rendering = ["egui", "wgpu", "egui-wgpu", "swift-bridge", "futures"]
 # Metal-based FFI for iOS/macOS (path-based fonts, no egui GUI, but needs egui types)
 metal_integration = ["egui"]
 face_detection_visionkit = []
+
+# ext_res: Load fonts/models from Resources/ directory
+#   - Recommended for macOS (reduces binary size by ~40MB for notarization)
+#   - Optional for Windows/Linux
+#   - Fonts/models must be in Contents/Resources/{Fonts,Models,Logos}/
+#   - Enable with: --features "desktop,ext_res"
+ext_res = []
+
 # InsightFace face detection - macOS/iOS ONLY
 # WARNING: This feature is broken on Windows/Linux due to fundamental
 # ONNX Runtime C++ stdlib ABI issues. Do not use on Windows/Linux.
@@ -78,7 +90,7 @@ egui = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afec
     "serde",
 ] }
 eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
-    "default_fonts",
+    # "default_fonts",  # Removed: Use external fonts with ext_res feature or embedded fonts without it
     "glow",
     "persistence",
     "wayland",
@@ -111,7 +123,7 @@ strum_macros = "0.27.2"
 sys-locale = { version = "0.3.2", optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
-clap = { version = "4.5.56", features = ["derive"] }
+clap = { version = "4.5.57", features = ["derive"] }
 chrono = { version = "0.4.43", features = ["serde"] }
 resvg = "0.46"
 tiny-skia = "0.11.4"
