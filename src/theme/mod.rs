@@ -26,9 +26,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 
 // Common font file constants for iOS (digital-7 font family)
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) const DEFAULT_DIGITAL7_FONT_FILE: &str = "digital-7.ttf";
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) const DEFAULT_DIGITAL7_ITALIC_FILE: &str = "digital-7-italic.ttf";
 
 pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
@@ -53,7 +53,7 @@ pub(crate) fn text_dimensions(
 
 /// Calculate text dimensions with automatic fallback to SourceHanSans for unsupported characters
 /// This function calculates width character by character, using the appropriate font for each character.
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) fn text_dimensions_with_fallback(
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
@@ -90,7 +90,7 @@ pub(crate) fn text_dimensions_with_fallback(
 
 /// Calculate text dimensions with automatic fallback (iOS version - no fallback)
 /// iOS version uses only the primary font. Users select appropriate fonts including CJK support.
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) fn text_dimensions_with_fallback(
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
@@ -104,7 +104,7 @@ pub(crate) fn text_dimensions_with_fallback(
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters
 /// This function draws text character by character, using the primary font when possible
 /// and falling back to SourceHanSans for CJK and other unsupported characters.
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback<I>(
     image: &mut I,
@@ -158,7 +158,7 @@ pub(crate) fn draw_text_with_fallback<I>(
 
 /// Draw text with automatic fallback (iOS version - no fallback)
 /// iOS version uses only the primary font directly via imageproc.
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback<I>(
     image: &mut I,
@@ -189,7 +189,7 @@ pub(crate) fn draw_text_with_fallback<I>(
 
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters (Luma version)
 /// This function is for grayscale images used in glow effects.
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback_luma<I>(
     image: &mut I,
@@ -243,7 +243,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
 
 /// Draw text with automatic fallback (iOS version - no fallback, Luma)
 /// iOS version uses only the primary font directly via imageproc for grayscale images.
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback_luma<I>(
     image: &mut I,
@@ -344,7 +344,7 @@ pub trait Theme: Send + Sync + std::any::Any {
         export_config.save_image_with_faces(&mut dyn_image, None, output_path, scaled_faces)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn ui_config(&mut self, ui: &mut egui::Ui);
 
     fn is_ui_config_available(&self) -> bool;
@@ -456,7 +456,7 @@ impl ThemeRegistry {
         self.themes[self.selected].read().unwrap()
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, show_english_name: bool) {
         ui.vertical(|ui| {
             ui.label(rust_i18n::t!("theme.selector"));

@@ -6,19 +6,19 @@
 
 use crate::fonts::variable_font::*;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use std::borrow::Cow;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use egui::{self, Align, TextEdit, Ui};
 
 // Global fonts base directory for iOS (set via FFI)
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 static FONTS_BASE_DIR: std::sync::RwLock<String> = std::sync::RwLock::new(String::new());
 
 /// Set the fonts base directory for iOS font loading
 /// Call this from FFI before rendering themes
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub fn set_fonts_base_directory(path: &str) {
     if let Ok(mut dir) = FONTS_BASE_DIR.write() {
         *dir = path.to_string();
@@ -27,13 +27,13 @@ pub fn set_fonts_base_directory(path: &str) {
 }
 
 /// Get the fonts base directory
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub fn get_fonts_base_directory() -> String {
     FONTS_BASE_DIR.read().map(|d| d.clone()).unwrap_or_default()
 }
 
 /// Available EXIF fields for autocomplete
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub const EXIF_FIELDS: &[ExifField] = &[
     ExifField {
         name: "camera_mnf",
@@ -177,27 +177,27 @@ pub struct ExifField {
 // Until iOS FFI support autocomplete, it's exclusive
 /// Simple variable text for filename patterns (without font information)
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug, PartialEq)]
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub struct VariableText {
     pub text: String,
     #[serde(skip)]
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     autocomplete_state: AutocompleteState,
 }
 
 // Until iOS FFI support autocomplete, it's exclusive
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl VariableText {
     pub fn new() -> Self {
         Self {
             text: String::new(),
-            #[cfg(not(feature = "ios_integration"))]
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
             autocomplete_state: AutocompleteState::new(),
         }
     }
 
     /// Render a text edit with autocomplete functionality
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn render_text_edit_with_autocomplete(
         &mut self,
         ui: &mut egui::Ui,
@@ -215,7 +215,7 @@ impl VariableText {
 }
 
 // Until iOS FFI support autocomplete, it's exclusive
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl Default for VariableText {
     fn default() -> Self {
         Self::new()
@@ -223,7 +223,7 @@ impl Default for VariableText {
 }
 
 /// Autocomplete state for variable text input
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[derive(Default, Clone, Debug, PartialEq)]
 struct AutocompleteState {
     /// Whether autocomplete popup is visible
@@ -241,7 +241,7 @@ struct AutocompleteState {
     pending_insertion: Option<(String, usize)>,
 }
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl AutocompleteState {
     fn new() -> Self {
         Self::default()
@@ -270,7 +270,7 @@ impl AutocompleteState {
     }
 
     /// Update autocomplete state based on text and cursor position
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn update_from_text(&mut self, text: &str, cursor_pos: usize) {
         self.cursor_pos = Some(cursor_pos);
 
@@ -367,7 +367,7 @@ impl AutocompleteState {
 }
 
 // Desktop version with FontSelection support for system fonts
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[rustfmt::skip]
 #[repr(usize)]
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq)]
@@ -377,7 +377,7 @@ pub enum VariableOrNot {
 }
 
 // iOS version - only Variable variant since fonts are loaded from files
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[rustfmt::skip]
 #[repr(usize)]
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq)]
@@ -392,7 +392,7 @@ impl std::default::Default for VariableOrNot {
 }
 
 // Desktop version - with system font selection support
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub struct VariableTextSlotDefault {
     pub text: &'static str,
     pub weight: u16,
@@ -402,7 +402,7 @@ pub struct VariableTextSlotDefault {
 }
 
 // iOS version - fonts loaded from files
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub struct VariableTextSlotDefault {
     pub text: &'static str,
     pub weight: u16,
@@ -411,15 +411,15 @@ pub struct VariableTextSlotDefault {
 }
 
 /// Default font filenames for different font types
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub const FONT_FILE_BARLOW: &str = "Barlow-Variable-Remapped.ttf";
 
 // Re-export from theme module for consistency
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) use crate::theme::DEFAULT_DIGITAL7_FONT_FILE as FONT_FILE_DIGITAL7;
 
 // Desktop implementation
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl VariableTextSlotDefault {
     pub const fn with_barlow(default: &'static str) -> Self {
         Self {
@@ -453,7 +453,7 @@ impl VariableTextSlotDefault {
 }
 
 // iOS implementation
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl VariableTextSlotDefault {
     pub const fn with_barlow(default: &'static str) -> Self {
         Self {
@@ -501,7 +501,7 @@ impl VariableTextSlotDefault {
 }
 
 // Desktop version - supports both Variable and Others variants
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl From<VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: VariableTextSlotDefault) -> Self {
         if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
@@ -523,7 +523,7 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
 }
 
 // iOS version - only Variable variant, fonts loaded from font_file
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl From<VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: VariableTextSlotDefault) -> Self {
         Self {
@@ -531,14 +531,14 @@ impl From<VariableTextSlotDefault> for VariableTextSlot {
             weight: value.weight,
             font_index: VariableOrNot::Variable(value.font_index),
             font_file: value.font_file.to_string(),
-            #[cfg(not(feature = "ios_integration"))]
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
             autocomplete_state: AutocompleteState::new(),
         }
     }
 }
 
 // Desktop version - supports both Variable and Others variants
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl From<&VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: &VariableTextSlotDefault) -> Self {
         if let Some(Some(x)) = value.prefer_fixed.then_some(value.fixed_index) {
@@ -560,7 +560,7 @@ impl From<&VariableTextSlotDefault> for VariableTextSlot {
 }
 
 // iOS version - only Variable variant, fonts loaded from font_file
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl From<&VariableTextSlotDefault> for VariableTextSlot {
     fn from(value: &VariableTextSlotDefault) -> Self {
         Self {
@@ -579,11 +579,11 @@ pub struct VariableTextSlot {
     // todo - future selection variable fonts
     pub font_index: VariableOrNot,
     /// Font filename for iOS path construction (just filename with extension)
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     #[serde(default)]
     pub font_file: String,
     #[serde(skip)]
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     autocomplete_state: AutocompleteState,
 }
 
@@ -594,9 +594,9 @@ impl VariableTextSlot {
             text: default.to_string(),
             weight,
             font_index: VariableOrNot::default(),
-            #[cfg(feature = "ios_integration")]
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
             font_file: FONT_FILE_BARLOW.to_string(),
-            #[cfg(not(feature = "ios_integration"))]
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
             autocomplete_state: AutocompleteState::new(),
         }
     }
@@ -624,7 +624,7 @@ impl VariableTextSlot {
     }
 
     /// Get font - on iOS loads directly from font_file, on desktop uses font_index
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn get_font(&self) -> ab_glyph::FontArc {
         match &self.font_index {
             VariableOrNot::Variable(var) => var.get_font_by_weight(self.weight).clone(),
@@ -641,14 +641,14 @@ impl VariableTextSlot {
     }
 
     /// Get font - on iOS loads directly from font_file
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font(&self) -> ab_glyph::FontArc {
         self.get_font_from_file()
     }
 
     /// Load font directly from font_file (for iOS)
     /// Uses FONTS_BASE_DIR + font_file to construct full path
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     fn get_font_from_file(&self) -> ab_glyph::FontArc {
         use ab_glyph::FontArc;
         use std::path::{Path, PathBuf};
@@ -711,7 +711,7 @@ impl VariableTextSlot {
     }
 
     /// return false on bool tuple when it's not variable font
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn get_font_with_new_weight(&self, weight: u16) -> (ab_glyph::FontArc, bool) {
         // todo - resolve &'static, &, * hell
         // todo - Result<T,E>
@@ -733,7 +733,7 @@ impl VariableTextSlot {
     }
 
     /// iOS version - weight is ignored, uses font_file directly
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font_with_new_weight(&self, _weight: u16) -> (ab_glyph::FontArc, bool) {
         // On iOS, fonts are loaded from file, weight is not adjustable at runtime
         (self.get_font_from_file(), false)
@@ -755,7 +755,7 @@ impl VariableTextSlot {
         self.text_dimensions(scale, txt)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn ui(
         &mut self,
         ui: &mut Ui,
@@ -822,7 +822,7 @@ impl VariableTextSlot {
     }
 
     /// Render a text edit with autocomplete functionality
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn render_text_edit_with_autocomplete(
         &mut self,
         ui: &mut Ui,
@@ -840,7 +840,7 @@ impl VariableTextSlot {
 }
 
 /// Shared implementation for text edit with autocomplete
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 fn render_text_edit_autocomplete_impl(
     text: &mut String,
     autocomplete_state: &mut AutocompleteState,

@@ -13,7 +13,7 @@ pub enum TextAlign {
 }
 
 impl TextAlign {
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         use rust_i18n::t;
 

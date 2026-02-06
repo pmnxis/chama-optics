@@ -5,15 +5,15 @@
  */
 
 use crate::theme::Theme;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
 // Desktop version with FontSelection
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmDate {
     pub font: crate::FontSelection,
@@ -48,7 +48,7 @@ pub struct FilmDate {
 }
 
 // iOS version with file-based fonts
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct FilmDate {
     pub font_file: String,
@@ -65,10 +65,10 @@ const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
 const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 use super::{DEFAULT_DIGITAL7_FONT_FILE, DEFAULT_DIGITAL7_ITALIC_FILE};
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl core::default::Default for FilmDate {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -86,7 +86,7 @@ impl core::default::Default for FilmDate {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl core::default::Default for FilmDate {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -104,7 +104,7 @@ impl core::default::Default for FilmDate {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl crate::theme::parameter_schema::ThemeParameters for FilmDate {
     fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
         crate::theme::parameter_schema::ThemeSchema {
@@ -141,7 +141,7 @@ impl FilmDate {
 }
 
 // iOS helper for loading font from file
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl FilmDate {
     fn load_font(font_file: &str) -> Result<ab_glyph::FontArc, image::ImageError> {
         use crate::effect::variable_text::get_fonts_base_directory;
@@ -169,11 +169,11 @@ impl Theme for FilmDate {
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         {
             t!("theme.film_date")
         }
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
             std::borrow::Cow::Borrowed("Film Date")
         }
@@ -193,13 +193,13 @@ impl Theme for FilmDate {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
 
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         let font = crate::FONTS_UNIFY.search(&self.font)?;
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         let font_italic = crate::FONTS_UNIFY.search(&self.font_italic)?;
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         let font = Self::load_font(&self.font_file)?;
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         let font_italic = Self::load_font(&self.font_italic_file)?;
 
         #[rustfmt::skip]
@@ -299,7 +299,7 @@ impl Theme for FilmDate {
         export_config.save_image(&mut themed_image, Some(margin), output_path)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 
@@ -326,22 +326,22 @@ impl Theme for FilmDate {
     }
 
     fn is_ui_config_available(&self) -> bool {
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         {
             true
         }
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
             false
         }
     }
 
     fn get_parameters_json(&self) -> String {
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         {
             self.auto_get_parameters_json()
         }
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
             r#"{"parameters": []}"#.to_string()
         }

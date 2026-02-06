@@ -5,14 +5,14 @@
  */
 
 use crate::theme::Theme;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::update_param;
 use ab_glyph::{Font, ScaleFont};
 use imageproc::integral_image::ArrayData;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
 pub struct FilmGlow {
     pub font: crate::FontSelection,
@@ -44,7 +44,7 @@ pub struct FilmGlow {
     pub show_ps: bool,
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct FilmGlow {
     pub font_file: String,
@@ -59,10 +59,10 @@ const FILM_COLOR: image::Rgba<u8> = image::Rgba([255, 138, 0, 255]);
 const FILM_COLOR_GLOW: image::Rgba<u8> = image::Rgba([238, 140, 128, 255]);
 const DEFAULT_FONT_SIZE: u32 = 25;
 const DEFAULT_GLOW_GAIN: u32 = 8;
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 use super::DEFAULT_DIGITAL7_FONT_FILE;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl core::default::Default for FilmGlow {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -78,7 +78,7 @@ impl core::default::Default for FilmGlow {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl core::default::Default for FilmGlow {
     fn default() -> Self {
         let [r, g, b, a] = FILM_COLOR.data();
@@ -94,7 +94,7 @@ impl core::default::Default for FilmGlow {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl crate::theme::parameter_schema::ThemeParameters for FilmGlow {
     fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
         crate::theme::parameter_schema::ThemeSchema {
@@ -130,7 +130,7 @@ impl FilmGlow {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl FilmGlow {
     fn load_font(&self) -> Result<ab_glyph::FontArc, image::ImageError> {
         use crate::effect::variable_text::get_fonts_base_directory;
@@ -158,11 +158,11 @@ impl Theme for FilmGlow {
     }
 
     fn label(&self) -> std::borrow::Cow<'static, str> {
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         {
             t!("theme.film_glow")
         }
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
             std::borrow::Cow::Borrowed("Film Glow")
         }
@@ -182,9 +182,9 @@ impl Theme for FilmGlow {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
 
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         let font = crate::FONTS_UNIFY.search(&self.font)?;
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         let font = self.load_font()?;
 
         #[rustfmt::skip]
@@ -304,7 +304,7 @@ impl Theme for FilmGlow {
         export_config.save_image(&mut themed_image, Some(margin), output_path)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 
@@ -326,11 +326,11 @@ impl Theme for FilmGlow {
     }
 
     fn get_parameters_json(&self) -> String {
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         {
             self.auto_get_parameters_json()
         }
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
             r#"{"parameters": []}"#.to_string()
         }

@@ -251,7 +251,7 @@ impl Theme for Lightroom {
         export_config.save_image(&mut themed_image, Some(border_margin as i32), output_path)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 

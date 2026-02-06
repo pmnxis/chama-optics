@@ -6,18 +6,18 @@
 
 // todo - iOS version doesn't have watermark feature yet, need to fix cfg-hell later
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::effect::draw_with_transparency::{
     draw_text_screen_transparency_mut, draw_text_transparency_mut,
 };
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::theme::text_dimensions;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
 // Desktop version with full font selection support
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Watermark {
     pub is_enabled: bool,
@@ -30,20 +30,20 @@ pub struct Watermark {
 }
 
 // iOS version - watermark disabled (no font selection system)
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 pub struct Watermark {
     pub is_enabled: bool,
 }
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 const DEFAULT_COLOR: image::Rgba<u8> = image::Rgba([232, 232, 232, 255]);
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 const DEFAULT_FONT_SIZE: u32 = 25;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 const POSITION_ICONS: [&str; 9] = ["↖", "↑", "↗", "←", "●", "→", "↙", "↓", "↘"];
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl core::default::Default for Watermark {
     fn default() -> Self {
         use imageproc::integral_image::ArrayData;
@@ -61,7 +61,7 @@ impl core::default::Default for Watermark {
     }
 }
 
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl core::default::Default for Watermark {
     fn default() -> Self {
         Self { is_enabled: false }
@@ -69,7 +69,7 @@ impl core::default::Default for Watermark {
 }
 
 // Desktop implementation with full functionality
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl Watermark {
     fn rel_size<F: Copy + num_traits::AsPrimitive<f32>, G: Copy + num_traits::AsPrimitive<f32>>(
         &self,

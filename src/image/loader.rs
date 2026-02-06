@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::packed_image::PackedImage;
 
 /// Intermediate loaded image data (before texture creation)

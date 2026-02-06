@@ -465,7 +465,7 @@ macro_rules! update_param {
                 )*
                 _ => {
                     // On iOS, skip warning for .font keys as they're handled separately
-                    #[cfg(feature = "ios_integration")]
+                    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                     if key.ends_with(".font") {
                         continue;
                     }

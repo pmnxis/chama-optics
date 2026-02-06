@@ -1854,7 +1854,7 @@ pub unsafe extern "C" fn chama_scale_image(
 /// - All C string pointers must be valid null-terminated strings or NULL
 /// - face_rects must point to a valid array of CFaceRect with face_count elements
 #[unsafe(no_mangle)]
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub unsafe extern "C" fn chama_export_combined(
     image_path: *const c_char,
     output_path: *const c_char,
@@ -2228,7 +2228,7 @@ lazy_static::lazy_static! {
     static ref LUT_STORAGE: Mutex<crate::effect::lut_storage::LutStorage> = {
         // let mut storage = crate::effect::lut_storage::LutStorage::new();
         // Set iOS-specific storage path
-        #[cfg(target_os = "ios")]
+        #[cfg(any(target_os = "ios", target_os = "android"))]
         {
             let mut storage = crate::effect::lut_storage::LutStorage::new();
             if let Some(docs_dir) = dirs::document_dir() {
@@ -2237,7 +2237,7 @@ lazy_static::lazy_static! {
             }
             Mutex::new(storage)
         }
-        #[cfg(not(target_os = "ios"))]
+        #[cfg(not(any(target_os = "ios", target_os = "android")))]
         {
             let storage = crate::effect::lut_storage::LutStorage::new();
             Mutex::new(storage)
@@ -3160,7 +3160,7 @@ pub extern "C" fn chama_optics_destroy(handle: *mut ChamaOpticsHandle) {
 }
 
 /// Apply Mosaic effect to detected face areas
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -3370,7 +3370,7 @@ pub extern "C" fn chama_optics_apply_stroke(
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub extern "C" fn chama_optics_apply_sticker(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
@@ -3477,7 +3477,7 @@ pub extern "C" fn chama_optics_apply_sticker(
 #[unsafe(no_mangle)]
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub extern "C" fn chama_optics_apply_sticker_from_path(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
@@ -3625,7 +3625,7 @@ pub extern "C" fn chama_optics_load_image(
 /// Detect faces in an image using VisionKit
 /// Returns a list of face rectangles
 /// The returned list must be freed with chama_optics_free_face_rect_list
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_detect_faces_ios(
     _handle: *mut ChamaOpticsHandle,
@@ -3648,7 +3648,7 @@ pub extern "C" fn chama_optics_detect_faces_ios(
 /// Apply face detection rectangles to an image
 /// This function takes face rectangles from VisionKit and applies them to image
 #[unsafe(no_mangle)]
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub extern "C" fn chama_optics_apply_face_detection(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,

@@ -5,18 +5,18 @@
  */
 
 use ab_glyph::FontArc;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use eframe::egui;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use font_kit::{handle::Handle, source::SystemSource};
 use std::sync::{Arc, RwLock};
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use std::thread;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::fonts::FONTS_UNIFY;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
 #[rustfmt::skip]
@@ -54,14 +54,14 @@ pub struct FontSelection {
     pub default: BuiltinFontIndex,
 }
 
-#[cfg(not(feature = "ios_integration"))] // include font_kit
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))] // include font_kit
 #[derive(Clone)]
 pub struct SystemFont {
     pub name: String,
     pub(crate) handle: Handle,
 }
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 fn __get_path_from_handle(handle: &Handle) -> Option<std::path::PathBuf> {
     if let Handle::Path {
         path,
@@ -86,7 +86,7 @@ fn __read_font_direct<P: AsRef<std::path::Path>>(path: P) -> Result<FontArc, Fon
         .map_err(|_| FontError::FailedToLoad(path.as_ref().to_string_lossy().to_string()))
 }
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<FontArc, FontError> {
     match handle {
         Handle::Memory { bytes, .. } => FontArc::try_from_vec(bytes.to_vec())
@@ -96,7 +96,7 @@ fn __get_fontarc_from_handle(handle: &Handle, hint_when_err: &str) -> Result<Fon
 }
 
 impl SystemFont {
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn get_path(&self) -> Option<std::path::PathBuf> {
         __get_path_from_handle(&self.handle)
     }
@@ -136,7 +136,7 @@ pub struct FontsUnify {
 }
 
 impl FontsUnify {
-    #[cfg(not(feature = "ios_integration"))] // include font_kit
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))] // include font_kit
     pub fn new() -> Self {
         let system_fonts = Arc::new(RwLock::new(Vec::new()));
         let thread_ref = system_fonts.clone();
@@ -211,7 +211,7 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         fn get_with_matching_name<'a>(
             read: &'a std::sync::RwLockReadGuard<'_, Vec<SystemFont>>,
@@ -314,7 +314,7 @@ impl FontsUnify {
         Err(FontError::NonRecoverSelectedFont)
     }
 
-    #[cfg(feature = "ios_integration")] // iOS: fonts loaded via FFI, not embedded
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))] // iOS: fonts loaded via FFI, not embedded
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         // For iOS, fonts are loaded from app bundle via FFI paths
         // Try to load directly from path if available
@@ -390,7 +390,7 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
-    #[cfg(feature = "ios_integration")] // iOS: fonts loaded via FFI
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))] // iOS: fonts loaded via FFI
     pub fn get_by_select(&'static self, _select: &FontSelection) -> Result<FontArc, FontError> {
         // For iOS, fonts are loaded from app bundle via FFI paths
         // This function is not used during theme rendering
@@ -431,7 +431,7 @@ impl FontSelection {
         }
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui<S: Into<egui::WidgetText>>(&mut self, ui: &mut egui::Ui, label: S) {
         // Tab selection state
         let current_font_label = match self.select.sort {
@@ -508,7 +508,7 @@ impl FontSelection {
             });
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui_with_label<S: Into<egui::WidgetText> + Clone>(
         &mut self,
         ui: &mut egui::Ui,
@@ -520,7 +520,7 @@ impl FontSelection {
         });
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui_with_default_label(&mut self, ui: &mut egui::Ui) {
         let label = t!("fonts_selector.select_a_font");
         ui.horizontal(|ui| {

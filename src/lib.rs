@@ -8,34 +8,34 @@ rust_i18n::i18n!("locales");
 
 // Conditional compilation based on features
 // GUI modules available for both desktop and web
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 mod app;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 mod app_state;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 mod tabs;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 mod ui_components;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 mod ui_state;
 
 // Support modules for desktop, web, and iOS
 // GUI-only modules
 pub mod export_config;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod import_config;
 pub(crate) use export_config::scale_config;
 
 // Modules needed by iOS FFI
 pub(crate) mod fonts;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod langs;
 pub(crate) mod resources; // Unified resource management (fonts, models, logos)
 pub(crate) use art::ART_UNIFY;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) use fonts::FONTS_UNIFY;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) use fonts::font_unify::{BuiltinFontIndex, FontSelection};
 
 // Image module - shared between all platforms
@@ -48,7 +48,7 @@ pub mod art;
 // Effect modules - available for desktop, web, and iOS integration
 pub mod effect;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod image_group;
 
 #[cfg(feature = "desktop")]
@@ -67,11 +67,17 @@ pub mod core;
 // pub mod ffi;
 
 // iOS FFI for Swift integration (full theme support with Metal rendering)
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub mod ffi_ios;
 
 // Apple FFI for both iOS and macOS (shared platform-agnostic functions)
-#[cfg(any(target_os = "ios", target_os = "macos", feature = "ios_integration"))]
+// Also used by Android via Skip Fuse (Swift compiled natively for Android)
+#[cfg(any(
+    target_os = "ios",
+    target_os = "macos",
+    feature = "ios_integration",
+    feature = "android_integration"
+))]
 pub mod ffi_apple;
 
 // Apple native HEIF decoder (iOS mandatory, macOS optional)
@@ -85,11 +91,11 @@ pub mod ffi_apple_heif;
 ))]
 pub mod metal_renderer;
 
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub use app::ChamaOptics;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub use app_state::AppState;
-#[cfg(not(feature = "ios_integration"))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub use ui_state::UiState;
 
 #[macro_use]

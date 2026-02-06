@@ -121,7 +121,7 @@ pub struct FaceDetection {
     /// Effect mode to apply to detected faces
     #[serde(default)]
     pub effect_mode: FaceEffectMode,
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     pub border_thickness: u32, // todo - remove later
     /// Stroke border color
     pub border_color: egui::Color32, // todo - is this really used?
@@ -148,7 +148,7 @@ impl core::default::Default for FaceDetection {
         let [r, g, b, a] = [255, 0, 0, 255];
 
         #[cfg(all(
-            not(target_os = "ios"),
+            not(any(target_os = "ios", target_os = "android")),
             feature = "face_detection_visionkit",
             feature = "face_detection_insightface"
         ))]
@@ -171,7 +171,7 @@ impl core::default::Default for FaceDetection {
         }
 
         #[cfg(all(
-            not(target_os = "ios"),
+            not(any(target_os = "ios", target_os = "android")),
             feature = "face_detection_visionkit",
             not(feature = "face_detection_insightface")
         ))]
@@ -191,7 +191,7 @@ impl core::default::Default for FaceDetection {
         }
 
         #[cfg(all(
-            not(target_os = "ios"),
+            not(any(target_os = "ios", target_os = "android")),
             feature = "face_detection_insightface",
             not(feature = "face_detection_visionkit")
         ))]
@@ -217,7 +217,7 @@ impl core::default::Default for FaceDetection {
                 feature = "face_detection_visionkit",
                 feature = "face_detection_insightface"
             )),
-            not(target_os = "ios")
+            not(any(target_os = "ios", target_os = "android"))
         ))]
         {
             FaceDetection {
@@ -234,10 +234,30 @@ impl core::default::Default for FaceDetection {
             }
         }
 
-        #[cfg(target_os = "ios")]
+        #[cfg(all(target_os = "ios", feature = "face_detection_visionkit"))]
         {
             Self {
                 engine: FaceDetectionEngine::VisionKit,
+                effect_mode: FaceEffectMode::None,
+                border_thickness: 4,
+                border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
+                mask_faces: false,
+                recursive_detection: false,
+                recursive_min_size: 64,
+                recursive_max_depth: 4,
+                recursive_overlap: true,
+                recursive_overlap_ratio: 0.25,
+            }
+        }
+
+        #[cfg(all(
+            any(target_os = "ios", target_os = "android"),
+            not(feature = "face_detection_visionkit")
+        ))]
+        {
+            Self {
+                engine: FaceDetectionEngine::NoOp,
                 effect_mode: FaceEffectMode::None,
                 border_thickness: 4,
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
@@ -258,7 +278,7 @@ impl FaceDetection {
     /// This method draws rectangles for detected faces with no fill and a border
     /// Optionally applies blur masking to detected faces
     // todo - need to be remove later
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     pub fn apply(
         &self,
         dyn_image: &mut image::DynamicImage,
@@ -295,7 +315,7 @@ impl FaceDetection {
 
     /// Apply blur masking to a face region
     // todo - need to be remove later
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     fn apply_blur_mask(
         &self,
         dyn_image: &mut image::DynamicImage,

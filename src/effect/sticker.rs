@@ -40,7 +40,7 @@ impl Default for StickerConfig {
 
 impl StickerConfig {
     /// Create a new config with an image path (for iOS)
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     pub fn with_image_path(path: PathBuf, scale: f32, offset_x: i32, offset_y: i32) -> Self {
         Self {
             sticker_id: String::new(),
@@ -52,7 +52,7 @@ impl StickerConfig {
     }
 
     /// Create a new config with a built-in sticker ID
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     pub fn with_builtin(sticker_id: String, scale: f32, offset_x: i32, offset_y: i32) -> Self {
         Self {
             sticker_id,
@@ -73,7 +73,7 @@ impl StickerConfig {
 ///
 /// # Returns
 /// * Modified image with stickers applied
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 pub fn apply_sticker(
     mut image: DynamicImage,
     face_areas: Vec<(i32, i32, u32, u32)>,
@@ -220,7 +220,7 @@ fn draw_circle(img: &mut RgbaImage, size: u32, color: Rgba<u8>) {
 }
 
 /// Overlay sticker image onto base image with transparency
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 fn overlay_sticker(base: &mut DynamicImage, sticker: &RgbaImage, center_x: i32, center_y: i32) {
     use image::{GenericImage, GenericImageView};
     let sticker_width = sticker.width() as i32;

@@ -139,10 +139,10 @@ impl Theme for Strap {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
         // For text dimension calculation - use left_top font on iOS, Barlow on desktop
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         let font =
             &crate::fonts::variable_font::BuiltinVariableFontIndex::Barlow.get_font_by_weight(800);
-        #[cfg(feature = "ios_integration")]
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         let font = &self.left_top.get_font();
         let mut is_overflow = false;
 
@@ -283,7 +283,7 @@ impl Theme for Strap {
         export_config.save_image(&mut themed_image, Some(border_margin as i32), output_path)
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn ui_config(&mut self, ui: &mut egui::Ui) {
         self.auto_ui_config(ui);
 

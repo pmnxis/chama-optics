@@ -152,9 +152,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
 
                     let side_label_expr = quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#side_label_key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#side_label_key) }
                         }
                     };
@@ -181,9 +181,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let color_field = syn::Ident::new("color", field_name.span());
                 let color_label_expr = quote! {
                     {
-                        #[cfg(feature = "ios_integration")]
+                        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                         { std::borrow::Cow::Borrowed(#color_label_key) }
-                        #[cfg(not(feature = "ios_integration"))]
+                        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                         { rust_i18n::t!(#color_label_key) }
                     }
                 };
@@ -226,9 +226,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let label_expr = if let Some(ref key) = label_key {
                     quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#key) }
                         }
                     }
@@ -347,9 +347,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let label_expr = if let Some(ref key) = label_key {
                     quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#key) }
                         }
                     }
@@ -380,9 +380,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let label_expr = if let Some(ref key) = label_key {
                     quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#key) }
                         }
                     }
@@ -437,9 +437,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                     let font_key = format!("{}.font", key);
                     quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#font_key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#font_key) }
                         }
                     }
@@ -482,9 +482,9 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 let label_expr = if let Some(ref key) = label_key {
                     quote! {
                         {
-                            #[cfg(feature = "ios_integration")]
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
                             { std::borrow::Cow::Borrowed(#key) }
-                            #[cfg(not(feature = "ios_integration"))]
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
                             { rust_i18n::t!(#key) }
                         }
                     }
@@ -563,7 +563,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
     let ios_schema_extend = if has_ios_font_params {
         quote! {
             // iOS-only: Add font parameters for VariableTextSlot fields
-            #[cfg(feature = "ios_integration")]
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
             {
                 parameters.extend(vec![
                     #(#ios_font_params),*
@@ -592,7 +592,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
 
         quote! {
             // iOS-only: Handle font parameter updates
-            #[cfg(feature = "ios_integration")]
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
             {
                 for (key, value) in updates {
                     match key.as_str() {
@@ -650,7 +650,7 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
 
             /// Auto-generated ui_config() implementation
             /// Call this from your Theme::ui_config() implementation
-            #[cfg(not(feature = "ios_integration"))]
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
             pub fn auto_ui_config(&mut self, ui: &mut egui::Ui) {
                 #border_ui
 

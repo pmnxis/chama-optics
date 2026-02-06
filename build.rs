@@ -51,6 +51,12 @@ fn main() {
     println!("cargo:rerun-if-changed=locales");
     println!("cargo:rerun-if-changed={}", logo_csv_path.display());
 
+    // Use CARGO_CFG_TARGET_OS to check the cross-compilation target, not the host OS.
+    // #[cfg(target_os = ...)] in build scripts checks the HOST, not the target.
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+
+    // winres is a Windows-only build-dependency (conditionally compiled),
+    // so keep #[cfg] here — the crate doesn't exist on non-Windows hosts.
     #[cfg(target_os = "windows")]
     {
         let mut res = winres::WindowsResource::new();
@@ -146,8 +152,7 @@ fn main() {
     }
     println!("✅ Generated {}", output_file.display());
 
-    #[cfg(target_os = "linux")]
-    {
+    if target_os == "linux" {
         if let Ok(pkg_path) = env::var("PKG_CONFIG_PATH") {
             for path in pkg_path.split(':') {
                 if path.contains("libheif/build") {
@@ -164,20 +169,16 @@ fn main() {
     println!("cargo:rustc-env=BUILD_TIME={now}");
 
     // Link Apple frameworks for HEIF support (iOS/macOS)
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
-    {
+    if target_os == "macos" || target_os == "ios" {
         println!("cargo:rustc-link-lib=framework=ImageIO");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
     }
 
     // Generate swift-bridge code for Metal rendering (iOS/macOS only)
-    // Skip this on Windows and Linux
-    #[cfg(all(
-        any(target_os = "macos", target_os = "ios"),
-        feature = "metal_rendering"
-    ))]
-    {
+    // Skip this on Windows, Linux, and Android
+    #[cfg(feature = "metal_rendering")]
+    if target_os == "macos" || target_os == "ios" {
         let bridge_files = vec!["src/metal_renderer/ffi_bridge.rs"];
         swift_bridge_build::parse_bridges(bridge_files)
             .write_all_concatenated(out_dir, env!("CARGO_PKG_NAME"));

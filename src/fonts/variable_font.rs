@@ -54,7 +54,7 @@ impl VariableFontPack {
 // iOS loads fonts from app bundle via FFI, not from embedded data
 
 // ===== EMBEDDED VERSION (no ext_res) =====
-#[cfg(all(not(feature = "ios_integration"), not(feature = "ext_res")))]
+#[cfg(all(not(any(feature = "ios_integration", feature = "android_integration")), not(feature = "ext_res")))]
 lazy_static::lazy_static! {
     static ref BARLOW: VariableFontPack = VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
@@ -95,7 +95,7 @@ lazy_static::lazy_static! {
 // ===== EXTERNAL RESOURCES VERSION (ext_res enabled) =====
 // Fonts are loaded at runtime from Resources directory
 // Uses leaked Box to create 'static lifetime for FontRef
-#[cfg(all(not(feature = "ios_integration"), feature = "ext_res"))]
+#[cfg(all(not(any(feature = "ios_integration", feature = "android_integration")), feature = "ext_res"))]
 lazy_static::lazy_static! {
     // Load and leak font data to get 'static lifetime
     static ref BARLOW_DATA: &'static [u8] = {
@@ -151,7 +151,7 @@ lazy_static::lazy_static! {
 }
 
 // For iOS, create empty placeholder
-#[cfg(feature = "ios_integration")]
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 lazy_static::lazy_static! {
     pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 0] = [];
 }
@@ -167,24 +167,24 @@ pub enum BuiltinVariableFontIndex {
 }
 
 impl BuiltinVariableFontIndex {
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn get_font(&self) -> &'static VariableFontPack {
         BUILTIN_VARIABLE_FONTS[*self as usize]
     }
 
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font(&self) -> &'static VariableFontPack {
         panic!(
             "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."
         )
     }
 
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn get_font_by_weight(&self, weight: u16) -> ab_glyph::FontArc {
         self.get_font().get_font_by_weight(weight)
     }
 
-    #[cfg(feature = "ios_integration")]
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font_by_weight(&self, _weight: u16) -> ab_glyph::FontArc {
         panic!(
             "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."

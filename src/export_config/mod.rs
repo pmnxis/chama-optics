@@ -41,7 +41,7 @@ impl core::default::Default for ExportConfig {
 }
 
 impl ExportConfig {
-    #[cfg(not(feature = "ios_integration"))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui, show_theme_name_in_english: bool) {
         ui.group(|ui| {
             ui.heading(rust_i18n::t!("export_config.label"));
@@ -94,7 +94,7 @@ impl ExportConfig {
         #[allow(unused_variables)] pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>>,
     ) -> Result<(), image::ImageError> {
         // Apply watermark first (desktop only - iOS watermark is disabled)
-        #[cfg(not(feature = "ios_integration"))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         if self.watermark.is_enabled {
             self.watermark.apply(dyn_image, margin)?;
         }
