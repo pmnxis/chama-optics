@@ -81,21 +81,30 @@ impl Border {
         left.max(right).max(top.max(bottom)).min(w.min(h) / 2)
     }
 
-    pub fn take_from_exist(&self, img: &image::DynamicImage, dyn_wh: u32) -> image::DynamicImage {
+    pub fn take_from_exist(
+        &self,
+        img: &image::DynamicImage,
+        dyn_wh: u32,
+    ) -> Result<image::DynamicImage, image::ImageError> {
         use image::GenericImage;
         use imageproc::drawing::Canvas;
 
         let (w, h) = img.dimensions();
 
         let (left, right, top, bottom) = self.border_size(dyn_wh);
-        let new_w = w + left + right;
-        let new_h = h + top + bottom;
+        let new_w = w.saturating_add(left).saturating_add(right);
+        let new_h = h.saturating_add(top).saturating_add(bottom);
         let color = crate::theme::color32_to_rgba(self.color);
         let mut bordered = image::DynamicImage::new_rgba8(new_w, new_h);
-        let inner = bordered.as_mut_rgba8().unwrap();
+        let inner = bordered
+            .as_mut_rgba8()
+            .ok_or_else(|| {
+                image::ImageError::Parameter(image::error::ParameterError::from_kind(
+                    image::error::ParameterErrorKind::DimensionMismatch,
+                ))
+            })?;
 
         unsafe {
-            // more dangerous
             let color_u32 = u32::from_le_bytes(color.0);
             let buf = inner.as_flat_samples_mut().samples.as_mut_ptr();
             let len = inner.as_flat_samples_mut().samples.len();
@@ -108,21 +117,8 @@ impl Border {
             }
         }
 
-        // unsafe {
-        //     let buf = inner.as_flat_samples_mut().samples;
-        //     let len = buf.len();
-        //     let mut i = 0;
-        //     while i + 3 < len {
-        //         *buf.get_unchecked_mut(i) = color[0];
-        //         *buf.get_unchecked_mut(i + 1) = color[1];
-        //         *buf.get_unchecked_mut(i + 2) = color[2];
-        //         *buf.get_unchecked_mut(i + 3) = color[3];
-        //         i += 4;
-        //     }
-        // }
-
-        bordered.copy_from(img, left, top).unwrap();
-        bordered
+        bordered.copy_from(img, left, top)?;
+        Ok(bordered)
     }
 
     pub fn ui_config(

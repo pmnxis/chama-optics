@@ -28,7 +28,7 @@ impl core::default::Default for OutputName {
 
 impl OutputName {
     fn default_path() -> std::path::PathBuf {
-        dirs::home_dir().expect("Failed to get home directory")
+        dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
     }
 
     pub fn check_folder_available(&self, create_if_missing: bool) -> bool {

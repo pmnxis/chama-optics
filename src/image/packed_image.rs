@@ -133,7 +133,11 @@ impl PackedImage {
             resize_image(dyn_image, new_width, new_height)?;
         let buffer =
             ImageBuffer::<Rgba<u8>, _>::from_raw(new_width, new_height, resized_image.into_vec())
-                .expect("Failed to convert to ImageBuffer");
+                .ok_or_else(|| {
+                    image::ImageError::Parameter(image::error::ParameterError::from_kind(
+                        image::error::ParameterErrorKind::DimensionMismatch,
+                    ))
+                })?;
 
         let mut dyn_image = image::DynamicImage::ImageRgba8(buffer);
         dyn_image.apply_orientation(orientation);
