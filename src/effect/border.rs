@@ -96,13 +96,11 @@ impl Border {
         let new_h = h.saturating_add(top).saturating_add(bottom);
         let color = crate::theme::color32_to_rgba(self.color);
         let mut bordered = image::DynamicImage::new_rgba8(new_w, new_h);
-        let inner = bordered
-            .as_mut_rgba8()
-            .ok_or_else(|| {
-                image::ImageError::Parameter(image::error::ParameterError::from_kind(
-                    image::error::ParameterErrorKind::DimensionMismatch,
-                ))
-            })?;
+        let inner = bordered.as_mut_rgba8().ok_or_else(|| {
+            image::ImageError::Parameter(image::error::ParameterError::from_kind(
+                image::error::ParameterErrorKind::DimensionMismatch,
+            ))
+        })?;
 
         unsafe {
             let color_u32 = u32::from_le_bytes(color.0);

@@ -88,8 +88,39 @@ pub(crate) fn text_dimensions_with_fallback(
     (total_width, max_height)
 }
 
-/// Calculate text dimensions with automatic fallback (iOS version - no fallback)
-/// iOS version uses only the primary font. Users select appropriate fonts including CJK support.
+/// Load SourceHanSans as CJK fallback font (iOS/Android)
+/// Tries fonts base directory first, then embedded resources.
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+fn get_fallback_font() -> Option<ab_glyph::FontArc> {
+    use std::sync::OnceLock;
+    static FALLBACK: OnceLock<Option<ab_glyph::FontArc>> = OnceLock::new();
+    FALLBACK
+        .get_or_init(|| {
+            // 1st: Load from fonts base directory (app bundle)
+            let base_dir = crate::effect::variable_text::get_fonts_base_directory();
+            if !base_dir.is_empty() {
+                let path = std::path::PathBuf::from(&base_dir).join("SourceHanSansVF-remapped.otf");
+                if let Ok(data) = std::fs::read(&path) {
+                    if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
+                        log::info!("✅ Loaded CJK fallback font from: {}", path.display());
+                        return Some(font);
+                    }
+                }
+            }
+            // 2nd: Load from embedded resources
+            if let Some(data) = crate::resources::load_font("SourceHanSansVF-remapped.otf") {
+                if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
+                    log::info!("✅ Loaded CJK fallback font from embedded resources");
+                    return Some(font);
+                }
+            }
+            log::warn!("⚠️ Failed to load CJK fallback font (SourceHanSans)");
+            None
+        })
+        .clone()
+}
+
+/// Calculate text dimensions with automatic fallback to SourceHanSans (iOS/Android version)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) fn text_dimensions_with_fallback(
     scale: ab_glyph::PxScale,
@@ -97,8 +128,28 @@ pub(crate) fn text_dimensions_with_fallback(
     _weight: u16,
     text: &str,
 ) -> (f32, f32) {
-    // iOS: no fallback, just use primary font
-    text_dimensions(scale, primary_font, text)
+    use ab_glyph::{Font, ScaleFont};
+
+    let fallback = get_fallback_font();
+    let scaled_primary = primary_font.as_scaled(scale);
+    let max_height = scaled_primary.height();
+
+    let total_width: f32 = text
+        .chars()
+        .map(|ch| {
+            let glyph_id = primary_font.glyph_id(ch);
+            if glyph_id != ab_glyph::GlyphId(0) {
+                scaled_primary.h_advance(glyph_id)
+            } else if let Some(ref fb) = fallback {
+                let scaled_fb = fb.as_scaled(scale);
+                scaled_fb.h_advance(fb.glyph_id(ch))
+            } else {
+                scaled_primary.h_advance(glyph_id)
+            }
+        })
+        .sum();
+
+    (total_width, max_height)
 }
 
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters
@@ -156,8 +207,7 @@ pub(crate) fn draw_text_with_fallback<I>(
     }
 }
 
-/// Draw text with automatic fallback (iOS version - no fallback)
-/// iOS version uses only the primary font directly via imageproc.
+/// Draw text with automatic fallback to SourceHanSans for CJK characters (iOS/Android version)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback<I>(
@@ -172,19 +222,39 @@ pub(crate) fn draw_text_with_fallback<I>(
 ) where
     I: image::GenericImage<Pixel = image::Rgba<u8>>,
 {
-    // iOS: no fallback, just use primary font directly
-    log::debug!(
-        "Drawing text at ({}, {}) with scale {:?}, color {:?}: '{}'",
-        x,
-        y,
-        scale,
-        color,
-        text
-    );
+    use ab_glyph::{Font, ScaleFont};
+
     if text.is_empty() {
-        log::warn!("Attempting to draw empty text at ({}, {})", x, y);
+        return;
     }
-    imageproc::drawing::draw_text_mut(image, color, x, y, scale, primary_font, text);
+
+    let fallback = get_fallback_font();
+    let mut current_x = x as f32;
+    let scaled_primary = primary_font.as_scaled(scale);
+
+    for ch in text.chars() {
+        let glyph_id = primary_font.glyph_id(ch);
+        let (font_to_use, scaled_font): (&ab_glyph::FontArc, _) =
+            if glyph_id != ab_glyph::GlyphId(0) {
+                (primary_font, scaled_primary)
+            } else if let Some(ref fb) = fallback {
+                (fb, fb.as_scaled(scale))
+            } else {
+                (primary_font, scaled_primary)
+            };
+
+        imageproc::drawing::draw_text_mut(
+            image,
+            color,
+            current_x as i32,
+            y,
+            scale,
+            font_to_use,
+            &ch.to_string(),
+        );
+
+        current_x += scaled_font.h_advance(font_to_use.glyph_id(ch));
+    }
 }
 
 /// Draw text with automatic fallback to SourceHanSans for unsupported characters (Luma version)
@@ -241,8 +311,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
     }
 }
 
-/// Draw text with automatic fallback (iOS version - no fallback, Luma)
-/// iOS version uses only the primary font directly via imageproc for grayscale images.
+/// Draw text with automatic fallback to SourceHanSans for CJK characters (iOS/Android Luma version)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw_text_with_fallback_luma<I>(
@@ -257,8 +326,39 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
 ) where
     I: image::GenericImage<Pixel = image::Luma<u8>>,
 {
-    // iOS: no fallback, just use primary font directly
-    imageproc::drawing::draw_text_mut(image, color, x, y, scale, primary_font, text);
+    use ab_glyph::{Font, ScaleFont};
+
+    if text.is_empty() {
+        return;
+    }
+
+    let fallback = get_fallback_font();
+    let mut current_x = x as f32;
+    let scaled_primary = primary_font.as_scaled(scale);
+
+    for ch in text.chars() {
+        let glyph_id = primary_font.glyph_id(ch);
+        let (font_to_use, scaled_font): (&ab_glyph::FontArc, _) =
+            if glyph_id != ab_glyph::GlyphId(0) {
+                (primary_font, scaled_primary)
+            } else if let Some(ref fb) = fallback {
+                (fb, fb.as_scaled(scale))
+            } else {
+                (primary_font, scaled_primary)
+            };
+
+        imageproc::drawing::draw_text_mut(
+            image,
+            color,
+            current_x as i32,
+            y,
+            scale,
+            font_to_use,
+            &ch.to_string(),
+        );
+
+        current_x += scaled_font.h_advance(font_to_use.glyph_id(ch));
+    }
 }
 
 pub trait Theme: Send + Sync + std::any::Any {

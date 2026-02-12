@@ -54,7 +54,10 @@ impl VariableFontPack {
 // iOS loads fonts from app bundle via FFI, not from embedded data
 
 // ===== EMBEDDED VERSION (no ext_res) =====
-#[cfg(all(not(any(feature = "ios_integration", feature = "android_integration")), not(feature = "ext_res")))]
+#[cfg(all(
+    not(any(feature = "ios_integration", feature = "android_integration")),
+    not(feature = "ext_res")
+))]
 lazy_static::lazy_static! {
     static ref BARLOW: VariableFontPack = VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
@@ -95,7 +98,10 @@ lazy_static::lazy_static! {
 // ===== EXTERNAL RESOURCES VERSION (ext_res enabled) =====
 // Fonts are loaded at runtime from Resources directory
 // Uses leaked Box to create 'static lifetime for FontRef
-#[cfg(all(not(any(feature = "ios_integration", feature = "android_integration")), feature = "ext_res"))]
+#[cfg(all(
+    not(any(feature = "ios_integration", feature = "android_integration")),
+    feature = "ext_res"
+))]
 lazy_static::lazy_static! {
     // Load and leak font data to get 'static lifetime
     static ref BARLOW_DATA: &'static [u8] = {

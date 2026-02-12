@@ -124,8 +124,10 @@ impl PackedImage {
             image::metadata::Orientation::NoTransforms
         };
         let (old_width, old_height) = (dyn_image.width(), dyn_image.height());
-        let (new_width, new_height) =
-            scale.apply(old_width, old_height, self.view_exif.is_vertical_rotated());
+        // Only consider vertical rotation for scale if orientation hasn't been pre-applied
+        // (e.g., HEIF images decoded by Apple's native decoder already have correct dimensions)
+        let is_vert_rot = need_orientation && self.view_exif.is_vertical_rotated();
+        let (new_width, new_height) = scale.apply(old_width, old_height, is_vert_rot);
 
         log::debug!("({old_width} x {old_height}) -> ({new_width}x{new_height})");
 
@@ -134,10 +136,10 @@ impl PackedImage {
         let buffer =
             ImageBuffer::<Rgba<u8>, _>::from_raw(new_width, new_height, resized_image.into_vec())
                 .ok_or_else(|| {
-                    image::ImageError::Parameter(image::error::ParameterError::from_kind(
-                        image::error::ParameterErrorKind::DimensionMismatch,
-                    ))
-                })?;
+                image::ImageError::Parameter(image::error::ParameterError::from_kind(
+                    image::error::ParameterErrorKind::DimensionMismatch,
+                ))
+            })?;
 
         let mut dyn_image = image::DynamicImage::ImageRgba8(buffer);
         dyn_image.apply_orientation(orientation);
