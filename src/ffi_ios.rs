@@ -1895,6 +1895,11 @@ pub struct CombinedExportConfig {
     // Export settings
     pub output_format: COutputFormat,
     pub quality: u8, // 1-100 for JPEG/WebP
+
+    // EXIF override settings
+    pub get_alt_fnumber: bool,
+    pub use_35mm_focal_length: bool,
+    pub exif_override_json: *const c_char,
 }
 
 // ============================================================================
@@ -2412,7 +2417,19 @@ pub unsafe extern "C" fn chama_export_combined(
                 None
             };
 
-            let theme_result = export_final_impl_with_exif_source(
+            // Parse EXIF override JSON if provided
+            let exif_override_str = if !config_ref.exif_override_json.is_null() {
+                unsafe {
+                    CStr::from_ptr(config_ref.exif_override_json)
+                        .to_str()
+                        .ok()
+                        .filter(|s| !s.is_empty())
+                }
+            } else {
+                None
+            };
+
+            let theme_result = export_final_impl_with_exif_source_and_override(
                 &temp_path,     // Image with face effects
                 image_path_str, // Original image for EXIF data
                 output_path_str,
@@ -2421,9 +2438,10 @@ pub unsafe extern "C" fn chama_export_combined(
                 font_path,
                 config_ref.font_weight,
                 core_scale_config,
-                None,  // Use default export config (WebP)
-                false, // get_alt_fnumber - default to false
-                false, // use_35mm_focal_length - default to false
+                None, // Use default export config
+                config_ref.get_alt_fnumber,
+                config_ref.use_35mm_focal_length,
+                exif_override_str,
             );
 
             // Clean up temp file
