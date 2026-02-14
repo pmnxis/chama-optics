@@ -237,6 +237,7 @@ fn generate_preview_impl(
         // For now normal preview doesn't draw face effect.
         configured_faces: Vec::with_capacity(0),
         lut_id: None, // iOS FFI doesn't use LUT yet
+        crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
     };
 
     // 7. Apply theme
@@ -393,6 +394,7 @@ fn export_final_impl_with_exif_source(
         perceptual_hash: None,
         configured_faces: Vec::with_capacity(0), // todo - check is this right?
         lut_id: None,                            // iOS FFI doesn't use LUT yet
+        crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
     };
 
     // 7. Apply theme with custom scale config if provided

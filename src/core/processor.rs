@@ -163,6 +163,7 @@ impl ImageProcessor {
             perceptual_hash: None,
             configured_faces: Vec::new(),
             lut_id: None, // Core processor doesn't use LUT
+            crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
         };
 
         // Use ExportConfig for theme application

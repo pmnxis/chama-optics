@@ -293,6 +293,7 @@ pub fn create_packed_image_from_data(
             perceptual_hash: *perceptual_hash,
             configured_faces: Vec::new(), // No faces configured from loader
             lut_id: None,                 // No LUT configured from loader
+            crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

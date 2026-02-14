@@ -34,6 +34,9 @@ pub struct StickerItem {
     /// Whether the file is missing (runtime only, not serialized)
     #[serde(skip)]
     pub file_missing: bool,
+    /// Whether this sticker is a "character" type (eligible for random dice placement in Cheki tab)
+    #[serde(default)]
+    pub is_character: bool,
 }
 
 fn default_timestamp() -> u64 {
@@ -54,6 +57,7 @@ impl StickerItem {
             file_hash,
             hash_mismatch: false,
             file_missing: false,
+            is_character: false,
         }
     }
 
@@ -196,6 +200,11 @@ impl StickerStorage {
     /// Set the default sticker
     pub fn set_default_sticker(&mut self, id: Option<Uuid>) {
         self.default_sticker_id = id;
+    }
+
+    /// Get all stickers marked as character type (eligible for dice placement)
+    pub fn character_stickers(&self) -> Vec<&StickerItem> {
+        self.stickers.iter().filter(|s| s.is_character).collect()
     }
 
     /// Build a lookup dictionary from sticker ID to image path

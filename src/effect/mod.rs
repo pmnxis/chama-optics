@@ -5,8 +5,12 @@
  */
 
 pub mod border;
+pub mod cheki;
+pub mod cheki_renderer;
 pub mod color_adjustments;
+pub mod crop_rotate;
 pub(crate) mod custom_weighted_sum;
+pub mod dice;
 pub(crate) mod draw_with_transparency;
 pub mod face_detection;
 pub mod face_detectors;

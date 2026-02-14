@@ -325,6 +325,37 @@ impl ChamaOptics {
                                     );
                                 });
 
+                                // Character toggle (for dice placement in Cheki tab)
+                                ui.horizontal(|ui| {
+                                    let mut is_char = self
+                                        .sticker_storage
+                                        .get_sticker(selected_id)
+                                        .map(|s| s.is_character)
+                                        .unwrap_or(false);
+                                    if ui
+                                        .checkbox(
+                                            &mut is_char,
+                                            t!(
+                                                "sticker.is_character",
+                                                default = "Character (Cheki dice)"
+                                            ),
+                                        )
+                                        .on_hover_text(t!(
+                                            "sticker.is_character_hint",
+                                            default =
+                                                "Enable for random placement in Cheki tab dice"
+                                        ))
+                                        .changed()
+                                        && let Some(sticker) = self
+                                            .sticker_storage
+                                            .stickers
+                                            .iter_mut()
+                                            .find(|s| s.id == selected_id)
+                                    {
+                                        sticker.is_character = is_char;
+                                    }
+                                });
+
                                 let preview_height = ui.available_height() * 0.6;
                                 ui.allocate_ui_with_layout(
                                     egui::vec2(ui.available_width(), preview_height),

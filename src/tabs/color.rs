@@ -307,7 +307,540 @@ impl ChamaOptics {
                 if self.color_adjustments != adjustments_before {
                     self.color_preview_cache_key = None;
                 }
+
+                ui.add_space(10.0);
+                ui.separator();
+
+                // Crop & Rotate section
+                ui.collapsing(
+                    t!("color.crop_rotate_section", default = "Crop & Rotate"),
+                    |ui| {
+                        self.render_crop_rotate_ui(ui);
+                    },
+                );
             });
+    }
+
+    /// Start async crop canvas texture generation (background thread)
+    fn start_crop_canvas_generation(&mut self) -> Option<()> {
+        let idx = self.color_selected_index?;
+        let packed_image = self.packed_images.get(idx)?;
+
+        let cache_key = (
+            idx,
+            packed_image.crop_rotate.rotation_90_count,
+            format!("{:.1}", packed_image.crop_rotate.rotation_degrees),
+        );
+        if self.crop_canvas_cache_key.as_ref() == Some(&cache_key) {
+            return Some(());
+        }
+
+        // Set cache key immediately to prevent duplicate spawns
+        self.crop_canvas_cache_key = Some(cache_key);
+
+        let image_path = packed_image.path.clone();
+        let orientation = packed_image.view_exif.orientation;
+        let rotation_90 = packed_image.crop_rotate.rotation_90_count;
+        let rotation_deg = packed_image.crop_rotate.rotation_degrees;
+        let queue = self.crop_preview_queue.clone();
+
+        std::thread::spawn(move || {
+            let mut img = match image::open(&image_path) {
+                Ok(img) => img,
+                Err(e) => {
+                    log::error!("Failed to load image for crop canvas: {:?}", e);
+                    return;
+                }
+            };
+
+            img.apply_orientation(orientation);
+
+            match rotation_90 % 4 {
+                1 => img = img.rotate90(),
+                2 => img = img.rotate180(),
+                3 => img = img.rotate270(),
+                _ => {}
+            }
+
+            if rotation_deg.abs() > 0.01 {
+                use image::Rgba;
+                use imageproc::geometric_transformations::{Interpolation, rotate_about_center};
+                let rgba = img.to_rgba8();
+                let radians = rotation_deg.to_radians();
+                let rotated = rotate_about_center(
+                    &rgba,
+                    radians,
+                    Interpolation::Bilinear,
+                    Rgba([0, 0, 0, 0]),
+                );
+                img = image::DynamicImage::ImageRgba8(rotated);
+            }
+
+            let orig_size = (img.width(), img.height());
+
+            let max_size = 1920u32;
+            if img.width() > max_size || img.height() > max_size {
+                let scale = (max_size as f32 / img.width() as f32)
+                    .min(max_size as f32 / img.height() as f32);
+                let new_w = (img.width() as f32 * scale) as u32;
+                let new_h = (img.height() as f32 * scale) as u32;
+                img = img.resize(new_w, new_h, image::imageops::FilterType::Triangle);
+            }
+
+            let rgba = img.to_rgba8();
+            let size = [rgba.width() as usize, rgba.height() as usize];
+            let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &rgba);
+
+            if let Ok(mut q) = queue.lock() {
+                *q = Some((color_image, idx, orig_size));
+            }
+        });
+
+        Some(())
+    }
+
+    /// Process crop canvas preview from background thread queue
+    fn process_crop_preview(&mut self, ui_ctx: &egui::Context) {
+        if let Ok(mut queue) = self.crop_preview_queue.try_lock()
+            && let Some((color_image, idx, orig_size)) = queue.take()
+        {
+            let still_relevant = self.color_selected_index == Some(idx);
+            if still_relevant {
+                let texture = ui_ctx.load_texture(
+                    format!("crop_canvas_{}", idx),
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                );
+                self.crop_canvas_texture = Some(texture);
+                self.crop_canvas_original_size = Some(orig_size);
+            }
+        }
+    }
+
+    /// Render crop/rotate interactive canvas and controls
+    fn render_crop_rotate_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(idx) = self.color_selected_index else {
+            ui.label(t!(
+                "color.select_image_first",
+                default = "Select an image first"
+            ));
+            return;
+        };
+
+        if self.packed_images.get(idx).is_none() {
+            return;
+        }
+
+        // Generate crop canvas texture (async) and process results
+        self.process_crop_preview(ui.ctx());
+        self.start_crop_canvas_generation();
+
+        // Canvas area
+        let canvas_height = (ui.available_height() * 0.55).max(200.0);
+        ui.allocate_ui(egui::vec2(ui.available_width(), canvas_height), |ui| {
+            self.render_crop_canvas(ui, idx);
+        });
+
+        ui.add_space(5.0);
+
+        // Controls below canvas
+        let mut rotation_changed = false;
+        let mut crop_changed = false;
+
+        if let Some(packed_image) = self.packed_images.get_mut(idx) {
+            ui.horizontal(|ui| {
+                ui.label(t!("color.rotation", default = "Rotation"));
+                if ui
+                    .add(
+                        egui::Slider::new(
+                            &mut packed_image.crop_rotate.rotation_degrees,
+                            -45.0..=45.0,
+                        )
+                        .suffix("°")
+                        .step_by(0.5),
+                    )
+                    .changed()
+                {
+                    rotation_changed = true;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                if ui
+                    .button(t!("color.rotate_ccw", default = "↺ CCW"))
+                    .clicked()
+                {
+                    packed_image.crop_rotate.rotation_90_count =
+                        (packed_image.crop_rotate.rotation_90_count + 3) % 4;
+                    rotation_changed = true;
+                }
+                if ui.button(t!("color.rotate_cw", default = "↻ CW")).clicked() {
+                    packed_image.crop_rotate.rotation_90_count =
+                        (packed_image.crop_rotate.rotation_90_count + 1) % 4;
+                    rotation_changed = true;
+                }
+                ui.separator();
+                if packed_image.crop_rotate.crop_rect.is_none() {
+                    if ui
+                        .button(t!("color.enable_crop", default = "Enable Crop"))
+                        .clicked()
+                    {
+                        packed_image.crop_rotate.crop_rect =
+                            Some(crate::effect::crop_rotate::NormalizedRect {
+                                x: 0.1,
+                                y: 0.1,
+                                width: 0.8,
+                                height: 0.8,
+                            });
+                        crop_changed = true;
+                    }
+                } else if ui
+                    .button(t!("color.clear_crop", default = "Clear Crop"))
+                    .clicked()
+                {
+                    packed_image.crop_rotate.crop_rect = None;
+                    crop_changed = true;
+                }
+                if ui
+                    .button(t!("color.reset_crop_rotate", default = "Reset All"))
+                    .clicked()
+                {
+                    packed_image.crop_rotate =
+                        crate::effect::crop_rotate::CropRotateTransform::default();
+                    rotation_changed = true;
+                    crop_changed = true;
+                }
+            });
+        }
+
+        if rotation_changed {
+            self.crop_canvas_cache_key = None;
+            self.color_preview_cache_key = None;
+        }
+        if crop_changed {
+            self.color_preview_cache_key = None;
+        }
+    }
+
+    /// Render interactive crop canvas with image and crop overlay
+    fn render_crop_canvas(&mut self, ui: &mut egui::Ui, idx: usize) {
+        let Some(texture) = self.crop_canvas_texture.as_ref() else {
+            ui.centered_and_justified(|ui| {
+                ui.label(t!("color.loading_preview", default = "Loading preview..."));
+            });
+            return;
+        };
+        let texture = texture.clone();
+        let texture_size = texture.size_vec2();
+        let available_size = ui.available_size();
+
+        // Fit image to available space
+        let aspect = texture_size.x / texture_size.y;
+        let image_display_size = if available_size.x / aspect > available_size.y {
+            egui::vec2(available_size.y * aspect, available_size.y)
+        } else {
+            egui::vec2(available_size.x, available_size.x / aspect)
+        };
+
+        // Allocate interactive area
+        let (response, painter) =
+            ui.allocate_painter(available_size, egui::Sense::click_and_drag());
+        let viewport_rect = response.rect;
+
+        // Center image in viewport
+        let offset = (available_size - image_display_size) / 2.0;
+        let image_rect = egui::Rect::from_min_size(
+            egui::pos2(
+                viewport_rect.min.x + offset.x,
+                viewport_rect.min.y + offset.y,
+            ),
+            image_display_size,
+        );
+
+        // Draw the rotated image
+        painter.image(
+            texture.id(),
+            image_rect,
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            egui::Color32::WHITE,
+        );
+
+        // Draw crop overlay if crop is enabled
+        let crop_rect_data = self
+            .packed_images
+            .get(idx)
+            .and_then(|pi| pi.crop_rotate.crop_rect.clone());
+
+        if let Some(ref crop) = crop_rect_data {
+            // Convert normalized crop to screen coordinates
+            let crop_screen = egui::Rect::from_min_size(
+                egui::pos2(
+                    image_rect.min.x + crop.x * image_rect.width(),
+                    image_rect.min.y + crop.y * image_rect.height(),
+                ),
+                egui::vec2(
+                    crop.width * image_rect.width(),
+                    crop.height * image_rect.height(),
+                ),
+            );
+
+            // Draw dimming overlay (4 rectangles around crop area)
+            let dim_color = egui::Color32::from_black_alpha(128);
+            // Top strip
+            painter.rect_filled(
+                egui::Rect::from_min_max(
+                    image_rect.min,
+                    egui::pos2(image_rect.max.x, crop_screen.min.y),
+                ),
+                0.0,
+                dim_color,
+            );
+            // Bottom strip
+            painter.rect_filled(
+                egui::Rect::from_min_max(
+                    egui::pos2(image_rect.min.x, crop_screen.max.y),
+                    image_rect.max,
+                ),
+                0.0,
+                dim_color,
+            );
+            // Left strip
+            painter.rect_filled(
+                egui::Rect::from_min_max(
+                    egui::pos2(image_rect.min.x, crop_screen.min.y),
+                    egui::pos2(crop_screen.min.x, crop_screen.max.y),
+                ),
+                0.0,
+                dim_color,
+            );
+            // Right strip
+            painter.rect_filled(
+                egui::Rect::from_min_max(
+                    egui::pos2(crop_screen.max.x, crop_screen.min.y),
+                    egui::pos2(image_rect.max.x, crop_screen.max.y),
+                ),
+                0.0,
+                dim_color,
+            );
+
+            // Draw crop rectangle border
+            painter.rect_stroke(
+                crop_screen,
+                0.0,
+                (2.0, egui::Color32::WHITE),
+                egui::StrokeKind::Inside,
+            );
+
+            // Draw corner resize handles
+            const HANDLE_SIZE: f32 = 8.0;
+            let corners = [
+                crop_screen.min,
+                egui::pos2(crop_screen.max.x, crop_screen.min.y),
+                egui::pos2(crop_screen.min.x, crop_screen.max.y),
+                crop_screen.max,
+            ];
+            for corner in corners {
+                let handle_rect =
+                    egui::Rect::from_center_size(corner, egui::vec2(HANDLE_SIZE, HANDLE_SIZE));
+                painter.rect_filled(handle_rect, 0.0, egui::Color32::WHITE);
+                painter.rect_stroke(
+                    handle_rect,
+                    0.0,
+                    (1.0, egui::Color32::BLACK),
+                    egui::StrokeKind::Inside,
+                );
+            }
+
+            // Handle crop interactions
+            self.handle_crop_interactions(response, image_rect, idx);
+        } else {
+            // No crop — show hint
+            painter.text(
+                image_rect.center(),
+                egui::Align2::CENTER_CENTER,
+                t!(
+                    "color.crop_hint",
+                    default = "Click 'Enable Crop' to add a crop area"
+                ),
+                egui::FontId::proportional(14.0),
+                egui::Color32::from_white_alpha(180),
+            );
+        }
+    }
+
+    /// Handle interactive crop rectangle drag/resize
+    fn handle_crop_interactions(
+        &mut self,
+        response: egui::Response,
+        image_rect: egui::Rect,
+        idx: usize,
+    ) {
+        use crate::app::{CropInteractionState, ResizeCorner};
+
+        let mouse_pos = response.hover_pos();
+
+        // On drag stop → finalize and invalidate caches
+        if response.drag_stopped() {
+            self.crop_interaction_state = CropInteractionState::Idle;
+            self.color_preview_cache_key = None;
+            return;
+        }
+
+        match self.crop_interaction_state.clone() {
+            CropInteractionState::Idle => {
+                if response.drag_started()
+                    && let Some(pos) = mouse_pos
+                    && let Some(crop) = self
+                        .packed_images
+                        .get(idx)
+                        .and_then(|pi| pi.crop_rotate.crop_rect.clone())
+                {
+                    let crop_screen = egui::Rect::from_min_size(
+                        egui::pos2(
+                            image_rect.min.x + crop.x * image_rect.width(),
+                            image_rect.min.y + crop.y * image_rect.height(),
+                        ),
+                        egui::vec2(
+                            crop.width * image_rect.width(),
+                            crop.height * image_rect.height(),
+                        ),
+                    );
+
+                    // Check corner handles first (10px threshold)
+                    let corners = [
+                        (crop_screen.min, ResizeCorner::TopLeft),
+                        (
+                            egui::pos2(crop_screen.max.x, crop_screen.min.y),
+                            ResizeCorner::TopRight,
+                        ),
+                        (
+                            egui::pos2(crop_screen.min.x, crop_screen.max.y),
+                            ResizeCorner::BottomLeft,
+                        ),
+                        (crop_screen.max, ResizeCorner::BottomRight),
+                    ];
+
+                    let mut hit_corner = false;
+                    for (corner_pos, corner) in corners {
+                        if pos.distance(corner_pos) < 12.0 {
+                            self.crop_interaction_state = CropInteractionState::ResizingCrop {
+                                corner,
+                                start_pos: pos,
+                                original_rect: crop.clone(),
+                            };
+                            hit_corner = true;
+                            break;
+                        }
+                    }
+
+                    // If not on a corner, check if inside crop rect for dragging
+                    if !hit_corner && crop_screen.contains(pos) {
+                        self.crop_interaction_state = CropInteractionState::DraggingCrop {
+                            start_pos: pos,
+                            original_rect: crop,
+                        };
+                    }
+                }
+            }
+            CropInteractionState::DraggingCrop {
+                start_pos,
+                original_rect,
+            } => {
+                if response.dragged()
+                    && let Some(pos) = mouse_pos
+                {
+                    let delta_x = (pos.x - start_pos.x) / image_rect.width();
+                    let delta_y = (pos.y - start_pos.y) / image_rect.height();
+
+                    let new_x = (original_rect.x + delta_x).clamp(0.0, 1.0 - original_rect.width);
+                    let new_y = (original_rect.y + delta_y).clamp(0.0, 1.0 - original_rect.height);
+
+                    if let Some(pi) = self.packed_images.get_mut(idx)
+                        && let Some(ref mut crop) = pi.crop_rotate.crop_rect
+                    {
+                        crop.x = new_x;
+                        crop.y = new_y;
+                    }
+                }
+            }
+            CropInteractionState::ResizingCrop {
+                corner,
+                start_pos,
+                original_rect,
+            } => {
+                if response.dragged()
+                    && let Some(pos) = mouse_pos
+                {
+                    let delta_x = (pos.x - start_pos.x) / image_rect.width();
+                    let delta_y = (pos.y - start_pos.y) / image_rect.height();
+
+                    if let Some(pi) = self.packed_images.get_mut(idx)
+                        && let Some(ref mut crop) = pi.crop_rotate.crop_rect
+                    {
+                        match corner {
+                            ResizeCorner::TopLeft => {
+                                let new_x = original_rect.x + delta_x;
+                                let new_y = original_rect.y + delta_y;
+                                let new_w = original_rect.width - delta_x;
+                                let new_h = original_rect.height - delta_y;
+                                if new_w > 0.05 && new_h > 0.05 {
+                                    crop.x = new_x.clamp(0.0, 0.95);
+                                    crop.y = new_y.clamp(0.0, 0.95);
+                                    crop.width = new_w.clamp(0.05, 1.0);
+                                    crop.height = new_h.clamp(0.05, 1.0);
+                                }
+                            }
+                            ResizeCorner::TopRight => {
+                                let new_y = original_rect.y + delta_y;
+                                let new_w = original_rect.width + delta_x;
+                                let new_h = original_rect.height - delta_y;
+                                if new_w > 0.05 && new_h > 0.05 {
+                                    crop.y = new_y.clamp(0.0, 0.95);
+                                    crop.width = new_w.clamp(0.05, 1.0);
+                                    crop.height = new_h.clamp(0.05, 1.0);
+                                }
+                            }
+                            ResizeCorner::BottomLeft => {
+                                let new_x = original_rect.x + delta_x;
+                                let new_w = original_rect.width - delta_x;
+                                let new_h = original_rect.height + delta_y;
+                                if new_w > 0.05 && new_h > 0.05 {
+                                    crop.x = new_x.clamp(0.0, 0.95);
+                                    crop.width = new_w.clamp(0.05, 1.0);
+                                    crop.height = new_h.clamp(0.05, 1.0);
+                                }
+                            }
+                            ResizeCorner::BottomRight => {
+                                let new_w = original_rect.width + delta_x;
+                                let new_h = original_rect.height + delta_y;
+                                if new_w > 0.05 && new_h > 0.05 {
+                                    crop.width = new_w.clamp(0.05, 1.0);
+                                    crop.height = new_h.clamp(0.05, 1.0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Double-click to create crop at position
+        if response.double_clicked()
+            && let Some(pos) = mouse_pos
+            && image_rect.contains(pos)
+        {
+            let norm_x = ((pos.x - image_rect.min.x) / image_rect.width() - 0.3).clamp(0.0, 0.4);
+            let norm_y = ((pos.y - image_rect.min.y) / image_rect.height() - 0.3).clamp(0.0, 0.4);
+            if let Some(pi) = self.packed_images.get_mut(idx) {
+                pi.crop_rotate.crop_rect = Some(crate::effect::crop_rotate::NormalizedRect {
+                    x: norm_x,
+                    y: norm_y,
+                    width: 0.6,
+                    height: 0.6,
+                });
+                self.color_preview_cache_key = None;
+            }
+        }
     }
 
     /// Generate or get cached LUT icon texture

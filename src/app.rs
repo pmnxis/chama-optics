@@ -29,6 +29,18 @@ type DetectionResultsData = (Vec<(i32, i32, u32, u32)>, uuid::Uuid, (u32, u32));
 /// Type alias for thread-safe detection results queue
 type DetectionResultsQueue = Arc<Mutex<Option<DetectionResultsData>>>;
 
+/// Type alias for cheki preview queue data: (ColorImage, image_uuid)
+type ChekiPreviewData = (egui::ColorImage, uuid::Uuid);
+
+/// Type alias for thread-safe cheki preview queue
+type ChekiPreviewQueue = Arc<Mutex<Option<ChekiPreviewData>>>;
+
+/// Type alias for crop canvas preview queue data: (ColorImage, image_index, original_size)
+type CropPreviewData = (egui::ColorImage, usize, (u32, u32));
+
+/// Type alias for thread-safe crop canvas preview queue
+type CropPreviewQueue = Arc<Mutex<Option<CropPreviewData>>>;
+
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
 pub enum MainTab {
@@ -38,6 +50,7 @@ pub enum MainTab {
     ThemePreview,
     Color,
     Sticker,
+    Cheki,
     ImportExport,
     Settings,
 }
@@ -65,6 +78,52 @@ pub enum ResizeCorner {
     TopRight,
     BottomLeft,
     BottomRight,
+}
+
+/// Interaction state for crop rectangle editing in crop/rotate canvas
+#[derive(Debug, Clone, Default)]
+pub enum CropInteractionState {
+    #[default]
+    Idle,
+    DraggingCrop {
+        start_pos: egui::Pos2,
+        original_rect: crate::effect::crop_rotate::NormalizedRect,
+    },
+    ResizingCrop {
+        corner: ResizeCorner,
+        start_pos: egui::Pos2,
+        original_rect: crate::effect::crop_rotate::NormalizedRect,
+    },
+}
+
+/// Interaction state for cheki canvas (sticker/text dragging, resize, rotate)
+#[derive(Debug, Clone, Default)]
+pub enum ChekiInteractionState {
+    #[default]
+    Idle,
+    DraggingSticker {
+        sticker_index: usize,
+        start_pos: egui::Pos2,
+        original_x: f32,
+        original_y: f32,
+    },
+    ResizingSticker {
+        sticker_index: usize,
+        start_pos: egui::Pos2,
+        original_scale: f32,
+        center: egui::Pos2,
+    },
+    RotatingSticker {
+        sticker_index: usize,
+        center: egui::Pos2,
+        start_angle: f32,
+        original_rotation: f32,
+    },
+    DraggingText {
+        start_pos: egui::Pos2,
+        original_x: f32,
+        original_y: f32,
+    },
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -252,6 +311,51 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     pub loaded_image_queue: crate::image::loader::LoadedImageQueue,
+
+    /// Per-image Cheki decorations (keyed by image UUID)
+    #[serde(skip)]
+    pub cheki_decorations:
+        std::collections::HashMap<uuid::Uuid, crate::effect::cheki::ChekiDecoration>,
+
+    /// Selected image index for Cheki tab
+    #[serde(skip)]
+    pub(crate) cheki_selected_index: Option<usize>,
+
+    /// Cached Cheki preview texture
+    #[serde(skip)]
+    pub(crate) cheki_preview_texture: Option<egui::TextureHandle>,
+
+    /// Cheki preview cache key (image_index, decoration_hash)
+    #[serde(skip)]
+    pub(crate) cheki_preview_cache_key: Option<(usize, u64)>,
+
+    /// Cheki canvas interaction state (sticker/text dragging)
+    #[serde(skip)]
+    pub(crate) cheki_interaction_state: ChekiInteractionState,
+
+    /// Crop/rotate canvas: rotated base image texture (before crop applied)
+    #[serde(skip)]
+    pub(crate) crop_canvas_texture: Option<egui::TextureHandle>,
+
+    /// Crop/rotate canvas cache key: (image_index, rotation_90_count, rotation_degrees)
+    #[serde(skip)]
+    pub(crate) crop_canvas_cache_key: Option<(usize, u8, String)>,
+
+    /// Crop/rotate canvas: dimensions of rotated image
+    #[serde(skip)]
+    pub(crate) crop_canvas_original_size: Option<(u32, u32)>,
+
+    /// Crop/rotate canvas interaction state
+    #[serde(skip)]
+    pub(crate) crop_interaction_state: CropInteractionState,
+
+    /// Background thread queue for cheki preview generation
+    #[serde(skip)]
+    pub(crate) cheki_preview_queue: ChekiPreviewQueue,
+
+    /// Background thread queue for crop canvas generation
+    #[serde(skip)]
+    pub(crate) crop_preview_queue: CropPreviewQueue,
 }
 
 impl Default for ChamaOptics {
@@ -308,6 +412,17 @@ impl Default for ChamaOptics {
             save_progress: ProgressState::new(),
             load_progress: ProgressState::new(),
             loaded_image_queue: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+            cheki_decorations: std::collections::HashMap::new(),
+            cheki_selected_index: None,
+            cheki_preview_texture: None,
+            cheki_preview_cache_key: None,
+            cheki_interaction_state: ChekiInteractionState::default(),
+            crop_canvas_texture: None,
+            crop_canvas_cache_key: None,
+            crop_canvas_original_size: None,
+            crop_interaction_state: CropInteractionState::default(),
+            cheki_preview_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            crop_preview_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
         }
     }
 }
@@ -330,6 +445,13 @@ impl ChamaOptics {
         self.color_preview_cache_key = None;
         self.color_original_texture = None;
         self.color_lut_texture = None;
+        // Cheki tab caches
+        self.cheki_preview_cache_key = None;
+        self.cheki_preview_texture = None;
+        // Crop/rotate canvas caches
+        self.crop_canvas_cache_key = None;
+        self.crop_canvas_texture = None;
+        self.crop_canvas_original_size = None;
     }
 
     /// Delete an image by index and handle related cleanup
@@ -433,6 +555,10 @@ impl ChamaOptics {
             configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
             /// LUT ID configured for this image (for color grading)
             lut_id: Option<uuid::Uuid>,
+            /// Per-image crop/rotate transform
+            crop_rotate: crate::effect::crop_rotate::CropRotateTransform,
+            /// Per-image cheki decoration (if configured)
+            cheki_decoration: Option<crate::effect::cheki::ChekiDecoration>,
         }
 
         // save each
@@ -445,6 +571,7 @@ impl ChamaOptics {
                 Option<image::DynamicImage>,
             >,
             lut_storage: &mut crate::effect::lut_storage::LutStorage,
+            sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
             let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
@@ -452,8 +579,9 @@ impl ChamaOptics {
             // Use saved view_exif instead of reconstructed one
             pi.view_exif = task.view_exif.clone();
 
-            // Restore lut_id from task
+            // Restore lut_id and crop_rotate from task
             pi.lut_id = task.lut_id;
+            pi.crop_rotate = task.crop_rotate.clone();
 
             // Apply LUT to image if configured
             // LUT is applied before stickers/theme in the pipeline
@@ -572,10 +700,33 @@ impl ChamaOptics {
                 }
             };
 
-            export_config
-                .theme_reg
-                .selected_theme_read()
-                .apply_with_faces(&pi, export_config, &new_path, pre_detected_faces)?;
+            // Apply theme (and face effects)
+            // If cheki decoration is present, we apply it after the theme
+            if let Some(ref cheki_deco) = task.cheki_decoration {
+                // Apply theme to get image, then apply cheki on top, then save
+                let themed_image = export_config
+                    .theme_reg
+                    .selected_theme_read()
+                    .apply_to_image(&pi, export_config)?;
+                let mut final_image = crate::effect::cheki_renderer::apply_cheki_decoration(
+                    themed_image,
+                    cheki_deco,
+                    sticker_storage,
+                );
+                // Save the final image with face effects
+                export_config.save_image_with_faces(
+                    &mut final_image,
+                    None,
+                    &new_path,
+                    pre_detected_faces,
+                )?;
+            } else {
+                // No cheki - use normal theme apply_with_faces pipeline
+                export_config
+                    .theme_reg
+                    .selected_theme_read()
+                    .apply_with_faces(&pi, export_config, &new_path, pre_detected_faces)?;
+            }
             Ok(())
         }
 
@@ -586,6 +737,9 @@ impl ChamaOptics {
             );
             // todo - warning on UI
         }
+
+        // Clone cheki decorations for SaveTask construction
+        let cheki_decos = &self.cheki_decorations;
 
         // Convert PackedImages to SaveTasks for parallel processing
         // If grouping is active, use group-specific prefix/postfix
@@ -617,6 +771,8 @@ impl ChamaOptics {
                         sticker_bytes: pi.sticker_bytes.clone(),
                         configured_faces: pi.configured_faces.clone(),
                         lut_id: pi.lut_id,
+                        crop_rotate: pi.crop_rotate.clone(),
+                        cheki_decoration: cheki_decos.get(&pi.uuid).cloned(),
                     }
                 })
                 .collect()
@@ -632,6 +788,8 @@ impl ChamaOptics {
                     sticker_bytes: pi.sticker_bytes.clone(),
                     configured_faces: pi.configured_faces.clone(),
                     lut_id: pi.lut_id,
+                    crop_rotate: pi.crop_rotate.clone(),
+                    cheki_decoration: cheki_decos.get(&pi.uuid).cloned(),
                 })
                 .collect()
         };
@@ -661,6 +819,9 @@ impl ChamaOptics {
         // Clone lut_storage for the background thread (for LUT application during export)
         // Wrap in Mutex for thread-safe access during parallel processing
         let lut_storage = std::sync::Mutex::new(self.lut_storage.clone_for_thread());
+
+        // Clone sticker_storage for the background thread (for cheki decoration rendering)
+        let sticker_storage = self.sticker_storage.clone_for_thread();
 
         // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
@@ -697,6 +858,7 @@ impl ChamaOptics {
                         &export_config,
                         &sticker_processed_images,
                         &mut lut_storage_guard,
+                        &sticker_storage,
                     ) {
                         Ok(_) => {
                             log::info!("Successfully saved image {}", idx);
@@ -1287,6 +1449,7 @@ impl ChamaOptics {
                 MainTab::ThemePreview => self.render_theme_preview_tab(ui),
                 MainTab::Color => self.render_color_tab(ui),
                 MainTab::Sticker => self.render_sticker_tab(ui),
+                MainTab::Cheki => self.render_cheki_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),
             }

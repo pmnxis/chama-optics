@@ -152,15 +152,15 @@ fn main() {
     }
     println!("✅ Generated {}", output_file.display());
 
-    if target_os == "linux" {
-        if let Ok(pkg_path) = env::var("PKG_CONFIG_PATH") {
-            for path in pkg_path.split(':') {
-                if path.contains("libheif/build") {
-                    let lib_path = format!("{}/libheif", path.trim_end_matches('/'));
-                    println!("cargo:rustc-link-search=native={}", lib_path);
-                    println!("cargo:rustc-link-lib=heif");
-                    break;
-                }
+    if target_os == "linux"
+        && let Ok(pkg_path) = env::var("PKG_CONFIG_PATH")
+    {
+        for path in pkg_path.split(':') {
+            if path.contains("libheif/build") {
+                let lib_path = format!("{}/libheif", path.trim_end_matches('/'));
+                println!("cargo:rustc-link-search=native={}", lib_path);
+                println!("cargo:rustc-link-lib=heif");
+                break;
             }
         }
     }

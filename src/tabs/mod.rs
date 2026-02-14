@@ -6,6 +6,7 @@
 
 //! Tab UI modules
 
+pub mod cheki;
 pub mod color;
 pub mod detection;
 pub mod image_list;

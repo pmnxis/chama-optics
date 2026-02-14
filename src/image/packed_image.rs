@@ -62,6 +62,11 @@ pub struct PackedImage {
     /// LUT ID configured for this image (None = no LUT applied)
     /// References a LUT in the global LutStorage
     pub lut_id: Option<Uuid>,
+
+    /// Per-image crop/rotate transform
+    /// Applied after EXIF orientation but before theme rendering.
+    /// Face detection runs on original image; coords are transformed via this.
+    pub crop_rotate: crate::effect::crop_rotate::CropRotateTransform,
 }
 
 impl PackedImage {
@@ -137,6 +142,11 @@ impl PackedImage {
 
         let mut dyn_image = image::DynamicImage::ImageRgba8(buffer);
         dyn_image.apply_orientation(orientation);
+
+        // Apply crop/rotate transform after EXIF orientation
+        if !self.crop_rotate.is_identity() {
+            dyn_image = self.crop_rotate.apply(&dyn_image);
+        }
 
         Ok(dyn_image)
     }
@@ -226,6 +236,7 @@ impl PackedImage {
             perceptual_hash: None, // Not calculated for manually loaded images
             configured_faces: Vec::new(), // No faces configured yet
             lut_id: None,          // No LUT configured yet
+            crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
         })
     }
 
@@ -259,6 +270,7 @@ impl PackedImage {
             perceptual_hash: None, // CLI mode doesn't calculate hash
             configured_faces: Vec::new(), // No faces configured in CLI mode
             lut_id: None,        // No LUT configured in CLI mode
+            crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
         })
     }
 
