@@ -177,7 +177,7 @@ impl Theme for ShotOnTwoLine {
         let second_txt_scale =
             self.rel_scale((self.second_font_height).clamp(10, 30) as f32 / 100.0, bb);
 
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         #[rustfmt::skip]
         macro_rules! draw {

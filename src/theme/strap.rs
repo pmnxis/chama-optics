@@ -148,7 +148,7 @@ impl Theme for Strap {
 
         let (ll, rr, _tt, bb) = self.border.border_size(dyn_wh);
         let txt_scale = self.rel_scale(0.385, bb);
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         #[rustfmt::skip]
         macro_rules! draw {

@@ -115,7 +115,7 @@ impl Theme for Monitor {
         let (ll, _rr, _tt, bb) = self.border.border_size(dyn_wh);
         let font_height_ratio = self.font_height.clamp(10, 80) as f32 / 100.0;
         let txt_scale = self.rel_scale(font_height_ratio, bb);
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         // TODO - Need more profer way
 

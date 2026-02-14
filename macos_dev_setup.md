@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+-->
+
 # Development Setup for External Resources
 
 ## Overview

@@ -289,14 +289,14 @@ pub fn decode_heif_from_data(data: &[u8]) -> Result<image::DynamicImage, String>
                 dynamic_image.rotate180()
             }
             EXIF_ORIENTATION_RIGHT => {
-                // 90 degree CW rotation (which is 270 CCW in image crate terms)
-                log::debug!("Rotating 90° CW / 270° CCW (orientation = 6)");
-                dynamic_image.rotate270()
+                // 90 degree CW rotation
+                log::debug!("Rotating 90° CW (orientation = 6)");
+                dynamic_image.rotate90()
             }
             EXIF_ORIENTATION_LEFT => {
-                // 90 degree CCW rotation (which is 90 in image crate terms)
-                log::debug!("Rotating 90° CCW (orientation = 8)");
-                dynamic_image.rotate90()
+                // 270 degree CW rotation (= 90° CCW)
+                log::debug!("Rotating 270° CW / 90° CCW (orientation = 8)");
+                dynamic_image.rotate270()
             }
             EXIF_ORIENTATION_UP_MIRRORED => {
                 log::debug!("Flipping horizontally (orientation = 2)");

@@ -55,11 +55,22 @@ pub struct CExifData {
 /// Safe to call multiple times (uses try_init internally)
 #[unsafe(no_mangle)]
 pub extern "C" fn chama_optics_init() {
-    // Force debug level logging for Apple platforms
-    // Use try_init to avoid panic if already initialized
-    let _ = env_logger::Builder::from_default_env()
-        .filter_level(log::LevelFilter::Debug)
-        .try_init();
+    #[cfg(target_os = "android")]
+    {
+        let _ = android_logger::init_once(
+            android_logger::Config::default()
+                .with_max_level(log::LevelFilter::Debug)
+                .with_tag("chama_optics"),
+        );
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        // Force debug level logging for Apple/desktop platforms
+        // Use try_init to avoid panic if already initialized
+        let _ = env_logger::Builder::from_default_env()
+            .filter_level(log::LevelFilter::Debug)
+            .try_init();
+    }
     log::info!("Chama Optics library initialized with DEBUG logging");
 }
 

@@ -157,7 +157,7 @@ impl Theme for OneLine {
         // let font_height_ratio = self.font_height.clamp(5, 80) as f32 / 100.0;
         let font_height_ratio_x100 = (self.font_height).clamp(5, 800);
 
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         // TODO - Need more profer way
         let y = new_image.height() - (bb / 2);

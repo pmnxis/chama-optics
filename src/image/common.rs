@@ -63,7 +63,15 @@ pub(crate) fn resize_image(
         fr::images::Image::new(new_width, new_height, fr::PixelType::U8x4);
     // let mut dst_image = fr::images::Image::new(new_width, new_height, fr::PixelType::F32x4);
     let mut resizer = fr::Resizer::new();
-    resizer.resize(&src_image, &mut dst_image, None).unwrap();
+    resizer
+        .resize(&src_image, &mut dst_image, None)
+        .map_err(|e| {
+            log::error!("resize failed: {e:?}");
+            image::ImageError::Encoding(image::error::EncodingError::new(
+                image::error::ImageFormatHint::Unknown,
+                format!("resize failed: {e:?}"),
+            ))
+        })?;
 
     Ok(dst_image)
 }

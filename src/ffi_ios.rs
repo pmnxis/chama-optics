@@ -294,15 +294,54 @@ fn export_final_impl_with_exif_source(
     get_alt_fnumber: bool,
     use_35mm_focal_length: bool,
 ) -> Result<(), PreviewError> {
-    // For final export, always load full resolution
-    let _dyn_image =
-        load_image_with_heif_support(Path::new(image_path)).map_err(PreviewError::ImageLoad)?;
+    export_final_impl_with_exif_source_and_override(
+        image_path,
+        exif_source_path,
+        output_path,
+        theme_name,
+        params_json,
+        font_path,
+        font_weight,
+        scale_config,
+        output_format_config,
+        get_alt_fnumber,
+        use_35mm_focal_length,
+        None,
+    )
+}
 
-    log::info!(
-        "✅ Loaded full resolution image: {}x{}",
-        _dyn_image.width(),
-        _dyn_image.height()
-    );
+fn export_final_impl_with_exif_source_and_override(
+    image_path: &str,
+    exif_source_path: &str,
+    output_path: &str,
+    theme_name: &str,
+    params_json: &str,
+    font_path: &str,
+    font_weight: u32,
+    scale_config: Option<crate::scale_config::ScaleConfig>,
+    output_format_config: Option<COutputFormatConfig>,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
+    exif_override_json: Option<&str>,
+) -> Result<(), PreviewError> {
+    // Verify image file exists and is readable before proceeding
+    // Note: We intentionally do NOT load the full image here, as it will be loaded
+    // again from image_bytes in PackedImage::get_image(). Double-loading wastes ~100MB.
+    {
+        let img_path = Path::new(image_path);
+        if !img_path.exists() {
+            log::error!("Image file does not exist: {}", image_path);
+            return Err(PreviewError::ImageLoad(image::ImageError::IoError(
+                std::io::Error::new(std::io::ErrorKind::NotFound, "Image file not found"),
+            )));
+        }
+        let metadata = std::fs::metadata(img_path).map_err(PreviewError::IoError)?;
+        log::info!(
+            "✅ Image file verified: {} ({} bytes)",
+            image_path,
+            metadata.len()
+        );
+    }
 
     // Parse EXIF from the original source (not the modified image)
     let exif = {
@@ -328,6 +367,47 @@ fn export_final_impl_with_exif_source(
     }
     if use_35mm_focal_length {
         view_exif.use_35mm_focal_length(&original_exif);
+    }
+
+    // Apply EXIF overrides from user edits (if provided)
+    if let Some(override_json) = exif_override_json {
+        if !override_json.is_empty() && override_json != "{}" {
+            match serde_json::from_str::<crate::image::exif_impl::SimplifiedExif>(override_json) {
+                Ok(override_exif) => {
+                    if !override_exif.camera_mnf.is_empty() {
+                        view_exif.camera_mnf = override_exif.camera_mnf;
+                    }
+                    if !override_exif.camera_model.is_empty() {
+                        view_exif.camera_model = override_exif.camera_model;
+                    }
+                    if !override_exif.lens_mnf.is_empty() {
+                        view_exif.lens_mnf = override_exif.lens_mnf;
+                    }
+                    if !override_exif.lens_model.is_empty() {
+                        view_exif.lens_model = override_exif.lens_model;
+                    }
+                    if !override_exif.focal.is_empty() {
+                        view_exif.focal = override_exif.focal;
+                    }
+                    if !override_exif.fnumber.is_empty() {
+                        view_exif.fnumber = override_exif.fnumber;
+                    }
+                    if !override_exif.exposure.is_empty() {
+                        view_exif.exposure = override_exif.exposure;
+                    }
+                    if override_exif.iso_speed.is_some() {
+                        view_exif.iso_speed = override_exif.iso_speed;
+                    }
+                    if override_exif.datetime.is_some() {
+                        view_exif.datetime = override_exif.datetime;
+                    }
+                    log::info!("✅ Applied EXIF overrides from user edits");
+                }
+                Err(e) => {
+                    log::warn!("⚠️ Failed to parse EXIF override JSON: {}", e);
+                }
+            }
+        }
     }
 
     // If image_path differs from exif_source_path, the image has already been processed
@@ -1361,7 +1441,55 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
 /// - `scale_config`: Pointer to CScaleConfig for custom scaling (pass null for default 4K scaling)
 /// - `output_format_config`: Pointer to COutputFormatConfig for format/quality (pass null for default WebP 90)
 #[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
+    image_path: *const c_char,
+    exif_source_path: *const c_char,
+    output_path: *const c_char,
+    theme_name: *const c_char,
+    params_json: *const c_char,
+    font_path: *const c_char,
+    font_weight: u32,
+    scale_config: *const CScaleConfig,
+    output_format_config: *const COutputFormatConfig,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
+) -> ChamaError {
+    // Wrap entire function body in catch_unwind to prevent panics from
+    // unwinding across the FFI boundary (which causes SIGABRT on Android)
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        chama_optics_apply_theme_with_exif_scale_and_export_impl(
+            image_path,
+            exif_source_path,
+            output_path,
+            theme_name,
+            params_json,
+            font_path,
+            font_weight,
+            scale_config,
+            output_format_config,
+            get_alt_fnumber,
+            use_35mm_focal_length,
+        )
+    }));
+
+    match result {
+        Ok(error_code) => error_code,
+        Err(panic_info) => {
+            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "unknown panic".to_string()
+            };
+            log::error!("Caught panic in FFI: {}", msg);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+unsafe fn chama_optics_apply_theme_with_exif_scale_and_export_impl(
     image_path: *const c_char,
     exif_source_path: *const c_char,
     output_path: *const c_char,
@@ -1501,6 +1629,169 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
 }
 
 // ============================================================================
+// Theme with EXIF Override (for user-edited EXIF data)
+// ============================================================================
+
+/// Apply theme with EXIF override JSON
+/// Same as chama_optics_apply_theme_with_exif_scale_and_export but accepts
+/// an additional exif_override_json parameter to override EXIF fields from user edits.
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
+    image_path: *const c_char,
+    exif_source_path: *const c_char,
+    output_path: *const c_char,
+    theme_name: *const c_char,
+    params_json: *const c_char,
+    font_path: *const c_char,
+    font_weight: u32,
+    scale_config: *const CScaleConfig,
+    output_format_config: *const COutputFormatConfig,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
+    exif_override_json: *const c_char,
+) -> ChamaError {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
+            return ChamaError::InvalidPath;
+        }
+
+        let image_path_str = match CStr::from_ptr(image_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        };
+
+        let exif_source_str = if exif_source_path.is_null() {
+            image_path_str
+        } else {
+            match CStr::from_ptr(exif_source_path).to_str() {
+                Ok(s) => s,
+                Err(_) => image_path_str,
+            }
+        };
+
+        let output_path_str = match CStr::from_ptr(output_path).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidPath,
+        };
+
+        let theme_name_str = match CStr::from_ptr(theme_name).to_str() {
+            Ok(s) => s,
+            Err(_) => return ChamaError::InvalidTheme,
+        };
+
+        let params_json_str = if params_json.is_null() {
+            "{}"
+        } else {
+            CStr::from_ptr(params_json).to_str().unwrap_or("{}")
+        };
+
+        let font_path_str = if font_path.is_null() {
+            ""
+        } else {
+            CStr::from_ptr(font_path).to_str().unwrap_or("")
+        };
+
+        let exif_override_str = if exif_override_json.is_null() {
+            None
+        } else {
+            match CStr::from_ptr(exif_override_json).to_str() {
+                Ok(s) if !s.is_empty() => Some(s),
+                _ => None,
+            }
+        };
+
+        // Convert CScaleConfig
+        let core_scale_config = if scale_config.is_null() {
+            None
+        } else {
+            let config_ref = &*scale_config;
+            if config_ref.mode == CScaleMode::None {
+                None
+            } else {
+                Some(crate::scale_config::ScaleConfig {
+                    mode: match config_ref.mode {
+                        CScaleMode::None => crate::scale_config::ScaleMode::None,
+                        CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
+                        CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
+                        CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
+                        CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
+                        CScaleMode::NearCommonWidth => {
+                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
+                        }
+                        CScaleMode::NearCommonHeight => {
+                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
+                        }
+                        CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
+                    },
+                    value: config_ref.value,
+                    sub_value: config_ref.sub_value,
+                    scale_value: config_ref.scale_value as f32,
+                })
+            }
+        };
+
+        let export_config_option = if output_format_config.is_null() {
+            None
+        } else {
+            let config_ref = &*output_format_config;
+            Some(*config_ref)
+        };
+
+        log::info!(
+            "Applying theme with EXIF override: image={}, exif_source={}, override={}",
+            image_path_str,
+            exif_source_str,
+            exif_override_str.is_some()
+        );
+
+        match export_final_impl_with_exif_source_and_override(
+            image_path_str,
+            exif_source_str,
+            output_path_str,
+            theme_name_str,
+            params_json_str,
+            font_path_str,
+            font_weight,
+            core_scale_config,
+            export_config_option,
+            get_alt_fnumber,
+            use_35mm_focal_length,
+            exif_override_str,
+        ) {
+            Ok(_) => {
+                log::info!("✅ Theme applied successfully with EXIF override");
+                ChamaError::Success
+            }
+            Err(e) => {
+                log::error!("Failed to apply theme with EXIF override: {}", e);
+                match e {
+                    PreviewError::InvalidTheme => ChamaError::InvalidTheme,
+                    PreviewError::InvalidFont => ChamaError::InvalidFont,
+                    PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
+                    _ => ChamaError::ImageProcessError,
+                }
+            }
+        }
+    }));
+
+    match result {
+        Ok(error_code) => error_code,
+        Err(panic_info) => {
+            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "unknown panic".to_string()
+            };
+            log::error!("Caught panic in FFI (EXIF override): {}", msg);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+// ============================================================================
 // Combined Export Pipeline (Face Effects + Theme + Export Quality)
 // ============================================================================
 
@@ -1606,6 +1897,11 @@ pub struct CombinedExportConfig {
     // Export settings
     pub output_format: COutputFormat,
     pub quality: u8, // 1-100 for JPEG/WebP
+
+    // EXIF override settings
+    pub get_alt_fnumber: bool,
+    pub use_35mm_focal_length: bool,
+    pub exif_override_json: *const c_char,
 }
 
 // ============================================================================
@@ -2123,7 +2419,19 @@ pub unsafe extern "C" fn chama_export_combined(
                 None
             };
 
-            let theme_result = export_final_impl_with_exif_source(
+            // Parse EXIF override JSON if provided
+            let exif_override_str = if !config_ref.exif_override_json.is_null() {
+                unsafe {
+                    CStr::from_ptr(config_ref.exif_override_json)
+                        .to_str()
+                        .ok()
+                        .filter(|s| !s.is_empty())
+                }
+            } else {
+                None
+            };
+
+            let theme_result = export_final_impl_with_exif_source_and_override(
                 &temp_path,     // Image with face effects
                 image_path_str, // Original image for EXIF data
                 output_path_str,
@@ -2132,9 +2440,10 @@ pub unsafe extern "C" fn chama_export_combined(
                 font_path,
                 config_ref.font_weight,
                 core_scale_config,
-                None,  // Use default export config (WebP)
-                false, // get_alt_fnumber - default to false
-                false, // use_35mm_focal_length - default to false
+                None, // Use default export config
+                config_ref.get_alt_fnumber,
+                config_ref.use_35mm_focal_length,
+                exif_override_str,
             );
 
             // Clean up temp file

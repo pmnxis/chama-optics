@@ -159,7 +159,7 @@ impl Theme for TwoLine {
         let (ll, rr, tt, bb) = self.border.border_size(dyn_wh);
         let txt_scale = self.rel_scale((self.font_height).clamp(5, 39) as f32 / 100.0, bb);
 
-        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let mut new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         #[rustfmt::skip]
         macro_rules! draw {

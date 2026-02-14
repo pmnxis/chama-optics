@@ -52,7 +52,7 @@ impl Theme for JustFrame {
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: u32 = dyn_w.max(dyn_h);
 
-        let new_image = self.border.take_from_exist(&dyn_image, dyn_wh);
+        let new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
 
         Ok(new_image)
     }
