@@ -1,0 +1,172 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Cheki (Polaroid style) decoration translations
+# Used in both EGUI (desktop) and mobile
+
+_version: 2
+
+tabs:
+  cheki:
+    en: "Cheki"
+    ko: "체키"
+    ja: "チェキ"
+    id: "Cheki"
+  cheki_heading:
+    en: "Cheki - Polaroid Style"
+    ko: "체키 - 폴라로이드 스타일"
+    ja: "チェキ - ポラロイドスタイル"
+    id: "Cheki - Gaya Polaroid"
+
+cheki:
+  select_image:
+    en: "Select Image"
+    ko: "이미지 선택"
+    ja: "画像を選択"
+    id: "Pilih Gambar"
+  no_images:
+    en: "No images loaded. Drop images to begin."
+    ko: "이미지가 없습니다. 이미지를 드래그하여 추가하세요."
+    ja: "画像がありません。画像をドロップして開始してください。"
+    id: "Tidak ada gambar. Seret gambar untuk memulai."
+  loading_preview:
+    en: "Loading preview..."
+    ko: "미리보기 로딩 중..."
+    ja: "プレビュー読み込み中..."
+    id: "Memuat pratinjau..."
+  theme_warning:
+    en: "Note: Cheki decoration will be applied ON TOP of the selected theme"
+    ko: "참고: 체키 데코레이션은 선택된 테마 위에 적용됩니다"
+    ja: "注意: チェキ装飾は選択したテーマの上に適用されます"
+    id: "Catatan: Dekorasi Cheki akan diterapkan DI ATAS tema yang dipilih"
+  enabled:
+    en: "Enable Cheki"
+    ko: "체키 활성화"
+    ja: "チェキを有効にする"
+    id: "Aktifkan Cheki"
+
+  # Border settings
+  border_settings:
+    en: "Border Settings"
+    ko: "테두리 설정"
+    ja: "ボーダー設定"
+    id: "Pengaturan Batas"
+  border_width:
+    en: "Border"
+    ko: "테두리"
+    ja: "ボーダー"
+    id: "Batas"
+  bottom_extra:
+    en: "Bottom"
+    ko: "하단"
+    ja: "下部"
+    id: "Bawah"
+  border_color:
+    en: "Color"
+    ko: "색상"
+    ja: "色"
+    id: "Warna"
+
+  # Text / Sign
+  text_section:
+    en: "Text / Sign"
+    ko: "텍스트 / 서명"
+    ja: "テキスト / サイン"
+    id: "Teks / Tanda Tangan"
+  font:
+    en: "Font"
+    ko: "폰트"
+    ja: "フォント"
+    id: "Font"
+  font_size:
+    en: "Size"
+    ko: "크기"
+    ja: "サイズ"
+    id: "Ukuran"
+  text_color:
+    en: "Color"
+    ko: "색상"
+    ja: "色"
+    id: "Warna"
+  text_drag_hint:
+    en: "Drag the crosshair on the preview to move text"
+    ko: "미리보기에서 십자 표시를 드래그하여 텍스트 이동"
+    ja: "プレビューの十字線をドラッグしてテキストを移動"
+    id: "Seret tanda silang pada pratinjau untuk memindahkan teks"
+
+  # Date stamp
+  date_section:
+    en: "Date Stamp"
+    ko: "날짜 스탬프"
+    ja: "日付スタンプ"
+    id: "Stempel Tanggal"
+  date_enabled:
+    en: "Enable date stamp"
+    ko: "날짜 스탬프 활성화"
+    ja: "日付スタンプを有効にする"
+    id: "Aktifkan stempel tanggal"
+  date_autofill:
+    en: "Auto-fill from EXIF"
+    ko: "EXIF에서 자동 입력"
+    ja: "EXIFから自動入力"
+    id: "Isi otomatis dari EXIF"
+  date_position:
+    en: "Position"
+    ko: "위치"
+    ja: "位置"
+    id: "Posisi"
+
+  # Random Character (Dice)
+  dice_section:
+    en: "Random Character"
+    ko: "랜덤 캐릭터"
+    ja: "ランダムキャラクター"
+    id: "Karakter Acak"
+  no_characters:
+    en: "No character stickers. Mark stickers as 'Character' in the Sticker tab."
+    ko: "캐릭터 스티커가 없습니다. 스티커 탭에서 'Character'로 표시하세요."
+    ja: "キャラクターステッカーがありません。ステッカータブで'Character'に設定してください。"
+    id: "Tidak ada stiker karakter. Tandai stiker sebagai 'Character' di tab Stiker."
+  available_characters:
+    en: "Characters"
+    ko: "캐릭터"
+    ja: "キャラクター"
+    id: "Karakter"
+  clip_stickers:
+    en: "Clip stickers to image area"
+    ko: "스티커를 이미지 영역에 맞춤"
+    ja: "ステッカーを画像エリアにクリップ"
+    id: "Potong stiker ke area gambar"
+  allow_rotation:
+    en: "Allow rotation"
+    ko: "회전 허용"
+    ja: "回転を許可"
+    id: "Izinkan rotasi"
+  play_dice:
+    en: "Play Dice!"
+    ko: "주사위 굴리기!"
+    ja: "サイコロを振る！"
+    id: "Lempar Dadu!"
+  clear_stickers:
+    en: "Clear"
+    ko: "지우기"
+    ja: "クリア"
+    id: "Hapus"
+  placed_stickers:
+    en: "Placed"
+    ko: "배치됨"
+    ja: "配置済み"
+    id: "Ditempatkan"
+  sticker_drag_hint:
+    en: "Drag to move. Corners to resize. Top handle to rotate. Right-click to delete. Scroll to scale."
+    ko: "드래그하여 이동. 모서리로 크기 조절. 상단 핸들로 회전. 우클릭 삭제. 스크롤로 크기."
+    ja: "ドラッグで移動。コーナーでリサイズ。上のハンドルで回転。右クリックで削除。スクロールでスケール。"
+    id: "Seret untuk pindah. Sudut untuk ukuran. Pegangan atas untuk rotasi. Klik kanan hapus. Gulir untuk skala."
+
+  # Remove
+  remove_decoration:
+    en: "Remove Cheki Decoration"
+    ko: "체키 데코레이션 제거"
+    ja: "チェキ装飾を削除"
+    id: "Hapus Dekorasi Cheki"

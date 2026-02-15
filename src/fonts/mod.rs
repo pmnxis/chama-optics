@@ -84,6 +84,15 @@ pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     data: include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH")),
 };
 
+#[cfg(all(
+    not(any(feature = "ios_integration", feature = "android_integration")),
+    not(feature = "ext_res")
+))]
+pub(crate) const FONT_DYNAPUFF: BuiltInFonts = BuiltInFonts {
+    name: "DynaPuff",
+    data: include_bytes!(env!("DYNAPUFF_FONT_PATH")),
+};
+
 // ===== EXTERNAL FONTS (when ext_res IS enabled) =====
 // Fonts are loaded at runtime from Resources/Fonts/ directory
 #[cfg(all(
@@ -147,6 +156,15 @@ pub(crate) const FONT_DIGITAL_7: BuiltInFontsExt = BuiltInFontsExt {
 pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFontsExt = BuiltInFontsExt {
     name: "Digital 7 Italic",
     filename: "digital-7-italic.ttf",
+};
+
+#[cfg(all(
+    not(any(feature = "ios_integration", feature = "android_integration")),
+    feature = "ext_res"
+))]
+pub(crate) const FONT_DYNAPUFF: BuiltInFontsExt = BuiltInFontsExt {
+    name: "DynaPuff",
+    filename: "DynaPuff-Variable.ttf",
 };
 
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
@@ -222,6 +240,25 @@ pub(crate) fn replace_fonts(ctx: &egui::Context) {
             "Barlow Narrow".to_owned(),
             std::sync::Arc::new(egui::FontData::from_owned(barlow_narrow_data)),
         );
+    }
+
+    // DynaPuff (playful variable font for date stamps)
+    if let Some(dynapuff_data) = resources::load_font("DynaPuff-Variable.ttf") {
+        fonts.font_data.insert(
+            "DynaPuff".to_owned(),
+            std::sync::Arc::new(egui::FontData::from_owned(dynapuff_data)),
+        );
+    }
+
+    // Register named font families for explicit selection (e.g. cheki date stamp)
+    for name in ["Barlow", "Barlow Narrow", "DynaPuff", "Source Han Sans"] {
+        if fonts.font_data.contains_key(name) {
+            fonts
+                .families
+                .entry(egui::FontFamily::Name(name.into()))
+                .or_default()
+                .push(name.to_owned());
+        }
     }
 
     // Tell egui to use these fonts:

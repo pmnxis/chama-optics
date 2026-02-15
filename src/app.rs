@@ -111,7 +111,14 @@ pub enum ChekiInteractionState {
         sticker_index: usize,
         start_pos: egui::Pos2,
         original_scale: f32,
-        center: egui::Pos2,
+        /// Screen position of the opposite (anchor) corner — stays fixed during resize
+        anchor_screen_pos: egui::Pos2,
+        /// Local offset sign of the anchor corner (-1 or +1 for x and y)
+        anchor_sign: (f32, f32),
+        /// Original half-size in screen pixels
+        original_half_size: (f32, f32),
+        /// Sticker rotation in radians
+        rotation_rad: f32,
     },
     RotatingSticker {
         sticker_index: usize,

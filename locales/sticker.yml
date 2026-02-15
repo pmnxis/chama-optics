@@ -94,3 +94,15 @@ sticker:
     ko: "수정됨"
     ja: "変更済み"
     id: "Dimodifikasi"
+
+  # Character sticker (for Cheki dice)
+  is_character:
+    en: "Character (Cheki dice)"
+    ko: "캐릭터 (체키 주사위)"
+    ja: "キャラクター（チェキダイス）"
+    id: "Karakter (Dadu Cheki)"
+  is_character_hint:
+    en: "Enable for random placement in Cheki tab dice"
+    ko: "체키 탭 주사위에서 랜덤 배치에 사용"
+    ja: "チェキタブのダイスでランダム配置に使用"
+    id: "Aktifkan untuk penempatan acak pada dadu tab Cheki"

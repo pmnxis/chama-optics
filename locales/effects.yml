@@ -4,7 +4,6 @@
 
 # Effects translations (border, mosaic, stroke)
 # Used in both EGUI (desktop) and iOS
-# Note: Direction labels (top, bottom, left, right) are in common.yml
 
 _version: 2
 
@@ -16,6 +15,31 @@ effects:
       ko: "테두리"
       ja: "枠線"
       id: "Bingkai"
+    top:
+      en: "Top"
+      ko: "위쪽"
+      ja: "上"
+      id: "Atas"
+    right:
+      en: "Right"
+      ko: "오른쪽"
+      ja: "右"
+      id: "Kanan"
+    bottom:
+      en: "Bottom"
+      ko: "아래쪽"
+      ja: "下"
+      id: "Bawah"
+    left:
+      en: "Left"
+      ko: "왼쪽"
+      ja: "左"
+      id: "Kiri"
+    color:
+      en: "Color"
+      ko: "색상"
+      ja: "色"
+      id: "Warna"
     padding:
       en: "Frame padding"
       ko: "프레임 여백"
@@ -41,34 +65,33 @@ effects:
       ko: "실제 결과는 사진 크기마다 다릅니다."
       ja: "実際の結果は写真サイズによって異なります。"
       id: "Hasil sebenarnya mungkin berbeda tergantung ukuran foto."
-
-  # Padding mode
-  padding_mode:
-    label:
-      en: "Padding mode"
-      ko: "여백 모드"
-      ja: "余白モード"
-      id: "Mode padding"
-    absolute:
-      en: "Absolute"
-      ko: "절대값"
-      ja: "固定値"
-      id: "Absolut"
-    absolute_hint:
-      en: "Use a fixed padding value (e.g., 100px)."
-      ko: "고정된 여백 크기(예: 100px)를 사용합니다."
-      ja: "固定の余白値(例: 100px)を使用します。"
-      id: "Gunakan nilai padding tetap (mis. 100px)."
-    relative:
-      en: "Relative"
-      ko: "상대값"
-      ja: "相対値"
-      id: "Relatif"
-    relative_hint:
-      en: "Scale padding relative to 2000px width (e.g., 100 -> 100px at 2000px)."
-      ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 -> 2000px 기준 100px)."
-      ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 -> 2000pxで100px)。"
-      id: "Skala padding relatif terhadap lebar 2000px (mis. 100 -> 100px pada 2000px)."
+    # Padding mode (nested under border to match code: effects.border.padding_mode.*)
+    padding_mode:
+      label:
+        en: "Padding mode"
+        ko: "여백 모드"
+        ja: "余白モード"
+        id: "Mode padding"
+      absolute:
+        en: "Absolute"
+        ko: "절대값"
+        ja: "固定値"
+        id: "Absolut"
+      absolute_hint:
+        en: "Use a fixed padding value (e.g., 100px)."
+        ko: "고정된 여백 크기(예: 100px)를 사용합니다."
+        ja: "固定の余白値(例: 100px)を使用します。"
+        id: "Gunakan nilai padding tetap (mis. 100px)."
+      relative:
+        en: "Relative"
+        ko: "상대값"
+        ja: "相対値"
+        id: "Relatif"
+      relative_hint:
+        en: "Scale padding relative to 2000px width (e.g., 100 -> 100px at 2000px)."
+        ko: "2000px 해상도를 기준으로 비례하여 여백이 조정됩니다 (예: 100 -> 2000px 기준 100px)."
+        ja: "2000pxの解像度を基準に余白が比例して調整されます(例: 100 -> 2000pxで100px)。"
+        id: "Skala padding relatif terhadap lebar 2000px (mis. 100 -> 100px pada 2000px)."
 
   # Mosaic and stroke settings
   mosaic_and_stroke:

@@ -21,6 +21,13 @@ face_detection:
     ja: "顔検出設定"
     id: "Konfigurasi deteksi wajah"
 
+  # Default effect selector
+  default_effect:
+    en: "Default Effect"
+    ko: "기본 효과"
+    ja: "デフォルトエフェクト"
+    id: "Efek Bawaan"
+
   # Image selection
   select_image:
     en: "Select image"

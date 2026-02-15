@@ -10,6 +10,11 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+use crate::effect::variable_text::VariableOrNot;
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+use crate::fonts::variable_font::BuiltinVariableFontIndex;
+
 /// A sticker placed at a specific position on the cheki
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlacedSticker {
@@ -25,27 +30,17 @@ pub struct PlacedSticker {
     pub rotation: f32,
 }
 
-/// Font selection for cheki text rendering
+/// Date stamp position within the cheki border area (2x3 grid)
+/// Top row = top border (above image), Bottom row = bottom border (text area)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum ChekiFontSelection {
+pub enum DatePosition {
+    TopLeft,
+    TopCenter,
+    TopRight,
+    BottomLeft,
+    BottomCenter,
     #[default]
-    Barlow,
-    BarlowNarrow,
-    SourceHanSans,
-}
-
-impl ChekiFontSelection {
-    pub fn all() -> &'static [Self] {
-        &[Self::Barlow, Self::BarlowNarrow, Self::SourceHanSans]
-    }
-
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::Barlow => "Barlow",
-            Self::BarlowNarrow => "Barlow Narrow",
-            Self::SourceHanSans => "Source Han Sans",
-        }
-    }
+    BottomRight,
 }
 
 /// Per-image cheki decoration configuration
@@ -55,8 +50,13 @@ pub struct ChekiDecoration {
     pub enabled: bool,
     /// Text to render on the cheki (bottom border area)
     pub text: String,
-    /// Font selection for text rendering
-    pub font: ChekiFontSelection,
+    /// Font selection for text rendering (variable or fixed)
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+    pub font: VariableOrNot,
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    pub font_file: String,
+    /// Font weight for variable font rendering
+    pub font_weight: u16,
     /// Font size relative to border height (0.1 to 1.0)
     pub font_size: f32,
     /// Text color
@@ -78,6 +78,30 @@ pub struct ChekiDecoration {
     pub border_color: egui::Color32,
     #[cfg(not(feature = "egui"))]
     pub border_color: [u8; 4],
+    /// Clip stickers to the image area (hide overflow beyond border)
+    pub clip_stickers: bool,
+    /// Allow rotation when placing stickers via dice (default: false)
+    pub allow_rotation: bool,
+    /// Date stamp text (editable, auto-populated from EXIF)
+    pub date_text: String,
+    /// Whether date stamp is enabled
+    pub date_enabled: bool,
+    /// Date stamp font (default: DynaPuff)
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+    pub date_font: VariableOrNot,
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    pub date_font_file: String,
+    /// Date stamp font weight
+    pub date_font_weight: u16,
+    /// Date stamp font size relative to border height
+    pub date_font_size: f32,
+    /// Date stamp color
+    #[cfg(feature = "egui")]
+    pub date_color: egui::Color32,
+    #[cfg(not(feature = "egui"))]
+    pub date_color: [u8; 4],
+    /// Date stamp position in 2x3 grid
+    pub date_position: DatePosition,
 }
 
 impl ChekiDecoration {
@@ -88,7 +112,21 @@ impl ChekiDecoration {
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
         self.enabled.hash(&mut hasher);
         self.text.hash(&mut hasher);
-        (self.font as u8).hash(&mut hasher);
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+        match &self.font {
+            VariableOrNot::Variable(idx) => {
+                0u8.hash(&mut hasher);
+                (*idx as usize).hash(&mut hasher);
+            }
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+            VariableOrNot::Others(fs) => {
+                1u8.hash(&mut hasher);
+                fs.name.hash(&mut hasher);
+            }
+        }
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+        self.font_file.hash(&mut hasher);
+        self.font_weight.hash(&mut hasher);
         self.font_size.to_bits().hash(&mut hasher);
         self.text_position_x.to_bits().hash(&mut hasher);
         self.text_position_y.to_bits().hash(&mut hasher);
@@ -101,15 +139,36 @@ impl ChekiDecoration {
             s.y.to_bits().hash(&mut hasher);
             s.scale.to_bits().hash(&mut hasher);
         }
+        self.date_text.hash(&mut hasher);
+        self.date_enabled.hash(&mut hasher);
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+        match &self.date_font {
+            VariableOrNot::Variable(idx) => {
+                0u8.hash(&mut hasher);
+                (*idx as usize).hash(&mut hasher);
+            }
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+            VariableOrNot::Others(fs) => {
+                1u8.hash(&mut hasher);
+                fs.name.hash(&mut hasher);
+            }
+        }
+        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+        self.date_font_file.hash(&mut hasher);
+        self.date_font_weight.hash(&mut hasher);
+        self.date_font_size.to_bits().hash(&mut hasher);
+        (self.date_position as u8).hash(&mut hasher);
         #[cfg(feature = "egui")]
         {
             self.text_color.to_array().hash(&mut hasher);
             self.border_color.to_array().hash(&mut hasher);
+            self.date_color.to_array().hash(&mut hasher);
         }
         #[cfg(not(feature = "egui"))]
         {
             self.text_color.hash(&mut hasher);
             self.border_color.hash(&mut hasher);
+            self.date_color.hash(&mut hasher);
         }
         hasher.finish()
     }
@@ -120,10 +179,14 @@ impl Default for ChekiDecoration {
         Self {
             enabled: true,
             text: String::new(),
-            font: ChekiFontSelection::default(),
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+            font: VariableOrNot::Variable(BuiltinVariableFontIndex::Barlow),
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+            font_file: String::new(),
+            font_weight: 300,
             font_size: 0.5,
             #[cfg(feature = "egui")]
-            text_color: egui::Color32::from_rgb(0, 180, 180), // Teal like the examples
+            text_color: egui::Color32::from_rgb(0, 180, 180),
             #[cfg(not(feature = "egui"))]
             text_color: [0, 180, 180, 255],
             text_position_x: 0.5,
@@ -132,9 +195,27 @@ impl Default for ChekiDecoration {
             border_width: 0.04,
             bottom_extra: 0.15,
             #[cfg(feature = "egui")]
-            border_color: egui::Color32::from_rgb(240, 245, 240), // Slightly off-white
+            border_color: egui::Color32::from_rgb(240, 245, 240),
             #[cfg(not(feature = "egui"))]
             border_color: [240, 245, 240, 255],
+            clip_stickers: false,
+            allow_rotation: false,
+            date_text: String::new(),
+            date_enabled: false,
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+            date_font: VariableOrNot::Others(
+                crate::fonts::FONTS_UNIFY
+                    .builtin_select(crate::fonts::font_unify::BuiltinFontIndex::DynaPuff),
+            ),
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+            date_font_file: String::new(),
+            date_font_weight: 400,
+            date_font_size: 0.4,
+            #[cfg(feature = "egui")]
+            date_color: egui::Color32::from_rgb(255, 140, 0),
+            #[cfg(not(feature = "egui"))]
+            date_color: [255, 140, 0, 255],
+            date_position: DatePosition::default(),
         }
     }
 }

@@ -53,6 +53,7 @@ fn rects_overlap(a: &Rect, b: &Rect) -> bool {
 /// Place character stickers randomly on an image, avoiding face areas and existing placements.
 ///
 /// Returns the newly placed stickers (not including existing ones).
+#[allow(clippy::too_many_arguments)]
 pub fn place_character_stickers(
     image_width: u32,
     image_height: u32,

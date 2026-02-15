@@ -110,7 +110,7 @@ impl ChamaOptics {
         // Detection controls and zoom controls
         ui.horizontal(|ui| {
             // Default effect selector
-            ui.label(t!("tabs.detection.default_effect"));
+            ui.label(t!("face_detection.default_effect"));
             egui::ComboBox::from_id_salt("default_effect_combo")
                 .selected_text(self.default_face_effect.display_name())
                 .width(120.0)

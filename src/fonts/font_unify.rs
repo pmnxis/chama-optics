@@ -118,12 +118,15 @@ pub enum BuiltinFontIndex {
     NtSansMed,
     Digital7,
     Digital7Italic,
+    Barlow,
+    BarlowNarrow,
+    DynaPuff,
 }
 
 // Embedded fonts version (no ext_res)
 #[cfg(not(feature = "ext_res"))]
 pub struct FontsUnify {
-    pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFonts; 4],
+    pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFonts; 7],
     pub(self) system_fonts: Arc<RwLock<Vec<SystemFont>>>,
 }
 
@@ -131,7 +134,7 @@ pub struct FontsUnify {
 // Fonts are loaded at runtime from Resources directory
 #[cfg(feature = "ext_res")]
 pub struct FontsUnify {
-    pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFontsExt; 4],
+    pub(self) builtin_fonts: [&'static crate::fonts::BuiltInFontsExt; 7],
     pub(self) system_fonts: Arc<RwLock<Vec<SystemFont>>>,
 }
 
@@ -171,6 +174,9 @@ impl FontsUnify {
                 &crate::fonts::FONT_SHSANS,
                 &crate::fonts::FONT_DIGITAL_7,
                 &crate::fonts::FONT_DIGITAL_7_ITALIC,
+                &crate::fonts::FONT_BARLOW,
+                &crate::fonts::FONT_BARLOW_NARROW,
+                &crate::fonts::FONT_DYNAPUFF,
             ],
             system_fonts,
         }

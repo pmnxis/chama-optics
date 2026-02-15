@@ -178,23 +178,25 @@ scale:
 
 # Progress messages
 progress:
-  loading_in_progress:
-    en: "Loading images"
-    ko: "이미지 불러오는 중"
-    ja: "画像を読み込んでいます"
-    id: "Memuat gambar"
-  loading_completed:
-    en: "Loading completed"
-    ko: "불러오기 완료"
-    ja: "読み込み完了"
-    id: "Pemuatan selesai"
-  saving_in_progress:
-    en: "Saving images"
-    ko: "이미지 저장 중"
-    ja: "画像を保存しています"
-    id: "Menyimpan gambar"
-  saving_completed:
-    en: "Saving completed"
-    ko: "저장 완료"
-    ja: "保存完了"
-    id: "Penyimpanan selesai"
+  loading:
+    in_progress:
+      en: "Loading images"
+      ko: "이미지 불러오는 중"
+      ja: "画像を読み込んでいます"
+      id: "Memuat gambar"
+    completed:
+      en: "Loading completed"
+      ko: "불러오기 완료"
+      ja: "読み込み完了"
+      id: "Pemuatan selesai"
+  saving:
+    in_progress:
+      en: "Saving images"
+      ko: "이미지 저장 중"
+      ja: "画像を保存しています"
+      id: "Menyimpan gambar"
+    completed:
+      en: "Saving completed"
+      ko: "저장 완료"
+      ja: "保存完了"
+      id: "Penyimpanan selesai"

@@ -12,8 +12,41 @@
 //! export uses cheki_renderer for pixel-accurate output.
 
 use crate::ChamaOptics;
-use crate::effect::cheki::{ChekiDecoration, ChekiFontSelection};
+use crate::effect::cheki::{ChekiDecoration, DatePosition};
 use rust_i18n::t;
+
+/// Map a VariableOrNot font to an egui FontFamily for preview rendering.
+fn cheki_font_to_egui_family(
+    font: &crate::effect::variable_text::VariableOrNot,
+) -> egui::FontFamily {
+    use crate::effect::variable_text::VariableOrNot;
+    use crate::fonts::variable_font::BuiltinVariableFontIndex;
+    match font {
+        VariableOrNot::Variable(idx) => match idx {
+            BuiltinVariableFontIndex::Barlow => egui::FontFamily::Name("Barlow".into()),
+            BuiltinVariableFontIndex::BarlowNarrow => {
+                egui::FontFamily::Name("Barlow Narrow".into())
+            }
+            BuiltinVariableFontIndex::SourceHanSans => {
+                egui::FontFamily::Name("Source Han Sans".into())
+            }
+            BuiltinVariableFontIndex::DynaPuff => egui::FontFamily::Name("DynaPuff".into()),
+        },
+        VariableOrNot::Others(fs) => {
+            use crate::fonts::font_unify::FontSort;
+            match fs.select.sort {
+                FontSort::Builtin => match fs.name.as_str() {
+                    "Barlow" => egui::FontFamily::Name("Barlow".into()),
+                    "Barlow Narrow" => egui::FontFamily::Name("Barlow Narrow".into()),
+                    "DynaPuff" => egui::FontFamily::Name("DynaPuff".into()),
+                    "Source Han Sans" => egui::FontFamily::Name("Source Han Sans".into()),
+                    _ => egui::FontFamily::Proportional,
+                },
+                FontSort::System => egui::FontFamily::Proportional,
+            }
+        }
+    }
+}
 
 const CORNER_HANDLE_RADIUS: f32 = 6.0;
 const ROTATION_HANDLE_OFFSET: f32 = 24.0;
@@ -72,6 +105,21 @@ impl StickerDisplay {
         self.corners()
             .iter()
             .any(|c| c.distance(point) < CORNER_HANDLE_RADIUS * 2.0)
+    }
+
+    /// Return the index of the nearest corner (0=TL, 1=TR, 2=BR, 3=BL)
+    fn nearest_corner_index(&self, point: egui::Pos2) -> usize {
+        let corners = self.corners();
+        corners
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                a.distance(point)
+                    .partial_cmp(&b.distance(point))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|(i, _)| i)
+            .unwrap_or(0)
     }
 
     /// Check if a point is near the rotation handle
@@ -166,12 +214,28 @@ fn draw_sticker_handles(painter: &egui::Painter, sd: &StickerDisplay, is_active:
 }
 
 impl ChamaOptics {
-    /// Start background thread to generate base image texture (no cheki decoration).
+    /// Start background thread to generate base image texture with color effects applied.
+    /// Applies: EXIF orientation → crop/rotate → color adjustments → LUT
     fn start_cheki_base_texture_generation(&mut self) -> Option<()> {
         let idx = self.cheki_selected_index?;
         let packed_image = self.packed_images.get(idx)?;
 
-        let cache_key = (idx, packed_image.crop_rotate.content_hash());
+        // Include crop_rotate, lut_id, and color_adjustments in cache key
+        let mut hasher = std::hash::DefaultHasher::new();
+        std::hash::Hash::hash(&packed_image.crop_rotate.content_hash(), &mut hasher);
+        std::hash::Hash::hash(&packed_image.lut_id, &mut hasher);
+        // Hash color_adjustments fields via serialized form
+        std::hash::Hash::hash(&self.color_adjustments.enabled, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.exposure.to_bits(), &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.contrast, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.highlights, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.shadows, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.whites, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.blacks, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.clarity, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.vibrance, &mut hasher);
+        std::hash::Hash::hash(&self.color_adjustments.saturation, &mut hasher);
+        let cache_key = (idx, std::hash::Hasher::finish(&hasher));
 
         if self.cheki_preview_cache_key.as_ref() == Some(&cache_key) {
             return Some(());
@@ -184,6 +248,9 @@ impl ChamaOptics {
         let orientation = packed_image.view_exif.orientation;
         let crop_rotate = packed_image.crop_rotate.clone();
         let image_uuid = packed_image.uuid;
+        let image_lut_id = packed_image.lut_id;
+        let color_adjustments = self.color_adjustments.clone();
+        let mut lut_storage = self.lut_storage.clone_for_thread();
         let queue = self.cheki_preview_queue.clone();
 
         std::thread::spawn(move || {
@@ -198,6 +265,14 @@ impl ChamaOptics {
 
             if !crop_rotate.is_identity() {
                 img = crop_rotate.apply(&img);
+            }
+
+            // Apply color adjustments (Lightroom-style)
+            color_adjustments.apply(&mut img);
+
+            // Apply LUT if configured for this image
+            if let Some(lut_id) = image_lut_id {
+                lut_storage.apply_lut_to_image(lut_id, &mut img);
             }
 
             let max_size = 1920u32;
@@ -438,6 +513,13 @@ impl ChamaOptics {
             );
 
             // 3. Draw stickers with rotation and collect display info
+            // Use a clipped painter if clip_stickers is enabled
+            let sticker_painter = if deco.clip_stickers {
+                painter.with_clip_rect(img_rect)
+            } else {
+                painter.clone()
+            };
+
             let mut sticker_displays: Vec<StickerDisplay> = Vec::new();
 
             for (i, placed) in deco.dice_stickers.iter().enumerate() {
@@ -459,9 +541,9 @@ impl ChamaOptics {
                     let center = egui::pos2(sx + sw / 2.0, sy + sh / 2.0);
                     let rotation_rad = placed.rotation.to_radians();
 
-                    // Draw rotated sticker image
+                    // Draw rotated sticker image (clipped if enabled)
                     paint_rotated_image(
-                        &painter,
+                        &sticker_painter,
                         sticker_tex.id(),
                         center,
                         egui::vec2(sw, sh),
@@ -508,6 +590,9 @@ impl ChamaOptics {
                 }
             }
 
+            // Clipped painter to prevent text/date from overflowing the canvas
+            let clipped_painter = painter.with_clip_rect(canvas_rect);
+
             // 4. Draw text
             if !deco.text.is_empty() {
                 let text_area_top_frac = border_frac_y + img_frac_h + border_frac_y;
@@ -519,9 +604,10 @@ impl ChamaOptics {
                 let text_y = text_area_top + deco.text_position_y * text_area_h;
 
                 let font_px = (text_area_h * deco.font_size).max(8.0);
-                let font_id = egui::FontId::proportional(font_px);
+                let text_font_family = cheki_font_to_egui_family(&deco.font);
+                let font_id = egui::FontId::new(font_px, text_font_family);
 
-                painter.text(
+                clipped_painter.text(
                     egui::pos2(text_x, text_y),
                     egui::Align2::CENTER_CENTER,
                     &deco.text,
@@ -553,6 +639,84 @@ impl ChamaOptics {
                         egui::pos2(text_x, text_y + cross_size),
                     ],
                     (2.0, indicator_color),
+                );
+            }
+
+            // 5. Draw date stamp
+            if deco.date_enabled && !deco.date_text.is_empty() {
+                let top_border_h = border_frac_y * canvas_rect.height();
+                let text_area_top_frac = border_frac_y + img_frac_h + border_frac_y;
+                let text_area_h_frac = 1.0 - text_area_top_frac;
+                let bottom_area_h = text_area_h_frac * canvas_rect.height();
+                let pad = canvas_rect.width() * 0.02;
+
+                let (date_pos, date_align) = match deco.date_position {
+                    DatePosition::TopLeft => (
+                        egui::pos2(
+                            canvas_rect.min.x + pad,
+                            canvas_rect.min.y + top_border_h / 2.0,
+                        ),
+                        egui::Align2::LEFT_CENTER,
+                    ),
+                    DatePosition::TopCenter => (
+                        egui::pos2(
+                            canvas_rect.center().x,
+                            canvas_rect.min.y + top_border_h / 2.0,
+                        ),
+                        egui::Align2::CENTER_CENTER,
+                    ),
+                    DatePosition::TopRight => (
+                        egui::pos2(
+                            canvas_rect.max.x - pad,
+                            canvas_rect.min.y + top_border_h / 2.0,
+                        ),
+                        egui::Align2::RIGHT_CENTER,
+                    ),
+                    DatePosition::BottomLeft => (
+                        egui::pos2(
+                            canvas_rect.min.x + pad,
+                            canvas_rect.min.y
+                                + text_area_top_frac * canvas_rect.height()
+                                + bottom_area_h / 2.0,
+                        ),
+                        egui::Align2::LEFT_CENTER,
+                    ),
+                    DatePosition::BottomCenter => (
+                        egui::pos2(
+                            canvas_rect.center().x,
+                            canvas_rect.min.y
+                                + text_area_top_frac * canvas_rect.height()
+                                + bottom_area_h / 2.0,
+                        ),
+                        egui::Align2::CENTER_CENTER,
+                    ),
+                    DatePosition::BottomRight => (
+                        egui::pos2(
+                            canvas_rect.max.x - pad,
+                            canvas_rect.min.y
+                                + text_area_top_frac * canvas_rect.height()
+                                + bottom_area_h / 2.0,
+                        ),
+                        egui::Align2::RIGHT_CENTER,
+                    ),
+                };
+
+                let date_font_px = match deco.date_position {
+                    DatePosition::TopLeft | DatePosition::TopCenter | DatePosition::TopRight => {
+                        (top_border_h * deco.date_font_size).max(8.0)
+                    }
+                    _ => (bottom_area_h * deco.date_font_size).max(8.0),
+                };
+
+                let date_font_family = cheki_font_to_egui_family(&deco.date_font);
+                let date_font_id = egui::FontId::new(date_font_px, date_font_family);
+
+                clipped_painter.text(
+                    date_pos,
+                    date_align,
+                    &deco.date_text,
+                    date_font_id,
+                    deco.date_color,
                 );
             }
 
@@ -629,11 +793,27 @@ impl ChamaOptics {
                                 .and_then(|d| d.dice_stickers.get(sd.index))
                                 .map(|s| s.scale)
                                 .unwrap_or(0.15);
+                            // Determine which corner is grabbed and anchor to the opposite
+                            let grabbed_idx = sd.nearest_corner_index(pos);
+                            let opposite_idx = (grabbed_idx + 2) % 4;
+                            let corners = sd.corners();
+                            let anchor_screen_pos = corners[opposite_idx];
+                            // Anchor's local offset sign from center
+                            // TL=(-1,-1), TR=(1,-1), BR=(1,1), BL=(-1,1)
+                            let anchor_sign = match opposite_idx {
+                                0 => (-1.0, -1.0), // TL
+                                1 => (1.0, -1.0),  // TR
+                                2 => (1.0, 1.0),   // BR
+                                _ => (-1.0, 1.0),  // BL
+                            };
                             self.cheki_interaction_state = ChekiInteractionState::ResizingSticker {
                                 sticker_index: sd.index,
                                 start_pos: pos,
                                 original_scale,
-                                center: sd.center,
+                                anchor_screen_pos,
+                                anchor_sign,
+                                original_half_size: (sd.half_size.x, sd.half_size.y),
+                                rotation_rad: sd.rotation_rad,
                             };
                             return;
                         }
@@ -702,20 +882,43 @@ impl ChamaOptics {
                 sticker_index,
                 start_pos,
                 original_scale,
-                center,
+                anchor_screen_pos,
+                anchor_sign,
+                original_half_size,
+                rotation_rad,
             } => {
                 if response.dragged()
                     && let Some(pos) = mouse_pos
                 {
-                    let start_dist = start_pos.distance(center).max(1.0);
-                    let current_dist = pos.distance(center).max(1.0);
+                    let start_dist = start_pos.distance(anchor_screen_pos).max(1.0);
+                    let current_dist = pos.distance(anchor_screen_pos).max(1.0);
                     let scale_ratio = current_dist / start_dist;
-                    let new_scale = (original_scale * scale_ratio).clamp(0.03, 0.6);
+                    let new_scale = (original_scale * scale_ratio).max(0.03);
+
+                    // New half-sizes
+                    let new_hw = original_half_size.0 * scale_ratio;
+                    let new_hh = original_half_size.1 * scale_ratio;
+
+                    // Compute new center so the anchor corner stays fixed
+                    let cos_r = rotation_rad.cos();
+                    let sin_r = rotation_rad.sin();
+                    let local_dx = anchor_sign.0 * new_hw;
+                    let local_dy = anchor_sign.1 * new_hh;
+                    let rotated_dx = local_dx * cos_r - local_dy * sin_r;
+                    let rotated_dy = local_dx * sin_r + local_dy * cos_r;
+                    let new_center_x = anchor_screen_pos.x - rotated_dx;
+                    let new_center_y = anchor_screen_pos.y - rotated_dy;
+
+                    // Convert new center back to normalized top-left position
+                    let new_x = (new_center_x - new_hw - canvas_rect.min.x) / canvas_rect.width();
+                    let new_y = (new_center_y - new_hh - canvas_rect.min.y) / canvas_rect.height();
 
                     if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid)
                         && let Some(sticker) = deco.dice_stickers.get_mut(sticker_index)
                     {
                         sticker.scale = new_scale;
+                        sticker.x = new_x.clamp(0.0, 1.0);
+                        sticker.y = new_y.clamp(0.0, 1.0);
                     }
                 }
             }
@@ -800,7 +1003,7 @@ impl ChamaOptics {
                 && let Some(sticker) = deco.dice_stickers.get_mut(sd.index)
             {
                 let scale_step = scroll_delta * 0.001;
-                sticker.scale = (sticker.scale + scale_step).clamp(0.03, 0.6);
+                sticker.scale = (sticker.scale + scale_step).max(0.03);
             }
         }
     }
@@ -839,180 +1042,338 @@ impl ChamaOptics {
                     ui.add_space(5.0);
                 }
 
-                // Border settings
-                ui.collapsing(
-                    t!("cheki.border_settings", default = "Border Settings"),
-                    |ui| {
+                // ── 1. Random Character ──
+                ui.separator();
+                ui.strong(t!("cheki.dice_section", default = "Random Character"));
+                ui.add_space(2.0);
+                {
+                    let character_count = self.sticker_storage.character_stickers().len();
+
+                    if character_count == 0 {
+                        ui.label(
+                            egui::RichText::new(t!(
+                                "cheki.no_characters",
+                                default = "No character stickers. Mark stickers as 'Character' in the Sticker tab."
+                            ))
+                            .size(11.0)
+                            .color(ui.visuals().weak_text_color()),
+                        );
+                    } else {
+                        ui.label(format!(
+                            "{}: {}",
+                            t!(
+                                "cheki.available_characters",
+                                default = "Characters"
+                            ),
+                            character_count
+                        ));
+
                         if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
-                            egui::Grid::new("cheki_border_grid")
-                                .num_columns(2)
-                                .spacing([4.0, 3.0])
-                                .show(ui, |ui| {
-                                    ui.label(t!(
-                                        "cheki.border_width",
-                                        default = "Border"
-                                    ));
-                                    ui.add(
-                                        egui::Slider::new(&mut deco.border_width, 0.01..=0.15),
-                                    );
-                                    ui.end_row();
-
-                                    ui.label(t!(
-                                        "cheki.bottom_extra",
-                                        default = "Bottom"
-                                    ));
-                                    ui.add(
-                                        egui::Slider::new(&mut deco.bottom_extra, 0.05..=0.35),
-                                    );
-                                    ui.end_row();
-
-                                    ui.label(t!(
-                                        "cheki.border_color",
-                                        default = "Color"
-                                    ));
-                                    egui::color_picker::color_edit_button_srgba(
-                                        ui,
-                                        &mut deco.border_color,
-                                        egui::color_picker::Alpha::Opaque,
-                                    );
-                                    ui.end_row();
-                                });
+                            ui.checkbox(
+                                &mut deco.clip_stickers,
+                                t!("cheki.clip_stickers", default = "Clip stickers to image area"),
+                            );
+                            ui.checkbox(
+                                &mut deco.allow_rotation,
+                                t!("cheki.allow_rotation", default = "Allow rotation"),
+                            );
                         }
-                    },
-                );
 
-                ui.add_space(3.0);
+                        ui.add_space(3.0);
 
-                // Text / Sign section
-                ui.collapsing(t!("cheki.text_section", default = "Text / Sign"), |ui| {
-                    if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
-                        ui.text_edit_multiline(&mut deco.text);
+                        ui.horizontal(|ui| {
+                            if ui
+                                .button(
+                                    egui::RichText::new(t!(
+                                        "cheki.play_dice",
+                                        default = "Play Dice!"
+                                    ))
+                                    .strong(),
+                                )
+                                .clicked()
+                            {
+                                self.roll_cheki_dice(image_uuid);
+                            }
 
-                        egui::Grid::new("cheki_text_grid")
-                            .num_columns(2)
-                            .spacing([4.0, 3.0])
-                            .show(ui, |ui| {
-                                ui.label(t!("cheki.font", default = "Font"));
-                                egui::ComboBox::from_id_salt("cheki_font")
-                                    .selected_text(deco.font.display_name())
-                                    .show_ui(ui, |ui| {
-                                        for font in ChekiFontSelection::all() {
-                                            ui.selectable_value(
-                                                &mut deco.font,
-                                                *font,
-                                                font.display_name(),
-                                            );
-                                        }
-                                    });
-                                ui.end_row();
+                            if ui
+                                .button(t!(
+                                    "cheki.clear_stickers",
+                                    default = "Clear"
+                                ))
+                                .clicked()
+                                && let Some(deco) =
+                                    self.cheki_decorations.get_mut(&image_uuid)
+                                {
+                                    deco.dice_stickers.clear();
+                                }
+                        });
 
-                                ui.label(t!("cheki.font_size", default = "Size"));
-                                ui.add(egui::Slider::new(&mut deco.font_size, 0.1..=1.0));
-                                ui.end_row();
-
-                                ui.label(t!("cheki.text_color", default = "Color"));
-                                egui::color_picker::color_edit_button_srgba(
-                                    ui,
-                                    &mut deco.text_color,
-                                    egui::color_picker::Alpha::Opaque,
-                                );
-                                ui.end_row();
-                            });
+                        if let Some(deco) = self.cheki_decorations.get(&image_uuid)
+                            && !deco.dice_stickers.is_empty() {
+                                ui.label(t!(
+                                    "cheki.placed_stickers",
+                                    default = "Placed"
+                                ));
+                            }
 
                         ui.add_space(3.0);
                         ui.label(
                             egui::RichText::new(t!(
-                                "cheki.text_drag_hint",
-                                default = "Drag the crosshair on the preview to move text"
+                                "cheki.sticker_drag_hint",
+                                default = "Drag to move. Corners to resize. Top handle to rotate. Right-click to delete. Scroll to scale."
                             ))
                             .size(10.0)
                             .color(ui.visuals().weak_text_color()),
                         );
                     }
-                });
+                }
 
                 ui.add_space(3.0);
 
-                // Random Character section
-                ui.collapsing(
-                    t!("cheki.dice_section", default = "Random Character"),
-                    |ui| {
-                        let character_count = self.sticker_storage.character_stickers().len();
+                // ── 2. Border Settings ──
+                ui.separator();
+                ui.strong(t!("cheki.border_settings", default = "Border Settings"));
+                ui.add_space(2.0);
+                if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
+                    ui.horizontal(|ui| {
+                        ui.label(t!("cheki.border_width", default = "Border"));
+                        ui.add(
+                            egui::Slider::new(&mut deco.border_width, 0.01..=0.15),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(t!("cheki.bottom_extra", default = "Bottom"));
+                        ui.add(
+                            egui::Slider::new(&mut deco.bottom_extra, 0.05..=0.35),
+                        );
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(t!("cheki.border_color", default = "Color"));
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut deco.border_color,
+                            egui::color_picker::Alpha::Opaque,
+                        );
+                    });
+                }
 
-                        if character_count == 0 {
-                            ui.label(
-                                egui::RichText::new(t!(
-                                    "cheki.no_characters",
-                                    default = "No character stickers. Mark stickers as 'Character' in the Sticker tab."
-                                ))
-                                .size(11.0)
-                                .color(ui.visuals().weak_text_color()),
-                            );
-                        } else {
-                            ui.label(format!(
-                                "{}: {}",
-                                t!(
-                                    "cheki.available_characters",
-                                    default = "Characters"
-                                ),
-                                character_count
-                            ));
+                ui.add_space(3.0);
 
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .button(
-                                        egui::RichText::new(t!(
-                                            "cheki.play_dice",
-                                            default = "Play Dice!"
-                                        ))
-                                        .strong(),
+                // ── 3. Date Stamp ──
+                ui.separator();
+                ui.strong(t!("cheki.date_section", default = "Date Stamp"));
+                ui.add_space(2.0);
+                if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
+                    ui.checkbox(
+                        &mut deco.date_enabled,
+                        t!("cheki.date_enabled", default = "Enable date stamp"),
+                    );
+
+                    if deco.date_enabled {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut deco.date_text)
+                                .desired_width(ui.available_width())
+                                .hint_text("2025.01.01"),
+                        );
+
+                        if ui
+                            .button(t!(
+                                "cheki.date_autofill",
+                                default = "Auto-fill from EXIF"
+                            ))
+                            .clicked()
+                            && let Some(pi) = self
+                                .cheki_selected_index
+                                .and_then(|idx| self.packed_images.get(idx))
+                                && let Some(dt) = pi.view_exif.datetime {
+                                    deco.date_text = dt.format("%Y.%m.%d").to_string();
+                                }
+
+                        ui.horizontal(|ui| {
+                            use crate::effect::variable_text::VariableOrNot;
+                            use crate::fonts::variable_font::BuiltinVariableFontIndex;
+
+                            ui.label(t!("cheki.font", default = "Font"));
+
+                            let is_variable =
+                                matches!(deco.date_font, VariableOrNot::Variable(_));
+                            if ui
+                                .selectable_label(
+                                    is_variable,
+                                    t!("fonts_selector.variable.label"),
+                                )
+                                .on_hover_text(t!("fonts_selector.variable.hint"))
+                                .clicked()
+                                && !is_variable
+                            {
+                                deco.date_font = VariableOrNot::Variable(
+                                    BuiltinVariableFontIndex::Barlow,
+                                );
+                                deco.date_font_weight = 300;
+                            }
+
+                            let is_others =
+                                matches!(deco.date_font, VariableOrNot::Others(_));
+                            if ui
+                                .selectable_label(
+                                    is_others,
+                                    t!("fonts_selector.others.label"),
+                                )
+                                .on_hover_text(t!("fonts_selector.others.hint"))
+                                .clicked()
+                                && !is_others
+                            {
+                                deco.date_font = VariableOrNot::Others(
+                                    crate::fonts::FONTS_UNIFY.builtin_select(
+                                        crate::fonts::font_unify::BuiltinFontIndex::DynaPuff,
+                                    ),
+                                );
+                            }
+
+                            if let VariableOrNot::Variable(ref mut variable_select) =
+                                deco.date_font
+                            {
+                                variable_select.update_ui(ui, "cheki_date_font");
+                                let (start, end) = variable_select.get_font().range();
+                                ui.add(
+                                    egui::Slider::new(
+                                        &mut deco.date_font_weight,
+                                        start..=end,
                                     )
-                                    .clicked()
-                                {
-                                    self.roll_cheki_dice(image_uuid);
-                                }
+                                    .step_by(100.0),
+                                );
+                            } else if let VariableOrNot::Others(ref mut font_select) =
+                                deco.date_font
+                            {
+                                font_select.update_ui(ui, "cheki_date_font");
+                            }
 
-                                if ui
-                                    .button(t!(
-                                        "cheki.clear_stickers",
-                                        default = "Clear"
-                                    ))
-                                    .clicked()
-                                    && let Some(deco) =
-                                        self.cheki_decorations.get_mut(&image_uuid)
-                                    {
-                                        deco.dice_stickers.clear();
-                                    }
-                            });
+                            if ui.button("↺").clicked() {
+                                let default = ChekiDecoration::default();
+                                deco.date_font = default.date_font;
+                                deco.date_font_weight = default.date_font_weight;
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label(t!("cheki.font_size", default = "Size"));
+                            ui.add(egui::Slider::new(&mut deco.date_font_size, 0.1..=1.0));
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label(t!("cheki.text_color", default = "Color"));
+                            egui::color_picker::color_edit_button_srgba(
+                                ui,
+                                &mut deco.date_color,
+                                egui::color_picker::Alpha::Opaque,
+                            );
+                        });
 
-                            if let Some(deco) = self.cheki_decorations.get(&image_uuid)
-                                && !deco.dice_stickers.is_empty() {
-                                    ui.label(format!(
-                                        "{}: {}",
-                                        t!(
-                                            "cheki.placed_stickers",
-                                            default = "Placed"
-                                        ),
-                                        deco.dice_stickers.len()
-                                    ));
-                                }
+                        ui.add_space(3.0);
+                        ui.label(t!("cheki.date_position", default = "Position"));
+                        // 2x3 position grid
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(&mut deco.date_position, DatePosition::TopLeft, "↖");
+                            ui.selectable_value(&mut deco.date_position, DatePosition::TopCenter, "↑");
+                            ui.selectable_value(&mut deco.date_position, DatePosition::TopRight, "↗");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.selectable_value(&mut deco.date_position, DatePosition::BottomLeft, "↙");
+                            ui.selectable_value(&mut deco.date_position, DatePosition::BottomCenter, "↓");
+                            ui.selectable_value(&mut deco.date_position, DatePosition::BottomRight, "↘");
+                        });
+                    }
+                }
 
-                            ui.add_space(3.0);
-                            ui.label(
-                                egui::RichText::new(t!(
-                                    "cheki.sticker_drag_hint",
-                                    default = "Drag to move. Corners to resize. Top handle to rotate. Right-click to delete. Scroll to scale."
-                                ))
-                                .size(10.0)
-                                .color(ui.visuals().weak_text_color()),
+                ui.add_space(3.0);
+
+                // ── 4. Text / Sign ──
+                ui.separator();
+                ui.strong(t!("cheki.text_section", default = "Text / Sign"));
+                ui.add_space(2.0);
+                if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
+                    ui.add(
+                        egui::TextEdit::multiline(&mut deco.text)
+                            .desired_width(ui.available_width()),
+                    );
+                    ui.horizontal(|ui| {
+                        use crate::effect::variable_text::VariableOrNot;
+                        use crate::fonts::variable_font::BuiltinVariableFontIndex;
+
+                        ui.label(t!("cheki.font", default = "Font"));
+
+                        let is_variable = matches!(deco.font, VariableOrNot::Variable(_));
+                        if ui
+                            .selectable_label(
+                                is_variable,
+                                t!("fonts_selector.variable.label"),
+                            )
+                            .on_hover_text(t!("fonts_selector.variable.hint"))
+                            .clicked()
+                            && !is_variable
+                        {
+                            deco.font =
+                                VariableOrNot::Variable(BuiltinVariableFontIndex::Barlow);
+                            deco.font_weight = 300;
+                        }
+
+                        let is_others = matches!(deco.font, VariableOrNot::Others(_));
+                        if ui
+                            .selectable_label(is_others, t!("fonts_selector.others.label"))
+                            .on_hover_text(t!("fonts_selector.others.hint"))
+                            .clicked()
+                            && !is_others
+                        {
+                            deco.font = VariableOrNot::Others(
+                                crate::fonts::FONTS_UNIFY.builtin_select(
+                                    crate::fonts::font_unify::BuiltinFontIndex::default(),
+                                ),
                             );
                         }
-                    },
-                );
+
+                        if let VariableOrNot::Variable(ref mut variable_select) = deco.font {
+                            variable_select.update_ui(ui, "cheki_text_font");
+                            let (start, end) = variable_select.get_font().range();
+                            ui.add(
+                                egui::Slider::new(&mut deco.font_weight, start..=end)
+                                    .step_by(100.0),
+                            );
+                        } else if let VariableOrNot::Others(ref mut font_select) = deco.font {
+                            font_select.update_ui(ui, "cheki_text_font");
+                        }
+
+                        if ui.button("↺").clicked() {
+                            let default = ChekiDecoration::default();
+                            deco.font = default.font;
+                            deco.font_weight = default.font_weight;
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(t!("cheki.font_size", default = "Size"));
+                        ui.add(egui::Slider::new(&mut deco.font_size, 0.1..=1.0));
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label(t!("cheki.text_color", default = "Color"));
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut deco.text_color,
+                            egui::color_picker::Alpha::Opaque,
+                        );
+                    });
+
+                    ui.add_space(3.0);
+                    ui.label(
+                        egui::RichText::new(t!(
+                            "cheki.text_drag_hint",
+                            default = "Drag the crosshair on the preview to move text"
+                        ))
+                        .size(10.0)
+                        .color(ui.visuals().weak_text_color()),
+                    );
+                }
 
                 ui.add_space(5.0);
 
                 // Remove decoration button
+                ui.separator();
                 if self.cheki_decorations.contains_key(&image_uuid)
                     && ui
                         .button(t!(
@@ -1040,14 +1401,22 @@ impl ChamaOptics {
             .map(|pi| pi.configured_faces.clone())
             .unwrap_or_default();
 
+        // Read options before clearing
+        let allow_rotation = self
+            .cheki_decorations
+            .get(&image_uuid)
+            .map(|d| d.allow_rotation)
+            .unwrap_or(false);
+
         // Clear previous dice stickers before placing new ones
         if let Some(deco) = self.cheki_decorations.get_mut(&image_uuid) {
             deco.dice_stickers.clear();
         }
 
         let config = crate::effect::dice::DicePlacementConfig {
-            min_scale: 0.12,
-            max_scale: 0.28,
+            min_scale: 0.21,
+            max_scale: 0.63,
+            max_rotation: if allow_rotation { 15.0 } else { 0.0 },
             ..Default::default()
         };
         let mut rng = rand::rng();

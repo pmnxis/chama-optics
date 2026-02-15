@@ -198,3 +198,55 @@ color:
     ko: "채도"
     ja: "彩度"
     id: "Saturasi"
+
+  # Crop & Rotate
+  crop_rotate_section:
+    en: "Crop & Rotate"
+    ko: "자르기 및 회전"
+    ja: "切り抜き＆回転"
+    id: "Potong & Putar"
+  crop_hint:
+    en: "Click 'Enable Crop' to add a crop area"
+    ko: "'자르기 활성화'를 클릭하여 자르기 영역을 추가하세요"
+    ja: "「切り抜きを有効にする」をクリックして切り抜き範囲を追加"
+    id: "Klik 'Aktifkan Potong' untuk menambahkan area potong"
+  rotation:
+    en: "Rotation"
+    ko: "회전"
+    ja: "回転"
+    id: "Rotasi"
+  rotate_ccw:
+    en: "↺ CCW"
+    ko: "↺ 반시계"
+    ja: "↺ 反時計"
+    id: "↺ CCW"
+  rotate_cw:
+    en: "↻ CW"
+    ko: "↻ 시계"
+    ja: "↻ 時計"
+    id: "↻ CW"
+  enable_crop:
+    en: "Enable Crop"
+    ko: "자르기 활성화"
+    ja: "切り抜きを有効にする"
+    id: "Aktifkan Potong"
+  clear_crop:
+    en: "Clear Crop"
+    ko: "자르기 해제"
+    ja: "切り抜きを解除"
+    id: "Hapus Potong"
+  reset_crop_rotate:
+    en: "Reset All"
+    ko: "초기화"
+    ja: "すべてリセット"
+    id: "Atur Ulang Semua"
+  loading_preview:
+    en: "Loading preview..."
+    ko: "미리보기 로딩 중..."
+    ja: "プレビューを読み込み中..."
+    id: "Memuat pratinjau..."
+  adjustments:
+    en: "Adjustments"
+    ko: "보정"
+    ja: "補正"
+    id: "Penyesuaian"

@@ -9,7 +9,7 @@
 
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
 
-use crate::effect::cheki::{ChekiDecoration, ChekiFontSelection};
+use crate::effect::cheki::ChekiDecoration;
 use crate::effect::sticker_storage::StickerStorage;
 
 /// Apply cheki decoration to an image (already themed).
@@ -45,6 +45,18 @@ pub fn apply_cheki_decoration(
     let mut result = DynamicImage::ImageRgba8(canvas);
 
     // Render placed stickers
+    // When clip_stickers is enabled, only blend pixels within the image area (not border)
+    let clip_rect = if decoration.clip_stickers {
+        Some((
+            border as i32,
+            border as i32,
+            (border + img_w) as i32,
+            (border + img_h) as i32,
+        ))
+    } else {
+        None
+    };
+
     for placed in &decoration.dice_stickers {
         if let Some(sticker_item) = sticker_storage.get_sticker(placed.sticker_id)
             && let Some(sticker_img) = sticker_item.load_image()
@@ -62,7 +74,7 @@ pub fn apply_cheki_decoration(
             let pos_x = (placed.x * canvas_w as f32).round() as i32;
             let pos_y = (placed.y * canvas_h as f32).round() as i32;
 
-            overlay_with_alpha(&mut result, &resized, pos_x, pos_y);
+            overlay_with_alpha_clipped(&mut result, &resized, pos_x, pos_y, clip_rect);
         }
     }
 
@@ -77,11 +89,23 @@ pub fn apply_cheki_decoration(
         );
     }
 
+    // Render date stamp
+    if decoration.date_enabled && !decoration.date_text.is_empty() {
+        render_cheki_date_stamp(&mut result, decoration, border, img_h, bottom_extra);
+    }
+
     result
 }
 
-/// Overlay a sticker image with alpha blending at the given position
-fn overlay_with_alpha(base: &mut DynamicImage, sticker: &DynamicImage, x: i32, y: i32) {
+/// Overlay a sticker image with alpha blending, optionally clipped to a rect.
+/// `clip` is `Some((left, top, right, bottom))` in canvas pixel coordinates.
+fn overlay_with_alpha_clipped(
+    base: &mut DynamicImage,
+    sticker: &DynamicImage,
+    x: i32,
+    y: i32,
+    clip: Option<(i32, i32, i32, i32)>,
+) {
     let sw = sticker.width() as i32;
     let sh = sticker.height() as i32;
     let bw = base.width() as i32;
@@ -93,6 +117,13 @@ fn overlay_with_alpha(base: &mut DynamicImage, sticker: &DynamicImage, x: i32, y
             let ty = y + sy;
 
             if tx >= 0 && ty >= 0 && tx < bw && ty < bh {
+                // Apply clip rect if provided
+                if let Some((cl, ct, cr, cb)) = clip
+                    && (tx < cl || tx >= cr || ty < ct || ty >= cb)
+                {
+                    continue;
+                }
+
                 let sp = sticker.get_pixel(sx as u32, sy as u32);
                 if sp[3] > 0 {
                     let bp = base.get_pixel(tx as u32, ty as u32);
@@ -133,25 +164,29 @@ fn render_cheki_text(
 
     let text_color = decoration_text_color(decoration);
 
-    // Use the theme text rendering with fallback
     #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     {
-        use crate::fonts::variable_font::BuiltinVariableFontIndex;
+        use crate::effect::variable_text::VariableOrNot;
 
-        let font_idx = match decoration.font {
-            ChekiFontSelection::Barlow => BuiltinVariableFontIndex::Barlow,
-            ChekiFontSelection::BarlowNarrow => BuiltinVariableFontIndex::BarlowNarrow,
-            ChekiFontSelection::SourceHanSans => BuiltinVariableFontIndex::SourceHanSans,
+        let font = match &decoration.font {
+            VariableOrNot::Variable(idx) => idx.get_font_by_weight(decoration.font_weight),
+            VariableOrNot::Others(fs) => match crate::fonts::FONTS_UNIFY.search(fs) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to load cheki text font: {:?}", e);
+                    return;
+                }
+            },
         };
+        let weight = decoration.font_weight;
 
-        let font_pack = font_idx.get_font();
-        let weight = font_pack.default;
-        let font = font_pack.get_font_by_weight(weight);
-
-        // Center text horizontally
+        // Center text horizontally, clamped to canvas padding
         let (tw, _th) =
             crate::theme::text_dimensions_with_fallback(scale, &font, weight, &decoration.text);
-        let centered_x = text_x - (tw / 2.0) as i32;
+        let text_pad = (canvas_w as f32 * 0.02).round() as i32;
+        let centered_x = (text_x - (tw / 2.0) as i32)
+            .max(text_pad)
+            .min(canvas_w as i32 - text_pad - tw as i32);
 
         crate::theme::draw_text_with_fallback(
             image,
@@ -169,8 +204,122 @@ fn render_cheki_text(
     {
         // On mobile, use basic imageproc text rendering
         // This is a simplified fallback
-        let _ = (text_x, text_y, scale, text_color, border);
+        let _ = (text_x, text_y, scale, text_color);
     }
+}
+
+/// Render date stamp on the cheki canvas
+fn render_cheki_date_stamp(
+    image: &mut DynamicImage,
+    decoration: &ChekiDecoration,
+    border: u32,
+    img_h: u32,
+    bottom_extra: u32,
+) {
+    use crate::effect::cheki::DatePosition;
+
+    let canvas_w = image.width();
+    let pad = (canvas_w as f32 * 0.02).round() as i32;
+
+    // Determine font size and position based on DatePosition
+    let (date_x, date_y, font_area_h) = match decoration.date_position {
+        DatePosition::TopLeft => (pad, (border as f32 / 2.0).round() as i32, border as f32),
+        DatePosition::TopCenter => (
+            (canvas_w / 2) as i32,
+            (border as f32 / 2.0).round() as i32,
+            border as f32,
+        ),
+        DatePosition::TopRight => (
+            canvas_w as i32 - pad,
+            (border as f32 / 2.0).round() as i32,
+            border as f32,
+        ),
+        DatePosition::BottomLeft => (
+            pad,
+            (img_h + 2 * border) as i32 + (bottom_extra as f32 / 2.0).round() as i32,
+            bottom_extra as f32,
+        ),
+        DatePosition::BottomCenter => (
+            (canvas_w / 2) as i32,
+            (img_h + 2 * border) as i32 + (bottom_extra as f32 / 2.0).round() as i32,
+            bottom_extra as f32,
+        ),
+        DatePosition::BottomRight => (
+            canvas_w as i32 - pad,
+            (img_h + 2 * border) as i32 + (bottom_extra as f32 / 2.0).round() as i32,
+            bottom_extra as f32,
+        ),
+    };
+
+    let font_px = (font_area_h * decoration.date_font_size).max(12.0);
+    let scale = ab_glyph::PxScale::from(font_px);
+    let date_color = decoration_date_color(decoration);
+
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+    {
+        use crate::effect::variable_text::VariableOrNot;
+
+        let font = match &decoration.date_font {
+            VariableOrNot::Variable(idx) => idx.get_font_by_weight(decoration.date_font_weight),
+            VariableOrNot::Others(fs) => match crate::fonts::FONTS_UNIFY.search(fs) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to load cheki date font: {:?}", e);
+                    return;
+                }
+            },
+        };
+        let weight = decoration.date_font_weight;
+
+        // Calculate text dimensions for alignment
+        let (tw, _th) = crate::theme::text_dimensions_with_fallback(
+            scale,
+            &font,
+            weight,
+            &decoration.date_text,
+        );
+
+        // Adjust x position based on alignment (left/center/right)
+        let aligned_x = match decoration.date_position {
+            DatePosition::TopLeft | DatePosition::BottomLeft => date_x,
+            DatePosition::TopCenter | DatePosition::BottomCenter => date_x - (tw / 2.0) as i32,
+            DatePosition::TopRight | DatePosition::BottomRight => date_x - tw as i32,
+        };
+
+        // Clamp to stay within canvas padding
+        let aligned_x = aligned_x.max(pad).min(canvas_w as i32 - pad - tw as i32);
+
+        crate::theme::draw_text_with_fallback(
+            image,
+            date_color,
+            aligned_x,
+            date_y,
+            scale,
+            &font,
+            weight,
+            &decoration.date_text,
+        );
+    }
+
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    {
+        let _ = (date_x, date_y, scale, date_color, font_area_h);
+    }
+}
+
+#[cfg(feature = "egui")]
+fn decoration_date_color(decoration: &ChekiDecoration) -> Rgba<u8> {
+    Rgba([
+        decoration.date_color.r(),
+        decoration.date_color.g(),
+        decoration.date_color.b(),
+        decoration.date_color.a(),
+    ])
+}
+
+#[cfg(not(feature = "egui"))]
+fn decoration_date_color(decoration: &ChekiDecoration) -> Rgba<u8> {
+    Rgba(decoration.date_color)
 }
 
 #[cfg(feature = "egui")]

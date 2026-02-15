@@ -88,10 +88,21 @@ lazy_static::lazy_static! {
         end_include: 800,
     };
 
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 3] = [
+    static ref DYNAPUFF: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_DYNAPUFF.name,
+        font: ab_glyph::FontRef::try_from_slice(
+             crate::fonts::FONT_DYNAPUFF.data
+        ).expect("Failed to load DynaPuff variable font"),
+        default: 400,
+        start: 400,
+        end_include: 700,
+    };
+
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 4] = [
         &*BARLOW,
         &*BARLOW_NARROW,
         &*SOURCE_HAN_SANS,
+        &*DYNAPUFF,
     ];
 }
 
@@ -149,10 +160,26 @@ lazy_static::lazy_static! {
         end_include: 800,
     };
 
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 3] = [
+    static ref DYNAPUFF_DATA: &'static [u8] = {
+        let data = crate::resources::load_font(crate::fonts::FONT_DYNAPUFF.filename)
+            .expect("Failed to load DynaPuff font from Resources");
+        Box::leak(data.into_boxed_slice())
+    };
+
+    static ref DYNAPUFF: VariableFontPack = VariableFontPack {
+        label: crate::fonts::FONT_DYNAPUFF.name,
+        font: ab_glyph::FontRef::try_from_slice(&DYNAPUFF_DATA)
+            .expect("Failed to parse DynaPuff variable font"),
+        default: 400,
+        start: 400,
+        end_include: 700,
+    };
+
+    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 4] = [
         &*BARLOW,
         &*BARLOW_NARROW,
         &*SOURCE_HAN_SANS,
+        &*DYNAPUFF,
     ];
 }
 
@@ -170,6 +197,7 @@ pub enum BuiltinVariableFontIndex {
     Barlow,
     BarlowNarrow,
     SourceHanSans,
+    DynaPuff,
 }
 
 impl BuiltinVariableFontIndex {
