@@ -253,6 +253,7 @@ pub fn spawn_parallel_loader(
 }
 
 /// Convert LoadedImageData to PackedImage (must be called in UI thread for texture creation)
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub fn create_packed_image_from_data(
     data: LoadedImageData,
     ctx: &egui::Context,

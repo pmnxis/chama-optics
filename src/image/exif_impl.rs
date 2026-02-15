@@ -728,8 +728,13 @@ impl SimplifiedExif {
 
 /// Extract verbose EXIF data including all fields and maker notes
 /// Returns a JSON string with all EXIF fields
-#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-#[allow(dead_code)] // Called via FFI from ffi.rs when feature is enabled
+#[cfg(any(
+    target_os = "ios",
+    target_os = "macos",
+    feature = "ios_integration",
+    feature = "android_integration"
+))]
+#[allow(dead_code)] // Called via FFI from ffi_apple.rs
 pub fn extract_verbose_exif(path: &str) -> Result<String, String> {
     use std::io::BufReader;
 

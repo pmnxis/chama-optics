@@ -20,6 +20,10 @@ use crate::fonts::variable_font::BuiltinVariableFontIndex;
 pub struct PlacedSticker {
     /// References a sticker in StickerStorage
     pub sticker_id: Uuid,
+    /// Actual filename of the sticker image (e.g., "sticker_abc123.png")
+    /// Used by mobile FFI to locate files; desktop uses sticker_id lookup
+    #[serde(default)]
+    pub filename: Option<String>,
     /// Normalized x position (0.0-1.0 relative to image width)
     pub x: f32,
     /// Normalized y position (0.0-1.0 relative to image height)

@@ -3350,6 +3350,344 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
 }
 
 // ============================================================================
+// Cheki (Polaroid) Decoration Export
+// ============================================================================
+
+/// Apply cheki (polaroid) decoration to an image and save the result.
+///
+/// This performs the full cheki export pipeline:
+/// 1. Load image with EXIF orientation
+/// 2. Apply crop/rotate transform (if provided in JSON)
+/// 3. Apply color adjustments + LUT (if provided)
+/// 4. Apply cheki decoration (border, stickers, text, date stamp)
+/// 5. Save result
+///
+/// # Parameters
+/// - `image_path`: Path to the source image
+/// - `output_path`: Path to save the decorated image
+/// - `cheki_json`: JSON string with ChekiDecoration configuration
+/// - `sticker_dir`: Directory containing sticker images (sticker filenames are UUIDs)
+/// - `crop_rotate_json`: Optional JSON string with CropRotateTransform (null = no transform)
+/// - `color_adjustments_json`: Optional JSON string with color adjustments (null = none)
+/// - `lut_id`: Optional LUT ID to apply (null = none)
+/// - `output_format_config`: Optional output format config (null = default based on extension)
+///
+/// # Safety
+/// - All string pointers must be valid null-terminated C strings or null
+/// - `output_format_config` must be a valid pointer or null
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn chama_export_cheki(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    cheki_json: *const c_char,
+    sticker_dir: *const c_char,
+    crop_rotate_json: *const c_char,
+    color_adjustments_json: *const c_char,
+    lut_id: *const c_char,
+    output_format_config: *const COutputFormatConfig,
+) -> ChamaError {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        chama_export_cheki_impl(
+            image_path,
+            output_path,
+            cheki_json,
+            sticker_dir,
+            crop_rotate_json,
+            color_adjustments_json,
+            lut_id,
+            output_format_config,
+        )
+    }));
+
+    match result {
+        Ok(error_code) => error_code,
+        Err(panic_info) => {
+            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_info.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "unknown panic".to_string()
+            };
+            log::error!("Caught panic in chama_export_cheki: {}", msg);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn chama_export_cheki_impl(
+    image_path: *const c_char,
+    output_path: *const c_char,
+    cheki_json: *const c_char,
+    sticker_dir: *const c_char,
+    crop_rotate_json: *const c_char,
+    color_adjustments_json: *const c_char,
+    lut_id: *const c_char,
+    output_format_config: *const COutputFormatConfig,
+) -> ChamaError {
+    if image_path.is_null() || output_path.is_null() || cheki_json.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = match CStr::from_ptr(image_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let output_path_str = match CStr::from_ptr(output_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidPath,
+    };
+
+    let cheki_json_str = match CStr::from_ptr(cheki_json).to_str() {
+        Ok(s) => s,
+        Err(_) => return ChamaError::InvalidParameters,
+    };
+
+    let sticker_dir_str = if sticker_dir.is_null() {
+        ""
+    } else {
+        CStr::from_ptr(sticker_dir).to_str().unwrap_or("")
+    };
+
+    log::info!("Cheki export pipeline started:");
+    log::info!("  Input: {}", image_path_str);
+    log::info!("  Output: {}", output_path_str);
+    log::info!("  Sticker dir: {}", sticker_dir_str);
+
+    // Step 1: Parse ChekiDecoration from JSON
+    let decoration: crate::effect::cheki::ChekiDecoration =
+        match serde_json::from_str(cheki_json_str) {
+            Ok(d) => d,
+            Err(e) => {
+                log::error!("Failed to parse ChekiDecoration JSON: {}", e);
+                return ChamaError::InvalidParameters;
+            }
+        };
+
+    // Step 2: Load image with HEIF support and apply EXIF orientation
+    let mut dyn_image = match load_image_with_heif_support(Path::new(image_path_str)) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Failed to load image: {}", e);
+            return ChamaError::ImageLoadError;
+        }
+    };
+
+    // Apply EXIF orientation
+    {
+        use exif::{In, Tag};
+        let orientation = if let Ok(f) = std::fs::File::open(image_path_str) {
+            let mut buf_reader = std::io::BufReader::new(f);
+            match exif::Reader::new().read_from_container(&mut buf_reader) {
+                Ok(exif) => {
+                    let value = exif
+                        .get_field(Tag::Orientation, In::PRIMARY)
+                        .and_then(|field| field.value.get_uint(0));
+                    image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+                        .unwrap_or(image::metadata::Orientation::NoTransforms)
+                }
+                Err(_) => image::metadata::Orientation::NoTransforms,
+            }
+        } else {
+            image::metadata::Orientation::NoTransforms
+        };
+        dyn_image.apply_orientation(orientation);
+    }
+
+    log::info!(
+        "  Image size after orientation: {}x{}",
+        dyn_image.width(),
+        dyn_image.height()
+    );
+
+    // Step 3: Apply crop/rotate transform (if provided)
+    if !crop_rotate_json.is_null() {
+        let crop_rotate_str = CStr::from_ptr(crop_rotate_json).to_str().unwrap_or("{}");
+        if !crop_rotate_str.is_empty() && crop_rotate_str != "{}" {
+            match serde_json::from_str::<crate::effect::crop_rotate::CropRotateTransform>(
+                crop_rotate_str,
+            ) {
+                Ok(transform) => {
+                    if !transform.is_identity() {
+                        dyn_image = transform.apply(&dyn_image);
+                        log::info!(
+                            "  After crop/rotate: {}x{}",
+                            dyn_image.width(),
+                            dyn_image.height()
+                        );
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse crop/rotate JSON: {}", e);
+                }
+            }
+        }
+    }
+
+    // Step 4: Apply color adjustments (if provided)
+    if !color_adjustments_json.is_null() {
+        let adjustments_str = CStr::from_ptr(color_adjustments_json)
+            .to_str()
+            .unwrap_or("{}");
+        if !adjustments_str.is_empty() && adjustments_str != "{}" {
+            match serde_json::from_str::<crate::effect::color_adjustments::ColorAdjustments>(
+                adjustments_str,
+            ) {
+                Ok(adjustments) => {
+                    if !adjustments.is_identity() {
+                        adjustments.apply(&mut dyn_image);
+                        log::info!("  Color adjustments applied");
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse color adjustments JSON: {}", e);
+                }
+            }
+        }
+    }
+
+    // Step 5: Apply LUT (if provided)
+    if !lut_id.is_null() {
+        let lut_id_str = CStr::from_ptr(lut_id).to_str().unwrap_or("");
+        if !lut_id_str.is_empty() {
+            if let Ok(uuid) = uuid::Uuid::parse_str(lut_id_str) {
+                let mut storage = match LUT_STORAGE.lock() {
+                    Ok(s) => s,
+                    Err(_) => {
+                        log::warn!("Failed to lock LUT storage");
+                        return ChamaError::Unknown;
+                    }
+                };
+                if storage.apply_lut_to_image(uuid, &mut dyn_image) {
+                    log::info!("  LUT applied: {}", lut_id_str);
+                } else {
+                    log::warn!("  LUT not found or failed: {}", lut_id_str);
+                }
+            }
+        }
+    }
+
+    // Step 6: Build sticker storage from directory
+    let sticker_storage = build_sticker_storage_from_dir_and_json(sticker_dir_str, &decoration);
+
+    // Step 7: Apply cheki decoration
+    let result = crate::effect::cheki_renderer::apply_cheki_decoration(
+        dyn_image,
+        &decoration,
+        &sticker_storage,
+    );
+
+    // Step 8: Save result
+    if output_format_config.is_null() {
+        match result.save(output_path_str) {
+            Ok(_) => {
+                log::info!("✅ Cheki export completed: {}", output_path_str);
+                ChamaError::Success
+            }
+            Err(e) => {
+                log::error!("Failed to save cheki result: {}", e);
+                ChamaError::ImageProcessError
+            }
+        }
+    } else {
+        let config_ref = &*output_format_config;
+        let output_format = crate::export_config::output_format::OutputFormat {
+            ext: match config_ref.output_format {
+                COutputFormat::Jpeg => crate::export_config::output_format::OutputExtension::Jpeg,
+                COutputFormat::Png => {
+                    crate::export_config::output_format::OutputExtension::PngOptimized
+                }
+                COutputFormat::Webp => crate::export_config::output_format::OutputExtension::Webp,
+            },
+            quality: config_ref.quality,
+        };
+        match output_format.save_image(&result, output_path_str) {
+            Ok(_) => {
+                log::info!("✅ Cheki export completed: {}", output_path_str);
+                ChamaError::Success
+            }
+            Err(e) => {
+                log::error!("Failed to save cheki result: {}", e);
+                ChamaError::ImageProcessError
+            }
+        }
+    }
+}
+
+/// Build a StickerStorage from a directory path and ChekiDecoration's sticker references.
+/// Each sticker file is expected to be named by its UUID (e.g., "uuid.png") or "uuid_name.ext".
+fn build_sticker_storage_from_dir_and_json(
+    sticker_dir: &str,
+    decoration: &crate::effect::cheki::ChekiDecoration,
+) -> crate::effect::sticker_storage::StickerStorage {
+    use crate::effect::sticker_storage::{StickerItem, StickerStorage};
+
+    let mut storage = StickerStorage::new();
+
+    if sticker_dir.is_empty() {
+        return storage;
+    }
+
+    storage.storage_directory = PathBuf::from(sticker_dir);
+
+    // Scan for sticker files referenced in the decoration
+    for placed in &decoration.dice_stickers {
+        let sticker_id = placed.sticker_id;
+        let sticker_id_str = sticker_id.to_string();
+
+        // If filename is provided (from mobile FFI), use it directly
+        if let Some(ref fname) = placed.filename {
+            let path = PathBuf::from(sticker_dir).join(fname);
+            if path.exists() {
+                let mut item = StickerItem::new(fname.clone(), path);
+                item.id = sticker_id;
+                item.is_character = true;
+                storage.stickers.push(item);
+                continue;
+            }
+        }
+
+        // Fallback: Try common image extensions with UUID as filename
+        let extensions = ["png", "jpg", "jpeg", "webp", "gif"];
+        let mut found = false;
+
+        for ext in &extensions {
+            let filename = format!("{}.{}", sticker_id_str, ext);
+            let path = PathBuf::from(sticker_dir).join(&filename);
+            if path.exists() {
+                let mut item = StickerItem::new(filename, path);
+                item.id = sticker_id;
+                item.is_character = true;
+                storage.stickers.push(item);
+                found = true;
+                break;
+            }
+        }
+
+        if !found {
+            // Try scanning directory for files starting with the UUID
+            if let Ok(entries) = std::fs::read_dir(sticker_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.starts_with(&sticker_id_str) {
+                        let mut item = StickerItem::new(name, entry.path());
+                        item.id = sticker_id;
+                        item.is_character = true;
+                        storage.stickers.push(item);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    storage
+}
+
+// ============================================================================
 // Font Directory Configuration
 // ============================================================================
 

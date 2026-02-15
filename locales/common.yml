@@ -85,6 +85,11 @@ common:
       ko: "확인"
       ja: "確認"
       id: "Konfirmasi"
+    export:
+      en: "Export"
+      ko: "내보내기"
+      ja: "エクスポート"
+      id: "Ekspor"
     group:
       en: "Group"
       ko: "그룹"

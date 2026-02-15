@@ -8,7 +8,7 @@
 
 use crate::effect::cheki::PlacedSticker;
 use crate::effect::sticker_storage::{FaceArea, StickerItem};
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 /// Configuration for the dice placement algorithm
 pub struct DicePlacementConfig {
@@ -140,6 +140,7 @@ pub fn place_character_stickers(
             // Place the sticker
             let placement = PlacedSticker {
                 sticker_id: sticker.id,
+                filename: Some(sticker.name.clone()),
                 x: x / img_w,
                 y: y / img_h,
                 scale,

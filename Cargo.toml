@@ -42,6 +42,8 @@ desktop = [
     "egui-file-dialog",
     "sys-locale",
     "font-kit",
+    "reqwest",
+    "zip",
     # Note: ext_res removed from default
     # macOS: Use --features "desktop,ext_res" (recommended for notarization)
     # Windows/Linux: Use default (fonts/models embedded in binary)
@@ -87,7 +89,7 @@ chama-optics-macros = { path = "macros" }
 wgpu = { version = "27.0.1", optional = true }
 egui-wgpu = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true }
 swift-bridge = { version = "0.1", optional = true }
-futures = { version = "0.3", optional = true }
+futures = { version = "^0.3", optional = true }
 egui = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true, features = [
     "serde",
 ] }
@@ -117,29 +119,29 @@ ab_glyph = "0.2.32"
 fast_image_resize = "^6.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
-env_logger = "0.11.8"
-android_logger = "0.14"
+env_logger = "0.11.9"
+android_logger = "0.15"
 rust-i18n = "3.1.5"
-uuid = { version = "1.20", features = ["v4", "serde"] }
+uuid = { version = "1.21", features = ["v4", "serde"] }
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = "0.27.2"
 sys-locale = { version = "0.3.2", optional = true }
 dirs = "6.0"
 num-traits = "0.2.19"
-clap = { version = "4.5.57", features = ["derive"] }
+clap = { version = "4.5.58", features = ["derive"] }
 chrono = { version = "^0.4", features = ["serde"] }
-resvg = "0.46"
-tiny-skia = "0.11.4"
-rand = "^0.9"
+resvg = "^0.47"
+tiny-skia = "^0.12"
+rand = "^0.10"
 rayon = "1.11"
 num_cpus = "1.16"
 ndarray = { version = "0.17", optional = true }
-reqwest = { version = "^0.13", features = [
+reqwest = { version = "^0.13", optional = true, features = [
     "gzip",
     "blocking",
     "json",
     # "rustls-tls",
-] } # rustls is now the default TLS backend, instead of native-tls.
+] } # rustls is now the default TLS backend, instead of native-tls. Desktop only (update checker).
 
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
@@ -200,13 +202,13 @@ winres = "0.1"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
-reqwest = { version = "^0.13", features = [
+reqwest = { version = "^0.13", optional = true, features = [
     "gzip",
     "blocking",
     "json",
     # "rustls-tls",
 ] }
-zip = "7.4.0"
+zip = { version = ">=8.0", optional = true }
 md-5 = "0.10.6"
 cargo_metadata = "0.23"
 csv = "1.4"

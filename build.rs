@@ -4,14 +4,19 @@
  * SPDX-License-Identifier: MIT
  */
 
+#[cfg(feature = "desktop")]
 include!("prebuilt_src/fonts.rs");
+#[cfg(feature = "desktop")]
 include!("prebuilt_src/logo.rs");
 
+#[cfg(feature = "desktop")]
 use builtin_fonts::*;
 use std::env;
+#[cfg(feature = "desktop")]
 use std::path::PathBuf;
 
 /// Build assets for face detection models
+#[cfg(feature = "desktop")]
 #[allow(unused)]
 pub const BUILTIN_FACE_MODELS: [BuildAsset; 1] = [BuildAsset {
     // InsightFace buffalo_l model (v0.7)
@@ -45,10 +50,14 @@ fn get_git_commit_hash(short: bool) -> Option<String> {
 }
 
 fn main() {
+    #[cfg(feature = "desktop")]
     let logo_csv_path = PathBuf::from("assets/logo_mnf.csv");
+    #[cfg(feature = "desktop")]
     let tmp_dir = PathBuf::from("assets/download");
+    #[cfg(feature = "desktop")]
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=locales");
+    #[cfg(feature = "desktop")]
     println!("cargo:rerun-if-changed={}", logo_csv_path.display());
 
     // Use CARGO_CFG_TARGET_OS to check the cross-compilation target, not the host OS.
@@ -120,37 +129,42 @@ fn main() {
         println!("cargo:rustc-env=GIT_COMMIT_DATETIME=unknown");
     }
 
-    // Enable only build-script logic in build_asset.rs
-    for asset in BUILTIN_FONTS {
-        asset.load(&out_dir);
+    // Desktop only: download fonts, face models, and logos (requires reqwest + zip)
+    // Mobile builds (ios_integration, android_integration) load assets from app bundle
+    #[cfg(feature = "desktop")]
+    {
+        // Enable only build-script logic in build_asset.rs
+        for asset in BUILTIN_FONTS {
+            asset.load(&out_dir);
+        }
+
+        for asset in BUILTIN_FACE_MODELS {
+            asset.load(&tmp_dir);
+        }
+
+        // Logo related
+        std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
+        let generated_dir = PathBuf::from("assets/auto_generated");
+        std::fs::create_dir_all(&generated_dir).expect("failed to create src/generated directory");
+        let output_file = generated_dir.join("logo_assets.rs");
+
+        // Generate Rust source code
+        let generated_code = builtin_logos::generate(&tmp_dir, &logo_csv_path);
+
+        // std::fs::write(&output_file, generated_code).expect("failed to write generated logo_assets.rs");
+        write_if_changed(&output_file, &generated_code);
+
+        println!(
+            "cargo:rustc-env=LOGO_ASSET_PATH={}",
+            std::fs::canonicalize(&output_file)
+                .unwrap_or_else(|_| output_file.clone())
+                .display()
+        );
+        if std::env::var("LOGO_ASSET_PATH").is_ok() {
+            println!("cargo:rustc-cfg=has_logo_asset_path");
+        }
+        println!("✅ Generated {}", output_file.display());
     }
-
-    for asset in BUILTIN_FACE_MODELS {
-        asset.load(&tmp_dir);
-    }
-
-    // Logo related
-    std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
-    let generated_dir = PathBuf::from("assets/auto_generated");
-    std::fs::create_dir_all(&generated_dir).expect("failed to create src/generated directory");
-    let output_file = generated_dir.join("logo_assets.rs");
-
-    // Generate Rust source code
-    let generated_code = builtin_logos::generate(&tmp_dir, &logo_csv_path);
-
-    // std::fs::write(&output_file, generated_code).expect("failed to write generated logo_assets.rs");
-    write_if_changed(&output_file, &generated_code);
-
-    println!(
-        "cargo:rustc-env=LOGO_ASSET_PATH={}",
-        std::fs::canonicalize(&output_file)
-            .unwrap_or_else(|_| output_file.clone())
-            .display()
-    );
-    if std::env::var("LOGO_ASSET_PATH").is_ok() {
-        println!("cargo:rustc-cfg=has_logo_asset_path");
-    }
-    println!("✅ Generated {}", output_file.display());
 
     if target_os == "linux"
         && let Ok(pkg_path) = env::var("PKG_CONFIG_PATH")

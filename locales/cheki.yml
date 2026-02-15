@@ -164,6 +164,18 @@ cheki:
     ja: "ドラッグで移動。コーナーでリサイズ。上のハンドルで回転。右クリックで削除。スクロールでスケール。"
     id: "Seret untuk pindah. Sudut untuk ukuran. Pegangan atas untuk rotasi. Klik kanan hapus. Gulir untuk skala."
 
+  # No character stickers warning
+  no_character_stickers_title:
+    en: "No Character Stickers"
+    ko: "캐릭터 스티커 없음"
+    ja: "キャラクターステッカーなし"
+    id: "Tidak Ada Stiker Karakter"
+  no_character_stickers_message:
+    en: "Enable the character toggle on stickers in Settings to use Play Dice."
+    ko: "설정에서 스티커의 캐릭터 토글을 활성화해주세요."
+    ja: "設定でステッカーのキャラクタートグルを有効にしてください。"
+    id: "Aktifkan toggle karakter pada stiker di Pengaturan."
+
   # Remove
   remove_decoration:
     en: "Remove Cheki Decoration"

@@ -147,7 +147,7 @@ fn overlay_with_alpha_clipped(
 fn render_cheki_text(
     image: &mut DynamicImage,
     decoration: &ChekiDecoration,
-    _border: u32,
+    border: u32,
     text_area_y: u32,
     text_area_h: u32,
 ) {
@@ -183,7 +183,7 @@ fn render_cheki_text(
         // Center text horizontally, clamped to canvas padding
         let (tw, _th) =
             crate::theme::text_dimensions_with_fallback(scale, &font, weight, &decoration.text);
-        let text_pad = (canvas_w as f32 * 0.02).round() as i32;
+        let text_pad = border as i32;
         let centered_x = (text_x - (tw / 2.0) as i32)
             .max(text_pad)
             .min(canvas_w as i32 - text_pad - tw as i32);
@@ -202,9 +202,33 @@ fn render_cheki_text(
 
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     {
-        // On mobile, use basic imageproc text rendering
-        // This is a simplified fallback
-        let _ = (text_x, text_y, scale, text_color);
+        let font = match load_font_from_file(&decoration.font_file, Some(decoration.font_weight)) {
+            Some(f) => f,
+            None => {
+                log::error!("Failed to load cheki text font: {}", decoration.font_file);
+                return;
+            }
+        };
+        let weight = decoration.font_weight;
+
+        // Center text horizontally, clamped to canvas padding
+        let (tw, _th) =
+            crate::theme::text_dimensions_with_fallback(scale, &font, weight, &decoration.text);
+        let text_pad = border as i32;
+        let centered_x = (text_x - (tw / 2.0) as i32)
+            .max(text_pad)
+            .min(canvas_w as i32 - text_pad - tw as i32);
+
+        crate::theme::draw_text_with_fallback(
+            image,
+            text_color,
+            centered_x,
+            text_y,
+            scale,
+            &font,
+            weight,
+            &decoration.text,
+        );
     }
 }
 
@@ -219,7 +243,8 @@ fn render_cheki_date_stamp(
     use crate::effect::cheki::DatePosition;
 
     let canvas_w = image.width();
-    let pad = (canvas_w as f32 * 0.02).round() as i32;
+    // Use border width as horizontal padding to align date text with image edges
+    let pad = border as i32;
 
     // Determine font size and position based on DatePosition
     let (date_x, date_y, font_area_h) = match decoration.date_position {
@@ -303,7 +328,93 @@ fn render_cheki_date_stamp(
 
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     {
-        let _ = (date_x, date_y, scale, date_color, font_area_h);
+        let font = match load_font_from_file(
+            &decoration.date_font_file,
+            Some(decoration.date_font_weight),
+        ) {
+            Some(f) => f,
+            None => {
+                log::error!(
+                    "Failed to load cheki date font: {}",
+                    decoration.date_font_file
+                );
+                return;
+            }
+        };
+        let weight = decoration.date_font_weight;
+
+        // Calculate text dimensions for alignment
+        let (tw, _th) = crate::theme::text_dimensions_with_fallback(
+            scale,
+            &font,
+            weight,
+            &decoration.date_text,
+        );
+
+        // Adjust x position based on alignment (left/center/right)
+        let aligned_x = match decoration.date_position {
+            DatePosition::TopLeft | DatePosition::BottomLeft => date_x,
+            DatePosition::TopCenter | DatePosition::BottomCenter => date_x - (tw / 2.0) as i32,
+            DatePosition::TopRight | DatePosition::BottomRight => date_x - tw as i32,
+        };
+
+        // Clamp to stay within canvas padding
+        let aligned_x = aligned_x.max(pad).min(canvas_w as i32 - pad - tw as i32);
+
+        crate::theme::draw_text_with_fallback(
+            image,
+            date_color,
+            aligned_x,
+            date_y,
+            scale,
+            &font,
+            weight,
+            &decoration.date_text,
+        );
+    }
+}
+
+/// Load a font from a file path (with fonts base directory resolution)
+/// For variable fonts (e.g. DynaPuff-Variable.ttf), applies the `wght` variation axis.
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+fn load_font_from_file(font_file: &str, weight: Option<u16>) -> Option<ab_glyph::FontArc> {
+    use ab_glyph::VariableFont;
+    use std::path::{Path, PathBuf};
+
+    if font_file.is_empty() {
+        return None;
+    }
+
+    let base_dir = crate::effect::variable_text::get_fonts_base_directory();
+    let full_path = if base_dir.is_empty() {
+        PathBuf::from(font_file)
+    } else {
+        let font_path = Path::new(font_file);
+        if font_path.is_absolute() {
+            PathBuf::from(font_file)
+        } else {
+            PathBuf::from(&base_dir).join(font_file)
+        }
+    };
+
+    match std::fs::read(&full_path) {
+        Ok(data) => match ab_glyph::FontVec::try_from_vec(data) {
+            Ok(mut font) => {
+                // Apply weight variation axis for variable fonts (e.g. DynaPuff wght 400-700)
+                if let Some(w) = weight {
+                    font.set_variation(b"wght", w as f32);
+                }
+                Some(font.into())
+            }
+            Err(e) => {
+                log::error!("Failed to parse font {}: {}", full_path.display(), e);
+                None
+            }
+        },
+        Err(e) => {
+            log::error!("Failed to read font file {}: {}", full_path.display(), e);
+            None
+        }
     }
 }
 

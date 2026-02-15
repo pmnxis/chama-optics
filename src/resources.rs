@@ -22,7 +22,7 @@ const FONT_BARLOW: &[u8] = include_bytes!("../assets/fonts/Barlow-Variable-Remap
 #[cfg(not(feature = "ext_res"))]
 const FONT_BARLOW_NARROW: &[u8] =
     include_bytes!("../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf");
-#[cfg(not(feature = "ext_res"))]
+#[cfg(all(not(feature = "ext_res"), feature = "desktop"))]
 const FONT_DYNAPUFF: &[u8] = include_bytes!(env!("DYNAPUFF_FONT_PATH"));
 
 // Embedded model data (const static - compiled into binary when ext_res is disabled)
@@ -151,6 +151,7 @@ pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
             "SourceHanSansVF-remapped.otf" => Some(FONT_SOURCE_HAN_SANS.to_vec()),
             "Barlow-Variable-Remapped.ttf" => Some(FONT_BARLOW.to_vec()),
             "Barlow-Variable-Remapped-Narrow.ttf" => Some(FONT_BARLOW_NARROW.to_vec()),
+            #[cfg(feature = "desktop")]
             "DynaPuff-Variable.ttf" => Some(FONT_DYNAPUFF.to_vec()),
             _ => {
                 log::warn!("Unknown embedded font: {}", font_name);

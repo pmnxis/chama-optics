@@ -302,44 +302,24 @@ pub extern "C" fn chama_optics_extract_verbose_exif(image_path: *const c_char) -
     unsafe {
         let path_str = match CStr::from_ptr(image_path).to_str() {
             Ok(s) => s,
-            Err(_) => return std::ptr::null_mut(),
-        };
-
-        let file = match std::fs::File::open(path_str) {
-            Ok(f) => f,
-            Err(_) => return std::ptr::null_mut(),
-        };
-
-        let mut buf_reader = std::io::BufReader::new(file);
-        let exif = match exif::Reader::new().read_from_container(&mut buf_reader) {
-            Ok(e) => e,
-            Err(_) => return std::ptr::null_mut(),
-        };
-
-        // Build JSON manually (simple key-value pairs)
-        let mut json = String::from("{");
-        let mut first = true;
-
-        for field in exif.fields() {
-            if !first {
-                json.push(',');
+            Err(_) => {
+                log::error!("Invalid UTF-8 in image path");
+                return std::ptr::null_mut();
             }
-            first = false;
+        };
 
-            let tag_name = field.tag.to_string();
-            let value = field.display_value().to_string();
-
-            // Escape quotes in strings
-            let escaped_value = value.replace('"', "\\\"");
-
-            json.push_str(&format!("\"{}\":\"{}\"", tag_name, escaped_value));
-        }
-
-        json.push('}');
-
-        match CString::new(json) {
-            Ok(s) => s.into_raw(),
-            Err(_) => std::ptr::null_mut(),
+        match crate::image::exif_impl::extract_verbose_exif(path_str) {
+            Ok(json_string) => match CString::new(json_string) {
+                Ok(c_string) => c_string.into_raw(),
+                Err(_) => {
+                    log::error!("Failed to create C string from JSON");
+                    std::ptr::null_mut()
+                }
+            },
+            Err(e) => {
+                log::error!("Failed to extract verbose EXIF: {}", e);
+                std::ptr::null_mut()
+            }
         }
     }
 }
