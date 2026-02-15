@@ -15,10 +15,35 @@ use crate::effect::variable_text::VariableOrNot;
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use crate::fonts::variable_font::BuiltinVariableFontIndex;
 
+/// Deserialize sticker_id: accepts both valid UUIDs and arbitrary strings.
+/// Non-UUID strings are converted to a deterministic UUID via hashing.
+fn deserialize_sticker_id<'de, D>(deserializer: D) -> Result<Uuid, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    match Uuid::parse_str(&s) {
+        Ok(uuid) => Ok(uuid),
+        Err(_) => {
+            // Generate deterministic UUID from arbitrary string (e.g., "sticker_123")
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            s.hash(&mut hasher);
+            let hash = hasher.finish();
+            let bytes = hash.to_le_bytes();
+            Ok(Uuid::from_bytes([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], 0,
+                0, 0, 0, 0, 0, 0, 0,
+            ]))
+        }
+    }
+}
+
 /// A sticker placed at a specific position on the cheki
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlacedSticker {
     /// References a sticker in StickerStorage
+    #[serde(deserialize_with = "deserialize_sticker_id")]
     pub sticker_id: Uuid,
     /// Actual filename of the sticker image (e.g., "sticker_abc123.png")
     /// Used by mobile FFI to locate files; desktop uses sticker_id lookup

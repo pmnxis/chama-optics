@@ -155,7 +155,8 @@ fn render_cheki_text(
 
     // Calculate text position within the bottom border area
     let text_x = (decoration.text_position_x * canvas_w as f32).round() as i32;
-    let text_y =
+    // text_position_y centers the text vertically (0.5 = center of text area)
+    let text_y_center =
         text_area_y as i32 + (decoration.text_position_y * text_area_h as f32).round() as i32;
 
     // Calculate font size based on bottom area height
@@ -181,12 +182,13 @@ fn render_cheki_text(
         let weight = decoration.font_weight;
 
         // Center text horizontally, clamped to canvas padding
-        let (tw, _th) =
+        let (tw, th) =
             crate::theme::text_dimensions_with_fallback(scale, &font, weight, &decoration.text);
         let text_pad = border as i32;
         let centered_x = (text_x - (tw / 2.0) as i32)
             .max(text_pad)
             .min(canvas_w as i32 - text_pad - tw as i32);
+        let text_y = text_y_center - (th / 2.0) as i32;
 
         crate::theme::draw_text_with_fallback(
             image,
@@ -212,12 +214,13 @@ fn render_cheki_text(
         let weight = decoration.font_weight;
 
         // Center text horizontally, clamped to canvas padding
-        let (tw, _th) =
+        let (tw, th) =
             crate::theme::text_dimensions_with_fallback(scale, &font, weight, &decoration.text);
         let text_pad = border as i32;
         let centered_x = (text_x - (tw / 2.0) as i32)
             .max(text_pad)
             .min(canvas_w as i32 - text_pad - tw as i32);
+        let text_y = text_y_center - (th / 2.0) as i32;
 
         crate::theme::draw_text_with_fallback(
             image,

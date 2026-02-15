@@ -3458,11 +3458,16 @@ unsafe fn chama_export_cheki_impl(
     log::info!("  Sticker dir: {}", sticker_dir_str);
 
     // Step 1: Parse ChekiDecoration from JSON
+    log::info!(
+        "  Cheki JSON (first 500): {}",
+        &cheki_json_str[..cheki_json_str.len().min(500)]
+    );
     let decoration: crate::effect::cheki::ChekiDecoration =
         match serde_json::from_str(cheki_json_str) {
             Ok(d) => d,
             Err(e) => {
                 log::error!("Failed to parse ChekiDecoration JSON: {}", e);
+                log::error!("  Full JSON: {}", cheki_json_str);
                 return ChamaError::InvalidParameters;
             }
         };
@@ -3528,6 +3533,11 @@ unsafe fn chama_export_cheki_impl(
     }
 
     // Step 4: Apply color adjustments (if provided)
+    log::info!(
+        "  color_adjustments_json is_null={}, lut_id is_null={}",
+        color_adjustments_json.is_null(),
+        lut_id.is_null()
+    );
     if !color_adjustments_json.is_null() {
         let adjustments_str = CStr::from_ptr(color_adjustments_json)
             .to_str()
