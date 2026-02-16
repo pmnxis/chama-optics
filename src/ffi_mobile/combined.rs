@@ -264,6 +264,11 @@ pub unsafe extern "C" fn chama_export_combined(
         dyn_image.height()
     );
 
+    // Ensure image is RGBA8 (JPEG decodes as RGB8, but face effects require RGBA8)
+    if dyn_image.as_rgba8().is_none() {
+        dyn_image = image::DynamicImage::ImageRgba8(dyn_image.to_rgba8());
+    }
+
     // Step 2: Apply face effects (if faces provided and effect != None)
     if !face_rects.is_null()
         && face_count > 0
