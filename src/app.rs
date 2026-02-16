@@ -383,7 +383,7 @@ impl Default for ChamaOptics {
             sticker_storage: crate::effect::sticker_storage::StickerStorage::new(),
             sticker_config: crate::effect::sticker_storage::StickerConfig::default(),
             default_face_effect: crate::effect::FaceEffectMode::Sticker, // Default to Sticker mode
-            mosaic_block_size: 10, // Default mosaic block size (pixels)
+            mosaic_block_size: 50, // Default mosaic block size (pixels)
             stroke_thickness: 3,   // Default stroke thickness (pixels)
             stroke_color: egui::Color32::DARK_RED, // Default stroke color (red)
             lut_storage: crate::effect::lut_storage::LutStorage::new(),
