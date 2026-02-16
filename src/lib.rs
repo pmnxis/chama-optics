@@ -62,13 +62,13 @@ pub mod theme;
 // Headless core library (no GUI dependencies)
 pub mod core;
 
-// Legacy FFI - DEPRECATED (functions moved to ffi_ios and ffi_apple)
+// Legacy FFI - DEPRECATED (functions moved to ffi_mobile and ffi_apple)
 // #[cfg(any(target_os = "ios", feature = "ios_integration"))]
 // pub mod ffi;
 
-// iOS FFI for Swift integration (full theme support with Metal rendering)
+// Mobile FFI for iOS/Android integration (full theme support with Metal rendering)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-pub mod ffi_ios;
+pub mod ffi_mobile;
 
 // Apple FFI for both iOS and macOS (shared platform-agnostic functions)
 // Also used by Android via Skip Fuse (Swift compiled natively for Android)

@@ -7,7 +7,7 @@
 //! FFI (Foreign Function Interface) for Apple platforms (iOS and macOS)
 //!
 //! This module provides C-compatible functions that work on both iOS and macOS.
-//! Platform-specific functions should go in ffi_ios.rs (iOS-only).
+//! Platform-specific functions should go in ffi_mobile.rs (iOS/Android).
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;

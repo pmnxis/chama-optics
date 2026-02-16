@@ -96,7 +96,7 @@ impl PackedImage {
                     bytes.len(),
                     self.path
                 );
-                let result = __load_image_from_vec(&self.path, bytes.clone());
+                let result = __load_image_from_vec(&self.path, bytes);
                 if let Ok((ref img, _)) = result {
                     log::info!(
                         "📦 Loaded image dimensions: {}x{}",
@@ -202,7 +202,7 @@ impl PackedImage {
             log::info!("Used EXIF thumbnail : [{:X}]", exif_thumbnail.len());
             crate::dump!(exif_thumbnail);
 
-            __load_image_from_vec(path, exif_thumbnail)
+            __load_image_from_vec(path, &exif_thumbnail)
         } else {
             __load_image(path, &mut buf_reader)
         }?;

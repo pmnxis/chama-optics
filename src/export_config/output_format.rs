@@ -131,8 +131,14 @@ impl OutputFormat {
         path: P,
     ) -> Result<(), image::ImageError> {
         match self.ext {
-            OutputExtension::Jpeg => save_jpeg_moz(img.to_rgb8(), path, self.quality),
-            OutputExtension::Webp => save_webp(img.to_rgb8(), path, self.quality),
+            OutputExtension::Jpeg | OutputExtension::Webp => {
+                let rgb = img.to_rgb8();
+                match self.ext {
+                    OutputExtension::Jpeg => save_jpeg_moz(rgb, path, self.quality),
+                    OutputExtension::Webp => save_webp(rgb, path, self.quality),
+                    _ => unreachable!(),
+                }
+            }
             OutputExtension::PngOptimized => save_png(img, path),
         }
     }

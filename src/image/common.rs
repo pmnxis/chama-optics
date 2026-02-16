@@ -207,14 +207,14 @@ pub(crate) fn __load_image(
 
 pub(crate) fn __load_image_from_vec(
     path: &std::path::Path, // just hint
-    v: std::vec::Vec<u8>,
+    v: &[u8],
 ) -> Result<(image::DynamicImage, bool), image::ImageError> {
     let img_format = path
         .extension()
         .filter(|ext| !ext.is_empty())
         .and_then(image::ImageFormat::from_extension);
 
-    let buf_reader = std::io::BufReader::new(std::io::Cursor::new(v.clone()));
+    let buf_reader = std::io::BufReader::new(std::io::Cursor::new(v.to_vec()));
 
     let decoder = if let Some(fmt) = img_format {
         image::ImageReader::with_format(
@@ -265,7 +265,7 @@ pub(crate) fn __load_image_from_vec(
                         {
                             if crate::ffi_apple_heif::is_heif_format(path) {
                                 log::info!("📦 Detected HEIF format in bytes, using Apple native decoder");
-                                return crate::ffi_apple_heif::decode_heif_from_data(&v)
+                                return crate::ffi_apple_heif::decode_heif_from_data(v)
                                     .map(|img| (img, false))
                                     .map_err(|e| {
                                         image::error::ImageError::Unsupported(

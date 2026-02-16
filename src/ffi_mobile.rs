@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-//! FFI interface for Metal-based iOS/macOS integration
+//! FFI interface for mobile platforms (iOS/Android)
 //!
-//! This module provides C-compatible functions for Swift to call.
-//! Key differences from egui version:
+//! This module provides C-compatible functions for Swift (iOS) and JNA (Android) to call.
+//! Key differences from desktop (egui) version:
 //! - Font loading is path-based (no built-in fonts)
 //! - Preview-first strategy (EXIF preview extraction)
 //! - JSON-based parameter exchange
@@ -15,6 +15,40 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::path::{Path, PathBuf};
+
+// ============================================================================
+// FFI Helper Macros
+// ============================================================================
+
+/// Convert a `*const c_char` to `&str`, returning `$on_err` on failure.
+///
+/// Usage:
+///   let s = cstr_to_str!(ptr, return false);
+///   let s = cstr_to_str!(ptr, return ChamaError::InvalidPath);
+///   let s = cstr_to_str!(ptr, return std::ptr::null_mut());
+macro_rules! cstr_to_str {
+    ($ptr:expr, return $err:expr) => {
+        match unsafe { CStr::from_ptr($ptr) }.to_str() {
+            Ok(s) => s,
+            Err(_) => return $err,
+        }
+    };
+}
+
+/// Convert a `*const c_char` to `&str`, returning a default value if NULL or invalid UTF-8.
+///
+/// Usage:
+///   let s = cstr_to_str_or!(ptr, "{}");
+///   let s = cstr_to_str_or!(ptr, "");
+macro_rules! cstr_to_str_or {
+    ($ptr:expr, $default:expr) => {
+        if $ptr.is_null() {
+            $default
+        } else {
+            unsafe { CStr::from_ptr($ptr) }.to_str().unwrap_or($default)
+        }
+    };
+}
 
 // ============================================================================
 // Internal Error Types
@@ -775,10 +809,7 @@ pub unsafe extern "C" fn chama_get_theme_schema(theme_name: *const c_char) -> *m
         return std::ptr::null_mut();
     }
 
-    let theme_name = match unsafe { CStr::from_ptr(theme_name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
+    let theme_name = cstr_to_str!(theme_name, return std::ptr::null_mut());
 
     // Get theme schema using helper function
     let schema = match get_theme_schema_impl(theme_name) {
@@ -832,10 +863,7 @@ pub unsafe extern "C" fn chama_get_theme_parameters(theme_name: *const c_char) -
         return std::ptr::null_mut();
     }
 
-    let theme_name = match unsafe { CStr::from_ptr(theme_name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
+    let theme_name = cstr_to_str!(theme_name, return std::ptr::null_mut());
 
     // Get theme schema using helper function
     let schema = match get_theme_schema_impl(theme_name) {
@@ -968,29 +996,14 @@ pub unsafe extern "C" fn chama_generate_preview(
     }
 
     // Convert C strings
-    let image_path = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-    let output_path = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let theme_name = match unsafe { CStr::from_ptr((*config).theme_name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidTheme,
-    };
-
-    let params_json = match unsafe { CStr::from_ptr((*config).parameters_json) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidParameters,
-    };
-
-    let font_path = match unsafe { CStr::from_ptr((*config).font_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidFont,
-    };
+    let image_path = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let theme_name = cstr_to_str!((*config).theme_name, return ChamaError::InvalidTheme);
+    let params_json = cstr_to_str!(
+        (*config).parameters_json,
+        return ChamaError::InvalidParameters
+    );
+    let font_path = cstr_to_str!((*config).font_path, return ChamaError::InvalidFont);
 
     log::info!("Preview generation:");
     log::info!("  Image: {}", image_path);
@@ -1042,29 +1055,14 @@ pub unsafe extern "C" fn chama_export_final(
     }
 
     // Convert C strings
-    let image_path = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-    let output_path = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let theme_name = match unsafe { CStr::from_ptr((*config).theme_name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidTheme,
-    };
-
-    let params_json = match unsafe { CStr::from_ptr((*config).parameters_json) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidParameters,
-    };
-
-    let font_path = match unsafe { CStr::from_ptr((*config).font_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidFont,
-    };
+    let image_path = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let theme_name = cstr_to_str!((*config).theme_name, return ChamaError::InvalidTheme);
+    let params_json = cstr_to_str!(
+        (*config).parameters_json,
+        return ChamaError::InvalidParameters
+    );
+    let font_path = cstr_to_str!((*config).font_path, return ChamaError::InvalidFont);
 
     log::info!("Final export:");
     log::info!("  Image: {}", image_path);
@@ -1132,10 +1130,7 @@ pub unsafe extern "C" fn chama_get_exif_json(image_path: *const c_char) -> *mut 
         return std::ptr::null_mut();
     }
 
-    let image_path = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
+    let image_path = cstr_to_str!(image_path, return std::ptr::null_mut());
 
     // Extract EXIF data
     let exif_json = match extract_exif_json_impl(image_path) {
@@ -1173,10 +1168,7 @@ pub unsafe extern "C" fn chama_validate_font_path(font_path: *const c_char) -> b
         return false;
     }
 
-    let font_path = match unsafe { CStr::from_ptr(font_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
+    let font_path = cstr_to_str!(font_path, return false);
 
     // Check file exists
     let path = Path::new(font_path);
@@ -1280,37 +1272,10 @@ pub unsafe extern "C" fn chama_optics_apply_theme_from_rgba(
     log::info!("Applying theme from RGBA data: {}x{}", width, height);
 
     // Convert C strings
-    let output_path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return ChamaError::InvalidPath;
-            }
-        }
-    };
-
-    let theme_name_str = unsafe {
-        match CStr::from_ptr(theme_name).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in theme name");
-                return ChamaError::InvalidTheme;
-            }
-        }
-    };
-
-    let params_json_str = if params_json.is_null() {
-        "{}"
-    } else {
-        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
-    };
-
-    let font_path_str = if font_path.is_null() {
-        ""
-    } else {
-        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
-    };
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let theme_name_str = cstr_to_str!(theme_name, return ChamaError::InvalidTheme);
+    let params_json_str = cstr_to_str_or!(params_json, "{}");
+    let font_path_str = cstr_to_str_or!(font_path, "");
 
     // Convert raw RGBA data to DynamicImage
     let rgba_slice = unsafe { std::slice::from_raw_parts(rgba_data, data_length) };
@@ -1394,51 +1359,20 @@ pub unsafe extern "C" fn chama_optics_apply_theme_v2(
             return ChamaError::InvalidPath;
         }
 
-        let image_path_str = match CStr::from_ptr(config_ref.image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        };
+        let image_path_str = cstr_to_str!(config_ref.image_path, return ChamaError::InvalidPath);
 
-        let exif_source_str = if config_ref.exif_source_path.is_null() {
-            image_path_str
-        } else {
-            match CStr::from_ptr(config_ref.exif_source_path).to_str() {
-                Ok(s) => s,
-                Err(_) => image_path_str,
-            }
-        };
+        let exif_source_str = cstr_to_str_or!(config_ref.exif_source_path, image_path_str);
 
-        let output_path_str = match CStr::from_ptr(config_ref.output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        };
-
-        let theme_name_str = match CStr::from_ptr(config_ref.theme_name).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidTheme,
-        };
-
-        let params_json_str = if config_ref.params_json.is_null() {
-            "{}"
-        } else {
-            CStr::from_ptr(config_ref.params_json)
-                .to_str()
-                .unwrap_or("{}")
-        };
-
-        let font_path_str = if config_ref.font_path.is_null() {
-            ""
-        } else {
-            CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("")
-        };
+        let output_path_str = cstr_to_str!(config_ref.output_path, return ChamaError::InvalidPath);
+        let theme_name_str = cstr_to_str!(config_ref.theme_name, return ChamaError::InvalidTheme);
+        let params_json_str = cstr_to_str_or!(config_ref.params_json, "{}");
+        let font_path_str = cstr_to_str_or!(config_ref.font_path, "");
 
         let exif_override_str = if config_ref.exif_override_json.is_null() {
             None
         } else {
-            match CStr::from_ptr(config_ref.exif_override_json).to_str() {
-                Ok(s) if !s.is_empty() => Some(s),
-                _ => None,
-            }
+            let s = cstr_to_str_or!(config_ref.exif_override_json, "");
+            if !s.is_empty() { Some(s) } else { None }
         };
 
         let core_scale_config = convert_c_scale_config(config_ref.scale_config);
@@ -1787,19 +1721,8 @@ pub unsafe extern "C" fn chama_scale_image(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = unsafe {
-        match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    let output_path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     let config_ref = unsafe { &*scale_config };
 
@@ -1873,19 +1796,8 @@ pub unsafe extern "C" fn chama_export_combined(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = unsafe {
-        match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    let output_path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     let config_ref = unsafe { &*config };
 
@@ -1968,15 +1880,10 @@ pub unsafe extern "C" fn chama_export_combined(
             CFaceEffectType::Sticker => {
                 // Load sticker path
                 let sticker_config = if !config_ref.face_effect.sticker_path.is_null() {
-                    let sticker_path_str = unsafe {
-                        match CStr::from_ptr(config_ref.face_effect.sticker_path).to_str() {
-                            Ok(s) => s,
-                            Err(_) => {
-                                log::error!("Invalid sticker path");
-                                return ChamaError::InvalidPath;
-                            }
-                        }
-                    };
+                    let sticker_path_str = cstr_to_str!(
+                        config_ref.face_effect.sticker_path,
+                        return ChamaError::InvalidPath
+                    );
                     crate::effect::sticker::StickerConfig::with_image_path(
                         std::path::PathBuf::from(sticker_path_str),
                         config_ref.face_effect.sticker_scale,
@@ -1984,15 +1891,10 @@ pub unsafe extern "C" fn chama_export_combined(
                         config_ref.face_effect.sticker_offset_y,
                     )
                 } else if !config_ref.face_effect.sticker_id.is_null() {
-                    let sticker_id_str = unsafe {
-                        match CStr::from_ptr(config_ref.face_effect.sticker_id).to_str() {
-                            Ok(s) => s,
-                            Err(_) => {
-                                log::error!("Invalid sticker ID");
-                                return ChamaError::InvalidPath;
-                            }
-                        }
-                    };
+                    let sticker_id_str = cstr_to_str!(
+                        config_ref.face_effect.sticker_id,
+                        return ChamaError::InvalidPath
+                    );
                     crate::effect::sticker::StickerConfig::with_builtin(
                         sticker_id_str.to_string(),
                         config_ref.face_effect.sticker_scale,
@@ -2052,35 +1954,16 @@ pub unsafe extern "C" fn chama_export_combined(
 
     // Step 3: Apply theme (if theme_name provided)
     if !config_ref.theme_name.is_null() {
-        let theme_name_str = unsafe {
-            match CStr::from_ptr(config_ref.theme_name).to_str() {
-                Ok(s) if !s.is_empty() => s,
-                _ => {
-                    log::info!("  No theme specified, skipping theme application");
-                    // Skip theme if empty string
-                    ""
-                }
-            }
-        };
+        let theme_name_str = cstr_to_str_or!(config_ref.theme_name, "");
+        if theme_name_str.is_empty() {
+            log::info!("  No theme specified, skipping theme application");
+        }
 
         if !theme_name_str.is_empty() {
             log::info!("  Applying theme: {}", theme_name_str);
 
-            let params_json = if !config_ref.theme_params_json.is_null() {
-                unsafe {
-                    CStr::from_ptr(config_ref.theme_params_json)
-                        .to_str()
-                        .unwrap_or("{}")
-                }
-            } else {
-                "{}"
-            };
-
-            let font_path = if !config_ref.font_path.is_null() {
-                unsafe { CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("") }
-            } else {
-                ""
-            };
+            let params_json = cstr_to_str_or!(config_ref.theme_params_json, "{}");
+            let font_path = cstr_to_str_or!(config_ref.font_path, "");
 
             // Save intermediate image to temp file, apply theme, load back
             // This is necessary because theme application uses PackedImage
@@ -2099,15 +1982,11 @@ pub unsafe extern "C" fn chama_export_combined(
                 unsafe { convert_c_scale_config(&config_ref.scale_config as *const CScaleConfig) };
 
             // Parse EXIF override JSON if provided
-            let exif_override_str = if !config_ref.exif_override_json.is_null() {
-                unsafe {
-                    CStr::from_ptr(config_ref.exif_override_json)
-                        .to_str()
-                        .ok()
-                        .filter(|s| !s.is_empty())
-                }
-            } else {
+            let exif_override_str = if config_ref.exif_override_json.is_null() {
                 None
+            } else {
+                let s = cstr_to_str_or!(config_ref.exif_override_json, "");
+                if !s.is_empty() { Some(s) } else { None }
             };
 
             let theme_params = ThemeExportParams {
@@ -2335,15 +2214,8 @@ pub unsafe extern "C" fn chama_lut_add(
         return std::ptr::null_mut();
     }
 
-    let name_str = match unsafe { CStr::from_ptr(name) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
-
-    let path_str = match unsafe { CStr::from_ptr(source_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return std::ptr::null_mut(),
-    };
+    let name_str = cstr_to_str!(name, return std::ptr::null_mut());
+    let path_str = cstr_to_str!(source_path, return std::ptr::null_mut());
 
     log::info!("Adding LUT '{}' from path: {}", name_str, path_str);
 
@@ -2383,10 +2255,7 @@ pub unsafe extern "C" fn chama_lut_remove(lut_id: *const c_char) -> bool {
         return false;
     }
 
-    let id_str = match unsafe { CStr::from_ptr(lut_id) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return false,
-    };
+    let id_str = cstr_to_str!(lut_id, return false);
 
     let uuid = match uuid::Uuid::parse_str(id_str) {
         Ok(u) => u,
@@ -2427,20 +2296,9 @@ pub unsafe extern "C" fn chama_lut_apply(
         return ChamaError::InvalidPath;
     }
 
-    let id_str = match unsafe { CStr::from_ptr(lut_id) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
+    let id_str = cstr_to_str!(lut_id, return ChamaError::InvalidPath);
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     let uuid = match uuid::Uuid::parse_str(id_str) {
         Ok(u) => u,
@@ -2508,15 +2366,8 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     log::info!("Applying LUT to image: {}", image_path_str);
 
@@ -2532,10 +2383,7 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
 
     // Apply LUT if specified
     if !lut_id.is_null() {
-        let id_str = match unsafe { CStr::from_ptr(lut_id) }.to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidParameters,
-        };
+        let id_str = cstr_to_str!(lut_id, return ChamaError::InvalidParameters);
 
         if !id_str.is_empty() {
             let uuid = match uuid::Uuid::parse_str(id_str) {
@@ -2745,15 +2593,8 @@ pub unsafe extern "C" fn chama_color_adjustments_apply(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     let adj = unsafe { &*adjustments };
 
@@ -2844,20 +2685,9 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match unsafe { CStr::from_ptr(image_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let output_path_str = match unsafe { CStr::from_ptr(output_path) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let json_str = match unsafe { CStr::from_ptr(adjustments_json) }.to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidParameters,
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let json_str = cstr_to_str!(adjustments_json, return ChamaError::InvalidParameters);
 
     // Parse JSON into ColorAdjustments
     let color_adj: crate::effect::color_adjustments::ColorAdjustments =
@@ -2981,26 +2811,10 @@ unsafe fn chama_export_cheki_impl(
         return ChamaError::InvalidPath;
     }
 
-    let image_path_str = match CStr::from_ptr(image_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let output_path_str = match CStr::from_ptr(output_path).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidPath,
-    };
-
-    let cheki_json_str = match CStr::from_ptr(cheki_json).to_str() {
-        Ok(s) => s,
-        Err(_) => return ChamaError::InvalidParameters,
-    };
-
-    let sticker_dir_str = if sticker_dir.is_null() {
-        ""
-    } else {
-        CStr::from_ptr(sticker_dir).to_str().unwrap_or("")
-    };
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let cheki_json_str = cstr_to_str!(cheki_json, return ChamaError::InvalidParameters);
+    let sticker_dir_str = cstr_to_str_or!(sticker_dir, "");
 
     log::info!("Cheki export pipeline started:");
     log::info!("  Input: {}", image_path_str);
@@ -3042,7 +2856,7 @@ unsafe fn chama_export_cheki_impl(
 
     // Step 3: Apply crop/rotate transform (if provided)
     if !crop_rotate_json.is_null() {
-        let crop_rotate_str = CStr::from_ptr(crop_rotate_json).to_str().unwrap_or("{}");
+        let crop_rotate_str = cstr_to_str_or!(crop_rotate_json, "{}");
         if !crop_rotate_str.is_empty() && crop_rotate_str != "{}" {
             match serde_json::from_str::<crate::effect::crop_rotate::CropRotateTransform>(
                 crop_rotate_str,
@@ -3071,9 +2885,7 @@ unsafe fn chama_export_cheki_impl(
         lut_id.is_null()
     );
     if !color_adjustments_json.is_null() {
-        let adjustments_str = CStr::from_ptr(color_adjustments_json)
-            .to_str()
-            .unwrap_or("{}");
+        let adjustments_str = cstr_to_str_or!(color_adjustments_json, "{}");
         if !adjustments_str.is_empty() && adjustments_str != "{}" {
             match serde_json::from_str::<crate::effect::color_adjustments::ColorAdjustments>(
                 adjustments_str,
@@ -3093,7 +2905,7 @@ unsafe fn chama_export_cheki_impl(
 
     // Step 5: Apply LUT (if provided)
     if !lut_id.is_null() {
-        let lut_id_str = CStr::from_ptr(lut_id).to_str().unwrap_or("");
+        let lut_id_str = cstr_to_str_or!(lut_id, "");
         if !lut_id_str.is_empty() {
             if let Ok(uuid) = uuid::Uuid::parse_str(lut_id_str) {
                 let mut storage = match LUT_STORAGE.lock() {
@@ -3369,21 +3181,8 @@ pub extern "C" fn chama_optics_apply_face_effect(
             return true;
         }
 
-        let image_str = match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in image path");
-                return false;
-            }
-        };
-
-        let output_str = match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
+        let image_str = cstr_to_str!(image_path, return false);
+        let output_str = cstr_to_str!(output_path, return false);
 
         let handle_ref = &mut *handle;
 
@@ -3442,13 +3241,7 @@ pub extern "C" fn chama_optics_apply_face_effect(
             }
             CFaceEffectType::Sticker => {
                 let sticker_config = if !config_ref.sticker_path.is_null() {
-                    let sticker_path_str = match CStr::from_ptr(config_ref.sticker_path).to_str() {
-                        Ok(s) => s,
-                        Err(_) => {
-                            log::error!("Invalid UTF-8 in sticker path");
-                            return false;
-                        }
-                    };
+                    let sticker_path_str = cstr_to_str!(config_ref.sticker_path, return false);
                     crate::effect::sticker::StickerConfig::with_image_path(
                         std::path::PathBuf::from(sticker_path_str),
                         config_ref.sticker_scale,
@@ -3456,13 +3249,7 @@ pub extern "C" fn chama_optics_apply_face_effect(
                         config_ref.sticker_offset_y,
                     )
                 } else if !config_ref.sticker_id.is_null() {
-                    let sticker_id_str = match CStr::from_ptr(config_ref.sticker_id).to_str() {
-                        Ok(s) => s,
-                        Err(_) => {
-                            log::error!("Invalid UTF-8 in sticker ID");
-                            return false;
-                        }
-                    };
+                    let sticker_id_str = cstr_to_str!(config_ref.sticker_id, return false);
                     crate::effect::sticker::StickerConfig::with_builtin(
                         sticker_id_str.to_string(),
                         config_ref.sticker_scale,
@@ -3555,15 +3342,9 @@ pub extern "C" fn chama_optics_load_image(
         return false;
     }
 
-    unsafe {
-        let path_str = match CStr::from_ptr(path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in path");
-                return false;
-            }
-        };
+    let path_str = cstr_to_str!(path, return false);
 
+    unsafe {
         let handle_ref = &mut *handle;
         let path_buf = PathBuf::from(path_str);
 
@@ -3646,21 +3427,8 @@ pub extern "C" fn chama_optics_apply_face_detection_v2(
         unsafe {
             let config_ref = &*config;
 
-            let image_str = match CStr::from_ptr(image_path).to_str() {
-                Ok(s) => s,
-                Err(_) => {
-                    log::error!("Invalid UTF-8 in image path");
-                    return false;
-                }
-            };
-
-            let output_str = match CStr::from_ptr(output_path).to_str() {
-                Ok(s) => s,
-                Err(_) => {
-                    log::error!("Invalid UTF-8 in output path");
-                    return false;
-                }
-            };
+            let image_str = cstr_to_str!(image_path, return false);
+            let output_str = cstr_to_str!(output_path, return false);
 
             let handle_ref = &mut *handle;
 
