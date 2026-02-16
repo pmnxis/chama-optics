@@ -425,25 +425,10 @@ pub enum LutUiAction {
 }
 
 /// Errors that can occur during LUT storage operations
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum LutStorageError {
-    IoError(std::io::Error),
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("LUT parse error: {0}")]
     ParseError(wagahai_lut::error::CubeError),
 }
-
-impl From<std::io::Error> for LutStorageError {
-    fn from(e: std::io::Error) -> Self {
-        LutStorageError::IoError(e)
-    }
-}
-
-impl std::fmt::Display for LutStorageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LutStorageError::IoError(e) => write!(f, "IO error: {}", e),
-            LutStorageError::ParseError(e) => write!(f, "LUT parse error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for LutStorageError {}

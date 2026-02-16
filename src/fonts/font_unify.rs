@@ -40,6 +40,8 @@ pub enum FontError {
     NonRecoverSelectedFont,
 }
 
+impl std::error::Error for FontError {}
+
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Default, Clone, Debug)]
 pub struct FontIndex {
     pub sort: FontSort,

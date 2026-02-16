@@ -11,34 +11,35 @@ use ab_glyph::{Font, ScaleFont};
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
-// Desktop version with FontSelection
-#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
-#[derive(serde::Deserialize, serde::Serialize, chama_optics_macros::ThemeParameters)]
+#[derive(serde::Deserialize, serde::Serialize)]
+#[cfg_attr(
+    not(any(feature = "ios_integration", feature = "android_integration")),
+    derive(chama_optics_macros::ThemeParameters)
+)]
 pub struct Film {
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub font: crate::FontSelection,
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    pub font_file: String,
 
-    #[param(color, label_key = "theme.font_color", default = "rgb(255, 153, 0)")]
+    #[cfg_attr(
+        not(any(feature = "ios_integration", feature = "android_integration")),
+        param(color, label_key = "theme.font_color", default = "rgb(255, 153, 0)")
+    )]
     pub font_color: egui::Color32,
 
-    #[param(
-        slider,
-        label_key = "theme.font_size",
-        min = 10,
-        max = 100,
-        default_const = "DEFAULT_FONT_SIZE"
+    #[cfg_attr(
+        not(any(feature = "ios_integration", feature = "android_integration")),
+        param(
+            slider,
+            label_key = "theme.font_size",
+            min = 10,
+            max = 100,
+            default_const = "DEFAULT_FONT_SIZE"
+        )
     )]
     pub font_size: u32,
 
-    pub show_ps: bool,
-}
-
-// iOS version with file-based font loading
-#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct Film {
-    pub font_file: String,
-    pub font_color: egui::Color32,
-    pub font_size: u32,
     pub show_ps: bool,
 }
 
@@ -47,28 +48,15 @@ const DEFAULT_FONT_SIZE: u32 = 25;
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 use super::DEFAULT_DIGITAL7_FONT_FILE;
 
-#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 impl core::default::Default for Film {
     fn default() -> Self {
         use imageproc::integral_image::ArrayData;
         let [r, g, b, a] = FILM_COLOR.data();
 
         Self {
+            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
             font: crate::FONTS_UNIFY.builtin_select(crate::BuiltinFontIndex::Digital7),
-            font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
-            font_size: DEFAULT_FONT_SIZE,
-            show_ps: false,
-        }
-    }
-}
-
-#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-impl core::default::Default for Film {
-    fn default() -> Self {
-        use imageproc::integral_image::ArrayData;
-        let [r, g, b, a] = FILM_COLOR.data();
-
-        Self {
+            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
             font_file: DEFAULT_DIGITAL7_FONT_FILE.to_string(),
             font_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
             font_size: DEFAULT_FONT_SIZE,

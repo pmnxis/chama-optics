@@ -7,7 +7,7 @@
 //! This is a per-image decoration layer applied ON TOP of the selected theme.
 //! The rendering creates a polaroid-style white border with text and character stickers.
 
-use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
+use image::{DynamicImage, Rgba, RgbaImage};
 
 use crate::effect::cheki::ChekiDecoration;
 use crate::effect::sticker_storage::StickerStorage;
@@ -99,6 +99,7 @@ pub fn apply_cheki_decoration(
 
 /// Overlay a sticker image with alpha blending, optionally clipped to a rect.
 /// `clip` is `Some((left, top, right, bottom))` in canvas pixel coordinates.
+/// Uses direct buffer access for performance.
 fn overlay_with_alpha_clipped(
     base: &mut DynamicImage,
     sticker: &DynamicImage,
@@ -106,38 +107,83 @@ fn overlay_with_alpha_clipped(
     y: i32,
     clip: Option<(i32, i32, i32, i32)>,
 ) {
-    let sw = sticker.width() as i32;
-    let sh = sticker.height() as i32;
-    let bw = base.width() as i32;
-    let bh = base.height() as i32;
+    let sticker_rgba = sticker.to_rgba8();
+    let sw = sticker_rgba.width() as i32;
+    let sh = sticker_rgba.height() as i32;
+    let sticker_stride = sw as usize * 4;
+    let sticker_pixels = sticker_rgba.as_raw();
 
-    for sy in 0..sh {
-        for sx in 0..sw {
-            let tx = x + sx;
-            let ty = y + sy;
+    let base_rgba = match base.as_mut_rgba8() {
+        Some(b) => b,
+        None => return,
+    };
+    let bw = base_rgba.width() as i32;
+    let bh = base_rgba.height() as i32;
+    let base_stride = bw as usize * 4;
+    let base_pixels: &mut [u8] = base_rgba.as_mut();
 
-            if tx >= 0 && ty >= 0 && tx < bw && ty < bh {
-                // Apply clip rect if provided
-                if let Some((cl, ct, cr, cb)) = clip
-                    && (tx < cl || tx >= cr || ty < ct || ty >= cb)
-                {
-                    continue;
-                }
+    // Calculate visible row range
+    let sy_start = (-y).max(0);
+    let sy_end = sh.min(bh - y);
+    let sx_start = (-x).max(0);
+    let sx_end = sw.min(bw - x);
 
-                let sp = sticker.get_pixel(sx as u32, sy as u32);
-                if sp[3] > 0 {
-                    let bp = base.get_pixel(tx as u32, ty as u32);
-                    let alpha = sp[3] as f32 / 255.0;
-                    let inv = 1.0 - alpha;
+    if sy_start >= sy_end || sx_start >= sx_end {
+        return;
+    }
 
-                    let blended = Rgba([
-                        (sp[0] as f32 * alpha + bp[0] as f32 * inv) as u8,
-                        (sp[1] as f32 * alpha + bp[1] as f32 * inv) as u8,
-                        (sp[2] as f32 * alpha + bp[2] as f32 * inv) as u8,
-                        255,
-                    ]);
-                    base.put_pixel(tx as u32, ty as u32, blended);
-                }
+    for sy in sy_start..sy_end {
+        let ty = (y + sy) as usize;
+
+        // Apply vertical clip
+        if let Some((_, ct, _, cb)) = clip
+            && ((ty as i32) < ct || (ty as i32) >= cb)
+        {
+            continue;
+        }
+
+        let sticker_row = sy as usize * sticker_stride;
+        let base_row = ty * base_stride;
+
+        for sx in sx_start..sx_end {
+            let tx = (x + sx) as usize;
+
+            // Apply horizontal clip
+            if let Some((cl, _, cr, _)) = clip
+                && ((tx as i32) < cl || (tx as i32) >= cr)
+            {
+                continue;
+            }
+
+            let si = sticker_row + sx as usize * 4;
+            let sa = sticker_pixels[si + 3];
+
+            if sa == 0 {
+                continue;
+            }
+
+            let bi = base_row + tx * 4;
+
+            if sa == 255 {
+                // Fully opaque — direct copy
+                base_pixels[bi] = sticker_pixels[si];
+                base_pixels[bi + 1] = sticker_pixels[si + 1];
+                base_pixels[bi + 2] = sticker_pixels[si + 2];
+                base_pixels[bi + 3] = 255;
+            } else {
+                // Alpha blend using integer arithmetic (avoid f32 per pixel)
+                let alpha = sa as u16;
+                let inv = 255 - alpha;
+                base_pixels[bi] = ((sticker_pixels[si] as u16 * alpha
+                    + base_pixels[bi] as u16 * inv)
+                    / 255) as u8;
+                base_pixels[bi + 1] = ((sticker_pixels[si + 1] as u16 * alpha
+                    + base_pixels[bi + 1] as u16 * inv)
+                    / 255) as u8;
+                base_pixels[bi + 2] = ((sticker_pixels[si + 2] as u16 * alpha
+                    + base_pixels[bi + 2] as u16 * inv)
+                    / 255) as u8;
+                base_pixels[bi + 3] = 255;
             }
         }
     }

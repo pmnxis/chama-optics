@@ -8,8 +8,6 @@
 //! Draws a colored border around specified regions of an image
 
 use image::DynamicImage;
-use image::GenericImage;
-use image::GenericImageView;
 
 /// Stroke effect configuration
 #[derive(Debug, Clone)]
@@ -36,16 +34,7 @@ impl StrokeEffect {
         Self { thickness, color }
     }
 
-    /// Apply stroke effect to detected face areas
-    ///
-    /// # Arguments
-    /// * `image` - Mutable image reference
-    /// * `face_areas` - Slice of (x, y, width, height) face rectangles
-    /// * `config` - Stroke configuration
-    ///
-    /// # Returns
-    /// * `Ok(())` on success
-    /// * `Err(String)` on error
+    /// Apply stroke effect to detected face areas using direct buffer access.
     #[allow(dead_code)]
     pub fn apply(
         image: &mut DynamicImage,
@@ -53,24 +42,23 @@ impl StrokeEffect {
         config: &StrokeEffect,
     ) -> Result<(), String> {
         let (stroke_r, stroke_g, stroke_b, stroke_a) = config.color;
-        let stroke_color = image::Rgba([stroke_r, stroke_g, stroke_b, stroke_a]);
         let stroke_width = config.thickness.max(1);
 
-        let (img_width, img_height) = image.dimensions();
+        let rgba = image.as_mut_rgba8().ok_or("Image is not RGBA8")?;
+        let img_width = rgba.width();
+        let img_height = rgba.height();
+        let stride = img_width as usize * 4;
+        let pixels = rgba.as_mut();
 
         for &(x, y, width, height) in face_areas {
-            // Ensure face area is within image bounds
             if x < 0 || y < 0 || width == 0 || height == 0 {
                 continue;
             }
 
             let start_x = x.max(0) as u32;
             let start_y = y.max(0) as u32;
-            // Clamp face dimensions to image boundaries
-            let available_width = img_width.saturating_sub(start_x);
-            let available_height = img_height.saturating_sub(start_y);
-            let face_width = width.min(available_width);
-            let face_height = height.min(available_height);
+            let face_width = width.min(img_width.saturating_sub(start_x));
+            let face_height = height.min(img_height.saturating_sub(start_y));
 
             if face_width == 0 || face_height == 0 {
                 continue;
@@ -88,47 +76,68 @@ impl StrokeEffect {
                 stroke_width
             );
 
-            // Draw top border (horizontal line at top)
-            for thickness_offset in 0..stroke_width {
-                let py = start_y + thickness_offset;
+            // Helper: fill a horizontal span [px_start..px_end) at row py
+            let fill_hline = |pixels: &mut [u8], py: u32, px_start: u32, px_end: u32| {
+                let px_end = px_end.min(img_width);
+                if py >= img_height || px_start >= px_end {
+                    return;
+                }
+                let row_offset = py as usize * stride;
+                let start = row_offset + px_start as usize * 4;
+                let end = row_offset + px_end as usize * 4;
+                for chunk in pixels[start..end].chunks_exact_mut(4) {
+                    chunk[0] = stroke_r;
+                    chunk[1] = stroke_g;
+                    chunk[2] = stroke_b;
+                    chunk[3] = stroke_a;
+                }
+            };
+
+            // Top border
+            for t in 0..stroke_width {
+                let py = start_y + t;
                 if py >= img_height {
                     break;
                 }
-                for px in start_x..end_x.min(img_width) {
-                    image.put_pixel(px, py, stroke_color);
-                }
+                fill_hline(pixels, py, start_x, end_x);
             }
 
-            // Draw bottom border (horizontal line at bottom)
-            for thickness_offset in 0..stroke_width {
-                let py = end_y.saturating_sub(1 + thickness_offset);
+            // Bottom border
+            for t in 0..stroke_width {
+                let py = end_y.saturating_sub(1 + t);
                 if py < start_y {
                     break;
                 }
-                for px in start_x..end_x.min(img_width) {
-                    image.put_pixel(px, py, stroke_color);
-                }
+                fill_hline(pixels, py, start_x, end_x);
             }
 
-            // Draw left border (vertical line at left)
-            for thickness_offset in 0..stroke_width {
-                let px = start_x + thickness_offset;
+            // Left border (vertical)
+            for t in 0..stroke_width {
+                let px = start_x + t;
                 if px >= img_width {
                     break;
                 }
                 for py in start_y..end_y.min(img_height) {
-                    image.put_pixel(px, py, stroke_color);
+                    let idx = py as usize * stride + px as usize * 4;
+                    pixels[idx] = stroke_r;
+                    pixels[idx + 1] = stroke_g;
+                    pixels[idx + 2] = stroke_b;
+                    pixels[idx + 3] = stroke_a;
                 }
             }
 
-            // Draw right border (vertical line at right)
-            for thickness_offset in 0..stroke_width {
-                let px = end_x.saturating_sub(1 + thickness_offset);
+            // Right border (vertical)
+            for t in 0..stroke_width {
+                let px = end_x.saturating_sub(1 + t);
                 if px < start_x {
                     break;
                 }
                 for py in start_y..end_y.min(img_height) {
-                    image.put_pixel(px, py, stroke_color);
+                    let idx = py as usize * stride + px as usize * 4;
+                    pixels[idx] = stroke_r;
+                    pixels[idx + 1] = stroke_g;
+                    pixels[idx + 2] = stroke_b;
+                    pixels[idx + 3] = stroke_a;
                 }
             }
         }

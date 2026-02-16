@@ -93,6 +93,7 @@ impl core::default::Default for InsightFaceDetector {
     /// Create detector with default settings (Normal speed, CPU provider)
     fn default() -> Self {
         Self::new(SpeedMode::Normal, ExecutionProvider::CPUExecutionProvider)
+            .expect("Failed to create default InsightFace detector")
     }
 }
 
@@ -100,7 +101,10 @@ impl core::default::Default for InsightFaceDetector {
 impl InsightFaceDetector {
     /// Create detector with specified speed mode and execution provider
     /// On macOS/iOS, automatically uses CoreML for hardware acceleration
-    pub fn new(speed_mode: SpeedMode, provider: ExecutionProvider) -> Self {
+    pub fn new(
+        speed_mode: SpeedMode,
+        provider: ExecutionProvider,
+    ) -> Result<Self, crate::error::ChamaOpticsError> {
         log::info!("Loading InsightFace ONNX model...");
         log::info!(
             "Speed mode: {}, Provider: {}",
@@ -130,12 +134,16 @@ impl InsightFaceDetector {
         let actual_provider = provider;
 
         // Load model bytes - try external first, fallback to embedded
-        let model_bytes = Self::load_model_bytes();
+        let model_bytes = Self::load_model_bytes()?;
         log::info!("Loaded InsightFace model ({} bytes)", model_bytes.len());
 
         // Create ONNX Runtime session with specified provider
-        let session_builder = Session::builder()
-            .unwrap_or_else(|e| panic!("Failed to create session builder: {}", e));
+        let session_builder = Session::builder().map_err(|e| {
+            crate::error::ChamaOpticsError::InvalidParameters(format!(
+                "Failed to create ONNX session builder: {}",
+                e
+            ))
+        })?;
 
         // Configure execution provider
         let session = match actual_provider {
@@ -147,38 +155,48 @@ impl InsightFaceDetector {
                         ort::execution_providers::CoreMLExecutionProvider::default().build(),
                         ort::execution_providers::CPUExecutionProvider::default().build(),
                     ])
-                    .unwrap_or_else(|e| {
-                        panic!("Failed to configure CoreML execution provider: {}", e)
-                    })
+                    .map_err(|e| {
+                        crate::error::ChamaOpticsError::InvalidParameters(format!(
+                            "Failed to configure CoreML execution provider: {}",
+                            e
+                        ))
+                    })?
             }
             _ => session_builder,
         };
 
-        let session = session
-            .commit_from_memory(&model_bytes)
-            .expect("Failed to load ONNX model");
+        let session = session.commit_from_memory(&model_bytes).map_err(|e| {
+            crate::error::ChamaOpticsError::InvalidParameters(format!(
+                "Failed to load ONNX model: {}",
+                e
+            ))
+        })?;
 
         log::info!("InsightFace ONNX model loaded successfully");
 
-        Self {
+        Ok(Self {
             session: RwLock::new(session),
             max_depth: speed_mode.max_depth(),
             window_size: 640,
             overlap_ratio: 0.1, // 10% overlap for sliding windows
             speed_mode,
             provider,
-        }
+        })
     }
 
     /// Load model bytes from external Resources/ or embedded constant
-    fn load_model_bytes() -> Vec<u8> {
+    fn load_model_bytes() -> Result<Vec<u8>, crate::error::ChamaOpticsError> {
         // With ext_res: load from Resources/ directory (returns Vec<u8>)
         #[cfg(feature = "ext_res")]
         {
             use crate::resources;
             const MODEL_NAME: &str = "det_10g.onnx";
-            resources::load_model(MODEL_NAME)
-                .unwrap_or_else(|| panic!("Failed to load InsightFace model: {}", MODEL_NAME))
+            resources::load_model(MODEL_NAME).ok_or_else(|| {
+                crate::error::ChamaOpticsError::InvalidParameters(format!(
+                    "Failed to load InsightFace model: {}",
+                    MODEL_NAME
+                ))
+            })
         }
 
         // Without ext_res: use embedded constant (more efficient)
@@ -186,7 +204,7 @@ impl InsightFaceDetector {
         {
             // Static constant for embedded model
             static MODEL_BYTES: &[u8] = include_bytes!(env!("INSIGHTFACE_MODEL_PATH"));
-            MODEL_BYTES.to_vec()
+            Ok(MODEL_BYTES.to_vec())
         }
     }
 

@@ -136,12 +136,21 @@ impl ExportConfig {
 
                     #[cfg(feature = "face_detection_insightface")]
                     crate::effect::face_detection::FaceDetectionEngine::InsightFace => {
-                        let detector =
-                            crate::effect::insightface_detector::InsightFaceDetector::new(
-                                self.face_detection.speed_mode,
-                                self.face_detection.provider,
-                            );
-                        self.run_detection(&detector, path.as_ref(), _img_width, _img_height)
+                        match crate::effect::insightface_detector::InsightFaceDetector::new(
+                            self.face_detection.speed_mode,
+                            self.face_detection.provider,
+                        ) {
+                            Ok(detector) => self.run_detection(
+                                &detector,
+                                path.as_ref(),
+                                _img_width,
+                                _img_height,
+                            ),
+                            Err(e) => {
+                                log::error!("Failed to create InsightFace detector: {}", e);
+                                Vec::new()
+                            }
+                        }
                     }
 
                     #[cfg(not(any(

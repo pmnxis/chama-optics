@@ -1214,15 +1214,20 @@ impl ChamaOptics {
                         // Create new detector (this may take time, but only once)
                         log::info!("Creating new InsightFace detector (first time)");
 
-                        let new_detector = std::sync::Arc::new(
-                            crate::effect::insightface_detector::InsightFaceDetector::new(
-                                speed_mode, provider,
-                            ),
-                        );
-
-                        // Cache detector for future use (store Arc)
-                        *cache = Some(std::sync::Arc::clone(&new_detector));
-                        new_detector
+                        match crate::effect::insightface_detector::InsightFaceDetector::new(
+                            speed_mode, provider,
+                        ) {
+                            Ok(detector) => {
+                                let new_detector = std::sync::Arc::new(detector);
+                                // Cache detector for future use (store Arc)
+                                *cache = Some(std::sync::Arc::clone(&new_detector));
+                                new_detector
+                            }
+                            Err(e) => {
+                                log::error!("Failed to create InsightFace detector: {}", e);
+                                return;
+                            }
+                        }
                     }
                 };
 

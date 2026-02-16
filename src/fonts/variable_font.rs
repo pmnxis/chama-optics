@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-use ab_glyph::{Font, VariableFont};
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+use ab_glyph::Font;
+use ab_glyph::VariableFont;
 use rust_i18n::t;
 
 #[allow(dead_code)]
@@ -208,8 +210,8 @@ impl BuiltinVariableFontIndex {
 
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font(&self) -> &'static VariableFontPack {
-        panic!(
-            "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."
+        unreachable!(
+            "Builtin fonts not available on mobile - fonts must be loaded via FFI parameters"
         )
     }
 
@@ -219,9 +221,10 @@ impl BuiltinVariableFontIndex {
     }
 
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    #[allow(dead_code)]
     pub fn get_font_by_weight(&self, _weight: u16) -> ab_glyph::FontArc {
-        panic!(
-            "Builtin fonts not available on iOS - fonts must be loaded via FFI parameters. Theme should receive font paths through parameter JSON."
+        unreachable!(
+            "Builtin fonts not available on mobile - fonts must be loaded via FFI parameters"
         )
     }
 
@@ -273,6 +276,7 @@ impl BuiltinVariableFontIndex {
 
 /// Get appropriate font for the given character with fallback support.
 /// Returns Barlow font by default, but falls back to SourceHanSans if the character is not supported.
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 #[allow(dead_code)]
 pub fn get_font_with_fallback(ch: char, weight: u16) -> ab_glyph::FontArc {
     let barlow = BuiltinVariableFontIndex::Barlow.get_font_by_weight(weight);

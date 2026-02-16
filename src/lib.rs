@@ -54,6 +54,7 @@ pub(crate) mod image_group;
 #[cfg(feature = "desktop")]
 pub mod test_helper;
 
+pub mod error;
 mod util;
 
 // Theme module - needed by iOS FFI
@@ -61,10 +62,6 @@ pub mod theme;
 
 // Headless core library (no GUI dependencies)
 pub mod core;
-
-// Legacy FFI - DEPRECATED (functions moved to ffi_mobile and ffi_apple)
-// #[cfg(any(target_os = "ios", feature = "ios_integration"))]
-// pub mod ffi;
 
 // Mobile FFI for iOS/Android integration (full theme support with Metal rendering)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]

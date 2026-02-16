@@ -8,9 +8,6 @@
 //! Applies pixelated blur to specified regions of an image
 
 use image::DynamicImage;
-use image::GenericImage;
-use image::GenericImageView;
-use image::Rgba;
 
 /// Mosaic effect configuration
 #[derive(Debug, Clone)]
@@ -41,23 +38,18 @@ impl MosaicEffect {
         }
     }
 
-    /// Apply mosaic effect to detected face areas
-    ///
-    /// # Arguments
-    /// * `image` - Mutable image reference
-    /// * `face_areas` - Slice of (x, y, width, height) face rectangles
-    /// * `config` - Mosaic configuration
-    ///
-    /// # Returns
-    /// * `Ok(())` on success
-    /// * `Err(String)` on error
+    /// Apply mosaic effect to detected face areas using direct buffer access.
     #[allow(dead_code)]
     pub fn apply(
         image: &mut DynamicImage,
         face_areas: &[(i32, i32, u32, u32)],
         config: &MosaicEffect,
     ) -> Result<(), String> {
-        let (img_width, img_height) = image.dimensions();
+        let rgba = image.as_mut_rgba8().ok_or("Image is not RGBA8")?;
+        let img_width = rgba.width();
+        let img_height = rgba.height();
+        let stride = img_width as usize * 4;
+        let block_size = config.block_size.max(1);
 
         for &(x, y, rect_width, rect_height) in face_areas {
             if x < 0 || y < 0 || rect_width == 0 || rect_height == 0 {
@@ -66,7 +58,6 @@ impl MosaicEffect {
 
             let start_x = x.max(0) as u32;
             let start_y = y.max(0) as u32;
-            // Clamp face dimensions to image boundaries
             let face_width = rect_width.min(img_width.saturating_sub(start_x));
             let face_height = rect_height.min(img_height.saturating_sub(start_y));
 
@@ -82,93 +73,59 @@ impl MosaicEffect {
                 face_height
             );
 
-            let block_size = config.block_size.max(1);
+            let pixels: &mut [u8] = rgba.as_mut();
 
             for block_y in (start_y..start_y + face_height).step_by(block_size as usize) {
                 for block_x in (start_x..start_x + face_width).step_by(block_size as usize) {
                     let block_end_x = (block_x + block_size).min(start_x + face_width);
                     let block_end_y = (block_y + block_size).min(start_y + face_height);
-                    let actual_block_width = block_end_x - block_x;
-                    let actual_block_height = block_end_y - block_y;
+                    let bw = block_end_x - block_x;
+                    let bh = block_end_y - block_y;
 
-                    if actual_block_width == 0 || actual_block_height == 0 {
+                    if bw == 0 || bh == 0 {
                         continue;
                     }
 
-                    let avg_color = calculate_average_color(
-                        image,
-                        block_x,
-                        block_y,
-                        actual_block_width,
-                        actual_block_height,
-                    );
-                    draw_solid_rect(
-                        image,
-                        block_x,
-                        block_y,
-                        actual_block_width,
-                        actual_block_height,
-                        avg_color,
-                    );
+                    // Calculate average color by sampling every 4th pixel
+                    let (mut r, mut g, mut b, mut count) = (0u64, 0u64, 0u64, 0u64);
+                    for py in (block_y..block_end_y).step_by(4) {
+                        let row_start = py as usize * stride + block_x as usize * 4;
+                        let mut idx = row_start;
+                        for _px in (block_x..block_end_x).step_by(4) {
+                            r += pixels[idx] as u64;
+                            g += pixels[idx + 1] as u64;
+                            b += pixels[idx + 2] as u64;
+                            count += 1;
+                            idx += 16; // step_by(4) * 4 bytes per pixel
+                        }
+                    }
+
+                    if count == 0 {
+                        continue;
+                    }
+
+                    let avg_r = (r / count) as u8;
+                    let avg_g = (g / count) as u8;
+                    let avg_b = (b / count) as u8;
+
+                    // Fill block with average color
+                    for py in block_y..block_end_y {
+                        let row_start = py as usize * stride + block_x as usize * 4;
+                        let row_end = row_start + bw as usize * 4;
+                        let row = &mut pixels[row_start..row_end];
+                        for chunk in row.chunks_exact_mut(4) {
+                            chunk[0] = avg_r;
+                            chunk[1] = avg_g;
+                            chunk[2] = avg_b;
+                            chunk[3] = 255;
+                        }
+                    }
                 }
             }
         }
 
         Ok(())
     }
-}
-
-/// Draw a solid rectangle on image
-#[allow(dead_code)]
-fn draw_solid_rect(
-    image: &mut DynamicImage,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-    color: Rgba<u8>,
-) {
-    for py in y..y + height {
-        for px in x..x + width {
-            image.put_pixel(px, py, color);
-        }
-    }
-}
-
-/// Calculate average color of a rectangular area
-#[allow(dead_code)]
-fn calculate_average_color(
-    image: &mut DynamicImage,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-) -> Rgba<u8> {
-    let mut r: u64 = 0;
-    let mut g: u64 = 0;
-    let mut b: u64 = 0;
-    let mut count: u64 = 0;
-
-    for py in (y..y + height).step_by(4) {
-        for px in (x..x + width).step_by(4) {
-            let pixel = image.get_pixel(px, py);
-            let [red, green, blue, _alpha] = pixel.0;
-            r += red as u64;
-            g += green as u64;
-            b += blue as u64;
-            count += 1;
-        }
-    }
-
-    if count == 0 {
-        return Rgba([0, 0, 0, 255]);
-    }
-
-    let avg_r = (r / count) as u8;
-    let avg_g = (g / count) as u8;
-    let avg_b = (b / count) as u8;
-
-    Rgba([avg_r, avg_g, avg_b, 255])
 }
 
 #[cfg(test)]
