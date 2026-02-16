@@ -1,0 +1,19 @@
+いらすとや (Irasutoya) Terms of Use
+https://www.irasutoya.com/p/terms.html
+
+Creator: みふねたかし (Mifune Takashi)
+Website: https://www.irasutoya.com/
+
+Source illustration used in this project:
+  "かわいいアイドルファンのイラスト（ペンライトあり）"
+  https://www.irasutoya.com/2020/08/blog-post_978.html
+
+The illustration has been modified (converted to monochrome silhouette)
+and is used as the "Cheki" tab icon across all platforms (egui/iOS/Android).
+
+Summary of Terms (as of 2025):
+- Copyright is retained by the creator (著作権は放棄しておりません)
+- Free to use (including commercial) for up to 20 illustrations per project
+- Modifications are permitted but do not transfer copyright
+- Redistribution or resale of illustrations as primary products is prohibited
+- Use for purposes against public order/morality is prohibited

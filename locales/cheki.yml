@@ -26,10 +26,15 @@ cheki:
     ja: "画像を選択"
     id: "Pilih Gambar"
   no_images:
-    en: "No images loaded. Drop images to begin."
-    ko: "이미지가 없습니다. 이미지를 드래그하여 추가하세요."
-    ja: "画像がありません。画像をドロップして開始してください。"
-    id: "Tidak ada gambar. Seret gambar untuk memulai."
+    en: "No images loaded"
+    ko: "이미지가 없습니다"
+    ja: "画像がありません"
+    id: "Tidak ada gambar"
+  no_images_hint:
+    en: "Go to the Gallery tab to add images, then come back to apply Cheki decoration."
+    ko: "갤러리 탭에서 이미지를 추가한 후, 체키 꾸미기를 적용하세요."
+    ja: "ギャラリータブで画像を追加してから、チェキデコレーションを適用してください。"
+    id: "Buka tab Galeri untuk menambahkan gambar, lalu kembali untuk menerapkan dekorasi Cheki."
   loading_preview:
     en: "Loading preview..."
     ko: "미리보기 로딩 중..."

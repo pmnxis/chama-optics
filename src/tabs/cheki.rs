@@ -323,17 +323,93 @@ impl ChamaOptics {
         ui.separator();
 
         if self.packed_images.is_empty() {
-            ui.vertical_centered(|ui| {
-                ui.add_space(20.0);
-                ui.label(
-                    egui::RichText::new(t!(
-                        "cheki.no_images",
-                        default = "No images loaded. Drop images to begin."
-                    ))
-                    .size(14.0)
-                    .color(ui.visuals().weak_text_color()),
-                );
-            });
+            egui::ScrollArea::vertical()
+                .id_salt("cheki_empty")
+                .show(ui, |ui| {
+                    // Info card
+                    ui.add_space(10.0);
+                    egui::Frame::group(ui.style())
+                        .fill(ui.visuals().faint_bg_color)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label(egui::RichText::new("ℹ").size(16.0));
+                                ui.vertical(|ui| {
+                                    ui.label(
+                                        egui::RichText::new(t!(
+                                            "cheki.no_images",
+                                            default = "No images loaded"
+                                        ))
+                                        .size(14.0),
+                                    );
+                                    ui.label(
+                                        egui::RichText::new(t!(
+                                            "cheki.no_images_hint",
+                                            default = "Go to the Gallery tab to add images, then come back to apply Cheki decoration."
+                                        ))
+                                        .size(11.0)
+                                        .color(ui.visuals().weak_text_color()),
+                                    );
+                                });
+                            });
+                        });
+
+                    ui.add_space(8.0);
+
+                    // Greyed-out settings preview
+                    ui.scope(|ui| {
+                        ui.disable();
+                        ui.style_mut().visuals.override_text_color =
+                            Some(ui.visuals().weak_text_color());
+
+                        // Border Settings
+                        ui.separator();
+                        ui.strong(t!("cheki.border_settings", default = "Border Settings"));
+                        ui.horizontal(|ui| {
+                            ui.label(t!("cheki.border_width", default = "Border"));
+                            ui.add(egui::Slider::new(&mut 0.04_f32, 0.01..=0.15));
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label(t!("cheki.bottom_extra", default = "Bottom"));
+                            ui.add(egui::Slider::new(&mut 0.15_f32, 0.05..=0.35));
+                        });
+
+                        ui.add_space(3.0);
+
+                        // Date Stamp
+                        ui.separator();
+                        ui.strong(t!("cheki.date_section", default = "Date Stamp"));
+                        let mut preview_check = true;
+                        ui.checkbox(
+                            &mut preview_check,
+                            t!("cheki.date_enabled", default = "Enable date stamp"),
+                        );
+
+                        ui.add_space(3.0);
+
+                        // Text / Sign
+                        ui.separator();
+                        ui.strong(t!("cheki.text_section", default = "Text / Sign"));
+                        let mut preview_text = String::new();
+                        ui.add(
+                            egui::TextEdit::singleline(&mut preview_text)
+                                .desired_width(ui.available_width()),
+                        );
+
+                        ui.add_space(3.0);
+
+                        // Random Character
+                        ui.separator();
+                        ui.strong(t!("cheki.dice_section", default = "Random Character"));
+                        ui.add_space(2.0);
+                        let _ = ui.button(
+                            egui::RichText::new(t!(
+                                "cheki.play_dice",
+                                default = "Play Dice!"
+                            ))
+                            .strong(),
+                        );
+                    });
+                });
             return;
         }
 

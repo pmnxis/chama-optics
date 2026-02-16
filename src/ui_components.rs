@@ -121,8 +121,18 @@ fn render_version_info(
     ));
 }
 
+/// Icon type for tab buttons - either a text emoji or a texture image
+pub enum TabIcon<'a> {
+    Text(&'a str),
+    Texture(&'a egui::TextureHandle),
+}
+
 /// Render the left sidebar with tab icons
-pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::MainTab) {
+pub fn render_tab_sidebar(
+    ui: &mut egui::Ui,
+    selected_tab: &mut crate::app::MainTab,
+    cheki_icon: Option<&egui::TextureHandle>,
+) {
     use crate::app::MainTab;
 
     egui::Panel::left("tab_sidebar")
@@ -137,7 +147,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::ImageList,
-                    "☰",
+                    TabIcon::Text("☰"),
                     "List",
                     &t!("tabs.image_list"),
                 );
@@ -149,7 +159,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::Detection,
-                    "👤",
+                    TabIcon::Text("👤"),
                     "Detect",
                     &t!("tabs.detection", default = "Face Detection"),
                 );
@@ -161,7 +171,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::ThemePreview,
-                    "▦",
+                    TabIcon::Text("▦"),
                     "Theme",
                     &t!("tabs.theme_preview"),
                 );
@@ -173,7 +183,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::Color,
-                    "🎨",
+                    TabIcon::Text("🎨"),
                     "Color",
                     &t!("tabs.color", default = "Color Grading"),
                 );
@@ -185,22 +195,28 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::Sticker,
-                    "🎭",
+                    TabIcon::Text("🎭"),
                     "Sticker",
                     &t!("tabs.sticker", default = "Sticker Storage"),
                 );
 
                 ui.add_space(5.0);
 
-                // Tab 6: Cheki
-                render_tab_button(
-                    ui,
-                    selected_tab,
-                    MainTab::Cheki,
-                    "📸",
-                    "Cheki",
-                    &t!("tabs.cheki", default = "Cheki"),
-                );
+                // Tab 6: Cheki (custom icon)
+                {
+                    let icon = match cheki_icon {
+                        Some(tex) => TabIcon::Texture(tex),
+                        None => TabIcon::Text("📸"),
+                    };
+                    render_tab_button(
+                        ui,
+                        selected_tab,
+                        MainTab::Cheki,
+                        icon,
+                        "Cheki",
+                        &t!("tabs.cheki", default = "Cheki"),
+                    );
+                }
 
                 ui.add_space(5.0);
 
@@ -209,7 +225,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::ImportExport,
-                    "⚙",
+                    TabIcon::Text("⚙"),
                     "Config",
                     &t!("tabs.import_export"),
                 );
@@ -221,7 +237,7 @@ pub fn render_tab_sidebar(ui: &mut egui::Ui, selected_tab: &mut crate::app::Main
                     ui,
                     selected_tab,
                     MainTab::Settings,
-                    "…",
+                    TabIcon::Text("…"),
                     "Misc",
                     &t!("tabs.settings"),
                 );
@@ -234,17 +250,43 @@ fn render_tab_button(
     ui: &mut egui::Ui,
     selected_tab: &mut crate::app::MainTab,
     tab: crate::app::MainTab,
-    icon: &str,
+    icon: TabIcon<'_>,
     label: &str,
     hover_text: &str,
 ) {
     ui.vertical_centered(|ui| {
         let is_active = *selected_tab == tab;
-        if ui
-            .selectable_label(is_active, egui::RichText::new(icon).size(24.0))
-            .on_hover_text(hover_text)
-            .clicked()
-        {
+        let response = match icon {
+            TabIcon::Text(text) => {
+                ui.selectable_label(is_active, egui::RichText::new(text).size(24.0))
+            }
+            TabIcon::Texture(texture) => {
+                // Icon PNG has opacity baked in to match emoji brightness
+                let tint = egui::Color32::WHITE;
+                let size = egui::vec2(24.0, 24.0);
+                let padding = egui::vec2(4.0, 2.0);
+                let (rect, response) =
+                    ui.allocate_exact_size(size + padding * 2.0, egui::Sense::click());
+                if is_active || response.hovered() {
+                    let bg = if is_active {
+                        ui.visuals().selection.bg_fill
+                    } else {
+                        ui.visuals().widgets.hovered.bg_fill
+                    };
+                    ui.painter()
+                        .rect_filled(rect, egui::CornerRadius::same(4), bg);
+                }
+                let image_rect = egui::Rect::from_center_size(rect.center(), size);
+                ui.painter().image(
+                    texture.id(),
+                    image_rect,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    tint,
+                );
+                response
+            }
+        };
+        if response.on_hover_text(hover_text).clicked() {
             *selected_tab = tab;
         }
         let text_color = if is_active {

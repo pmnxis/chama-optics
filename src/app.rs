@@ -304,6 +304,10 @@ pub struct ChamaOptics {
     background_texture: Option<egui::TextureHandle>,
 
     #[serde(skip)]
+    /// Cheki tab icon texture (mono, white on transparent)
+    cheki_tab_icon: Option<egui::TextureHandle>,
+
+    #[serde(skip)]
     /// Last detected theme mode (to reload texture on theme change)
     last_dark_mode: Option<bool>,
 
@@ -414,6 +418,7 @@ impl Default for ChamaOptics {
             #[cfg(feature = "face_detection_insightface")]
             insightface_detector: std::sync::Arc::new(std::sync::Mutex::new(None)),
             background_texture: None,
+            cheki_tab_icon: None,
             last_dark_mode: None,
             update: crate::util::check_update::CheckRelease::new(),
             save_progress: ProgressState::new(),
@@ -1438,8 +1443,34 @@ impl ChamaOptics {
             &self.update,
         );
 
+        // Load cheki tab icon texture (once)
+        // Icon derived from いらすとや (Irasutoya) by みふねたかし (Mifune Takashi)
+        // "かわいいアイドルファンのイラスト（ペンライトあり）"
+        // Source: https://www.irasutoya.com/2020/08/blog-post_978.html
+        // License: https://www.irasutoya.com/p/terms.html
+        if self.cheki_tab_icon.is_none() {
+            let icon_data: &[u8] = include_bytes!("../assets/cheki-icon.png");
+            if let Ok(img) = image::load_from_memory(icon_data) {
+                let size = [img.width() as _, img.height() as _];
+                let rgba = img.to_rgba8();
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(
+                    size,
+                    rgba.as_flat_samples().as_slice(),
+                );
+                self.cheki_tab_icon = Some(ui.ctx().load_texture(
+                    "cheki_tab_icon",
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                ));
+            }
+        }
+
         // Left sidebar with icon-only tabs
-        crate::ui_components::render_tab_sidebar(ui, &mut self.selected_tab);
+        crate::ui_components::render_tab_sidebar(
+            ui,
+            &mut self.selected_tab,
+            self.cheki_tab_icon.as_ref(),
+        );
 
         // Render central panel with tab-based content
         egui::CentralPanel::default().show_inside(ui, |ui| {

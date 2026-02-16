@@ -216,3 +216,7 @@ Most of the code depends on the NON-AI-MIT license, while some portions are unde
 In particular, the image data has been processed by pmnxis, but the original vector icons were used with permission from シエミカ (X: shiemika324).
 
 All icons are strictly prohibited from being used for any form of AI training without exception.
+
+The "Cheki" tab icon is derived from an illustration by **いらすとや** (みふねたかし):
+["かわいいアイドルファンのイラスト（ペンライトあり）"](https://www.irasutoya.com/2020/08/blog-post_978.html),
+modified to a monochrome silhouette. Used under [irasutoya's terms of use](https://www.irasutoya.com/p/terms.html).
