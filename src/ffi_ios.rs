@@ -48,6 +48,171 @@ impl std::fmt::Display for PreviewError {
 impl std::error::Error for PreviewError {}
 
 // ============================================================================
+// FFI Helper Functions (extracted to reduce duplication)
+// ============================================================================
+
+/// Convert PreviewError to ChamaError
+impl From<PreviewError> for ChamaError {
+    fn from(e: PreviewError) -> Self {
+        match e {
+            PreviewError::IoError(_) => ChamaError::ImageLoadError,
+            PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
+            PreviewError::ImageProcess(_) => ChamaError::ImageProcessError,
+            PreviewError::InvalidTheme => ChamaError::InvalidTheme,
+            PreviewError::InvalidFont => ChamaError::InvalidFont,
+            PreviewError::InvalidParameters(_) => ChamaError::InvalidParameters,
+            PreviewError::ExifError => ChamaError::ExifError,
+        }
+    }
+}
+
+/// Convert CScaleMode FFI enum to core ScaleMode
+fn convert_c_scale_mode(mode: CScaleMode) -> crate::scale_config::ScaleMode {
+    match mode {
+        CScaleMode::None => crate::scale_config::ScaleMode::None,
+        CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
+        CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
+        CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
+        CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
+        CScaleMode::NearCommonWidth => {
+            crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
+        }
+        CScaleMode::NearCommonHeight => {
+            crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
+        }
+        CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
+    }
+}
+
+/// Convert CScaleConfig pointer to Option<core::ScaleConfig>
+/// Returns None if pointer is null or mode is None
+unsafe fn convert_c_scale_config(
+    scale_config: *const CScaleConfig,
+) -> Option<crate::scale_config::ScaleConfig> {
+    if scale_config.is_null() {
+        return None;
+    }
+    let config_ref = unsafe { &*scale_config };
+    if config_ref.mode == CScaleMode::None {
+        return None;
+    }
+    Some(crate::scale_config::ScaleConfig {
+        mode: convert_c_scale_mode(config_ref.mode),
+        value: config_ref.value,
+        sub_value: config_ref.sub_value,
+        scale_value: config_ref.scale_value as f32,
+    })
+}
+
+/// Convert COutputFormat to export_config OutputExtension
+fn convert_c_output_format(
+    format: COutputFormat,
+) -> crate::export_config::output_format::OutputExtension {
+    match format {
+        COutputFormat::Jpeg => crate::export_config::output_format::OutputExtension::Jpeg,
+        COutputFormat::Png => crate::export_config::output_format::OutputExtension::PngOptimized,
+        COutputFormat::Webp => crate::export_config::output_format::OutputExtension::Webp,
+    }
+}
+
+/// Save a DynamicImage with the specified output format and quality.
+/// Consolidates the repeated JPEG/PNG/WebP save blocks.
+fn save_image_with_c_format(
+    image: &image::DynamicImage,
+    output_path: &str,
+    format: COutputFormat,
+    quality: u8,
+) -> Result<(), image::ImageError> {
+    match format {
+        COutputFormat::Jpeg => {
+            use image::codecs::jpeg::JpegEncoder;
+            let file =
+                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
+            let mut encoder = JpegEncoder::new_with_quality(file, quality);
+            encoder.encode_image(image)
+        }
+        COutputFormat::Png => image.save(output_path),
+        COutputFormat::Webp => {
+            use image::codecs::webp::WebPEncoder;
+            let file =
+                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
+            let rgba = image.to_rgba8();
+            WebPEncoder::new_lossless(file).encode(
+                rgba.as_raw(),
+                rgba.width(),
+                rgba.height(),
+                image::ExtendedColorType::Rgba8,
+            )
+        }
+    }
+}
+
+/// Collect face rectangles from a raw CFaceRect pointer into a Vec of tuples.
+unsafe fn collect_face_areas(
+    face_rects: *const CFaceRect,
+    face_count: usize,
+) -> Vec<(i32, i32, u32, u32)> {
+    let mut face_areas = Vec::with_capacity(face_count);
+    if !face_rects.is_null() && face_count > 0 {
+        for i in 0..face_count {
+            let face_rect = unsafe { *face_rects.add(i) };
+            face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
+        }
+    }
+    face_areas
+}
+
+/// Read EXIF orientation from an image file and return the Orientation value.
+fn read_exif_orientation(image_path: &str) -> image::metadata::Orientation {
+    use exif::{In, Tag};
+    let file = match std::fs::File::open(image_path) {
+        Ok(f) => f,
+        Err(_) => return image::metadata::Orientation::NoTransforms,
+    };
+    let mut buf_reader = std::io::BufReader::new(file);
+    match exif::Reader::new().read_from_container(&mut buf_reader) {
+        Ok(exif) => {
+            let value = exif
+                .get_field(Tag::Orientation, In::PRIMARY)
+                .and_then(|field| field.value.get_uint(0));
+            image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+                .unwrap_or(image::metadata::Orientation::NoTransforms)
+        }
+        Err(_) => image::metadata::Orientation::NoTransforms,
+    }
+}
+
+/// Extract a human-readable message from a panic payload.
+fn extract_panic_message(panic_info: &Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = panic_info.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = panic_info.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
+
+/// Execute an FFI function body with panic catching.
+/// Returns ChamaError::ImageProcessError if the closure panics.
+fn catch_ffi_panic<F>(context: &str, f: F) -> ChamaError
+where
+    F: FnOnce() -> ChamaError + std::panic::UnwindSafe,
+{
+    match std::panic::catch_unwind(f) {
+        Ok(error_code) => error_code,
+        Err(panic_info) => {
+            log::error!(
+                "Caught panic in {}: {}",
+                context,
+                extract_panic_message(&panic_info)
+            );
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+// ============================================================================
 // Image Loading with HEIF Support
 // ============================================================================
 
@@ -525,13 +690,7 @@ fn export_final_impl_with_exif_source_and_override(
     if let Some(output_config) = output_format_config {
         // Set output format
         export_config.output_format = crate::export_config::output_format::OutputFormat {
-            ext: match output_config.output_format {
-                COutputFormat::Jpeg => crate::export_config::output_format::OutputExtension::Jpeg,
-                COutputFormat::Png => {
-                    crate::export_config::output_format::OutputExtension::PngOptimized
-                }
-                COutputFormat::Webp => crate::export_config::output_format::OutputExtension::Webp,
-            },
+            ext: convert_c_output_format(output_config.output_format),
             quality: output_config.quality,
         };
         log::info!(
@@ -924,15 +1083,7 @@ pub unsafe extern "C" fn chama_generate_preview(
         }
         Err(e) => {
             log::error!("❌ Preview generation failed: {}", e);
-            match e {
-                PreviewError::IoError(_) => ChamaError::ImageLoadError,
-                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                PreviewError::ImageProcess(_) => ChamaError::ImageProcessError,
-                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                PreviewError::InvalidFont => ChamaError::InvalidFont,
-                PreviewError::InvalidParameters(_) => ChamaError::InvalidParameters,
-                PreviewError::ExifError => ChamaError::ExifError,
-            }
+            e.into()
         }
     }
 }
@@ -1007,15 +1158,7 @@ pub unsafe extern "C" fn chama_export_final(
         }
         Err(e) => {
             log::error!("❌ Final export failed: {}", e);
-            match e {
-                PreviewError::IoError(_) => ChamaError::ImageLoadError,
-                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                PreviewError::ImageProcess(_) => ChamaError::ImageProcessError,
-                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                PreviewError::InvalidFont => ChamaError::InvalidFont,
-                PreviewError::InvalidParameters(_) => ChamaError::InvalidParameters,
-                PreviewError::ExifError => ChamaError::ExifError,
-            }
+            e.into()
         }
     }
 }
@@ -1300,15 +1443,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_from_rgba(
         }
         Err(e) => {
             log::error!("Failed to apply theme: {}", e);
-            match e {
-                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                PreviewError::InvalidFont => ChamaError::InvalidFont,
-                PreviewError::InvalidParameters(_) => ChamaError::InvalidParameters,
-                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                PreviewError::ImageProcess(_) => ChamaError::ImageProcessError,
-                PreviewError::ExifError => ChamaError::ExifError,
-                PreviewError::IoError(_) => ChamaError::InvalidPath,
-            }
+            e.into()
         }
     };
 
@@ -1414,12 +1549,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
         }
         Err(e) => {
             log::error!("Failed to apply theme: {}", e);
-            match e {
-                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                PreviewError::InvalidFont => ChamaError::InvalidFont,
-                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                _ => ChamaError::ImageProcessError,
-            }
+            e.into()
         }
     }
 }
@@ -1455,9 +1585,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
     get_alt_fnumber: bool,
     use_35mm_focal_length: bool,
 ) -> ChamaError {
-    // Wrap entire function body in catch_unwind to prevent panics from
-    // unwinding across the FFI boundary (which causes SIGABRT on Android)
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+    catch_ffi_panic("apply_theme_with_exif_scale_and_export", || unsafe {
         chama_optics_apply_theme_with_exif_scale_and_export_impl(
             image_path,
             exif_source_path,
@@ -1471,22 +1599,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
             get_alt_fnumber,
             use_35mm_focal_length,
         )
-    }));
-
-    match result {
-        Ok(error_code) => error_code,
-        Err(panic_info) => {
-            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = panic_info.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "unknown panic".to_string()
-            };
-            log::error!("Caught panic in FFI: {}", msg);
-            ChamaError::ImageProcessError
-        }
-    }
+    })
 }
 
 unsafe fn chama_optics_apply_theme_with_exif_scale_and_export_impl(
@@ -1552,34 +1665,7 @@ unsafe fn chama_optics_apply_theme_with_exif_scale_and_export_impl(
     };
 
     // Convert CScaleConfig to core ScaleConfig if provided
-    let core_scale_config = if scale_config.is_null() {
-        None
-    } else {
-        let config_ref = unsafe { &*scale_config };
-        if config_ref.mode == CScaleMode::None {
-            None
-        } else {
-            Some(crate::scale_config::ScaleConfig {
-                mode: match config_ref.mode {
-                    CScaleMode::None => crate::scale_config::ScaleMode::None,
-                    CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
-                    CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
-                    CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
-                    CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
-                    CScaleMode::NearCommonWidth => {
-                        crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
-                    }
-                    CScaleMode::NearCommonHeight => {
-                        crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
-                    }
-                    CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
-                },
-                value: config_ref.value,
-                sub_value: config_ref.sub_value,
-                scale_value: config_ref.scale_value as f32,
-            })
-        }
-    };
+    let core_scale_config = unsafe { convert_c_scale_config(scale_config) };
 
     log::info!("Applying theme with separate EXIF source and scale config:");
     log::info!("  Image: {}", image_path_str);
@@ -1618,12 +1704,7 @@ unsafe fn chama_optics_apply_theme_with_exif_scale_and_export_impl(
         }
         Err(e) => {
             log::error!("Failed to apply theme: {}", e);
-            match e {
-                PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                PreviewError::InvalidFont => ChamaError::InvalidFont,
-                PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                _ => ChamaError::ImageProcessError,
-            }
+            e.into()
         }
     }
 }
@@ -1702,34 +1783,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
         };
 
         // Convert CScaleConfig
-        let core_scale_config = if scale_config.is_null() {
-            None
-        } else {
-            let config_ref = &*scale_config;
-            if config_ref.mode == CScaleMode::None {
-                None
-            } else {
-                Some(crate::scale_config::ScaleConfig {
-                    mode: match config_ref.mode {
-                        CScaleMode::None => crate::scale_config::ScaleMode::None,
-                        CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
-                        CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
-                        CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
-                        CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
-                        CScaleMode::NearCommonWidth => {
-                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
-                        }
-                        CScaleMode::NearCommonHeight => {
-                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
-                        }
-                        CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
-                    },
-                    value: config_ref.value,
-                    sub_value: config_ref.sub_value,
-                    scale_value: config_ref.scale_value as f32,
-                })
-            }
-        };
+        let core_scale_config = convert_c_scale_config(scale_config);
 
         let export_config_option = if output_format_config.is_null() {
             None
@@ -1765,12 +1819,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
             }
             Err(e) => {
                 log::error!("Failed to apply theme with EXIF override: {}", e);
-                match e {
-                    PreviewError::InvalidTheme => ChamaError::InvalidTheme,
-                    PreviewError::InvalidFont => ChamaError::InvalidFont,
-                    PreviewError::ImageLoad(_) => ChamaError::ImageLoadError,
-                    _ => ChamaError::ImageProcessError,
-                }
+                e.into()
             }
         }
     }));
@@ -1778,13 +1827,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
     match result {
         Ok(error_code) => error_code,
         Err(panic_info) => {
-            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = panic_info.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "unknown panic".to_string()
-            };
+            let msg = extract_panic_message(&panic_info);
             log::error!("Caught panic in FFI (EXIF override): {}", msg);
             ChamaError::ImageProcessError
         }
@@ -2089,42 +2132,7 @@ pub unsafe extern "C" fn chama_scale_image(
     );
 
     // Save with specified format and quality
-    let save_result = match output_format {
-        COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let mut encoder = JpegEncoder::new_with_quality(file, quality);
-            encoder.encode_image(&scaled_image)
-        }
-        COutputFormat::Png => scaled_image.save(output_path_str).map_err(|e| e.into()),
-        COutputFormat::Webp => {
-            use image::codecs::webp::WebPEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            // WebPEncoder only supports lossless encoding currently
-            // Convert image to RGBA bytes
-            let rgba = scaled_image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-    };
-
-    match save_result {
+    match save_image_with_c_format(&scaled_image, output_path_str, output_format, quality) {
         Ok(_) => {
             log::info!("✅ Scale image completed successfully");
             ChamaError::Success
@@ -2202,28 +2210,7 @@ pub unsafe extern "C" fn chama_export_combined(
     );
 
     // Read EXIF orientation and apply it so face coordinates match the display orientation
-    let orientation = {
-        use exif::{In, Tag};
-        let file = match std::fs::File::open(image_path_str) {
-            Ok(f) => f,
-            Err(e) => {
-                log::warn!("Failed to open file for EXIF: {}", e);
-                return ChamaError::ImageLoadError;
-            }
-        };
-        let mut buf_reader = std::io::BufReader::new(file);
-        match exif::Reader::new().read_from_container(&mut buf_reader) {
-            Ok(exif) => {
-                let value = exif
-                    .get_field(Tag::Orientation, In::PRIMARY)
-                    .and_then(|field| field.value.get_uint(0));
-                image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
-                    .unwrap_or(image::metadata::Orientation::NoTransforms)
-            }
-            Err(_) => image::metadata::Orientation::NoTransforms,
-        }
-    };
-
+    let orientation = read_exif_orientation(image_path_str);
     log::info!("  EXIF orientation: {:?}", orientation);
     dyn_image.apply_orientation(orientation);
     log::info!(
@@ -2237,11 +2224,7 @@ pub unsafe extern "C" fn chama_export_combined(
         && face_count > 0
         && config_ref.face_effect_type != CFaceEffectType::None
     {
-        let mut face_areas: Vec<(i32, i32, u32, u32)> = Vec::with_capacity(face_count);
-        for i in 0..face_count {
-            let face = unsafe { *face_rects.add(i) };
-            face_areas.push((face.x, face.y, face.width, face.height));
-        }
+        let face_areas = unsafe { collect_face_areas(face_rects, face_count) };
 
         log::info!("  Applying face effect to {} faces...", face_areas.len());
 
@@ -2395,29 +2378,8 @@ pub unsafe extern "C" fn chama_export_combined(
             // Apply theme to temp image, but read EXIF from original image
             // (temp file doesn't have EXIF data after sticker/mosaic processing)
             // Convert CScaleConfig to core ScaleConfig for theme application
-            let core_scale_config = if config_ref.scale_config.mode != CScaleMode::None {
-                Some(crate::scale_config::ScaleConfig {
-                    mode: match config_ref.scale_config.mode {
-                        CScaleMode::None => crate::scale_config::ScaleMode::None,
-                        CScaleMode::MaxWidth => crate::scale_config::ScaleMode::MaxWidth,
-                        CScaleMode::MaxHeight => crate::scale_config::ScaleMode::MaxHeight,
-                        CScaleMode::Longside => crate::scale_config::ScaleMode::Longside,
-                        CScaleMode::Divide => crate::scale_config::ScaleMode::Divide,
-                        CScaleMode::NearCommonWidth => {
-                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderWidth
-                        }
-                        CScaleMode::NearCommonHeight => {
-                            crate::scale_config::ScaleMode::NearCommonDivisorConsiderHeight
-                        }
-                        CScaleMode::ResizeAndCrop => crate::scale_config::ScaleMode::ResizeAndCrop,
-                    },
-                    value: config_ref.scale_config.value,
-                    sub_value: config_ref.scale_config.sub_value,
-                    scale_value: config_ref.scale_config.scale_value as f32,
-                })
-            } else {
-                None
-            };
+            let core_scale_config =
+                unsafe { convert_c_scale_config(&config_ref.scale_config as *const CScaleConfig) };
 
             // Parse EXIF override JSON if provided
             let exif_override_str = if !config_ref.exif_override_json.is_null() {
@@ -2479,43 +2441,12 @@ pub unsafe extern "C" fn chama_export_combined(
         config_ref.quality
     );
 
-    let save_result = match config_ref.output_format {
-        COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let mut encoder = JpegEncoder::new_with_quality(file, config_ref.quality);
-            encoder.encode_image(&final_image)
-        }
-        COutputFormat::Png => final_image.save(output_path_str).map_err(|e| e.into()),
-        COutputFormat::Webp => {
-            // WebP support (lossless)
-            use image::codecs::webp::WebPEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            // WebPEncoder only supports lossless encoding currently
-            // Convert image to RGBA bytes
-            let rgba = final_image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-    };
-
-    match save_result {
+    match save_image_with_c_format(
+        &final_image,
+        output_path_str,
+        config_ref.output_format,
+        config_ref.quality,
+    ) {
         Ok(_) => {
             log::info!("✅ Combined export completed successfully");
             ChamaError::Success
@@ -2803,7 +2734,7 @@ pub unsafe extern "C" fn chama_lut_apply(
 
     log::info!("Applying LUT {} to image: {}", id_str, image_path_str);
 
-    // Load image
+    // Load image with EXIF orientation
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -2811,6 +2742,7 @@ pub unsafe extern "C" fn chama_lut_apply(
             return ChamaError::ImageLoadError;
         }
     };
+    dyn_image.apply_orientation(read_exif_orientation(image_path_str));
 
     // Apply LUT
     {
@@ -2870,7 +2802,7 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
 
     log::info!("Applying LUT to image: {}", image_path_str);
 
-    // Load image
+    // Load image with EXIF orientation
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -2878,6 +2810,7 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
             return ChamaError::ImageLoadError;
         }
     };
+    dyn_image.apply_orientation(read_exif_orientation(image_path_str));
 
     // Apply LUT if specified
     if !lut_id.is_null() {
@@ -2909,40 +2842,7 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
     }
 
     // Save with specified format
-    let save_result = match output_format {
-        COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let mut encoder = JpegEncoder::new_with_quality(file, quality);
-            encoder.encode_image(&dyn_image)
-        }
-        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
-        COutputFormat::Webp => {
-            use image::codecs::webp::WebPEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let rgba = dyn_image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-    };
-
-    match save_result {
+    match save_image_with_c_format(&dyn_image, output_path_str, output_format, quality) {
         Ok(_) => {
             log::info!("Successfully saved to: {}", output_path_str);
             ChamaError::Success
@@ -3147,7 +3047,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply(
         adj.saturation
     );
 
-    // Load image
+    // Load image with EXIF orientation
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -3155,6 +3055,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply(
             return ChamaError::ImageLoadError;
         }
     };
+    dyn_image.apply_orientation(read_exif_orientation(image_path_str));
 
     // Convert C struct to Rust struct
     let color_adj = crate::effect::color_adjustments::ColorAdjustments {
@@ -3174,40 +3075,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply(
     color_adj.apply(&mut dyn_image);
 
     // Save with specified format and quality
-    let save_result = match output_format {
-        COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let mut encoder = JpegEncoder::new_with_quality(file, quality);
-            encoder.encode_image(&dyn_image)
-        }
-        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
-        COutputFormat::Webp => {
-            use image::codecs::webp::WebPEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let rgba = dyn_image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-    };
-
-    match save_result {
+    match save_image_with_c_format(&dyn_image, output_path_str, output_format, quality) {
         Ok(_) => {
             log::info!("Successfully saved adjusted image to: {}", output_path_str);
             ChamaError::Success
@@ -3291,7 +3159,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
         color_adj.saturation
     );
 
-    // Load image
+    // Load image with EXIF orientation
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -3299,45 +3167,13 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
             return ChamaError::ImageLoadError;
         }
     };
+    dyn_image.apply_orientation(read_exif_orientation(image_path_str));
 
     // Apply adjustments
     color_adj.apply(&mut dyn_image);
 
     // Save with specified format and quality
-    let save_result = match output_format {
-        COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let mut encoder = JpegEncoder::new_with_quality(file, quality);
-            encoder.encode_image(&dyn_image)
-        }
-        COutputFormat::Png => dyn_image.save(output_path_str).map_err(|e| e.into()),
-        COutputFormat::Webp => {
-            use image::codecs::webp::WebPEncoder;
-            let file = match std::fs::File::create(output_path_str) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Failed to create output file: {}", e);
-                    return ChamaError::ImageProcessError;
-                }
-            };
-            let rgba = dyn_image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-    };
-
-    match save_result {
+    match save_image_with_c_format(&dyn_image, output_path_str, output_format, quality) {
         Ok(_) => {
             log::info!("Successfully saved adjusted image to: {}", output_path_str);
             ChamaError::Success
@@ -3403,14 +3239,10 @@ pub unsafe extern "C" fn chama_export_cheki(
     match result {
         Ok(error_code) => error_code,
         Err(panic_info) => {
-            let msg = if let Some(s) = panic_info.downcast_ref::<&str>() {
-                s.to_string()
-            } else if let Some(s) = panic_info.downcast_ref::<String>() {
-                s.clone()
-            } else {
-                "unknown panic".to_string()
-            };
-            log::error!("Caught panic in chama_export_cheki: {}", msg);
+            log::error!(
+                "Caught panic in chama_export_cheki: {}",
+                extract_panic_message(&panic_info)
+            );
             ChamaError::ImageProcessError
         }
     }
@@ -3482,25 +3314,7 @@ unsafe fn chama_export_cheki_impl(
     };
 
     // Apply EXIF orientation
-    {
-        use exif::{In, Tag};
-        let orientation = if let Ok(f) = std::fs::File::open(image_path_str) {
-            let mut buf_reader = std::io::BufReader::new(f);
-            match exif::Reader::new().read_from_container(&mut buf_reader) {
-                Ok(exif) => {
-                    let value = exif
-                        .get_field(Tag::Orientation, In::PRIMARY)
-                        .and_then(|field| field.value.get_uint(0));
-                    image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
-                        .unwrap_or(image::metadata::Orientation::NoTransforms)
-                }
-                Err(_) => image::metadata::Orientation::NoTransforms,
-            }
-        } else {
-            image::metadata::Orientation::NoTransforms
-        };
-        dyn_image.apply_orientation(orientation);
-    }
+    dyn_image.apply_orientation(read_exif_orientation(image_path_str));
 
     log::info!(
         "  Image size after orientation: {}x{}",
@@ -3605,13 +3419,7 @@ unsafe fn chama_export_cheki_impl(
     } else {
         let config_ref = &*output_format_config;
         let output_format = crate::export_config::output_format::OutputFormat {
-            ext: match config_ref.output_format {
-                COutputFormat::Jpeg => crate::export_config::output_format::OutputExtension::Jpeg,
-                COutputFormat::Png => {
-                    crate::export_config::output_format::OutputExtension::PngOptimized
-                }
-                COutputFormat::Webp => crate::export_config::output_format::OutputExtension::Webp,
-            },
+            ext: convert_c_output_format(config_ref.output_format),
             quality: config_ref.quality,
         };
         match output_format.save_image(&result, output_path_str) {
@@ -3866,13 +3674,7 @@ pub extern "C" fn chama_optics_apply_mosaic(
         };
 
         // Collect face rectangles
-        let mut face_areas = vec![];
-        if !face_rects.is_null() && face_count > 0 {
-            for i in 0..face_count {
-                let face_rect = *face_rects.add(i);
-                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-            }
-        }
+        let face_areas = collect_face_areas(face_rects, face_count);
 
         // Create Mosaic effect config
         let mosaic_config = crate::effect::mosaic::MosaicEffect {
@@ -3966,13 +3768,7 @@ pub extern "C" fn chama_optics_apply_stroke(
         };
 
         // Collect face rectangles
-        let mut face_areas = vec![];
-        if !face_rects.is_null() && face_count > 0 {
-            for i in 0..face_count {
-                let face_rect = *face_rects.add(i);
-                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-            }
-        }
+        let face_areas = collect_face_areas(face_rects, face_count);
 
         // Create Stroke effect config
         let stroke_config = crate::effect::stroke::StrokeEffect {
@@ -4083,13 +3879,7 @@ pub extern "C" fn chama_optics_apply_sticker(
         };
 
         // Collect face rectangles
-        let mut face_areas = vec![];
-        if !face_rects.is_null() && face_count > 0 {
-            for i in 0..face_count {
-                let face_rect = *face_rects.add(i);
-                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-            }
-        }
+        let face_areas = collect_face_areas(face_rects, face_count);
 
         log::info!(
             "Applying Sticker: id={}, scale={}, offset=({}, {}), {} faces",
@@ -4194,13 +3984,7 @@ pub extern "C" fn chama_optics_apply_sticker_from_path(
         };
 
         // Collect face rectangles
-        let mut face_areas = vec![];
-        if !face_rects.is_null() && face_count > 0 {
-            for i in 0..face_count {
-                let face_rect = *face_rects.add(i);
-                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-            }
-        }
+        let face_areas = collect_face_areas(face_rects, face_count);
 
         log::info!(
             "Applying Sticker from path: {}, scale={}, offset=({}, {}), {} faces",
@@ -4358,13 +4142,7 @@ pub extern "C" fn chama_optics_apply_face_detection(
         };
 
         // Collect face rectangles
-        let mut face_areas = vec![];
-        if !face_rects.is_null() && face_count > 0 {
-            for i in 0..face_count {
-                let face_rect = *face_rects.add(i);
-                face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-            }
-        }
+        let face_areas = collect_face_areas(face_rects, face_count);
 
         // Create FaceDetection config with engine
         let border_color = egui::Color32::from_rgba_unmultiplied(
