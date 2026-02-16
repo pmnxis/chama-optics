@@ -34,9 +34,7 @@ build_mac_with_sign.sh
 *.dmg
 *.zip
 test_image
-.cargo/
 libheif
-.cargo/config.toml
 secret/
 
 # Fort testing
