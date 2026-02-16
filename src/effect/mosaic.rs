@@ -14,11 +14,11 @@ use image::Rgba;
 
 /// Mosaic effect configuration
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct MosaicEffect {
     /// Block size for mosaic (in pixels)
     pub block_size: u32,
     /// Blend intensity (0.0 = full mosaic, 1.0 = no effect)
-    #[allow(dead_code)]
     pub intensity: f32,
 }
 
@@ -51,6 +51,7 @@ impl MosaicEffect {
     /// # Returns
     /// * `Ok(())` on success
     /// * `Err(String)` on error
+    #[allow(dead_code)]
     pub fn apply(
         image: &mut DynamicImage,
         face_areas: &[(i32, i32, u32, u32)],
@@ -118,6 +119,7 @@ impl MosaicEffect {
 }
 
 /// Draw a solid rectangle on image
+#[allow(dead_code)]
 fn draw_solid_rect(
     image: &mut DynamicImage,
     x: u32,
@@ -134,6 +136,7 @@ fn draw_solid_rect(
 }
 
 /// Calculate average color of a rectangular area
+#[allow(dead_code)]
 fn calculate_average_color(
     image: &mut DynamicImage,
     x: u32,

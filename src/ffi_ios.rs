@@ -148,6 +148,7 @@ fn save_image_with_c_format(
 }
 
 /// Collect face rectangles from a raw CFaceRect pointer into a Vec of tuples.
+#[allow(dead_code)]
 unsafe fn collect_face_areas(
     face_rects: *const CFaceRect,
     face_count: usize,
@@ -190,25 +191,6 @@ fn extract_panic_message(panic_info: &Box<dyn std::any::Any + Send>) -> String {
         s.clone()
     } else {
         "unknown panic".to_string()
-    }
-}
-
-/// Execute an FFI function body with panic catching.
-/// Returns ChamaError::ImageProcessError if the closure panics.
-fn catch_ffi_panic<F>(context: &str, f: F) -> ChamaError
-where
-    F: FnOnce() -> ChamaError + std::panic::UnwindSafe,
-{
-    match std::panic::catch_unwind(f) {
-        Ok(error_code) => error_code,
-        Err(panic_info) => {
-            log::error!(
-                "Caught panic in {}: {}",
-                context,
-                extract_panic_message(&panic_info)
-            );
-            ChamaError::ImageProcessError
-        }
     }
 }
 
@@ -419,83 +401,15 @@ fn generate_preview_impl(
     Ok(())
 }
 
-/// Internal implementation of final export
-fn export_final_impl(
-    image_path: &str,
-    output_path: &str,
-    theme_name: &str,
-    params_json: &str,
-    font_path: &str,
-    font_weight: u32,
-) -> Result<(), PreviewError> {
-    export_final_impl_with_exif_source(
-        image_path,
-        image_path, // Use same path for EXIF source by default
-        output_path,
-        theme_name,
-        params_json,
-        font_path,
-        font_weight,
-        None,  // Use default scale config
-        None,  // Use default export config (WebP)
-        false, // get_alt_fnumber - default to false
-        false, // use_35mm_focal_length - default to false
-    )
-}
-
-/// Export with theme, allowing separate EXIF source and optional scale config
-/// This is useful when the image has been modified (e.g., stickers applied)
-/// but we want to read EXIF from the original image
-fn export_final_impl_with_exif_source(
-    image_path: &str,
-    exif_source_path: &str,
-    output_path: &str,
-    theme_name: &str,
-    params_json: &str,
-    font_path: &str,
-    font_weight: u32,
-    scale_config: Option<crate::scale_config::ScaleConfig>,
-    output_format_config: Option<COutputFormatConfig>,
-    get_alt_fnumber: bool,
-    use_35mm_focal_length: bool,
-) -> Result<(), PreviewError> {
-    export_final_impl_with_exif_source_and_override(
-        image_path,
-        exif_source_path,
-        output_path,
-        theme_name,
-        params_json,
-        font_path,
-        font_weight,
-        scale_config,
-        output_format_config,
-        get_alt_fnumber,
-        use_35mm_focal_length,
-        None,
-    )
-}
-
-fn export_final_impl_with_exif_source_and_override(
-    image_path: &str,
-    exif_source_path: &str,
-    output_path: &str,
-    theme_name: &str,
-    params_json: &str,
-    font_path: &str,
-    font_weight: u32,
-    scale_config: Option<crate::scale_config::ScaleConfig>,
-    output_format_config: Option<COutputFormatConfig>,
-    get_alt_fnumber: bool,
-    use_35mm_focal_length: bool,
-    exif_override_json: Option<&str>,
-) -> Result<(), PreviewError> {
+/// Unified internal implementation of theme export
+fn export_final_impl(params: &ThemeExportParams) -> Result<(), PreviewError> {
     // Verify image file exists and is readable before proceeding
     // Note: We intentionally do NOT load the full image here, as it will be loaded
     // again from image_bytes in PackedImage::get_image(). Double-loading wastes ~100MB.
     {
-        let img_path = Path::new(image_path);
+        let img_path = Path::new(params.image_path);
         if !img_path.exists() {
-            log::error!("Image file does not exist: {}", image_path);
+            log::error!("Image file does not exist: {}", params.image_path);
             return Err(PreviewError::ImageLoad(image::ImageError::IoError(
                 std::io::Error::new(std::io::ErrorKind::NotFound, "Image file not found"),
             )));
@@ -503,14 +417,14 @@ fn export_final_impl_with_exif_source_and_override(
         let metadata = std::fs::metadata(img_path).map_err(PreviewError::IoError)?;
         log::info!(
             "✅ Image file verified: {} ({} bytes)",
-            image_path,
+            params.image_path,
             metadata.len()
         );
     }
 
     // Parse EXIF from the original source (not the modified image)
     let exif = {
-        let file = std::fs::File::open(exif_source_path).map_err(PreviewError::IoError)?;
+        let file = std::fs::File::open(params.exif_source_path).map_err(PreviewError::IoError)?;
         let mut buf_reader = std::io::BufReader::new(file);
         exif::Reader::new()
             .read_from_container(&mut buf_reader)
@@ -518,24 +432,24 @@ fn export_final_impl_with_exif_source_and_override(
     };
 
     if exif.is_some() {
-        log::info!("✅ Loaded EXIF from: {}", exif_source_path);
+        log::info!("✅ Loaded EXIF from: {}", params.exif_source_path);
     } else {
-        log::warn!("⚠️ No EXIF data found in: {}", exif_source_path);
+        log::warn!("⚠️ No EXIF data found in: {}", params.exif_source_path);
     }
 
     let original_exif = crate::image::exif_impl::OriginalExif::new(exif);
     let mut view_exif = crate::image::exif_impl::SimplifiedExif::from(&original_exif);
 
     // Apply import configuration settings
-    if get_alt_fnumber {
+    if params.get_alt_fnumber {
         view_exif.replace_with_fnumber_alt_when_invalid();
     }
-    if use_35mm_focal_length {
+    if params.use_35mm_focal_length {
         view_exif.use_35mm_focal_length(&original_exif);
     }
 
     // Apply EXIF overrides from user edits (if provided)
-    if let Some(override_json) = exif_override_json {
+    if let Some(override_json) = params.exif_override_json {
         if !override_json.is_empty() && override_json != "{}" {
             match serde_json::from_str::<crate::image::exif_impl::SimplifiedExif>(override_json) {
                 Ok(override_exif) => {
@@ -578,7 +492,7 @@ fn export_final_impl_with_exif_source_and_override(
     // If image_path differs from exif_source_path, the image has already been processed
     // (e.g., face effects applied via load_image_direct which applies orientation).
     // In this case, we should NOT apply orientation again to avoid double rotation.
-    if image_path != exif_source_path {
+    if params.image_path != params.exif_source_path {
         log::info!(
             "  Image path differs from EXIF source - skipping orientation (already applied)"
         );
@@ -586,22 +500,23 @@ fn export_final_impl_with_exif_source_and_override(
     }
 
     // 3. Create theme instance
-    let mut theme = crate::theme::create_theme(theme_name).ok_or(PreviewError::InvalidTheme)?;
+    let mut theme =
+        crate::theme::create_theme(params.theme_name).ok_or(PreviewError::InvalidTheme)?;
 
     // 4. Update theme parameters from JSON
-    update_theme_from_json(&mut *theme, params_json)?;
+    update_theme_from_json(&mut *theme, params.params_json)?;
 
     // 5. Validate font path and weight
     // Font path and weight will be used by theme rendering
     // Note: font_weight (100-900) will be handled by Swift's variable font system
-    if !Path::new(font_path).exists() {
-        log::warn!("Font path does not exist: {}", font_path);
+    if !Path::new(params.font_path).exists() {
+        log::warn!("Font path does not exist: {}", params.font_path);
         return Err(PreviewError::InvalidFont);
     }
     log::info!(
         "Font validation passed: {} (weight: {})",
-        font_path,
-        font_weight
+        params.font_path,
+        params.font_weight
     );
 
     // 6. Create a PackedImage for theme application
@@ -611,12 +526,12 @@ fn export_final_impl_with_exif_source_and_override(
 
     // Read the image bytes from the input path (which may be a temp file with face effects)
     #[cfg(not(feature = "desktop"))]
-    let image_bytes = match &std::fs::read(image_path) {
+    let image_bytes = match &std::fs::read(params.image_path) {
         Ok(bytes) => {
             log::info!(
                 "✅ Read {} bytes from input image: {}",
                 bytes.len(),
-                image_path
+                params.image_path
             );
             Some(bytes.clone())
         }
@@ -628,7 +543,7 @@ fn export_final_impl_with_exif_source_and_override(
 
     let packed_image = PackedImage {
         uuid: Uuid::new_v4(),
-        path: Path::new(image_path).to_path_buf(),
+        path: Path::new(params.image_path).to_path_buf(),
         src_exif: original_exif,
         view_exif,
         editable: false,
@@ -646,7 +561,7 @@ fn export_final_impl_with_exif_source_and_override(
     let mut export_config = crate::export_config::ExportConfig::default();
 
     // Apply custom scale config if provided
-    if let Some(custom_scale) = scale_config {
+    if let Some(custom_scale) = params.scale_config.as_ref() {
         // Convert core ScaleConfig to export_config ScaleConfig
         export_config.scale_config = crate::export_config::scale_config::ScaleConfig {
             mode: match custom_scale.mode {
@@ -687,7 +602,7 @@ fn export_final_impl_with_exif_source_and_override(
     }
 
     // Apply custom export config (output format and quality) if provided
-    if let Some(output_config) = output_format_config {
+    if let Some(output_config) = params.output_format_config.as_ref() {
         // Set output format
         export_config.output_format = crate::export_config::output_format::OutputFormat {
             ext: convert_c_output_format(output_config.output_format),
@@ -705,7 +620,7 @@ fn export_final_impl_with_exif_source_and_override(
 
     // 8. Save output
     export_config
-        .save_image(&mut themed_image, None, Path::new(output_path))
+        .save_image(&mut themed_image, None, Path::new(params.output_path))
         .map_err(PreviewError::ImageProcess)?;
 
     Ok(())
@@ -767,7 +682,7 @@ fn extract_exif_json_impl(image_path: &str) -> Result<String, PreviewError> {
     serde_json::to_string(&exif_data).map_err(|e| PreviewError::InvalidParameters(e.to_string()))
 }
 
-/// Theme configuration passed from Swift
+/// Theme configuration passed from Swift (legacy, used by chama_generate_preview)
 #[repr(C)]
 pub struct ThemeConfig {
     /// Theme name (e.g., "one_line", "film")
@@ -778,6 +693,22 @@ pub struct ThemeConfig {
     pub font_path: *const c_char,
     /// Font weight (100-900, e.g., 400 for regular, 700 for bold)
     pub font_weight: u32,
+}
+
+/// Internal theme export parameters (Rust-only, not FFI)
+pub(crate) struct ThemeExportParams<'a> {
+    pub image_path: &'a str,
+    pub exif_source_path: &'a str,
+    pub output_path: &'a str,
+    pub theme_name: &'a str,
+    pub params_json: &'a str,
+    pub font_path: &'a str,
+    pub font_weight: u32,
+    pub scale_config: Option<crate::scale_config::ScaleConfig>,
+    pub output_format_config: Option<COutputFormatConfig>,
+    pub get_alt_fnumber: bool,
+    pub use_35mm_focal_length: bool,
+    pub exif_override_json: Option<&'a str>,
 }
 
 /// RGBA image buffer passed from Swift (supports HEIF via Image I/O)
@@ -1144,14 +1075,21 @@ pub unsafe extern "C" fn chama_export_final(
     // Implementation of final export
     // SAFETY: config pointer is checked for null above
     let font_weight = unsafe { (*config).font_weight };
-    match export_final_impl(
+    let theme_params = ThemeExportParams {
         image_path,
+        exif_source_path: image_path,
         output_path,
         theme_name,
         params_json,
         font_path,
         font_weight,
-    ) {
+        scale_config: None,
+        output_format_config: None,
+        get_alt_fnumber: false,
+        use_35mm_focal_length: false,
+        exif_override_json: None,
+    };
+    match export_final_impl(&theme_params) {
         Ok(_) => {
             log::info!("✅ Final export completed successfully");
             ChamaError::Success
@@ -1288,29 +1226,6 @@ pub unsafe extern "C" fn chama_get_version() -> *mut c_char {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn chama_get_available_themes_ios() -> *mut c_char {
     unsafe { chama_get_available_themes() }
-}
-
-/// Apply theme to image (alias for Swift)
-/// This is an alias for chama_generate_preview to maintain API compatibility
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn chama_optics_apply_theme(
-    image_path: *const c_char,
-    output_path: *const c_char,
-    theme_name: *const c_char,
-    params_json: *const c_char,
-    font_path: *const c_char,
-    font_weight: u32,
-) -> ChamaError {
-    // Create config struct
-    let config = ThemeConfig {
-        theme_name,
-        parameters_json: params_json,
-        font_path,
-        font_weight,
-    };
-
-    // Call preview generation function
-    unsafe { chama_generate_preview(image_path, output_path, &config) }
 }
 
 /// Apply theme to image from raw RGBA pixel data (for HEIF/HEIC support)
@@ -1453,372 +1368,115 @@ pub unsafe extern "C" fn chama_optics_apply_theme_from_rgba(
     result
 }
 
-/// Apply theme to image with separate EXIF source
+/// Unified theme export function (replaces apply_theme, _with_exif, _with_exif_scale_and_export, _with_exif_override)
 ///
-/// This function is useful when the image has been modified (e.g., stickers applied)
-/// but we want to read EXIF metadata from the original image file.
-///
-/// # Parameters
-/// - `image_path`: Path to the image to apply theme to (may be modified)
-/// - `exif_source_path`: Path to the original image for reading EXIF data
-/// - `output_path`: Path for the output file
-/// - `theme_name`: Name of the theme to apply
-/// - `params_json`: Theme parameters as JSON string
-/// - `font_path`: Path to the font file
-/// - `font_weight`: Font weight (100-900)
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn chama_optics_apply_theme_with_exif(
-    image_path: *const c_char,
-    exif_source_path: *const c_char,
-    output_path: *const c_char,
-    theme_name: *const c_char,
-    params_json: *const c_char,
-    font_path: *const c_char,
-    font_weight: u32,
-) -> ChamaError {
-    if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
-        return ChamaError::InvalidPath;
-    }
-
-    let image_path_str = unsafe {
-        match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    // Use image_path as EXIF source if exif_source_path is null
-    let exif_source_str = if exif_source_path.is_null() {
-        image_path_str
-    } else {
-        unsafe {
-            match CStr::from_ptr(exif_source_path).to_str() {
-                Ok(s) => s,
-                Err(_) => image_path_str,
-            }
-        }
-    };
-
-    let output_path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    let theme_name_str = unsafe {
-        match CStr::from_ptr(theme_name).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidTheme,
-        }
-    };
-
-    let params_json_str = if params_json.is_null() {
-        "{}"
-    } else {
-        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
-    };
-
-    let font_path_str = if font_path.is_null() {
-        ""
-    } else {
-        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
-    };
-
-    log::info!("Applying theme with separate EXIF source:");
-    log::info!("  Image: {}", image_path_str);
-    log::info!("  EXIF source: {}", exif_source_str);
-    log::info!("  Theme: {}", theme_name_str);
-
-    match export_final_impl_with_exif_source(
-        image_path_str,
-        exif_source_str,
-        output_path_str,
-        theme_name_str,
-        params_json_str,
-        font_path_str,
-        font_weight,
-        None,  // No custom scale config - use default
-        None,  // Use default export config (WebP)
-        false, // get_alt_fnumber - default to false
-        false, // use_35mm_focal_length - default to false
-    ) {
-        Ok(_) => {
-            log::info!("✅ Theme applied successfully with EXIF from original");
-            ChamaError::Success
-        }
-        Err(e) => {
-            log::error!("Failed to apply theme: {}", e);
-            e.into()
-        }
-    }
-}
-
-/// Apply theme to image with separate EXIF source, custom scale config, and export config
-///
-/// Same as `chama_optics_apply_theme_with_exif` but allows specifying custom scale settings
-/// AND output format (JPEG/PNG/WebP) with quality settings.
-/// Use this function when you need to control output image size and format during theme application.
-///
-/// # Parameters
-/// - `image_path`: Path to image to apply theme to (may be modified)
-/// - `exif_source_path`: Path to the original image for reading EXIF data
-/// - `output_path`: Path for the output file (extension should match export format)
-/// - `theme_name`: Name of the theme to apply
-/// - `params_json`: Theme parameters as JSON string
-/// - `font_path`: Path to font file
-/// - `font_weight`: Font weight (100-900)
-/// - `scale_config`: Pointer to CScaleConfig for custom scaling (pass null for default 4K scaling)
-/// - `output_format_config`: Pointer to COutputFormatConfig for format/quality (pass null for default WebP 90)
+/// All optional fields in CThemeExportConfig can be NULL for defaults:
+/// - exif_source_path: NULL = use image_path
+/// - scale_config: NULL = default 4K scaling
+/// - output_format_config: NULL = WebP quality 90
+/// - exif_override_json: NULL = no override
 #[unsafe(no_mangle)]
 #[allow(unsafe_op_in_unsafe_fn)]
-pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_scale_and_export(
-    image_path: *const c_char,
-    exif_source_path: *const c_char,
-    output_path: *const c_char,
-    theme_name: *const c_char,
-    params_json: *const c_char,
-    font_path: *const c_char,
-    font_weight: u32,
-    scale_config: *const CScaleConfig,
-    output_format_config: *const COutputFormatConfig,
-    get_alt_fnumber: bool,
-    use_35mm_focal_length: bool,
-) -> ChamaError {
-    catch_ffi_panic("apply_theme_with_exif_scale_and_export", || unsafe {
-        chama_optics_apply_theme_with_exif_scale_and_export_impl(
-            image_path,
-            exif_source_path,
-            output_path,
-            theme_name,
-            params_json,
-            font_path,
-            font_weight,
-            scale_config,
-            output_format_config,
-            get_alt_fnumber,
-            use_35mm_focal_length,
-        )
-    })
-}
-
-unsafe fn chama_optics_apply_theme_with_exif_scale_and_export_impl(
-    image_path: *const c_char,
-    exif_source_path: *const c_char,
-    output_path: *const c_char,
-    theme_name: *const c_char,
-    params_json: *const c_char,
-    font_path: *const c_char,
-    font_weight: u32,
-    scale_config: *const CScaleConfig,
-    output_format_config: *const COutputFormatConfig,
-    get_alt_fnumber: bool,
-    use_35mm_focal_length: bool,
-) -> ChamaError {
-    if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
-        return ChamaError::InvalidPath;
-    }
-
-    let image_path_str = unsafe {
-        match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    // Use image_path as EXIF source if exif_source_path is null
-    let exif_source_str = if exif_source_path.is_null() {
-        image_path_str
-    } else {
-        unsafe {
-            match CStr::from_ptr(exif_source_path).to_str() {
-                Ok(s) => s,
-                Err(_) => image_path_str,
-            }
-        }
-    };
-
-    let output_path_str = unsafe {
-        match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidPath,
-        }
-    };
-
-    let theme_name_str = unsafe {
-        match CStr::from_ptr(theme_name).to_str() {
-            Ok(s) => s,
-            Err(_) => return ChamaError::InvalidTheme,
-        }
-    };
-
-    let params_json_str = if params_json.is_null() {
-        "{}"
-    } else {
-        unsafe { CStr::from_ptr(params_json).to_str().unwrap_or("{}") }
-    };
-
-    let font_path_str = if font_path.is_null() {
-        ""
-    } else {
-        unsafe { CStr::from_ptr(font_path).to_str().unwrap_or("") }
-    };
-
-    // Convert CScaleConfig to core ScaleConfig if provided
-    let core_scale_config = unsafe { convert_c_scale_config(scale_config) };
-
-    log::info!("Applying theme with separate EXIF source and scale config:");
-    log::info!("  Image: {}", image_path_str);
-    log::info!("  EXIF source: {}", exif_source_str);
-    log::info!("  Theme: {}", theme_name_str);
-    if let Some(ref sc) = core_scale_config {
-        log::info!("  Scale mode: {:?}, value: {}", sc.mode, sc.value);
-    } else {
-        log::info!("  Scale: default (4K)");
-    }
-
-    // Convert COutputFormatConfig if provided
-    let export_config_option = if output_format_config.is_null() {
-        None
-    } else {
-        let config_ref = unsafe { &*output_format_config };
-        Some(*config_ref)
-    };
-
-    match export_final_impl_with_exif_source(
-        image_path_str,
-        exif_source_str,
-        output_path_str,
-        theme_name_str,
-        params_json_str,
-        font_path_str,
-        font_weight,
-        core_scale_config,
-        export_config_option,
-        get_alt_fnumber,
-        use_35mm_focal_length,
-    ) {
-        Ok(_) => {
-            log::info!("✅ Theme applied successfully with EXIF from original");
-            ChamaError::Success
-        }
-        Err(e) => {
-            log::error!("Failed to apply theme: {}", e);
-            e.into()
-        }
-    }
-}
-
-// ============================================================================
-// Theme with EXIF Override (for user-edited EXIF data)
-// ============================================================================
-
-/// Apply theme with EXIF override JSON
-/// Same as chama_optics_apply_theme_with_exif_scale_and_export but accepts
-/// an additional exif_override_json parameter to override EXIF fields from user edits.
-#[unsafe(no_mangle)]
-#[allow(unsafe_op_in_unsafe_fn)]
-pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
-    image_path: *const c_char,
-    exif_source_path: *const c_char,
-    output_path: *const c_char,
-    theme_name: *const c_char,
-    params_json: *const c_char,
-    font_path: *const c_char,
-    font_weight: u32,
-    scale_config: *const CScaleConfig,
-    output_format_config: *const COutputFormatConfig,
-    get_alt_fnumber: bool,
-    use_35mm_focal_length: bool,
-    exif_override_json: *const c_char,
+pub unsafe extern "C" fn chama_optics_apply_theme_v2(
+    config: *const CThemeExportConfig,
 ) -> ChamaError {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        if image_path.is_null() || output_path.is_null() || theme_name.is_null() {
+        if config.is_null() {
             return ChamaError::InvalidPath;
         }
 
-        let image_path_str = match CStr::from_ptr(image_path).to_str() {
+        let config_ref = &*config;
+
+        if config_ref.image_path.is_null()
+            || config_ref.output_path.is_null()
+            || config_ref.theme_name.is_null()
+        {
+            return ChamaError::InvalidPath;
+        }
+
+        let image_path_str = match CStr::from_ptr(config_ref.image_path).to_str() {
             Ok(s) => s,
             Err(_) => return ChamaError::InvalidPath,
         };
 
-        let exif_source_str = if exif_source_path.is_null() {
+        let exif_source_str = if config_ref.exif_source_path.is_null() {
             image_path_str
         } else {
-            match CStr::from_ptr(exif_source_path).to_str() {
+            match CStr::from_ptr(config_ref.exif_source_path).to_str() {
                 Ok(s) => s,
                 Err(_) => image_path_str,
             }
         };
 
-        let output_path_str = match CStr::from_ptr(output_path).to_str() {
+        let output_path_str = match CStr::from_ptr(config_ref.output_path).to_str() {
             Ok(s) => s,
             Err(_) => return ChamaError::InvalidPath,
         };
 
-        let theme_name_str = match CStr::from_ptr(theme_name).to_str() {
+        let theme_name_str = match CStr::from_ptr(config_ref.theme_name).to_str() {
             Ok(s) => s,
             Err(_) => return ChamaError::InvalidTheme,
         };
 
-        let params_json_str = if params_json.is_null() {
+        let params_json_str = if config_ref.params_json.is_null() {
             "{}"
         } else {
-            CStr::from_ptr(params_json).to_str().unwrap_or("{}")
+            CStr::from_ptr(config_ref.params_json)
+                .to_str()
+                .unwrap_or("{}")
         };
 
-        let font_path_str = if font_path.is_null() {
+        let font_path_str = if config_ref.font_path.is_null() {
             ""
         } else {
-            CStr::from_ptr(font_path).to_str().unwrap_or("")
+            CStr::from_ptr(config_ref.font_path).to_str().unwrap_or("")
         };
 
-        let exif_override_str = if exif_override_json.is_null() {
+        let exif_override_str = if config_ref.exif_override_json.is_null() {
             None
         } else {
-            match CStr::from_ptr(exif_override_json).to_str() {
+            match CStr::from_ptr(config_ref.exif_override_json).to_str() {
                 Ok(s) if !s.is_empty() => Some(s),
                 _ => None,
             }
         };
 
-        // Convert CScaleConfig
-        let core_scale_config = convert_c_scale_config(scale_config);
+        let core_scale_config = convert_c_scale_config(config_ref.scale_config);
 
-        let export_config_option = if output_format_config.is_null() {
+        let export_config_option = if config_ref.output_format_config.is_null() {
             None
         } else {
-            let config_ref = &*output_format_config;
-            Some(*config_ref)
+            Some(*config_ref.output_format_config)
         };
 
         log::info!(
-            "Applying theme with EXIF override: image={}, exif_source={}, override={}",
+            "apply_theme_v2: image={}, theme={}",
             image_path_str,
-            exif_source_str,
-            exif_override_str.is_some()
+            theme_name_str
         );
 
-        match export_final_impl_with_exif_source_and_override(
-            image_path_str,
-            exif_source_str,
-            output_path_str,
-            theme_name_str,
-            params_json_str,
-            font_path_str,
-            font_weight,
-            core_scale_config,
-            export_config_option,
-            get_alt_fnumber,
-            use_35mm_focal_length,
-            exif_override_str,
-        ) {
+        let theme_params = ThemeExportParams {
+            image_path: image_path_str,
+            exif_source_path: exif_source_str,
+            output_path: output_path_str,
+            theme_name: theme_name_str,
+            params_json: params_json_str,
+            font_path: font_path_str,
+            font_weight: config_ref.font_weight,
+            scale_config: core_scale_config,
+            output_format_config: export_config_option,
+            get_alt_fnumber: config_ref.get_alt_fnumber,
+            use_35mm_focal_length: config_ref.use_35mm_focal_length,
+            exif_override_json: exif_override_str,
+        };
+
+        match export_final_impl(&theme_params) {
             Ok(_) => {
-                log::info!("✅ Theme applied successfully with EXIF override");
+                log::info!("✅ Theme applied successfully");
                 ChamaError::Success
             }
             Err(e) => {
-                log::error!("Failed to apply theme with EXIF override: {}", e);
+                log::error!("Failed to apply theme: {}", e);
                 e.into()
             }
         }
@@ -1828,7 +1486,7 @@ pub unsafe extern "C" fn chama_optics_apply_theme_with_exif_override(
         Ok(error_code) => error_code,
         Err(panic_info) => {
             let msg = extract_panic_message(&panic_info);
-            log::error!("Caught panic in FFI (EXIF override): {}", msg);
+            log::error!("Caught panic in apply_theme_v2: {}", msg);
             ChamaError::ImageProcessError
         }
     }
@@ -1905,28 +1563,71 @@ pub struct COutputFormatConfig {
     pub quality: u8,
 }
 
-/// Configuration for combined export pipeline
+/// RGBA color (reusable across stroke, face_detection, etc.)
 #[repr(C)]
-pub struct CombinedExportConfig {
-    /// Face effect type (None, Mosaic, Stroke, Sticker)
-    pub face_effect_type: CFaceEffectType,
+#[derive(Debug, Clone, Copy)]
+pub struct CRgbaColor {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
 
-    // Mosaic settings
+/// Face effect configuration (replaces individual mosaic/stroke/sticker functions)
+#[repr(C)]
+pub struct CFaceEffectConfig {
+    /// Face effect type (None, Mosaic, Stroke, Sticker, MosaicStroke)
+    pub effect_type: CFaceEffectType,
+    // Mosaic params
     pub mosaic_block_size: u32,
     pub mosaic_intensity: f32,
-
-    // Stroke settings
-    pub stroke_color_r: u8,
-    pub stroke_color_g: u8,
-    pub stroke_color_b: u8,
-    pub stroke_color_a: u8,
+    // Stroke params
+    pub stroke_color: CRgbaColor,
     pub stroke_thickness: u32,
-
-    // Sticker settings (path to sticker image)
-    pub sticker_image_path: *const c_char,
+    // Sticker params (sticker_path for file-based, sticker_id for built-in)
+    pub sticker_path: *const c_char,
+    pub sticker_id: *const c_char,
     pub sticker_scale: f32,
     pub sticker_offset_x: i32,
     pub sticker_offset_y: i32,
+}
+
+/// Face detection configuration
+#[repr(C)]
+pub struct CFaceDetectionConfig {
+    pub engine_type: u32,
+    pub border_color: CRgbaColor,
+    pub border_thickness: u32,
+    pub mask_faces: bool,
+    pub mask_blur_radius: f32,
+    pub speed_mode: u32,
+}
+
+/// Theme export configuration (replaces 5 theme function variants)
+#[repr(C)]
+pub struct CThemeExportConfig {
+    // Required
+    pub image_path: *const c_char,
+    pub output_path: *const c_char,
+    pub theme_name: *const c_char,
+    pub params_json: *const c_char,
+    pub font_path: *const c_char,
+    pub font_weight: u32,
+    // Optional (NULL = use defaults)
+    pub exif_source_path: *const c_char,
+    pub scale_config: *const CScaleConfig,
+    pub output_format_config: *const COutputFormatConfig,
+    pub exif_override_json: *const c_char,
+    // Flags
+    pub get_alt_fnumber: bool,
+    pub use_35mm_focal_length: bool,
+}
+
+/// Configuration for combined export pipeline
+#[repr(C)]
+pub struct CombinedExportConfig {
+    /// Face effect configuration (embeds CFaceEffectConfig)
+    pub face_effect: CFaceEffectConfig,
 
     // Theme settings (NULL if no theme)
     pub theme_name: *const c_char,
@@ -2191,7 +1892,7 @@ pub unsafe extern "C" fn chama_export_combined(
     log::info!("Combined export pipeline started:");
     log::info!("  Input: {}", image_path_str);
     log::info!("  Output: {}", output_path_str);
-    log::info!("  Face effect: {:?}", config_ref.face_effect_type);
+    log::info!("  Face effect: {:?}", config_ref.face_effect.effect_type);
     log::info!("  Face count: {}", face_count);
 
     // Step 1: Load original image and apply EXIF orientation
@@ -2222,17 +1923,17 @@ pub unsafe extern "C" fn chama_export_combined(
     // Step 2: Apply face effects (if faces provided and effect != None)
     if !face_rects.is_null()
         && face_count > 0
-        && config_ref.face_effect_type != CFaceEffectType::None
+        && config_ref.face_effect.effect_type != CFaceEffectType::None
     {
         let face_areas = unsafe { collect_face_areas(face_rects, face_count) };
 
         log::info!("  Applying face effect to {} faces...", face_areas.len());
 
-        match config_ref.face_effect_type {
+        match config_ref.face_effect.effect_type {
             CFaceEffectType::Mosaic => {
                 let mosaic_config = crate::effect::mosaic::MosaicEffect {
-                    block_size: config_ref.mosaic_block_size,
-                    intensity: config_ref.mosaic_intensity,
+                    block_size: config_ref.face_effect.mosaic_block_size,
+                    intensity: config_ref.face_effect.mosaic_intensity,
                 };
                 if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
                     &mut dyn_image,
@@ -2246,12 +1947,12 @@ pub unsafe extern "C" fn chama_export_combined(
             }
             CFaceEffectType::Stroke => {
                 let stroke_config = crate::effect::stroke::StrokeEffect {
-                    thickness: config_ref.stroke_thickness,
+                    thickness: config_ref.face_effect.stroke_thickness,
                     color: (
-                        config_ref.stroke_color_r,
-                        config_ref.stroke_color_g,
-                        config_ref.stroke_color_b,
-                        config_ref.stroke_color_a,
+                        config_ref.face_effect.stroke_color.r,
+                        config_ref.face_effect.stroke_color.g,
+                        config_ref.face_effect.stroke_color.b,
+                        config_ref.face_effect.stroke_color.a,
                     ),
                 };
                 if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
@@ -2266,9 +1967,9 @@ pub unsafe extern "C" fn chama_export_combined(
             }
             CFaceEffectType::Sticker => {
                 // Load sticker path
-                let sticker_config = if !config_ref.sticker_image_path.is_null() {
+                let sticker_config = if !config_ref.face_effect.sticker_path.is_null() {
                     let sticker_path_str = unsafe {
-                        match CStr::from_ptr(config_ref.sticker_image_path).to_str() {
+                        match CStr::from_ptr(config_ref.face_effect.sticker_path).to_str() {
                             Ok(s) => s,
                             Err(_) => {
                                 log::error!("Invalid sticker path");
@@ -2278,16 +1979,32 @@ pub unsafe extern "C" fn chama_export_combined(
                     };
                     crate::effect::sticker::StickerConfig::with_image_path(
                         std::path::PathBuf::from(sticker_path_str),
-                        config_ref.sticker_scale,
-                        config_ref.sticker_offset_x,
-                        config_ref.sticker_offset_y,
+                        config_ref.face_effect.sticker_scale,
+                        config_ref.face_effect.sticker_offset_x,
+                        config_ref.face_effect.sticker_offset_y,
+                    )
+                } else if !config_ref.face_effect.sticker_id.is_null() {
+                    let sticker_id_str = unsafe {
+                        match CStr::from_ptr(config_ref.face_effect.sticker_id).to_str() {
+                            Ok(s) => s,
+                            Err(_) => {
+                                log::error!("Invalid sticker ID");
+                                return ChamaError::InvalidPath;
+                            }
+                        }
+                    };
+                    crate::effect::sticker::StickerConfig::with_builtin(
+                        sticker_id_str.to_string(),
+                        config_ref.face_effect.sticker_scale,
+                        config_ref.face_effect.sticker_offset_x,
+                        config_ref.face_effect.sticker_offset_y,
                     )
                 } else {
                     crate::effect::sticker::StickerConfig::with_builtin(
                         "heart".to_string(),
-                        config_ref.sticker_scale,
-                        config_ref.sticker_offset_x,
-                        config_ref.sticker_offset_y,
+                        config_ref.face_effect.sticker_scale,
+                        config_ref.face_effect.sticker_offset_x,
+                        config_ref.face_effect.sticker_offset_y,
                     )
                 };
                 dyn_image =
@@ -2297,8 +2014,8 @@ pub unsafe extern "C" fn chama_export_combined(
             CFaceEffectType::MosaicStroke => {
                 // Apply mosaic first (inside the face area)
                 let mosaic_config = crate::effect::mosaic::MosaicEffect {
-                    block_size: config_ref.mosaic_block_size,
-                    intensity: config_ref.mosaic_intensity,
+                    block_size: config_ref.face_effect.mosaic_block_size,
+                    intensity: config_ref.face_effect.mosaic_intensity,
                 };
                 if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
                     &mut dyn_image,
@@ -2311,12 +2028,12 @@ pub unsafe extern "C" fn chama_export_combined(
 
                 // Then apply stroke (border around the face area)
                 let stroke_config = crate::effect::stroke::StrokeEffect {
-                    thickness: config_ref.stroke_thickness,
+                    thickness: config_ref.face_effect.stroke_thickness,
                     color: (
-                        config_ref.stroke_color_r,
-                        config_ref.stroke_color_g,
-                        config_ref.stroke_color_b,
-                        config_ref.stroke_color_a,
+                        config_ref.face_effect.stroke_color.r,
+                        config_ref.face_effect.stroke_color.g,
+                        config_ref.face_effect.stroke_color.b,
+                        config_ref.face_effect.stroke_color.a,
                     ),
                 };
                 if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
@@ -2393,20 +2110,21 @@ pub unsafe extern "C" fn chama_export_combined(
                 None
             };
 
-            let theme_result = export_final_impl_with_exif_source_and_override(
-                &temp_path,     // Image with face effects
-                image_path_str, // Original image for EXIF data
-                output_path_str,
-                theme_name_str,
+            let theme_params = ThemeExportParams {
+                image_path: &temp_path,
+                exif_source_path: image_path_str,
+                output_path: output_path_str,
+                theme_name: theme_name_str,
                 params_json,
                 font_path,
-                config_ref.font_weight,
-                core_scale_config,
-                None, // Use default export config
-                config_ref.get_alt_fnumber,
-                config_ref.use_35mm_focal_length,
-                exif_override_str,
-            );
+                font_weight: config_ref.font_weight,
+                scale_config: core_scale_config,
+                output_format_config: None,
+                get_alt_fnumber: config_ref.get_alt_fnumber,
+                use_35mm_focal_length: config_ref.use_35mm_focal_length,
+                exif_override_json: exif_override_str,
+            };
+            let theme_result = export_final_impl(&theme_params);
 
             // Clean up temp file
             let _ = std::fs::remove_file(&temp_path);
@@ -3626,327 +3344,31 @@ pub extern "C" fn chama_optics_destroy(handle: *mut ChamaOpticsHandle) {
     }
 }
 
-/// Apply Mosaic effect to detected face areas
-#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-#[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub extern "C" fn chama_optics_apply_mosaic(
-    handle: *mut ChamaOpticsHandle,
-    face_rects: *const CFaceRect,
-    face_count: usize,
-    image_path: *const c_char,
-    output_path: *const c_char,
-    mosaic_size: u32,      // Size of mosaic blocks in pixels
-    effect_intensity: f32, // 0.0 to 1.0, blend intensity
-) -> bool {
-    if handle.is_null() || image_path.is_null() || output_path.is_null() {
-        return false;
-    }
-
-    unsafe {
-        let image_str = match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in image path");
-                return false;
-            }
-        };
-
-        let output_str = match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
-
-        let handle_ref = &mut *handle;
-
-        // Load image
-        let path_buf = std::path::PathBuf::from(image_str);
-        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
-            Ok(img) => img,
-            Err(e) => {
-                log::error!("Failed to load image {}: {}", image_str, e);
-                return false;
-            }
-        };
-
-        // Collect face rectangles
-        let face_areas = collect_face_areas(face_rects, face_count);
-
-        // Create Mosaic effect config
-        let mosaic_config = crate::effect::mosaic::MosaicEffect {
-            block_size: mosaic_size,
-            intensity: effect_intensity,
-        };
-
-        // Apply Mosaic effect - pass slice to apply() method
-        log::info!(
-            "Applying Mosaic effect: size={}, intensity={}, {} faces",
-            mosaic_size,
-            effect_intensity,
-            face_areas.len()
-        );
-
-        if let Err(e) =
-            crate::effect::mosaic::MosaicEffect::apply(&mut dyn_image, &face_areas, &mosaic_config)
-        {
-            log::error!("Failed to apply Mosaic effect: {}", e);
-            return false;
-        }
-
-        // Save image
-        let output_path_buf = std::path::PathBuf::from(output_str);
-        match handle_ref
-            .processor
-            .save_image_direct(&dyn_image, &output_path_buf)
-        {
-            Ok(_) => {
-                log::info!(
-                    "Successfully applied Mosaic effect and saved to {}",
-                    output_str
-                );
-                true
-            }
-            Err(e) => {
-                log::error!("Failed to save image: {}", e);
-                false
-            }
-        }
-    }
-}
-
-/// Apply Stroke effect to detected face areas
-#[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub extern "C" fn chama_optics_apply_stroke(
-    handle: *mut ChamaOpticsHandle,
-    face_rects: *const CFaceRect,
-    face_count: usize,
-    image_path: *const c_char,
-    output_path: *const c_char,
-    stroke_color_r: u8,
-    stroke_color_g: u8,
-    stroke_color_b: u8,
-    stroke_color_a: u8,
-    stroke_thickness: u32,
-) -> bool {
-    if handle.is_null() || image_path.is_null() || output_path.is_null() {
-        return false;
-    }
-
-    unsafe {
-        let image_str = match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in image path");
-                return false;
-            }
-        };
-
-        let output_str = match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
-
-        let handle_ref = &mut *handle;
-
-        // Load image
-        let path_buf = std::path::PathBuf::from(image_str);
-        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
-            Ok(img) => img,
-            Err(e) => {
-                log::error!("Failed to load image {}: {}", image_str, e);
-                return false;
-            }
-        };
-
-        // Collect face rectangles
-        let face_areas = collect_face_areas(face_rects, face_count);
-
-        // Create Stroke effect config
-        let stroke_config = crate::effect::stroke::StrokeEffect {
-            thickness: stroke_thickness,
-            color: (
-                stroke_color_r,
-                stroke_color_g,
-                stroke_color_b,
-                stroke_color_a,
-            ),
-        };
-
-        // Apply Stroke effect - pass slice to apply() method
-        log::info!(
-            "Applying Stroke effect: thickness=({}, {}, {}, {}, {}), {} faces",
-            stroke_thickness,
-            stroke_color_r,
-            stroke_color_g,
-            stroke_color_b,
-            stroke_color_a,
-            face_areas.len()
-        );
-
-        if let Err(e) =
-            crate::effect::stroke::StrokeEffect::apply(&mut dyn_image, &face_areas, &stroke_config)
-        {
-            log::error!("Failed to apply Stroke effect: {}", e);
-            return false;
-        }
-
-        // Save image
-        let output_path_buf = std::path::PathBuf::from(output_str);
-        match handle_ref
-            .processor
-            .save_image_direct(&dyn_image, &output_path_buf)
-        {
-            Ok(_) => {
-                log::info!(
-                    "Successfully applied Stroke effect and saved to {}",
-                    output_str
-                );
-                true
-            }
-            Err(e) => {
-                log::error!("Failed to save image: {}", e);
-                false
-            }
-        }
-    }
-}
-
-/// Apply Sticker to detected face areas using built-in sticker ID
-/// For custom image stickers, use chama_optics_apply_sticker_from_path instead
-#[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
+/// Apply face effect to detected face areas (consolidated: mosaic, stroke, sticker, mosaic+stroke)
+/// Dispatches to the appropriate effect based on config.effect_type
 #[cfg(any(target_os = "ios", target_os = "android"))]
-pub extern "C" fn chama_optics_apply_sticker(
-    handle: *mut ChamaOpticsHandle,
-    face_rects: *const CFaceRect,
-    face_count: usize,
-    image_path: *const c_char,
-    output_path: *const c_char,
-    sticker_id: *const c_char, // ID of sticker to apply
-    sticker_scale: f32,        // Scale factor for sticker
-    sticker_offset_x: i32,     // X offset from face center
-    sticker_offset_y: i32,     // Y offset from face center
-) -> bool {
-    if handle.is_null() || image_path.is_null() || output_path.is_null() || sticker_id.is_null() {
-        return false;
-    }
-
-    unsafe {
-        let image_str = match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in image path");
-                return false;
-            }
-        };
-
-        let output_str = match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
-
-        let sticker_str = match CStr::from_ptr(sticker_id).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in sticker ID");
-                return false;
-            }
-        };
-
-        let handle_ref = &mut *handle;
-
-        // Load image
-        let path_buf = std::path::PathBuf::from(image_str);
-        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
-            Ok(img) => img,
-            Err(e) => {
-                log::error!("Failed to load image {}: {}", image_str, e);
-                return false;
-            }
-        };
-
-        // Collect face rectangles
-        let face_areas = collect_face_areas(face_rects, face_count);
-
-        log::info!(
-            "Applying Sticker: id={}, scale={}, offset=({}, {}), {} faces",
-            sticker_str,
-            sticker_scale,
-            sticker_offset_x,
-            sticker_offset_y,
-            face_areas.len()
-        );
-
-        // Apply sticker effect with built-in sticker
-        let config = crate::effect::sticker::StickerConfig::with_builtin(
-            sticker_str.to_string(),
-            sticker_scale,
-            sticker_offset_x,
-            sticker_offset_y,
-        );
-
-        dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
-
-        // Save image
-        let output_path_buf = std::path::PathBuf::from(output_str);
-        match handle_ref
-            .processor
-            .save_image_direct(&dyn_image, &output_path_buf)
-        {
-            Ok(_) => {
-                log::info!(
-                    "Successfully applied Sticker effect and saved to {}",
-                    output_str
-                );
-                true
-            }
-            Err(e) => {
-                log::error!("Failed to save image: {}", e);
-                false
-            }
-        }
-    }
-}
-
-/// Apply Sticker to detected face areas using a custom image path
-/// This is the preferred method for iOS which loads sticker images from file paths
 #[unsafe(no_mangle)]
-#[allow(clippy::too_many_arguments)]
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
-#[cfg(any(target_os = "ios", target_os = "android"))]
-pub extern "C" fn chama_optics_apply_sticker_from_path(
+pub extern "C" fn chama_optics_apply_face_effect(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
     face_count: usize,
     image_path: *const c_char,
     output_path: *const c_char,
-    sticker_image_path: *const c_char, // Path to sticker image file (PNG, JPG, etc.)
-    sticker_scale: f32,                // Scale factor for sticker
-    sticker_offset_x: i32,             // X offset from face center
-    sticker_offset_y: i32,             // Y offset from face center
+    config: *const CFaceEffectConfig,
 ) -> bool {
-    if handle.is_null()
-        || image_path.is_null()
-        || output_path.is_null()
-        || sticker_image_path.is_null()
-    {
+    if handle.is_null() || image_path.is_null() || output_path.is_null() || config.is_null() {
         return false;
     }
 
     unsafe {
+        let config_ref = &*config;
+
+        if config_ref.effect_type == CFaceEffectType::None {
+            log::info!("Face effect type is None, skipping");
+            return true;
+        }
+
         let image_str = match CStr::from_ptr(image_path).to_str() {
             Ok(s) => s,
             Err(_) => {
@@ -3959,14 +3381,6 @@ pub extern "C" fn chama_optics_apply_sticker_from_path(
             Ok(s) => s,
             Err(_) => {
                 log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
-
-        let sticker_path_str = match CStr::from_ptr(sticker_image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in sticker image path");
                 return false;
             }
         };
@@ -3987,24 +3401,125 @@ pub extern "C" fn chama_optics_apply_sticker_from_path(
         let face_areas = collect_face_areas(face_rects, face_count);
 
         log::info!(
-            "Applying Sticker from path: {}, scale={}, offset=({}, {}), {} faces",
-            sticker_path_str,
-            sticker_scale,
-            sticker_offset_x,
-            sticker_offset_y,
+            "Applying face effect {:?} to {} faces",
+            config_ref.effect_type,
             face_areas.len()
         );
 
-        // Apply sticker effect with image path
-        let sticker_path_buf = std::path::PathBuf::from(sticker_path_str);
-        let config = crate::effect::sticker::StickerConfig::with_image_path(
-            sticker_path_buf,
-            sticker_scale,
-            sticker_offset_x,
-            sticker_offset_y,
-        );
+        match config_ref.effect_type {
+            CFaceEffectType::Mosaic => {
+                let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                    block_size: config_ref.mosaic_block_size,
+                    intensity: config_ref.mosaic_intensity,
+                };
+                if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &mosaic_config,
+                ) {
+                    log::error!("Failed to apply Mosaic effect: {}", e);
+                    return false;
+                }
+            }
+            CFaceEffectType::Stroke => {
+                let stroke_config = crate::effect::stroke::StrokeEffect {
+                    thickness: config_ref.stroke_thickness,
+                    color: (
+                        config_ref.stroke_color.r,
+                        config_ref.stroke_color.g,
+                        config_ref.stroke_color.b,
+                        config_ref.stroke_color.a,
+                    ),
+                };
+                if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &stroke_config,
+                ) {
+                    log::error!("Failed to apply Stroke effect: {}", e);
+                    return false;
+                }
+            }
+            CFaceEffectType::Sticker => {
+                let sticker_config = if !config_ref.sticker_path.is_null() {
+                    let sticker_path_str = match CStr::from_ptr(config_ref.sticker_path).to_str() {
+                        Ok(s) => s,
+                        Err(_) => {
+                            log::error!("Invalid UTF-8 in sticker path");
+                            return false;
+                        }
+                    };
+                    crate::effect::sticker::StickerConfig::with_image_path(
+                        std::path::PathBuf::from(sticker_path_str),
+                        config_ref.sticker_scale,
+                        config_ref.sticker_offset_x,
+                        config_ref.sticker_offset_y,
+                    )
+                } else if !config_ref.sticker_id.is_null() {
+                    let sticker_id_str = match CStr::from_ptr(config_ref.sticker_id).to_str() {
+                        Ok(s) => s,
+                        Err(_) => {
+                            log::error!("Invalid UTF-8 in sticker ID");
+                            return false;
+                        }
+                    };
+                    crate::effect::sticker::StickerConfig::with_builtin(
+                        sticker_id_str.to_string(),
+                        config_ref.sticker_scale,
+                        config_ref.sticker_offset_x,
+                        config_ref.sticker_offset_y,
+                    )
+                } else {
+                    // Fallback to default built-in sticker
+                    crate::effect::sticker::StickerConfig::with_builtin(
+                        "heart".to_string(),
+                        config_ref.sticker_scale,
+                        config_ref.sticker_offset_x,
+                        config_ref.sticker_offset_y,
+                    )
+                };
+                dyn_image = crate::effect::sticker::apply_sticker(
+                    dyn_image,
+                    face_areas.clone(),
+                    &sticker_config,
+                );
+            }
+            CFaceEffectType::MosaicStroke => {
+                // Apply mosaic first (inside the face area)
+                let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                    block_size: config_ref.mosaic_block_size,
+                    intensity: config_ref.mosaic_intensity,
+                };
+                if let Err(e) = crate::effect::mosaic::MosaicEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &mosaic_config,
+                ) {
+                    log::error!("Failed to apply mosaic in MosaicStroke: {}", e);
+                    return false;
+                }
 
-        dyn_image = crate::effect::sticker::apply_sticker(dyn_image, face_areas, &config);
+                // Then apply stroke (border around the face area)
+                let stroke_config = crate::effect::stroke::StrokeEffect {
+                    thickness: config_ref.stroke_thickness,
+                    color: (
+                        config_ref.stroke_color.r,
+                        config_ref.stroke_color.g,
+                        config_ref.stroke_color.b,
+                        config_ref.stroke_color.a,
+                    ),
+                };
+                if let Err(e) = crate::effect::stroke::StrokeEffect::apply(
+                    &mut dyn_image,
+                    &face_areas,
+                    &stroke_config,
+                ) {
+                    log::error!("Failed to apply stroke in MosaicStroke: {}", e);
+                    return false;
+                }
+            }
+            CFaceEffectType::None => {}
+        }
 
         // Save image
         let output_path_buf = std::path::PathBuf::from(output_str);
@@ -4014,7 +3529,7 @@ pub extern "C" fn chama_optics_apply_sticker_from_path(
         {
             Ok(_) => {
                 log::info!(
-                    "Successfully applied Sticker from path and saved to {}",
+                    "Successfully applied face effect and saved to {}",
                     output_str
                 );
                 true
@@ -4088,164 +3603,158 @@ pub extern "C" fn chama_optics_detect_faces_ios(
     Box::into_raw(list)
 }
 
-/// Apply face detection rectangles to an image
+/// Apply face detection rectangles to an image (v2: uses CFaceDetectionConfig struct)
 /// This function takes face rectangles from VisionKit and applies them to image
 #[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 #[cfg(any(target_os = "ios", target_os = "android"))]
-pub extern "C" fn chama_optics_apply_face_detection(
+pub extern "C" fn chama_optics_apply_face_detection_v2(
     handle: *mut ChamaOpticsHandle,
     face_rects: *const CFaceRect,
     face_count: usize,
     image_path: *const c_char,
     output_path: *const c_char,
-    engine_type: u32, // 0 = VisionKit, 3 = InsightFace
-    border_color_r: u8,
-    border_color_g: u8,
-    border_color_b: u8,
-    border_color_a: u8,
-    border_thickness: u32,
-    mask_faces: bool,
-    _mask_blur_radius: f32,
-    _speed_mode: u32, // 0 = Fastest, 1 = Fast, 2 = Normal, 3 = Slow, 4 = Slowest
+    config: *const CFaceDetectionConfig,
 ) -> bool {
-    if handle.is_null() || image_path.is_null() || output_path.is_null() {
+    // Early return if no face detection engine is available
+    #[cfg(not(any(
+        feature = "face_detection_insightface",
+        feature = "face_detection_visionkit"
+    )))]
+    {
+        let _ = (
+            handle,
+            face_rects,
+            face_count,
+            image_path,
+            output_path,
+            config,
+        );
+        log::error!("No face detection engine available!");
         return false;
     }
 
-    unsafe {
-        let image_str = match CStr::from_ptr(image_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in image path");
-                return false;
-            }
-        };
+    #[cfg(any(
+        feature = "face_detection_insightface",
+        feature = "face_detection_visionkit"
+    ))]
+    {
+        if handle.is_null() || image_path.is_null() || output_path.is_null() || config.is_null() {
+            return false;
+        }
 
-        let output_str = match CStr::from_ptr(output_path).to_str() {
-            Ok(s) => s,
-            Err(_) => {
-                log::error!("Invalid UTF-8 in output path");
-                return false;
-            }
-        };
+        unsafe {
+            let config_ref = &*config;
 
-        let handle_ref = &mut *handle;
-
-        // Load image
-        let path_buf = std::path::PathBuf::from(image_str);
-        let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
-            Ok(img) => img,
-            Err(e) => {
-                log::error!("Failed to load image {}: {}", image_str, e);
-                return false;
-            }
-        };
-
-        // Collect face rectangles
-        let face_areas = collect_face_areas(face_rects, face_count);
-
-        // Create FaceDetection config with engine
-        let border_color = egui::Color32::from_rgba_unmultiplied(
-            border_color_r,
-            border_color_g,
-            border_color_b,
-            border_color_a,
-        );
-
-        #[cfg(feature = "face_detection_insightface")]
-        let speed_mode = match _speed_mode {
-            0 => crate::effect::insightface_detector::SpeedMode::Fastest,
-            1 => crate::effect::insightface_detector::SpeedMode::Fast,
-            2 => crate::effect::insightface_detector::SpeedMode::Normal,
-            3 => crate::effect::insightface_detector::SpeedMode::Slow,
-            4 => crate::effect::insightface_detector::SpeedMode::Slowest,
-            _ => {
-                log::warn!("Invalid speed_mode {}, using Normal", _speed_mode);
-                crate::effect::insightface_detector::SpeedMode::Normal
-            }
-        };
-
-        let engine = match engine_type {
-            3 => {
-                #[cfg(feature = "face_detection_insightface")]
-                {
-                    crate::effect::face_detection::FaceDetectionEngine::InsightFace
+            let image_str = match CStr::from_ptr(image_path).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    log::error!("Invalid UTF-8 in image path");
+                    return false;
                 }
-                #[cfg(not(feature = "face_detection_insightface"))]
-                {
-                    log::warn!("InsightFace requested but feature not enabled");
+            };
+
+            let output_str = match CStr::from_ptr(output_path).to_str() {
+                Ok(s) => s,
+                Err(_) => {
+                    log::error!("Invalid UTF-8 in output path");
+                    return false;
+                }
+            };
+
+            let handle_ref = &mut *handle;
+
+            // Load image
+            let path_buf = std::path::PathBuf::from(image_str);
+            let mut dyn_image = match handle_ref.processor.load_image_direct(&path_buf) {
+                Ok(img) => img,
+                Err(e) => {
+                    log::error!("Failed to load image {}: {}", image_str, e);
+                    return false;
+                }
+            };
+
+            // Collect face rectangles
+            let face_areas = collect_face_areas(face_rects, face_count);
+
+            // Create FaceDetection config with engine
+            let border_color = egui::Color32::from_rgba_unmultiplied(
+                config_ref.border_color.r,
+                config_ref.border_color.g,
+                config_ref.border_color.b,
+                config_ref.border_color.a,
+            );
+
+            #[cfg(feature = "face_detection_insightface")]
+            let speed_mode = match config_ref.speed_mode {
+                0 => crate::effect::insightface_detector::SpeedMode::Fastest,
+                1 => crate::effect::insightface_detector::SpeedMode::Fast,
+                2 => crate::effect::insightface_detector::SpeedMode::Normal,
+                3 => crate::effect::insightface_detector::SpeedMode::Slow,
+                4 => crate::effect::insightface_detector::SpeedMode::Slowest,
+                _ => {
+                    log::warn!("Invalid speed_mode {}, using Normal", config_ref.speed_mode);
+                    crate::effect::insightface_detector::SpeedMode::Normal
+                }
+            };
+
+            let engine = match config_ref.engine_type {
+                #[cfg(feature = "face_detection_insightface")]
+                3 => crate::effect::face_detection::FaceDetectionEngine::InsightFace,
+                _ => {
                     #[cfg(feature = "face_detection_visionkit")]
                     {
                         crate::effect::face_detection::FaceDetectionEngine::VisionKit
                     }
                     #[cfg(not(feature = "face_detection_visionkit"))]
                     {
-                        log::error!("No face detection engine available!");
-                        return false;
-                    }
-                }
-            }
-            _ => {
-                #[cfg(feature = "face_detection_visionkit")]
-                {
-                    crate::effect::face_detection::FaceDetectionEngine::VisionKit
-                }
-                #[cfg(not(feature = "face_detection_visionkit"))]
-                {
-                    log::warn!("VisionKit requested but feature not enabled");
-                    #[cfg(feature = "face_detection_insightface")]
-                    {
                         crate::effect::face_detection::FaceDetectionEngine::InsightFace
                     }
-                    #[cfg(not(feature = "face_detection_insightface"))]
-                    {
-                        log::error!("No face detection engine available!");
-                        return false;
-                    }
                 }
+            };
+
+            let face_detection = crate::effect::face_detection::FaceDetection {
+                engine,
+                border_color,
+                border_thickness: config_ref.border_thickness,
+                mask_faces: config_ref.mask_faces,
+                #[cfg(feature = "face_detection_insightface")]
+                speed_mode,
+                #[cfg(feature = "face_detection_insightface")]
+                provider:
+                    crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
+                recursive_detection: false,
+                recursive_min_size: 64,
+                recursive_max_depth: 4,
+                recursive_overlap: true,
+                recursive_overlap_ratio: 0.25,
+                effect_mode: crate::effect::face_detection::FaceEffectMode::None,
+                mosaic_block_size: 10,
+            };
+
+            // Apply face detection - pass owned Vec (not borrowed reference)
+            if let Err(e) = face_detection.apply(&mut dyn_image, face_areas) {
+                log::error!("Failed to apply face detection: {}", e);
+                return false;
             }
-        };
 
-        let face_detection = crate::effect::face_detection::FaceDetection {
-            engine,
-            border_color,
-            border_thickness,
-            mask_faces,
-            #[cfg(feature = "face_detection_insightface")]
-            speed_mode,
-            #[cfg(feature = "face_detection_insightface")]
-            provider: crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
-            recursive_detection: false,
-            recursive_min_size: 64,
-            recursive_max_depth: 4,
-            recursive_overlap: true,
-            recursive_overlap_ratio: 0.25,
-            effect_mode: crate::effect::face_detection::FaceEffectMode::None,
-            mosaic_block_size: 10,
-        };
-
-        // Apply face detection - pass owned Vec (not borrowed reference)
-        if let Err(e) = face_detection.apply(&mut dyn_image, face_areas) {
-            log::error!("Failed to apply face detection: {}", e);
-            return false;
-        }
-
-        // Save image
-        let output_path_buf = std::path::PathBuf::from(output_str);
-        match handle_ref
-            .processor
-            .save_image_direct(&dyn_image, &output_path_buf)
-        {
-            Ok(_) => {
-                log::info!(
-                    "Successfully applied face detection and saved to {}",
-                    output_str
-                );
-                true
-            }
-            Err(e) => {
-                log::error!("Failed to save image: {}", e);
-                false
+            // Save image
+            let output_path_buf = std::path::PathBuf::from(output_str);
+            match handle_ref
+                .processor
+                .save_image_direct(&dyn_image, &output_path_buf)
+            {
+                Ok(_) => {
+                    log::info!(
+                        "Successfully applied face detection and saved to {}",
+                        output_str
+                    );
+                    true
+                }
+                Err(e) => {
+                    log::error!("Failed to save image: {}", e);
+                    false
+                }
             }
         }
     }
