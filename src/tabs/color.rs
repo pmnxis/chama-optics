@@ -31,15 +31,26 @@ impl ChamaOptics {
             return Some(());
         }
 
-        // Load original image
-        let image_path = packed_image.path.clone();
-        let original_image = match image::open(&image_path) {
-            Ok(img) => img,
+        // Load original image (supports HEIF/HIF via PackedImage)
+        let orientation = packed_image.view_exif.orientation;
+        let crop_rotate = packed_image.crop_rotate.clone();
+        let (mut original_image, need_orientation) = match packed_image.get_image() {
+            Ok(result) => result,
             Err(e) => {
-                log::error!("Failed to load image {:?}: {:?}", image_path, e);
+                log::error!("Failed to load image {:?}: {:?}", packed_image.path, e);
                 return None;
             }
         };
+
+        // Apply EXIF orientation if needed
+        if need_orientation {
+            original_image.apply_orientation(orientation);
+        }
+
+        // Apply crop/rotate transform
+        if !crop_rotate.is_identity() {
+            original_image = crop_rotate.apply(&original_image);
+        }
 
         // Calculate preview size (max 1920px dimension for performance)
         let max_preview_size = 1920u32;
@@ -345,15 +356,28 @@ impl ChamaOptics {
         let queue = self.crop_preview_queue.clone();
 
         std::thread::spawn(move || {
-            let mut img = match image::open(&image_path) {
-                Ok(img) => img,
+            let load_result = {
+                let file = match std::fs::File::open(&image_path) {
+                    Ok(f) => f,
+                    Err(e) => {
+                        log::error!("Failed to open image for crop canvas: {:?}", e);
+                        return;
+                    }
+                };
+                let mut buf_reader = std::io::BufReader::new(file);
+                crate::image::common::__load_image(&image_path, &mut buf_reader)
+            };
+            let (mut img, need_orientation) = match load_result {
+                Ok(result) => result,
                 Err(e) => {
                     log::error!("Failed to load image for crop canvas: {:?}", e);
                     return;
                 }
             };
 
-            img.apply_orientation(orientation);
+            if need_orientation {
+                img.apply_orientation(orientation);
+            }
 
             match rotation_90 % 4 {
                 1 => img = img.rotate90(),
