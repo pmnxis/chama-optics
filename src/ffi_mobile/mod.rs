@@ -25,12 +25,14 @@ use std::path::Path;
 ///   let s = cstr_to_str!(ptr, return ChamaError::InvalidPath);
 ///   let s = cstr_to_str!(ptr, return std::ptr::null_mut());
 macro_rules! cstr_to_str {
-    ($ptr:expr, return $err:expr) => {
-        match unsafe { CStr::from_ptr($ptr) }.to_str() {
+    ($ptr:expr, return $err:expr) => {{
+        #[allow(unused_unsafe)]
+        let __cstr = unsafe { CStr::from_ptr($ptr) };
+        match __cstr.to_str() {
             Ok(s) => s,
             Err(_) => return $err,
         }
-    };
+    }};
 }
 
 /// Convert a `*const c_char` to `&str`, returning a default value if NULL or invalid UTF-8.
@@ -43,6 +45,7 @@ macro_rules! cstr_to_str_or {
         if $ptr.is_null() {
             $default
         } else {
+            #[allow(unused_unsafe)]
             unsafe { CStr::from_ptr($ptr) }.to_str().unwrap_or($default)
         }
     };

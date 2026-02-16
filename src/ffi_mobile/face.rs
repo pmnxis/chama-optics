@@ -14,6 +14,9 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::path::PathBuf;
 
+// Types used by target_os-gated FFI functions (appear unused on host cargo check)
+#[allow(unused_imports)]
+use super::types::*;
 use crate::core::ImageProcessor;
 
 /// Opaque pointer to ChamaOptics instance (now using headless core)
