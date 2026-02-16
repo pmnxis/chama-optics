@@ -199,11 +199,13 @@ pub extern "C" fn chama_optics_extract_exif(
             }
         };
 
-        // Helper function to get field as string
+        // Helper function to get field as string (with EXIF cleanup)
         let get_field_string = |tag: exif::Tag| -> *const c_char {
             exif.get_field(tag, exif::In::PRIMARY)
                 .and_then(|field| {
-                    CString::new(field.display_value().to_string())
+                    let raw = field.display_value().to_string();
+                    let cleaned = crate::exif_impl::simplify_exif_string(&raw);
+                    CString::new(cleaned)
                         .ok()
                         .map(|s| s.into_raw() as *const c_char)
                 })

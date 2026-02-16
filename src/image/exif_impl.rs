@@ -299,7 +299,7 @@ impl core::default::Default for SimplifiedExif {
 }
 
 /// Remove trash chars from exif string field
-fn simplify_exif_string(input: &str) -> String {
+pub(crate) fn simplify_exif_string(input: &str) -> String {
     let mut parts = Vec::new();
     let mut inside = false;
     let mut current = String::new();

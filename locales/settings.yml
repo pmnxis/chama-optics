@@ -112,6 +112,17 @@ settings:
     ja: "EXIFの絞り値が存在しない、または無効な場合、レンズ情報を解析してF値を復元しようとします。マニュアルフォーカスレンズに有効です。"
     id: "Jika nilai bukaan EXIF hilang atau tidak valid, mencoba memulihkannya dengan mengurai informasi lensa. Berguna untuk lensa fokus manual."
 
+  simplify_lens_model:
+    en: "Simplify Lens Model"
+    ko: "렌즈 모델 간소화"
+    ja: "レンズモデルの簡略化"
+    id: "Sederhanakan Model Lensa"
+  simplify_lens_model_hint:
+    en: "Removes redundant device name from lens model. Useful for smartphones where the lens model repeats the camera model."
+    ko: "렌즈 모델에서 카메라 모델명과 중복되는 부분을 제거합니다. 스마트폰처럼 렌즈 모델에 기기명이 포함된 경우에 유용합니다."
+    ja: "レンズモデルからカメラモデル名と重複する部分を除去します。スマートフォンのようにレンズモデルに機種名が含まれている場合に有効です。"
+    id: "Menghapus nama perangkat yang berulang dari model lensa. Berguna untuk smartphone yang model lensanya mengulangi model kamera."
+
   # Sticker settings
   sticker_size:
     en: "Sticker Size"
@@ -149,10 +160,10 @@ settings:
     ja: "追加済み："
     id: "Ditambahkan:"
   sticker_storage_footer:
-    en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results."
-    ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요."
-    ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。"
-    id: "Tambahkan stiker kustom untuk diterapkan pada wajah terdeteksi. Gunakan gambar PNG transparan untuk hasil terbaik."
+    en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results. Toggle the dice icon to include a sticker in Cheki tab's Play Dice random placement."
+    ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요. 주사위 아이콘을 켜면 체키 탭의 주사위 랜덤 배치에 포함됩니다."
+    ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。ダイスアイコンをオンにすると、チェキタブのダイスランダム配置に含まれます。"
+    id: "Tambahkan stiker kustom untuk diterapkan pada wajah terdeteksi. Gunakan gambar PNG transparan untuk hasil terbaik. Aktifkan ikon dadu untuk menyertakan stiker dalam penempatan acak Play Dice di tab Cheki."
 
   # Default face effect
   default_face_effect:

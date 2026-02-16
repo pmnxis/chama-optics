@@ -38,10 +38,10 @@ color:
     ja: "元画像"
     id: "Asli"
   lut_applied:
-    en: "LUT Applied"
-    ko: "LUT 적용됨"
-    ja: "LUT適用"
-    id: "LUT Diterapkan"
+    en: "Graded"
+    ko: "보정"
+    ja: "補正済み"
+    id: "Graded"
   no_images:
     en: "No images loaded"
     ko: "불러온 이미지가 없습니다"
