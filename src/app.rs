@@ -584,6 +584,7 @@ impl ChamaOptics {
             >,
             lut_storage: &mut crate::effect::lut_storage::LutStorage,
             sticker_storage: &crate::effect::sticker_storage::StickerStorage,
+            import_config: &crate::import_config::ImportConfig,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
             let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
@@ -739,6 +740,27 @@ impl ChamaOptics {
                     .selected_theme_read()
                     .apply_with_faces(&pi, export_config, &new_path, pre_detected_faces)?;
             }
+
+            // Inject EXIF metadata into the output file if enabled (skip PNG)
+            if import_config.save_exif
+                && export_config.output_format.ext
+                    != crate::export_config::output_format::OutputExtension::PngOptimized
+            {
+                let original_path_str = task.path.to_string_lossy();
+                let output_path_str = new_path.to_string_lossy();
+                let exif_override_json = serde_json::to_string(&task.view_exif).ok();
+
+                if let Err(e) = crate::image::exif_inject::inject_exif_to_output(
+                    &original_path_str,
+                    &output_path_str,
+                    exif_override_json.as_deref(),
+                    import_config.get_alt_fnumber,
+                    import_config.use_35mm_focal_length,
+                ) {
+                    log::warn!("EXIF injection failed for image {} (non-fatal): {}", idx, e);
+                }
+            }
+
             Ok(())
         }
 
@@ -835,6 +857,9 @@ impl ChamaOptics {
         // Clone sticker_storage for the background thread (for cheki decoration rendering)
         let sticker_storage = self.sticker_storage.clone_for_thread();
 
+        // Clone import_config for EXIF injection settings
+        let import_config = self.import_config.clone();
+
         // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
 
@@ -871,6 +896,7 @@ impl ChamaOptics {
                         &sticker_processed_images,
                         &mut lut_storage_guard,
                         &sticker_storage,
+                        &import_config,
                     ) {
                         Ok(_) => {
                             log::info!("Successfully saved image {}", idx);

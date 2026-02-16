@@ -48,6 +48,8 @@ pub unsafe extern "C" fn chama_export_cheki(
     color_adjustments_json: *const c_char,
     lut_id: *const c_char,
     output_format_config: *const COutputFormatConfig,
+    save_exif: bool,
+    exif_override_json: *const c_char,
 ) -> ChamaError {
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         chama_export_cheki_impl(
@@ -59,6 +61,8 @@ pub unsafe extern "C" fn chama_export_cheki(
             color_adjustments_json,
             lut_id,
             output_format_config,
+            save_exif,
+            exif_override_json,
         )
     }));
 
@@ -84,6 +88,8 @@ unsafe fn chama_export_cheki_impl(
     color_adjustments_json: *const c_char,
     lut_id: *const c_char,
     output_format_config: *const COutputFormatConfig,
+    save_exif: bool,
+    exif_override_json: *const c_char,
 ) -> ChamaError {
     if image_path.is_null() || output_path.is_null() || cheki_json.is_null() {
         return ChamaError::InvalidPath;
@@ -213,33 +219,49 @@ unsafe fn chama_export_cheki_impl(
     );
 
     // Step 8: Save result
-    if output_format_config.is_null() {
-        match result.save(output_path_str) {
-            Ok(_) => {
-                log::info!("✅ Cheki export completed: {}", output_path_str);
-                ChamaError::Success
-            }
-            Err(e) => {
-                log::error!("Failed to save cheki result: {}", e);
-                ChamaError::ImageProcessError
-            }
-        }
+    let save_result = if output_format_config.is_null() {
+        result.save(output_path_str).map_err(|e| {
+            log::error!("Failed to save cheki result: {}", e);
+            e
+        })
     } else {
         let config_ref = &*output_format_config;
         let output_format = crate::export_config::output_format::OutputFormat {
             ext: super::convert_c_output_format(config_ref.output_format),
             quality: config_ref.quality,
         };
-        match output_format.save_image(&result, output_path_str) {
-            Ok(_) => {
-                log::info!("✅ Cheki export completed: {}", output_path_str);
-                ChamaError::Success
-            }
-            Err(e) => {
+        output_format
+            .save_image(&result, output_path_str)
+            .map_err(|e| {
                 log::error!("Failed to save cheki result: {}", e);
-                ChamaError::ImageProcessError
+                e
+            })
+    };
+
+    match save_result {
+        Ok(_) => {
+            // Step 9: Inject EXIF if enabled
+            if save_exif {
+                let exif_override_str = if exif_override_json.is_null() {
+                    None
+                } else {
+                    let s = cstr_to_str_or!(exif_override_json, "");
+                    if !s.is_empty() { Some(s) } else { None }
+                };
+                if let Err(e) = crate::image::exif_inject::inject_exif_to_output(
+                    image_path_str,
+                    output_path_str,
+                    exif_override_str,
+                    false, // get_alt_fnumber not relevant for cheki
+                    false, // use_35mm_focal_length not relevant for cheki
+                ) {
+                    log::warn!("EXIF injection failed (non-fatal): {}", e);
+                }
             }
+            log::info!("✅ Cheki export completed: {}", output_path_str);
+            ChamaError::Success
         }
+        Err(_) => ChamaError::ImageProcessError,
     }
 }
 

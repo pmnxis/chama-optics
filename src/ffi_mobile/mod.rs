@@ -198,6 +198,57 @@ fn extract_panic_message(panic_info: &Box<dyn std::any::Any + Send>) -> String {
 }
 
 // ============================================================================
+// Standalone EXIF Injection
+// ============================================================================
+
+/// Inject EXIF metadata from original image into an already-exported output file.
+///
+/// Reads EXIF from `original_path`, filters out MakerNote and GPS,
+/// applies user overrides from `exif_override_json`, and injects into
+/// the output file (JPEG or WebP).
+///
+/// # Safety
+/// - All C string pointers must be valid null-terminated strings or null
+#[unsafe(no_mangle)]
+#[cfg(any(target_os = "ios", target_os = "android"))]
+pub unsafe extern "C" fn chama_inject_exif(
+    original_path: *const std::os::raw::c_char,
+    output_path: *const std::os::raw::c_char,
+    exif_override_json: *const std::os::raw::c_char,
+    get_alt_fnumber: bool,
+    use_35mm_focal_length: bool,
+) -> ChamaError {
+    use std::ffi::CStr;
+
+    if original_path.is_null() || output_path.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let original_path_str = cstr_to_str!(original_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let override_json = if exif_override_json.is_null() {
+        None
+    } else {
+        let s = cstr_to_str_or!(exif_override_json, "");
+        if !s.is_empty() { Some(s) } else { None }
+    };
+
+    match crate::image::exif_inject::inject_exif_to_output(
+        original_path_str,
+        output_path_str,
+        override_json,
+        get_alt_fnumber,
+        use_35mm_focal_length,
+    ) {
+        Ok(_) => ChamaError::Success,
+        Err(e) => {
+            log::error!("EXIF injection failed: {}", e);
+            ChamaError::ExifError
+        }
+    }
+}
+
+// ============================================================================
 // Image Loading with HEIF Support
 // ============================================================================
 

@@ -244,6 +244,11 @@ pub struct CombinedExportConfig {
     pub get_alt_fnumber: bool,
     pub use_35mm_focal_length: bool,
     pub exif_override_json: *const c_char,
+
+    // EXIF save settings
+    /// When true, inject filtered EXIF metadata (excluding MakerNote and GPS)
+    /// from the original image into the exported file. User edits are applied.
+    pub save_exif: bool,
 }
 
 // ============================================================================

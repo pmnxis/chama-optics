@@ -6,7 +6,7 @@
 
 use rust_i18n::t;
 
-#[derive(serde::Deserialize, serde::Serialize, Default)]
+#[derive(Clone, serde::Deserialize, serde::Serialize, Default)]
 pub struct ImportConfig {
     /// If true, when EXIF F-number is invalid or missing,
     /// try to extract the minimum aperture value from lens information.
@@ -17,6 +17,10 @@ pub struct ImportConfig {
     /// Useful for comparing focal lengths across different sensor sizes.
     /// iOS default: true, EGUI default: false
     pub use_35mm_focal_length: bool,
+
+    /// If true, inject filtered EXIF metadata (excluding MakerNote and GPS)
+    /// from the original image into the exported file. User edits are applied.
+    pub save_exif: bool,
 }
 
 impl ImportConfig {
@@ -39,6 +43,9 @@ impl ImportConfig {
                 t!("import_config.use_35mm_focal_length.name"),
             )
             .on_hover_text(t!("import_config.use_35mm_focal_length.description"));
+
+            ui.checkbox(&mut self.save_exif, t!("import_config.save_exif.name"))
+                .on_hover_text(t!("import_config.save_exif.description"));
         });
     }
 }

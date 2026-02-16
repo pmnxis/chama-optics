@@ -146,6 +146,7 @@ reqwest = { version = "^0.13", optional = true, features = [
 
 mozjpeg = { version = "0.10.13" }
 webp = "0.3.1"
+img-parts = "0.4"
 oxipng = "^10"
 libheif-rs = { version = "^2.6", default-features = false, features = [
     "v1_18",

@@ -444,7 +444,25 @@ pub unsafe extern "C" fn chama_export_combined(
             match theme_result {
                 Ok(_) => {
                     log::info!("  Theme applied successfully");
-                    // Theme already saved to output_path, we're done
+                    // Theme already saved to output_path
+                    // Inject EXIF if enabled (after theme save)
+                    if config_ref.save_exif && config_ref.output_format != COutputFormat::Png {
+                        let exif_override_str = if config_ref.exif_override_json.is_null() {
+                            None
+                        } else {
+                            let s = cstr_to_str_or!(config_ref.exif_override_json, "");
+                            if !s.is_empty() { Some(s) } else { None }
+                        };
+                        if let Err(e) = crate::image::exif_inject::inject_exif_to_output(
+                            image_path_str,
+                            output_path_str,
+                            exif_override_str,
+                            config_ref.get_alt_fnumber,
+                            config_ref.use_35mm_focal_length,
+                        ) {
+                            log::warn!("EXIF injection failed (non-fatal): {}", e);
+                        }
+                    }
                     log::info!("✅ Combined export completed successfully");
                     return ChamaError::Success;
                 }
@@ -478,6 +496,24 @@ pub unsafe extern "C" fn chama_export_combined(
         config_ref.quality,
     ) {
         Ok(_) => {
+            // Inject EXIF if enabled (after pixel-only save)
+            if config_ref.save_exif && config_ref.output_format != COutputFormat::Png {
+                let exif_override_str = if config_ref.exif_override_json.is_null() {
+                    None
+                } else {
+                    let s = cstr_to_str_or!(config_ref.exif_override_json, "");
+                    if !s.is_empty() { Some(s) } else { None }
+                };
+                if let Err(e) = crate::image::exif_inject::inject_exif_to_output(
+                    image_path_str,
+                    output_path_str,
+                    exif_override_str,
+                    config_ref.get_alt_fnumber,
+                    config_ref.use_35mm_focal_length,
+                ) {
+                    log::warn!("EXIF injection failed (non-fatal): {}", e);
+                }
+            }
             log::info!("✅ Combined export completed successfully");
             ChamaError::Success
         }

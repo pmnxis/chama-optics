@@ -32,3 +32,14 @@ import_config:
       ko: "활성화하면 실제 렌즈의 물리적 초점거리 대신 35mm 환산 초점거리를 표시합니다. 서로 다른 센서 크기의 초점거리를 비교하기 쉽게 만듭니다 (예: 아이폰 사진의 경우 '5.7mm' 대신 '26mm'를 표시)."
       ja: "有効にすると、物理的な焦点距離の代わりに35mm換算焦点距離を表示します。異なるセンサーサイズ間で焦点距離を比較しやすくなります（例：iPhoneの写真で「5.7mm」の代わりに「26mm」を表示）。"
       id: "Jika diaktifkan, menampilkan panjang fokus setara 35mm alih-alih panjang fokus fisik. Ini memudahkan perbandingan panjang fokus di berbagai ukuran sensor (mis. menampilkan '26mm' alih-alih '5.7mm' untuk foto iPhone)."
+  save_exif:
+    name:
+      en: "Save EXIF Data"
+      ko: "EXIF 데이터 저장"
+      ja: "EXIFデータを保存"
+      id: "Simpan Data EXIF"
+    description:
+      en: "Preserves original EXIF metadata (excluding MakerNote and GPS) in exported images. User-edited EXIF fields override original values."
+      ko: "내보낸 이미지에 원본 EXIF 메타데이터(MakerNote 및 GPS 제외)를 보존합니다. 편집한 EXIF 필드는 원본 값을 덮어씁니다."
+      ja: "エクスポート画像に元のEXIFメタデータ（MakerNoteとGPSを除く）を保持します。編集したEXIFフィールドは元の値を上書きします。"
+      id: "Mempertahankan metadata EXIF asli (kecuali MakerNote dan GPS) pada gambar yang diekspor. Bidang EXIF yang diedit akan menimpa nilai asli."

@@ -122,6 +122,16 @@ settings:
     ko: "렌즈 모델에서 카메라 모델명과 중복되는 부분을 제거합니다. 스마트폰처럼 렌즈 모델에 기기명이 포함된 경우에 유용합니다."
     ja: "レンズモデルからカメラモデル名と重複する部分を除去します。スマートフォンのようにレンズモデルに機種名が含まれている場合に有効です。"
     id: "Menghapus nama perangkat yang berulang dari model lensa. Berguna untuk smartphone yang model lensanya mengulangi model kamera."
+  save_exif:
+    en: "Save EXIF Data"
+    ko: "EXIF 데이터 저장"
+    ja: "EXIFデータを保存"
+    id: "Simpan Data EXIF"
+  save_exif_hint:
+    en: "Preserves original EXIF metadata (excluding MakerNote and GPS) in exported images. User-edited EXIF fields override original values."
+    ko: "내보낸 이미지에 원본 EXIF 메타데이터(MakerNote 및 GPS 제외)를 보존합니다. 편집한 EXIF 필드는 원본 값을 덮어씁니다."
+    ja: "エクスポート画像に元のEXIFメタデータ（MakerNoteとGPSを除く）を保持します。編集したEXIFフィールドは元の値を上書きします。"
+    id: "Mempertahankan metadata EXIF asli (kecuali MakerNote dan GPS) pada gambar yang diekspor. Bidang EXIF yang diedit akan menimpa nilai asli."
 
   # Sticker settings
   sticker_size:
