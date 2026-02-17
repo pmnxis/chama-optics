@@ -18,16 +18,10 @@ ignore = ["dist", "target", "bak"]
 [tools]
 wasm-opt = false
 
-# Ensure web_fonts/ exists before cargo build.
-# build.rs populates this directory with font files during compilation.
+# Stage font files into web_fonts/ before Trunk validates copy-dir.
+# build.rs also copies downloaded fonts here during cargo build,
+# but static fonts from assets/fonts/ must be available before copy-dir validation.
 [[hooks]]
 stage = "pre_build"
-command = "mkdir"
-command_arguments = ["-p", "web_fonts"]
-
-# Copy web_fonts/ to dist/Fonts/ after build.rs has populated it.
-[[hooks]]
-stage = "post_build"
 command = "sh"
-command_arguments = ["-c", "mkdir -p dist/Fonts && cp web_fonts/* dist/Fonts/"]
-
+command_arguments = ["-c", "mkdir -p web_fonts && cp -n assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc assets/fonts/SourceHanSansVF-remapped.otf assets/fonts/Barlow-Variable-Remapped.ttf assets/fonts/Barlow-Variable-Remapped-Narrow.ttf web_fonts/ 2>/dev/null; true"]
