@@ -32,6 +32,19 @@ else
     echo "[WARN] assets/fonts directory not found"
 fi
 
+# Also copy build-time downloaded fonts (e.g. DynaPuff from build.rs)
+for build_font in DynaPuff-Variable.ttf; do
+    FONT_SOURCE=$(find target -name "$build_font" 2>/dev/null | head -1)
+    if [ -n "$FONT_SOURCE" ] && [ -f "$FONT_SOURCE" ]; then
+        cp "$FONT_SOURCE" target/debug/Resources/Fonts/
+        cp "$FONT_SOURCE" target/release/Resources/Fonts/
+        FONT_SIZE=$(du -h "$FONT_SOURCE" | cut -f1)
+        echo "[INFO] $build_font ($FONT_SIZE) [from build cache]"
+    else
+        echo "[WARN] $build_font not found in build artifacts"
+    fi
+done
+
 # Copy model if it exists
 # Try 1: Build directory (downloaded during build)
 MODEL_SOURCE=$(find target -name "det_10g.onnx" 2>/dev/null | head -1)

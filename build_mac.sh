@@ -67,6 +67,19 @@ if [ $FONT_COUNT -eq 0 ]; then
     echo "  ⚠ No fonts found in assets/fonts/"
 fi
 
+# Also copy build-time downloaded fonts (e.g. DynaPuff from build.rs)
+for build_font in DynaPuff-Variable.ttf; do
+    FONT_SOURCE=$(find target/release/build -name "$build_font" 2>/dev/null | head -1)
+    if [ -n "$FONT_SOURCE" ] && [ -f "$FONT_SOURCE" ]; then
+        cp "$FONT_SOURCE" target/release/bundle/osx/Chama\ Optics.app/Contents/Resources/Fonts/
+        FONT_SIZE=$(du -h "$FONT_SOURCE" | cut -f1)
+        echo "  ✓ $build_font ($FONT_SIZE) [from build cache]"
+        FONT_COUNT=$((FONT_COUNT + 1))
+    else
+        echo "  ⚠ WARNING: $build_font not found in build artifacts"
+    fi
+done
+
 # 3. Copy logos (SVG files downloaded during build)
 echo "Copying logos..."
 LOGO_COUNT=0
