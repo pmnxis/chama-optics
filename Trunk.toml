@@ -18,3 +18,10 @@ ignore = ["dist", "target", "bak"]
 [tools]
 wasm-opt = false
 
+# Ensure web_fonts/ exists before Trunk validates copy-dir assets.
+# build.rs populates this directory with font files during cargo build.
+[[hooks]]
+stage = "pre_build"
+command = "mkdir"
+command_arguments = ["-p", "web_fonts"]
+
