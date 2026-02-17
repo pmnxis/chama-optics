@@ -113,7 +113,12 @@ jobs:
           mkdir -p "./target/release/bundle/osx/Chama Optics.app"
           cp -R ./app-bundle/* "./target/release/bundle/osx/Chama Optics.app/"
         fi
+
+        # Restore executable permissions lost during artifact upload/download
+        chmod +x "./target/release/bundle/osx/${{ env.APP_NAME }}.app/Contents/MacOS/"*
+
         ls -la "./target/release/bundle/osx/"
+        ls -la "./target/release/bundle/osx/${{ env.APP_NAME }}.app/Contents/MacOS/"
 
     - name: Staple notarization ticket
       run: |
