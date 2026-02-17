@@ -20,7 +20,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 
 ## Current Status
 - [x] Read JPEG/PNG and other common formats
-- [x] Read HEIF photos (native Apple ImageIO on macOS/iOS, libheif on Windows/Linux)
+- [x] Read HEIF photos (native Apple ImageIO on macOS/iOS, libheif on Windows/Linux/FreeBSD)
 - [x] Read EXIF data (supports up to 2.3.x standard; not yet compliant with 3.0)
 - [x] Save photos with selected frames and settings
 - [x] Themes from genally use in another case
@@ -130,6 +130,15 @@ Auto-detects distro and applies the correct build configuration.
 Supports Debian 12/13, Ubuntu 22.04/24.04, Fedora 41+, Rocky/RHEL 9, and Arch Linux.
 See [README_LINUX.md](README_LINUX.md) for details.
 
+### FreeBSD
+
+```sh
+sh build-freebsd.sh
+```
+
+Auto-detects FreeBSD version and installs required dependencies via `pkg`.
+Supports FreeBSD 14.3 and 15.0.
+See [README_FREEBSD.md](README_FREEBSD.md) for details.
 
 ### iOS FFI
 ```bash
