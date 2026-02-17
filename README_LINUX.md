@@ -6,10 +6,17 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 # Chama Optics — Linux Build Guide
 
-## Quick Start
+## Install (one-liner)
 
 ```bash
-# Auto-detects distro and applies correct features
+curl -sSf https://raw.githubusercontent.com/pmnxis/chama-optics/master/quick-install-linux.sh | bash
+```
+
+Prompts you to choose between `stable` (latest release tag) or `latest` (master branch).
+
+## Build from source
+
+```bash
 bash build-linux.sh
 ```
 

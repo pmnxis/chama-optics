@@ -131,10 +131,17 @@ fi
 # Pre-build checks
 # ============================================================================
 
-# Check Rust toolchain
+# Check Rust toolchain, install if missing
 if ! command -v cargo &>/dev/null; then
-    echo "ERROR: cargo not found. Run setup-linux.sh first."
-    exit 1
+    echo "  Rust toolchain not found. Installing via rustup..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    source "$HOME/.cargo/env"
+
+    if ! command -v cargo &>/dev/null; then
+        echo "ERROR: cargo is still not available after rustup install."
+        echo "       Please install Rust manually: https://rustup.rs/"
+        exit 1
+    fi
 fi
 
 # Check freetype version for distros that need source build
