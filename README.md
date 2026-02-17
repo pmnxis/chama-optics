@@ -122,85 +122,13 @@ open -n "Chama Optics.app"
 
 ### Linux
 
-#### Prerequisites
-1. Install [Rust](https://rustup.rs/)
-2. Install system dependencies
-
-#### System Dependencies
-
-**Ubuntu/Debian:**
 ```bash
-# GUI dependencies
-sudo apt-get install libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-    libxkbcommon-dev libssl-dev pkg-config fontconfig
-
-# HEIF support (required for HEIC/HEIF images on Linux)
-sudo apt-get install libheif-dev libde265-dev x265
-
-# Optional: Build libheif from source (if needed)
-source ./build_deps_debian.sh
+bash build-linux.sh
 ```
 
-**Fedora/RHEL:**
-```bash
-sudo dnf install clang clang-devel clang-tools-extra libxkbcommon-devel \
-    pkg-config openssl-devel libxcb-devel gtk3-devel atk fontconfig-devel
-
-# HEIF support (required for HEIC/HEIF images on Linux)
-sudo dnf install libheif-devel libde265-devel x265-devel
-```
-
-**Arch Linux:**
-```bash
-sudo pacman -S base-devel pkg-config fontconfig libheif
-```
-
-> **Note:** On Linux/Windows, use `--features libheif` to enable HEIF support.
-> On macOS/iOS, native Apple ImageIO is used instead (no libheif needed).
-
-#### Building
-Use the provided build script:
-
-```bash
-chmod +x build_linux.sh
-./build_linux.sh
-```
-
-Or build manually:
-
-```bash
-# Build release version
-cargo build --release --features desktop
-
-# Run directly
-cargo run --release --features desktop
-
-# Create bundled executable
-cargo install cargo-bundle
-cargo bundle --release
-```
-
-#### Output
-- Debug build: `target/debug/chama-optics`
-- Release build: `target/release/chama-optics`
-- Bundled app: `target/release/bundle/linux/chama-optics`
-
-#### Features on Linux
-- ✅ Full GUI support
-- ✅ File dialogs
-- ✅ System fonts
-- ✅ HEIF/HEIC support (with `--features libheif`)
-- ✅ Wayland and X11 support
-- ⚠️ Face detection: Not tested
-
-#### Known Limitations on Linux
-
-**Face Detection with InsightFace Feature:**
-The `--features face_detection_insightface` flag may have compatibility issues on Linux depending on your system configuration and ONNX Runtime version.
-
-**Recommendation:**
-- Default build (without `face_detection_insightface`): ✅ Recommended
-- With `face_detection_insightface` feature: ⚠️ Experimental, may require additional system dependencies
+Auto-detects distro and applies the correct build configuration.
+Supports Debian 12/13, Ubuntu 22.04/24.04, Fedora 41+, Rocky/RHEL 9, and Arch Linux.
+See [README_LINUX.md](README_LINUX.md) for details.
 
 
 ### iOS FFI
