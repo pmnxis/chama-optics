@@ -122,6 +122,37 @@ impl ChamaOptics {
     /// Render the Color tab with split-view preview
     /// Per-image LUT selection - each image has its own LUT configuration
     pub(crate) fn render_color_tab(&mut self, ui: &mut egui::Ui) {
+        // Poll pending LUT file picker dialog
+        #[cfg(feature = "rfd")]
+        if let Some(ref pending) = self.pending_lut_pick
+            && let Some(result) = pending.try_recv()
+        {
+            self.pending_lut_pick = None;
+            if let Some(path) = result {
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Unnamed LUT")
+                    .to_string();
+
+                match self.lut_storage.add_lut(name.clone(), &path) {
+                    Ok(id) => {
+                        log::info!("Successfully added LUT: {} (id: {})", name, id);
+                        if let Some(idx) = self.color_selected_index
+                            && let Some(pi) = self.packed_images.get_mut(idx)
+                        {
+                            pi.lut_id = Some(id);
+                            log::info!("Auto-assigned new LUT to image index {}", idx);
+                        }
+                        self.color_preview_cache_key = None;
+                    }
+                    Err(e) => {
+                        log::error!("Failed to add LUT: {:?}", e);
+                    }
+                }
+            }
+        }
+
         ui.heading(t!("tabs.color_heading", default = "Color Grading"));
         ui.separator();
 
@@ -300,7 +331,7 @@ impl ChamaOptics {
 
                 // Handle LUT UI actions
                 if action == LutUiAction::OpenAddDialog {
-                    self.open_lut_file_dialog();
+                    self.spawn_lut_file_dialog();
                 }
 
                 ui.add_space(10.0);
@@ -1337,38 +1368,50 @@ impl ChamaOptics {
         }
     }
 
-    /// Open file dialog to add a LUT file
-    fn open_lut_file_dialog(&mut self) {
-        use rfd::FileDialog;
+    /// Spawn async file dialog to add a LUT file (result polled in render_color_tab)
+    fn spawn_lut_file_dialog(&mut self) {
+        #[cfg(feature = "rfd")]
+        if self.pending_lut_pick.is_none() {
+            let title: String =
+                t!("color.select_lut_file", default = "Select LUT File").to_string();
+            self.pending_lut_pick =
+                Some(crate::util::async_file_dialog::pick_file_with_title_async(
+                    &title,
+                    "CUBE LUT",
+                    &["cube", "CUBE"],
+                ));
+        }
 
-        let file = FileDialog::new()
-            .add_filter("CUBE LUT", &["cube", "CUBE"])
-            .set_title(t!("color.select_lut_file", default = "Select LUT File"))
-            .pick_file();
+        #[cfg(all(feature = "desktop", not(feature = "rfd")))]
+        {
+            use rfd::FileDialog;
 
-        if let Some(path) = file {
-            // Extract name from filename (without extension)
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("Unnamed LUT")
-                .to_string();
+            let file = FileDialog::new()
+                .add_filter("CUBE LUT", &["cube", "CUBE"])
+                .set_title(t!("color.select_lut_file", default = "Select LUT File"))
+                .pick_file();
 
-            match self.lut_storage.add_lut(name.clone(), &path) {
-                Ok(id) => {
-                    log::info!("Successfully added LUT: {} (id: {})", name, id);
-                    // Auto-assign the newly added LUT to current image
-                    if let Some(idx) = self.color_selected_index
-                        && let Some(pi) = self.packed_images.get_mut(idx)
-                    {
-                        pi.lut_id = Some(id);
-                        log::info!("Auto-assigned new LUT to image index {}", idx);
+            if let Some(path) = file {
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Unnamed LUT")
+                    .to_string();
+
+                match self.lut_storage.add_lut(name.clone(), &path) {
+                    Ok(id) => {
+                        log::info!("Successfully added LUT: {} (id: {})", name, id);
+                        if let Some(idx) = self.color_selected_index
+                            && let Some(pi) = self.packed_images.get_mut(idx)
+                        {
+                            pi.lut_id = Some(id);
+                            log::info!("Auto-assigned new LUT to image index {}", idx);
+                        }
+                        self.color_preview_cache_key = None;
                     }
-                    // Invalidate preview cache
-                    self.color_preview_cache_key = None;
-                }
-                Err(e) => {
-                    log::error!("Failed to add LUT: {:?}", e);
+                    Err(e) => {
+                        log::error!("Failed to add LUT: {:?}", e);
+                    }
                 }
             }
         }

@@ -6,3 +6,6 @@
 
 #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 pub(crate) mod check_update;
+
+#[cfg(feature = "rfd")]
+pub(crate) mod async_file_dialog;

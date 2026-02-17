@@ -101,7 +101,7 @@ impl StickerItem {
 }
 
 /// Storage manager for stickers
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct StickerStorage {
     /// List of available stickers
     pub stickers: Vec<StickerItem>,
@@ -115,6 +115,26 @@ pub struct StickerStorage {
     #[serde(skip)]
     #[cfg(feature = "egui")]
     pub texture_cache: HashMap<Uuid, egui::TextureHandle>,
+
+    /// Pending async file picker dialog (macOS drag-drop safe)
+    #[serde(skip)]
+    #[cfg(feature = "rfd")]
+    pending_sticker:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<std::path::PathBuf>>>,
+}
+
+impl Clone for StickerStorage {
+    fn clone(&self) -> Self {
+        Self {
+            stickers: self.stickers.clone(),
+            default_sticker_id: self.default_sticker_id,
+            storage_directory: self.storage_directory.clone(),
+            #[cfg(feature = "egui")]
+            texture_cache: self.texture_cache.clone(),
+            #[cfg(feature = "rfd")]
+            pending_sticker: None,
+        }
+    }
 }
 
 impl Default for StickerStorage {
@@ -125,6 +145,8 @@ impl Default for StickerStorage {
             storage_directory: Self::default_storage_path(),
             #[cfg(feature = "egui")]
             texture_cache: HashMap::new(),
+            #[cfg(feature = "rfd")]
+            pending_sticker: None,
         }
     }
 }
@@ -252,6 +274,8 @@ impl StickerStorage {
             storage_directory: self.storage_directory.clone(),
             #[cfg(feature = "egui")]
             texture_cache: HashMap::new(),
+            #[cfg(feature = "rfd")]
+            pending_sticker: None,
         }
     }
 
@@ -271,6 +295,25 @@ impl StickerStorage {
     /// Render UI for sticker storage management
     #[cfg(feature = "egui")]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+        // Poll pending sticker file picker dialog
+        #[cfg(feature = "rfd")]
+        if let Some(ref pending) = self.pending_sticker
+            && let Some(result) = pending.try_recv()
+        {
+            self.pending_sticker = None;
+            if let Some(path) = result {
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Sticker")
+                    .to_string();
+
+                if let Err(e) = self.add_sticker(name, &path) {
+                    log::error!("Failed to add sticker: {}", e);
+                }
+            }
+        }
+
         ui.heading(t!("sticker.title"));
         ui.separator();
 
@@ -367,19 +410,17 @@ impl StickerStorage {
 
         // Add sticker button (requires file dialog)
         #[cfg(feature = "rfd")]
-        if ui.button(t!("sticker.add_sticker")).clicked()
-            && let Some(path) = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif"])
-                .pick_file()
         {
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("Sticker")
-                .to_string();
-
-            if let Err(e) = self.add_sticker(name, &path) {
-                log::error!("Failed to add sticker: {}", e);
+            let is_pending = self.pending_sticker.is_some();
+            if ui
+                .add_enabled(!is_pending, egui::Button::new(t!("sticker.add_sticker")))
+                .clicked()
+                && !is_pending
+            {
+                self.pending_sticker = Some(crate::util::async_file_dialog::pick_file_async(
+                    Some("Images"),
+                    Some(&["png", "jpg", "jpeg", "webp", "gif"]),
+                ));
             }
         }
     }

@@ -67,6 +67,12 @@ pub struct PackedImage {
     /// Applied after EXIF orientation but before theme rendering.
     /// Face detection runs on original image; coords are transformed via this.
     pub crop_rotate: crate::effect::crop_rotate::CropRotateTransform,
+
+    /// Pending async save-file dialog (macOS drag-drop safe)
+    #[cfg(feature = "rfd")]
+    #[allow(dead_code)] // used in desktop update_ui, not in ios_integration builds
+    pub(crate) pending_save:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<std::path::PathBuf>>>,
 }
 
 impl PackedImage {
@@ -243,6 +249,8 @@ impl PackedImage {
             configured_faces: Vec::new(), // No faces configured yet
             lut_id: None,          // No LUT configured yet
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+            #[cfg(feature = "rfd")]
+            pending_save: None,
         })
     }
 
@@ -277,6 +285,8 @@ impl PackedImage {
             configured_faces: Vec::new(), // No faces configured in CLI mode
             lut_id: None,        // No LUT configured in CLI mode
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+            #[cfg(feature = "rfd")]
+            pending_save: None,
         })
     }
 
@@ -366,6 +376,28 @@ impl PackedImage {
     ) -> PackedImageEvent {
         let mut ret = PackedImageEvent::None;
 
+        // Poll pending save-file dialog
+        #[cfg(feature = "rfd")]
+        if let Some(ref pending) = self.pending_save
+            && let Some(result) = pending.try_recv()
+        {
+            self.pending_save = None;
+            if let Some(output_path) = result {
+                match export_config.theme_reg.selected_theme_read().apply(
+                    self,
+                    export_config,
+                    &output_path,
+                ) {
+                    Ok(_) => {
+                        log::info!("Saved with EXIF overlay to {output_path:?}");
+                    }
+                    Err(e) => {
+                        log::error!("Failed to save EXIF overlay: {e:?}");
+                    }
+                }
+            }
+        }
+
         ui.group(|ui| {
             ui.horizontal(|ui| {
                 let ui_builder = egui::UiBuilder::new();
@@ -392,7 +424,28 @@ impl PackedImage {
                     if !self.editable {
                         ui.horizontal(|ui| {
                             ui.horizontal(|ui| {
-                                #[cfg(feature = "desktop")]
+                                #[cfg(feature = "rfd")]
+                                {
+                                    let is_pending = self.pending_save.is_some();
+                                    if ui
+                                        .add_enabled(
+                                            !is_pending,
+                                            egui::Button::new(t!("common.actions.save"))
+                                                .fill(egui::Color32::GREEN),
+                                        )
+                                        .clicked()
+                                        && !is_pending
+                                    {
+                                        let new_default_file_name =
+                                            self.prepostfixed_filename(export_config);
+                                        self.pending_save =
+                                            Some(crate::util::async_file_dialog::save_file_async(
+                                                &new_default_file_name,
+                                            ));
+                                    }
+                                }
+
+                                #[cfg(all(feature = "desktop", not(feature = "rfd")))]
                                 if ui
                                     .add(
                                         egui::Button::new(t!("common.actions.save"))

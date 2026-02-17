@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT
+#
 # Android NDK cross-compilation configuration
 # Requires Android NDK installed at ~/Library/Android/sdk/ndk/27.2.12479018/
 #

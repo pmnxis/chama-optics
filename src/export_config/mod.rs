@@ -70,6 +70,7 @@ impl ExportConfig {
                 postfix: "-testcase".to_owned(),
                 folder: std::path::PathBuf::from_str("test_image/export").unwrap(),
                 remove_after_bulk_save: false,
+                ..Default::default()
             },
             theme_reg: crate::theme::ThemeRegistry::new(),
             watermark: crate::effect::watermark::Watermark::default(),

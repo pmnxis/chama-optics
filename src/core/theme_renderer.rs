@@ -38,6 +38,8 @@ fn create_packed_image_from_dynamic(
         configured_faces: Vec::new(),
         lut_id: None, // Core renderer doesn't use LUT
         crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+        #[cfg(feature = "rfd")]
+        pending_save: None,
     })
 }
 

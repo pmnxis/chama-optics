@@ -164,6 +164,8 @@ impl ImageProcessor {
             configured_faces: Vec::new(),
             lut_id: None, // Core processor doesn't use LUT
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+            #[cfg(feature = "rfd")]
+            pending_save: None,
         };
 
         // Use ExportConfig for theme application

@@ -9,12 +9,33 @@
 use crate::ChamaOptics;
 use rust_i18n::t;
 
-#[cfg(feature = "rfd")]
-use rfd;
-
 impl ChamaOptics {
     /// Render Sticker management tab
     pub(crate) fn render_sticker_tab(&mut self, ui: &mut egui::Ui) {
+        // Poll pending sticker pick dialog
+        #[cfg(feature = "rfd")]
+        if let Some(ref pending) = self.pending_sticker_pick
+            && let Some(result) = pending.try_recv()
+        {
+            self.pending_sticker_pick = None;
+            if let Some(path) = result {
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Sticker")
+                    .to_string();
+
+                match self.sticker_storage.add_sticker(name.clone(), &path) {
+                    Ok(_) => {
+                        log::info!("Added sticker: {}", name);
+                    }
+                    Err(e) => {
+                        log::error!("Failed to add sticker: {}", e);
+                    }
+                }
+            }
+        }
+
         // Wrap entire tab content in scrollable area
         egui::ScrollArea::vertical()
             .id_salt("sticker_tab_scroll")
@@ -425,24 +446,18 @@ impl ChamaOptics {
                 // Add sticker button
                 ui.add_space(10.0);
                 #[cfg(feature = "rfd")]
-                if ui.button(t!("sticker.add_sticker")).clicked()
-                    && let Some(path) = rfd::FileDialog::new()
-                        .add_filter("Images", &["png", "jpg", "jpeg", "webp", "gif"])
-                        .pick_file()
                 {
-                    let name = path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("Sticker")
-                        .to_string();
-
-                    match self.sticker_storage.add_sticker(name.clone(), &path) {
-                        Ok(_) => {
-                            log::info!("Added sticker: {}", name);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to add sticker: {}", e);
-                        }
+                    let is_pending = self.pending_sticker_pick.is_some();
+                    if ui
+                        .add_enabled(!is_pending, egui::Button::new(t!("sticker.add_sticker")))
+                        .clicked()
+                        && !is_pending
+                    {
+                        self.pending_sticker_pick =
+                            Some(crate::util::async_file_dialog::pick_file_async(
+                                Some("Images"),
+                                Some(&["png", "jpg", "jpeg", "webp", "gif"]),
+                            ));
                     }
                 }
             });

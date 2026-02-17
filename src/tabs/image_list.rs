@@ -12,6 +12,19 @@ use rust_i18n::t;
 impl ChamaOptics {
     /// Render Tab 1: Image List
     pub(crate) fn render_image_list_tab(&mut self, ui: &mut egui::Ui) {
+        // Poll pending pick-files dialog
+        #[cfg(feature = "rfd")]
+        if let Some(ref pending) = self.pending_pick_files
+            && let Some(result) = pending.try_recv()
+        {
+            self.pending_pick_files = None;
+            if let Some(open_files) = result {
+                for file in open_files.iter() {
+                    self.pending_paths.push_back(file.to_owned());
+                }
+            }
+        }
+
         // Reduce default spacing for this tab
         ui.spacing_mut().item_spacing.y = 4.0; // Reduced from default ~8.0
 
@@ -25,7 +38,20 @@ impl ChamaOptics {
             ui.strong(t!("app.images.list"));
 
             // File dialog button
-            #[cfg(feature = "desktop")]
+            #[cfg(feature = "rfd")]
+            {
+                let is_pending = self.pending_pick_files.is_some();
+                if ui
+                    .add_enabled(!is_pending, egui::Button::new(t!("app.open_files.button")))
+                    .clicked()
+                    && !is_pending
+                {
+                    self.pending_pick_files =
+                        Some(crate::util::async_file_dialog::pick_files_async());
+                }
+            }
+
+            #[cfg(all(feature = "desktop", not(feature = "rfd")))]
             if ui.button(t!("app.open_files.button")).clicked()
                 && let Some(open_files) = rfd::FileDialog::new().pick_files()
             {

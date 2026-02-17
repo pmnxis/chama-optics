@@ -309,6 +309,8 @@ pub fn create_packed_image_from_data(
             configured_faces: Vec::new(), // No faces configured from loader
             lut_id: None,                 // No LUT configured from loader
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+            #[cfg(feature = "rfd")]
+            pending_save: None,
         })
     } else {
         log::error!("No thumbnail for {:?}", data.path);

@@ -367,6 +367,24 @@ pub struct ChamaOptics {
     /// Background thread queue for crop canvas generation
     #[serde(skip)]
     pub(crate) crop_preview_queue: CropPreviewQueue,
+
+    /// Pending async file dialog: pick multiple files (image list tab)
+    #[serde(skip)]
+    #[cfg(feature = "rfd")]
+    pub(crate) pending_pick_files:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<Vec<PathBuf>>>>,
+
+    /// Pending async file dialog: pick sticker image file (sticker tab)
+    #[serde(skip)]
+    #[cfg(feature = "rfd")]
+    pub(crate) pending_sticker_pick:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<PathBuf>>>,
+
+    /// Pending async file dialog: pick LUT .cube file (color tab)
+    #[serde(skip)]
+    #[cfg(feature = "rfd")]
+    pub(crate) pending_lut_pick:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<PathBuf>>>,
 }
 
 impl Default for ChamaOptics {
@@ -435,6 +453,12 @@ impl Default for ChamaOptics {
             crop_interaction_state: CropInteractionState::default(),
             cheki_preview_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
             crop_preview_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            #[cfg(feature = "rfd")]
+            pending_pick_files: None,
+            #[cfg(feature = "rfd")]
+            pending_sticker_pick: None,
+            #[cfg(feature = "rfd")]
+            pending_lut_pick: None,
         }
     }
 }

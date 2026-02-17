@@ -7,12 +7,65 @@
 use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Deserialize, Serialize)]
 pub struct OutputName {
     pub prefix: String,
     pub postfix: String,
     pub folder: std::path::PathBuf,
     pub remove_after_bulk_save: bool,
+
+    /// Pending async folder picker dialog (macOS drag-drop safe)
+    #[serde(skip)]
+    #[cfg(feature = "rfd")]
+    pub(crate) pending_folder:
+        Option<crate::util::async_file_dialog::PendingDialog<Option<std::path::PathBuf>>>,
+}
+
+impl Clone for OutputName {
+    fn clone(&self) -> Self {
+        Self {
+            prefix: self.prefix.clone(),
+            postfix: self.postfix.clone(),
+            folder: self.folder.clone(),
+            remove_after_bulk_save: self.remove_after_bulk_save,
+            #[cfg(feature = "rfd")]
+            pending_folder: None,
+        }
+    }
+}
+
+impl PartialEq for OutputName {
+    fn eq(&self, other: &Self) -> bool {
+        self.prefix == other.prefix
+            && self.postfix == other.postfix
+            && self.folder == other.folder
+            && self.remove_after_bulk_save == other.remove_after_bulk_save
+    }
+}
+
+impl Eq for OutputName {}
+
+impl PartialOrd for OutputName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for OutputName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (
+            &self.prefix,
+            &self.postfix,
+            &self.folder,
+            &self.remove_after_bulk_save,
+        )
+            .cmp(&(
+                &other.prefix,
+                &other.postfix,
+                &other.folder,
+                &other.remove_after_bulk_save,
+            ))
+    }
 }
 
 impl core::default::Default for OutputName {
@@ -22,6 +75,8 @@ impl core::default::Default for OutputName {
             postfix: "-OPTICS".to_owned(),
             folder: Self::default_path(),
             remove_after_bulk_save: false,
+            #[cfg(feature = "rfd")]
+            pending_folder: None,
         }
     }
 }
@@ -53,18 +108,48 @@ impl OutputName {
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
+        #[cfg(feature = "rfd")]
+        {
+            // Poll pending folder dialog
+            if let Some(ref pending) = self.pending_folder
+                && let Some(result) = pending.try_recv()
+            {
+                self.pending_folder = None;
+                if let Some(output_path) = result {
+                    self.folder = output_path.clone();
+                    if !self.check_folder_available(true) {
+                        log::error!("Cannot access following directory {output_path:?}");
+                        self.folder = Self::default_path();
+                    }
+                }
+            }
+        }
+
         ui.horizontal(|ui| {
             ui.label(t!("export_config.output_name.save_directory"));
 
-            #[allow(clippy::collapsible_if)]
-            #[cfg(feature = "desktop")]
+            #[cfg(feature = "rfd")]
+            {
+                let is_pending = self.pending_folder.is_some();
+                if ui
+                    .add_enabled(
+                        !is_pending,
+                        egui::Button::new(t!("export_config.output_name.select_directory")),
+                    )
+                    .clicked()
+                    && !is_pending
+                {
+                    self.pending_folder = Some(crate::util::async_file_dialog::pick_folder_async());
+                }
+            }
+
+            #[cfg(all(feature = "desktop", not(feature = "rfd")))]
             if ui
                 .button(t!("export_config.output_name.select_directory"))
                 .clicked()
             {
                 if let Some(output_path) = rfd::FileDialog::new().pick_folder() {
                     self.folder = output_path.clone();
-
                     if !self.check_folder_available(true) {
                         log::error!("Cannot access following directory {output_path:?}");
                         self.folder = Self::default_path();

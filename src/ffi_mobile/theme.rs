@@ -141,6 +141,8 @@ fn generate_preview_impl(
         configured_faces: Vec::with_capacity(0),
         lut_id: None, // iOS FFI doesn't use LUT yet
         crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+        #[cfg(feature = "rfd")]
+        pending_save: None,
     };
 
     // 7. Apply theme
@@ -311,6 +313,8 @@ pub(super) fn export_final_impl(params: &ThemeExportParams) -> Result<(), ChamaO
         configured_faces: Vec::with_capacity(0), // todo - check is this right?
         lut_id: None,                            // iOS FFI doesn't use LUT yet
         crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
+        #[cfg(feature = "rfd")]
+        pending_save: None,
     };
 
     // 7. Apply theme with custom scale config if provided
