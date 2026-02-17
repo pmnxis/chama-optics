@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+<!-- Disable zooming -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<head>
+    <title>Chama Optics</title>
+
+    <!-- Trunk: compile Rust WASM with "web" feature, no default features -->
+    <link data-trunk rel="rust"
+        data-bin="chama-optics"
+        data-cargo-features="web,face_detection_candle"
+        data-cargo-no-default-features
+        data-wasm-opt="0" />
+    <base data-trunk-public-url />
+
+    <link data-trunk rel="icon" href="assets/chama-optics-x256.ico">
+
+    <!-- Copy font files to dist/Fonts/ for runtime loading -->
+    <link data-trunk rel="copy-dir" href="web_fonts" data-target-path="Fonts" />
+
+    <style>
+        html {
+            touch-action: manipulation;
+        }
+
+        body {
+            background: #909090;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #404040;
+            }
+        }
+
+        html,
+        body {
+            overflow: hidden;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: 100%;
+            width: 100%;
+        }
+
+        canvas {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .centered {
+            margin-right: auto;
+            margin-left: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #f0f0f0;
+            font-size: 24px;
+            font-family: Ubuntu-Light, Helvetica, sans-serif;
+            text-align: center;
+        }
+
+        .lds-dual-ring {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+        }
+
+        .lds-dual-ring:after {
+            content: " ";
+            display: block;
+            width: 24px;
+            height: 24px;
+            margin: 0px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            border-color: #fff transparent #fff transparent;
+            animation: lds-dual-ring 1.2s linear infinite;
+        }
+
+        @keyframes lds-dual-ring {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- egui canvas -->
+    <canvas id="the_canvas_id"></canvas>
+
+    <!-- Loading spinner (removed by main.rs after eframe starts) -->
+    <div class="centered" id="loading_text">
+        <p style="font-size:16px">Loading…</p>
+        <div class="lds-dual-ring"></div>
+    </div>
+
+    <!-- libheif-js (WASM) for HEIF/HEIC decoding in browser -->
+    <script src="https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.js"></script>
+
+    <!-- ONNX Runtime Web (WebGPU) for face detection inference -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.webgpu.min.js"></script>
+</body>
+
+</html>

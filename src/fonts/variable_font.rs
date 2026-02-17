@@ -58,7 +58,8 @@ impl VariableFontPack {
 // ===== EMBEDDED VERSION (no ext_res) =====
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 lazy_static::lazy_static! {
     static ref BARLOW: VariableFontPack = VariableFontPack {
@@ -113,7 +114,7 @@ lazy_static::lazy_static! {
 // Uses leaked Box to create 'static lifetime for FontRef
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 lazy_static::lazy_static! {
     // Load and leak font data to get 'static lifetime

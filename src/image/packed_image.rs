@@ -11,15 +11,11 @@ use uuid::Uuid;
 
 use crate::exif_impl::{OriginalExif, SimplifiedExif};
 
-#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
-#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
-pub enum PackedImageEvent {
-    None,
-    Remove,
-}
+// Re-export PackedImageEvent from common module for external access
+pub use crate::image::common::PackedImageEvent;
 
 #[non_exhaustive]
 pub struct PackedImage {
@@ -354,7 +350,7 @@ impl PackedImage {
         self.path.clone().to_string_lossy().to_string()
     }
 
-    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn update_editable_button(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             let btn_text = if self.editable {
@@ -368,7 +364,7 @@ impl PackedImage {
         });
     }
 
-    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(
         &mut self,
         ui: &mut egui::Ui,

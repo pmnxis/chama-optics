@@ -13,10 +13,11 @@
 //! - Parallel processing with rayon for large images
 //! - Inline functions for critical paths
 
+#[cfg(feature = "threading")]
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 use rust_i18n::t;
 
 /// Color adjustment parameters (Lightroom-style)
@@ -279,6 +280,7 @@ impl ColorAdjustments {
         // Use parallel processing for large images (> 100K pixels)
         const PARALLEL_THRESHOLD: usize = 100_000;
 
+        #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {
             // Process in chunks of 4 bytes (RGBA) using rayon
             pixels.par_chunks_exact_mut(4).for_each(|chunk| {
@@ -298,6 +300,20 @@ impl ColorAdjustments {
                 pixels[idx + 1] = g;
                 pixels[idx + 2] = b;
                 // pixels[idx + 3] (alpha) is preserved
+                idx += 4;
+            }
+        }
+
+        // Sequential fallback when threading is not available (WASM)
+        #[cfg(not(feature = "threading"))]
+        {
+            let mut idx = 0;
+            for _ in 0..total_pixels {
+                let (r, g, b) =
+                    process_pixel(pixels[idx], pixels[idx + 1], pixels[idx + 2], &params);
+                pixels[idx] = r;
+                pixels[idx + 1] = g;
+                pixels[idx + 2] = b;
                 idx += 4;
             }
         }
@@ -327,6 +343,7 @@ impl ColorAdjustments {
         // Use parallel processing for large images
         const PARALLEL_THRESHOLD: usize = 100_000;
 
+        #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {
             pixels.par_chunks_exact_mut(4).for_each(|chunk| {
                 let (r, g, b) = process_pixel(chunk[0], chunk[1], chunk[2], &params);
@@ -335,6 +352,19 @@ impl ColorAdjustments {
                 chunk[2] = b;
             });
         } else {
+            let mut idx = 0;
+            for _ in 0..total_pixels {
+                let (r, g, b) =
+                    process_pixel(pixels[idx], pixels[idx + 1], pixels[idx + 2], &params);
+                pixels[idx] = r;
+                pixels[idx + 1] = g;
+                pixels[idx + 2] = b;
+                idx += 4;
+            }
+        }
+
+        #[cfg(not(feature = "threading"))]
+        {
             let mut idx = 0;
             for _ in 0..total_pixels {
                 let (r, g, b) =
@@ -366,6 +396,7 @@ impl ColorAdjustments {
         // Use parallel processing for large images
         const PARALLEL_THRESHOLD: usize = 100_000;
 
+        #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {
             pixels.par_chunks_exact_mut(3).for_each(|chunk| {
                 let (r, g, b) = process_pixel(chunk[0], chunk[1], chunk[2], &params);
@@ -384,10 +415,23 @@ impl ColorAdjustments {
                 idx += 3;
             }
         }
+
+        #[cfg(not(feature = "threading"))]
+        {
+            let mut idx = 0;
+            for _ in 0..total_pixels {
+                let (r, g, b) =
+                    process_pixel(pixels[idx], pixels[idx + 1], pixels[idx + 2], &params);
+                pixels[idx] = r;
+                pixels[idx + 1] = g;
+                pixels[idx + 2] = b;
+                idx += 3;
+            }
+        }
     }
 
     /// Render UI for color adjustments
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.checkbox(&mut self.enabled, t!("color.adjustments_enabled"));
 

@@ -8,13 +8,14 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Instant;
+use web_time::Instant;
 
 /// UI-specific state for progress tracking and timing
 #[derive(Default)]
 pub struct UiState {
     pub save_progress: ProgressState,
     pub load_progress: ProgressState,
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     pub update_checker: crate::util::check_update::CheckRelease,
 }
 

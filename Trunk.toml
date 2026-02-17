@@ -1,0 +1,16 @@
+# Trunk configuration for WASM builds
+# Build: trunk build --release
+# Serve: trunk serve --open
+
+[build]
+target = "index.html"
+filehash = false
+
+[watch]
+ignore = ["dist", "target", "bak"]
+
+# Skip wasm-opt optimization — avoids SIMD validation issues.
+# Rust already generates optimized WASM.
+[tools]
+wasm-opt = false
+

@@ -8,13 +8,16 @@
 #[cfg(feature = "libheif")]
 pub(crate) mod heic;
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod heic_web;
+
 #[allow(dead_code)]
 pub(crate) mod common;
 
 // Always compile exif_impl as it's needed by core
 pub(crate) mod exif_impl;
 
-#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod loader;
 
 pub(crate) mod make_note;

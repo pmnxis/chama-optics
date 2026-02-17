@@ -13,13 +13,14 @@
 use std::path::PathBuf;
 
 // Embedded font data (const statics - compiled into binary when ext_res is disabled)
-#[cfg(not(feature = "ext_res"))]
+// Not used for WASM — fonts are loaded at runtime from HTTP (like ext_res)
+#[cfg(all(not(feature = "ext_res"), not(target_arch = "wasm32")))]
 const FONT_D2CODING: &[u8] = include_bytes!("../assets/fonts/D2Coding-Ver1.3.2-20180524-all.ttc");
-#[cfg(not(feature = "ext_res"))]
+#[cfg(all(not(feature = "ext_res"), not(target_arch = "wasm32")))]
 const FONT_SOURCE_HAN_SANS: &[u8] = include_bytes!("../assets/fonts/SourceHanSansVF-remapped.otf");
-#[cfg(not(feature = "ext_res"))]
+#[cfg(all(not(feature = "ext_res"), not(target_arch = "wasm32")))]
 const FONT_BARLOW: &[u8] = include_bytes!("../assets/fonts/Barlow-Variable-Remapped.ttf");
-#[cfg(not(feature = "ext_res"))]
+#[cfg(all(not(feature = "ext_res"), not(target_arch = "wasm32")))]
 const FONT_BARLOW_NARROW: &[u8] =
     include_bytes!("../assets/fonts/Barlow-Variable-Remapped-Narrow.ttf");
 #[cfg(all(not(feature = "ext_res"), feature = "desktop"))]
@@ -115,6 +116,7 @@ fn get_resources_dir() -> Option<PathBuf> {
 /// Load a font file by name
 #[allow(dead_code)]
 pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
+    // ext_res: Load from Resources/Fonts/ directory on disk
     #[cfg(feature = "ext_res")]
     {
         if let Some(resources_dir) = get_resources_dir() {
@@ -142,9 +144,9 @@ pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
         None
     }
 
-    #[cfg(not(feature = "ext_res"))]
+    // Embedded: Use include_bytes! data (desktop without ext_res)
+    #[cfg(all(not(feature = "ext_res"), not(target_arch = "wasm32")))]
     {
-        // Use embedded fonts (const statics)
         log::debug!("Loading embedded font: {}", font_name);
         match font_name {
             "D2Coding-Ver1.3.2-20180524-all.ttc" => Some(FONT_D2CODING.to_vec()),
@@ -158,6 +160,13 @@ pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
                 None
             }
         }
+    }
+
+    // WASM: Read from pre-loaded font cache (populated by preload_fonts())
+    #[cfg(target_arch = "wasm32")]
+    {
+        log::debug!("Loading font from WASM cache: {}", font_name);
+        wasm_font_cache::get(font_name)
     }
 }
 
@@ -247,6 +256,80 @@ pub fn load_logo(logo_name: &str) -> Option<Vec<u8>> {
         );
         None
     }
+}
+
+// ===== WASM Font Cache =====
+// Fonts are fetched asynchronously at startup and cached for synchronous access.
+
+#[cfg(target_arch = "wasm32")]
+mod wasm_font_cache {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+
+    static FONT_CACHE: OnceLock<HashMap<String, Vec<u8>>> = OnceLock::new();
+
+    pub fn init(fonts: HashMap<String, Vec<u8>>) {
+        FONT_CACHE.set(fonts).ok();
+    }
+
+    pub fn get(name: &str) -> Option<Vec<u8>> {
+        FONT_CACHE.get()?.get(name).cloned()
+    }
+}
+
+/// Preload all font files from the web server into memory cache.
+/// Must be called (and awaited) before any font access on WASM.
+#[cfg(target_arch = "wasm32")]
+pub async fn preload_fonts() {
+    let font_names = [
+        "D2Coding-Ver1.3.2-20180524-all.ttc",
+        "SourceHanSansVF-remapped.otf",
+        "Barlow-Variable-Remapped.ttf",
+        "Barlow-Variable-Remapped-Narrow.ttf",
+        "digital-7.ttf",
+        "digital-7-italic.ttf",
+        "DynaPuff-Variable.ttf",
+    ];
+
+    let mut cache = std::collections::HashMap::new();
+
+    for name in &font_names {
+        let url = format!("./Fonts/{}", name);
+        match fetch_bytes(&url).await {
+            Ok(bytes) => {
+                log::info!("Preloaded font {} ({} bytes)", name, bytes.len());
+                cache.insert(name.to_string(), bytes);
+            }
+            Err(e) => {
+                log::warn!("Failed to preload font {}: {}", name, e);
+            }
+        }
+    }
+
+    log::info!("Font preload complete: {}/{} fonts loaded", cache.len(), font_names.len());
+    wasm_font_cache::init(cache);
+}
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(module = "/js/font_loader.js")]
+extern "C" {
+    #[wasm_bindgen(catch)]
+    async fn fetch_font_bytes(url: &str) -> Result<JsValue, JsValue>;
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
+    let js_val = fetch_font_bytes(url)
+        .await
+        .map_err(|e| format!("{:?}", e))?;
+
+    let uint8_array = js_sys::Uint8Array::new(&js_val);
+    let vec = uint8_array.to_vec();
+    log::debug!("fetch {} → {} bytes", url, vec.len());
+    Ok(vec)
 }
 
 /// List available fonts

@@ -35,7 +35,7 @@ pub struct LoadedImageData {
 pub type LoadedImageQueue = Arc<Mutex<Vec<LoadedImageData>>>;
 
 /// Calculate perceptual hash from ColorImage (8x8 average hash)
-fn calculate_perceptual_hash_from_thumbnail(thumbnail: &egui::ColorImage) -> Option<u64> {
+pub(crate) fn calculate_perceptual_hash_from_thumbnail(thumbnail: &egui::ColorImage) -> Option<u64> {
     // Convert ColorImage to grayscale 8x8
     let width = thumbnail.size[0];
     let height = thumbnail.size[1];
@@ -217,6 +217,7 @@ pub fn load_image_from_memory(
 
 /// Spawn a background thread pool to load images in parallel
 /// Images are loaded in order and placed in queue
+#[cfg(not(target_arch = "wasm32"))]
 pub fn spawn_parallel_loader(
     paths: Vec<PathBuf>,
     get_alt_fnumber: bool,
@@ -227,42 +228,27 @@ pub fn spawn_parallel_loader(
     ctx: egui::Context,
 ) {
     std::thread::spawn(move || {
-        use rayon::prelude::*;
         use std::sync::atomic::Ordering;
 
-        // Note: Single-threaded loading (1 thread) performs better than multi-core for now
         log::info!("Starting image loading: {}", paths.len());
 
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(1)
-            .build()
-            .unwrap();
-
-        // Process in parallel and push to queue immediately upon completion
-        pool.install(|| {
-            paths.par_iter().for_each(|path| {
-                match load_image_data(
-                    path,
-                    get_alt_fnumber,
-                    use_35mm_focal_length,
-                    simplify_lens_model,
-                ) {
-                    Ok(loaded_data) => {
-                        // Push to queue immediately
-                        if let Ok(mut queue) = result_queue.lock() {
-                            queue.push(loaded_data);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Failed to load image {:?} - {e:?}", path);
+        // Sequential loading (single-threaded is actually faster for I/O-bound work)
+        for path in &paths {
+            match load_image_data(path, get_alt_fnumber, use_35mm_focal_length, simplify_lens_model)
+            {
+                Ok(loaded_data) => {
+                    if let Ok(mut queue) = result_queue.lock() {
+                        queue.push(loaded_data);
                     }
                 }
+                Err(e) => {
+                    log::error!("Failed to load image {:?} - {e:?}", path);
+                }
+            }
 
-                // Update progress and request repaint
-                progress_counter.fetch_add(1, Ordering::Relaxed);
-                ctx.request_repaint();
-            })
-        });
+            progress_counter.fetch_add(1, Ordering::Relaxed);
+            ctx.request_repaint();
+        }
     });
 }
 

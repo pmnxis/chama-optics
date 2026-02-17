@@ -9,3 +9,9 @@ pub(crate) mod check_update;
 
 #[cfg(feature = "rfd")]
 pub(crate) mod async_file_dialog;
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod web_helper;
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) mod web_download;

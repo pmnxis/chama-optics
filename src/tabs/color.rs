@@ -380,32 +380,15 @@ impl ChamaOptics {
         // Set cache key immediately to prevent duplicate spawns
         self.crop_canvas_cache_key = Some(cache_key);
 
-        let image_path = packed_image.path.clone();
         let orientation = packed_image.view_exif.orientation;
         let rotation_90 = packed_image.crop_rotate.rotation_90_count;
         let rotation_deg = packed_image.crop_rotate.rotation_degrees;
         let queue = self.crop_preview_queue.clone();
 
-        std::thread::spawn(move || {
-            let load_result = {
-                let file = match std::fs::File::open(&image_path) {
-                    Ok(f) => f,
-                    Err(e) => {
-                        log::error!("Failed to open image for crop canvas: {:?}", e);
-                        return;
-                    }
-                };
-                let mut buf_reader = std::io::BufReader::new(file);
-                crate::image::common::__load_image(&image_path, &mut buf_reader)
-            };
-            let (mut img, need_orientation) = match load_result {
-                Ok(result) => result,
-                Err(e) => {
-                    log::error!("Failed to load image for crop canvas: {:?}", e);
-                    return;
-                }
-            };
-
+        // Shared processing logic
+        let process_image = move |mut img: image::DynamicImage,
+                                  need_orientation: bool|
+              -> Option<(egui::ColorImage, usize, (u32, u32))> {
             if need_orientation {
                 img.apply_orientation(orientation);
             }
@@ -445,11 +428,56 @@ impl ChamaOptics {
             let rgba = img.to_rgba8();
             let size = [rgba.width() as usize, rgba.height() as usize];
             let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &rgba);
+            Some((color_image, idx, orig_size))
+        };
 
-            if let Ok(mut q) = queue.lock() {
-                *q = Some((color_image, idx, orig_size));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let image_path = packed_image.path.clone();
+            std::thread::spawn(move || {
+                let load_result = {
+                    let file = match std::fs::File::open(&image_path) {
+                        Ok(f) => f,
+                        Err(e) => {
+                            log::error!("Failed to open image for crop canvas: {:?}", e);
+                            return;
+                        }
+                    };
+                    let mut buf_reader = std::io::BufReader::new(file);
+                    crate::image::common::__load_image(&image_path, &mut buf_reader)
+                };
+                let (img, need_orientation) = match load_result {
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("Failed to load image for crop canvas: {:?}", e);
+                        return;
+                    }
+                };
+
+                if let Some(result) = process_image(img, need_orientation) {
+                    if let Ok(mut q) = queue.lock() {
+                        *q = Some(result);
+                    }
+                }
+            });
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let img = packed_image
+                .image_bytes
+                .as_ref()
+                .and_then(|bytes| image::load_from_memory(bytes).ok());
+            if let Some(img) = img {
+                if let Some(result) = process_image(img, true) {
+                    if let Ok(mut q) = queue.lock() {
+                        *q = Some(result);
+                    }
+                }
+            } else {
+                log::error!("WASM: No image_bytes for crop canvas preview");
             }
-        });
+        }
 
         Some(())
     }

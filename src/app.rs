@@ -311,6 +311,7 @@ pub struct ChamaOptics {
     /// Last detected theme mode (to reload texture on theme change)
     last_dark_mode: Option<bool>,
 
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     #[serde(skip)]
     pub update: crate::util::check_update::CheckRelease,
 
@@ -320,6 +321,7 @@ pub struct ChamaOptics {
     #[serde(skip)]
     pub load_progress: ProgressState,
 
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     #[serde(skip)]
     pub loaded_image_queue: crate::image::loader::LoadedImageQueue,
 
@@ -385,6 +387,17 @@ pub struct ChamaOptics {
     #[cfg(feature = "rfd")]
     pub(crate) pending_lut_pick:
         Option<crate::util::async_file_dialog::PendingDialog<Option<PathBuf>>>,
+
+    /// WASM: Shared queue for files loaded via web file picker
+    #[serde(skip)]
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) web_file_queue: crate::util::web_helper::PendingFileQueue,
+
+    /// WASM: Queue for HEIF images decoded asynchronously via libheif-js
+    #[serde(skip)]
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) pending_heif_queue:
+        std::sync::Arc<std::sync::Mutex<Vec<crate::image::loader::LoadedImageData>>>,
 }
 
 impl Default for ChamaOptics {
@@ -438,9 +451,11 @@ impl Default for ChamaOptics {
             background_texture: None,
             cheki_tab_icon: None,
             last_dark_mode: None,
+            #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
             update: crate::util::check_update::CheckRelease::new(),
             save_progress: ProgressState::new(),
             load_progress: ProgressState::new(),
+            #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
             loaded_image_queue: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
             cheki_decorations: std::collections::HashMap::new(),
             cheki_selected_index: None,
@@ -459,6 +474,10 @@ impl Default for ChamaOptics {
             pending_sticker_pick: None,
             #[cfg(feature = "rfd")]
             pending_lut_pick: None,
+            #[cfg(target_arch = "wasm32")]
+            web_file_queue: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+            #[cfg(target_arch = "wasm32")]
+            pending_heif_queue: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
         }
     }
 }
@@ -555,7 +574,7 @@ impl ChamaOptics {
     }
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
+        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
         crate::fonts::replace_fonts(&cc.egui_ctx);
 
         log::info!(
@@ -577,6 +596,7 @@ impl ChamaOptics {
     }
 
     pub(crate) fn save_packed_image_all(&mut self, ui: &mut egui::Ui) {
+        #[cfg(feature = "threading")]
         use rayon::prelude::*;
         use std::sync::atomic::Ordering;
 
@@ -860,7 +880,7 @@ impl ChamaOptics {
         log::info!("Starting background save of {} images", total);
 
         // Clone export_config for the background thread
-        let clone_start = std::time::Instant::now();
+        let clone_start = web_time::Instant::now();
         let export_config = self.export_config.clone();
         log::info!("ExportConfig clone took {:?}", clone_start.elapsed());
 
@@ -890,27 +910,63 @@ impl ChamaOptics {
         // Get egui context for requesting repaint from background thread
         let ctx = ui.ctx().clone();
 
-        // Spawn background thread for parallel processing
+        // Spawn background thread for processing
+        #[cfg(not(target_arch = "wasm32"))]
         std::thread::spawn(move || {
             log::info!("Background thread started");
 
-            // Calculate optimal thread count: (CPU_COUNT / 2).max(CPU_COUNT - 3)
-            let cpu_count = num_cpus::get();
-            let thread_count = (cpu_count / 2).max(cpu_count.saturating_sub(3)).max(1);
-            log::info!("Using {} threads out of {} CPUs", thread_count, cpu_count);
+            #[cfg(feature = "threading")]
+            {
+                // Calculate optimal thread count: (CPU_COUNT / 2).max(CPU_COUNT - 3)
+                let cpu_count = num_cpus::get();
+                let thread_count = (cpu_count / 2).max(cpu_count.saturating_sub(3)).max(1);
+                log::info!("Using {} threads out of {} CPUs", thread_count, cpu_count);
 
-            // Configure rayon thread pool
-            let pool = rayon::ThreadPoolBuilder::new()
-                .num_threads(thread_count)
-                .build()
-                .unwrap();
+                // Configure rayon thread pool
+                let pool = rayon::ThreadPoolBuilder::new()
+                    .num_threads(thread_count)
+                    .build()
+                    .unwrap();
 
-            // Parallel processing using rayon
-            pool.install(|| {
-                tasks.par_iter().enumerate().for_each(|(idx, task)| {
+                // Parallel processing using rayon
+                pool.install(|| {
+                    tasks.par_iter().enumerate().for_each(|(idx, task)| {
+                        log::info!("Processing image {}", idx);
+
+                        let mut lut_storage_guard = lut_storage.lock().unwrap();
+
+                        match __save_bulk_each(
+                            idx,
+                            task,
+                            &export_config,
+                            &sticker_processed_images,
+                            &mut lut_storage_guard,
+                            &sticker_storage,
+                            &import_config,
+                        ) {
+                            Ok(_) => {
+                                log::info!("Successfully saved image {}", idx);
+                            }
+                            Err(e) => {
+                                log::error!("Failed to save image {}: {e:?}", idx);
+                            }
+                        }
+
+                        drop(lut_storage_guard);
+
+                        let current = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                        log::info!("Progress: {}/{}", current, total);
+                        ctx.request_repaint();
+                    })
+                });
+            }
+
+            #[cfg(not(feature = "threading"))]
+            {
+                // Sequential processing fallback
+                for (idx, task) in tasks.iter().enumerate() {
                     log::info!("Processing image {}", idx);
 
-                    // Get mutable access to lut_storage for this task
                     let mut lut_storage_guard = lut_storage.lock().unwrap();
 
                     match __save_bulk_each(
@@ -922,28 +978,152 @@ impl ChamaOptics {
                         &sticker_storage,
                         &import_config,
                     ) {
-                        Ok(_) => {
-                            log::info!("Successfully saved image {}", idx);
-                        }
-                        Err(e) => {
-                            log::error!("Failed to save image {}: {e:?}", idx);
-                        }
+                        Ok(_) => log::info!("Successfully saved image {}", idx),
+                        Err(e) => log::error!("Failed to save image {}: {e:?}", idx),
                     }
 
-                    // Drop the lock before updating progress
                     drop(lut_storage_guard);
 
-                    // Update progress counter AFTER processing
                     let current = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
                     log::info!("Progress: {}/{}", current, total);
-
-                    // Request UI repaint AFTER processing to show progress
                     ctx.request_repaint();
-                })
-            });
+                }
+            }
 
             log::info!("Background thread completed");
         });
+
+        // WASM: encode to bytes in memory → zip → browser download
+        #[cfg(target_arch = "wasm32")]
+        {
+            let mut zip_entries: Vec<(String, Vec<u8>)> = Vec::new();
+
+            for (idx, task) in tasks.iter().enumerate() {
+                log::info!("WASM export: Processing image {}/{}", idx + 1, total);
+
+                // Save original sticker_bytes to restore after export
+                let original_sticker_bytes = self.packed_images[idx].sticker_bytes.clone();
+
+                // Apply LUT to image if configured
+                if let Some(lut_id) = task.lut_id {
+                    match self.packed_images[idx].get_image() {
+                        Ok((mut dyn_image, _)) => {
+                            let mut lut_guard = lut_storage.lock().unwrap();
+                            lut_guard.apply_lut_to_image(lut_id, &mut dyn_image);
+                            drop(lut_guard);
+
+                            let mut bytes = Vec::new();
+                            if dyn_image
+                                .write_to(
+                                    &mut std::io::Cursor::new(&mut bytes),
+                                    image::ImageFormat::Jpeg,
+                                )
+                                .is_ok()
+                            {
+                                self.packed_images[idx].sticker_bytes = Some(bytes);
+                            }
+                        }
+                        Err(e) => {
+                            log::error!("Failed to load image {} for LUT: {:?}", idx, e);
+                            progress_counter.fetch_add(1, Ordering::Relaxed);
+                            ctx.request_repaint();
+                            continue;
+                        }
+                    }
+                } else {
+                    // Use sticker_bytes from task (may have sticker overlay)
+                    self.packed_images[idx].sticker_bytes = task.sticker_bytes.clone();
+                }
+
+                // Apply theme
+                let themed_result = export_config
+                    .theme_reg
+                    .selected_theme_read()
+                    .apply_to_image(&self.packed_images[idx], &export_config);
+
+                // Restore original sticker_bytes
+                self.packed_images[idx].sticker_bytes = original_sticker_bytes;
+
+                let themed_image = match themed_result {
+                    Ok(img) => img,
+                    Err(e) => {
+                        log::error!("Failed to apply theme to image {}: {:?}", idx, e);
+                        progress_counter.fetch_add(1, Ordering::Relaxed);
+                        ctx.request_repaint();
+                        continue;
+                    }
+                };
+
+                // Apply cheki decoration if present
+                let mut final_image = if let Some(ref cheki_deco) = task.cheki_decoration {
+                    crate::effect::cheki_renderer::apply_cheki_decoration(
+                        themed_image,
+                        cheki_deco,
+                        &sticker_storage,
+                    )
+                } else {
+                    themed_image
+                };
+
+                // Apply watermark if enabled
+                if export_config.watermark.is_enabled {
+                    let _ = export_config.watermark.apply(&mut final_image, None);
+                }
+
+                // Encode to bytes
+                let encoded = match export_config.output_format.encode_to_bytes(&final_image) {
+                    Ok(bytes) => bytes,
+                    Err(e) => {
+                        log::error!("Failed to encode image {}: {:?}", idx, e);
+                        progress_counter.fetch_add(1, Ordering::Relaxed);
+                        ctx.request_repaint();
+                        continue;
+                    }
+                };
+
+                // Generate filename
+                let filename = self.packed_images[idx].prepostfixed_filename_with_override(
+                    &export_config,
+                    task.prefix.as_deref(),
+                    task.postfix.as_deref(),
+                );
+
+                log::info!(
+                    "WASM export: Encoded '{}' ({} bytes)",
+                    filename,
+                    encoded.len()
+                );
+                zip_entries.push((filename, encoded));
+
+                let current = progress_counter.fetch_add(1, Ordering::Relaxed) + 1;
+                log::info!("WASM export: Progress {}/{}", current, total);
+                ctx.request_repaint();
+            }
+
+            // Trigger browser download
+            if zip_entries.len() == 1 {
+                let (filename, data) = &zip_entries[0];
+                let mime = match export_config.output_format.ext {
+                    crate::export_config::output_format::OutputExtension::Jpeg => "image/jpeg",
+                    crate::export_config::output_format::OutputExtension::Webp => "image/webp",
+                    crate::export_config::output_format::OutputExtension::PngOptimized => {
+                        "image/png"
+                    }
+                };
+                crate::util::web_download::download_file(filename, data, mime);
+            } else if !zip_entries.is_empty() {
+                let entries: Vec<(&str, &[u8])> = zip_entries
+                    .iter()
+                    .map(|(n, d)| (n.as_str(), d.as_slice()))
+                    .collect();
+                crate::util::web_download::download_zip("chama-optics-export.zip", &entries);
+            }
+
+            log::info!(
+                "WASM export completed: {} images downloaded",
+                zip_entries.len()
+            );
+        }
 
         // Schedule progress bar to disappear after a short delay
         ui.ctx().request_repaint();
@@ -1245,90 +1425,98 @@ impl ChamaOptics {
         }
     }
 
-    /// Handle drag and drop for file paths
+    /// Handle drag and drop for file paths (desktop) or bytes (WASM)
     fn handle_drag_drop(&mut self, ui: &mut egui::Ui) {
         ui.ctx().input(|i| {
             if !i.raw.dropped_files.is_empty() {
-                let paths: Vec<_> = i
-                    .raw
-                    .dropped_files
-                    .iter()
-                    .filter_map(|f| f.path.clone())
-                    .collect();
+                // Desktop: extract paths
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let paths: Vec<_> = i
+                        .raw
+                        .dropped_files
+                        .iter()
+                        .filter_map(|f| f.path.clone())
+                        .collect();
 
-                // Handle differently based on current tab
-                match self.selected_tab {
-                    MainTab::Sticker => {
-                        // Add as stickers
-                        for path in paths.iter() {
-                            let name = path
-                                .file_stem()
-                                .and_then(|s| s.to_str())
-                                .unwrap_or("Sticker")
-                                .to_string();
-
-                            match self.sticker_storage.add_sticker(name.clone(), path) {
-                                Ok(_) => {
-                                    log::info!("Added sticker: {}", name);
-                                }
-                                Err(e) => {
-                                    log::error!("Failed to add sticker {}: {:?}", name, e);
-                                }
-                            }
-                        }
-                    }
-                    MainTab::Color => {
-                        // Color tab: .cube files go to LUT storage, images go to image queue
-                        for path in paths.iter() {
-                            let ext = path
-                                .extension()
-                                .and_then(|e| e.to_str())
-                                .unwrap_or("")
-                                .to_lowercase();
-
-                            if ext == "cube" {
-                                // Add as LUT
+                    // Handle differently based on current tab
+                    match self.selected_tab {
+                        MainTab::Sticker => {
+                            for path in paths.iter() {
                                 let name = path
                                     .file_stem()
                                     .and_then(|s| s.to_str())
-                                    .unwrap_or("Unnamed LUT")
+                                    .unwrap_or("Sticker")
                                     .to_string();
 
-                                match self.lut_storage.add_lut(name.clone(), path) {
-                                    Ok(id) => {
-                                        log::info!(
-                                            "Added LUT via drag-drop: {} (id: {})",
-                                            name,
-                                            id
-                                        );
-                                        // Auto-assign to current image if one is selected
-                                        if let Some(idx) = self.color_selected_index
-                                            && let Some(pi) = self.packed_images.get_mut(idx)
-                                        {
-                                            pi.lut_id = Some(id);
-                                            log::info!(
-                                                "Auto-assigned new LUT to image index {}",
-                                                idx
-                                            );
-                                        }
-                                        // Invalidate preview cache
-                                        self.color_preview_cache_key = None;
-                                    }
+                                match self.sticker_storage.add_sticker(name.clone(), path) {
+                                    Ok(_) => log::info!("Added sticker: {}", name),
                                     Err(e) => {
-                                        log::error!("Failed to add LUT {}: {:?}", name, e);
+                                        log::error!("Failed to add sticker {}: {:?}", name, e)
                                     }
                                 }
-                            } else {
-                                // Add as image
+                            }
+                        }
+                        MainTab::Color => {
+                            for path in paths.iter() {
+                                let ext = path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .unwrap_or("")
+                                    .to_lowercase();
+
+                                if ext == "cube" {
+                                    let name = path
+                                        .file_stem()
+                                        .and_then(|s| s.to_str())
+                                        .unwrap_or("Unnamed LUT")
+                                        .to_string();
+
+                                    match self.lut_storage.add_lut(name.clone(), path) {
+                                        Ok(id) => {
+                                            log::info!(
+                                                "Added LUT via drag-drop: {} (id: {})",
+                                                name,
+                                                id
+                                            );
+                                            if let Some(idx) = self.color_selected_index
+                                                && let Some(pi) =
+                                                    self.packed_images.get_mut(idx)
+                                            {
+                                                pi.lut_id = Some(id);
+                                            }
+                                            self.color_preview_cache_key = None;
+                                        }
+                                        Err(e) => {
+                                            log::error!("Failed to add LUT {}: {:?}", name, e)
+                                        }
+                                    }
+                                } else {
+                                    self.pending_paths.push_back(path.clone());
+                                }
+                            }
+                        }
+                        _ => {
+                            for path in paths.iter() {
                                 self.pending_paths.push_back(path.clone());
                             }
                         }
                     }
-                    _ => {
-                        // Add as images (default behavior)
-                        for path in paths.iter() {
-                            self.pending_paths.push_back(path.clone());
+                }
+
+                // WASM: extract bytes from dropped files and push to web_file_queue
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let file_data =
+                        crate::util::web_helper::extract_dropped_file_bytes(&i.raw.dropped_files);
+                    if !file_data.is_empty() {
+                        if let Ok(mut queue) = self.web_file_queue.lock() {
+                            queue.extend(file_data);
                         }
+                        log::info!(
+                            "WASM: Queued {} dropped files for loading",
+                            i.raw.dropped_files.len()
+                        );
                     }
                 }
             }
@@ -1393,6 +1581,7 @@ impl ChamaOptics {
     }
 
     /// Process pending image loading and loaded images
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     fn process_image_loading(&mut self, ui: &mut egui::Ui) {
         // Start parallel loading if there are pending paths and no active loading
         if !self.pending_paths.is_empty() && !self.load_progress.is_active() {
@@ -1470,6 +1659,120 @@ impl ChamaOptics {
             log::info!("Total packed_images now: {}", self.packed_images.len());
         }
     }
+
+    /// WASM: Process files from web_file_queue (drag & drop or file picker).
+    /// HEIF/HEIC files are routed to async JS interop decode (libheif-js);
+    /// other formats are decoded synchronously via the `image` crate.
+    #[cfg(target_arch = "wasm32")]
+    fn process_web_file_queue(&mut self, ctx: &egui::Context) {
+        let files: Vec<(String, Vec<u8>)> = {
+            if let Ok(mut queue) = self.web_file_queue.try_lock() {
+                if queue.is_empty() {
+                    return;
+                }
+                queue.drain(..).collect()
+            } else {
+                return;
+            }
+        };
+
+        log::info!("WASM: Processing {} files from queue", files.len());
+
+        let get_alt = self.import_config.get_alt_fnumber;
+        let use_35mm = self.import_config.use_35mm_focal_length;
+        let simplify = self.import_config.simplify_lens_model;
+
+        for (filename, bytes) in files {
+            log::info!(
+                "WASM: Loading image: {} ({} bytes)",
+                filename,
+                bytes.len()
+            );
+
+            if crate::image::heic_web::is_heif(&filename, &bytes) {
+                // HEIF/HEIC: async decode via libheif-js (JS interop, involves data copies)
+                let pending_queue = self.pending_heif_queue.clone();
+                let ctx_clone = ctx.clone();
+                wasm_bindgen_futures::spawn_local(async move {
+                    match crate::image::heic_web::load_heif_image_data(
+                        &bytes, &filename, get_alt, use_35mm, simplify,
+                    )
+                    .await
+                    {
+                        Ok(loaded_data) => {
+                            log::info!("HEIF decoded successfully: {}", filename);
+                            if let Ok(mut q) = pending_queue.lock() {
+                                q.push(loaded_data);
+                            }
+                            ctx_clone.request_repaint();
+                        }
+                        Err(e) => {
+                            log::error!("HEIF decode failed for {}: {}", filename, e);
+                        }
+                    }
+                });
+            } else {
+                // Standard formats (JPEG, PNG, etc.): synchronous decode
+                match crate::image::loader::load_image_from_memory(
+                    &bytes, &filename, get_alt, use_35mm, simplify,
+                ) {
+                    Ok(loaded_data) => {
+                        match crate::image::loader::create_packed_image_from_data(
+                            loaded_data, ctx,
+                        ) {
+                            Some(packed_image) => {
+                                log::info!("WASM: Successfully loaded image: {}", filename);
+                                self.packed_images.push(packed_image);
+                            }
+                            None => {
+                                log::error!(
+                                    "WASM: Failed to create packed image for {}",
+                                    filename
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("WASM: Failed to load image {}: {:?}", filename, e);
+                    }
+                }
+            }
+        }
+    }
+
+    /// WASM: Process HEIF images that were decoded asynchronously by libheif-js.
+    /// Creates PackedImage from LoadedImageData (requires UI thread for texture).
+    #[cfg(target_arch = "wasm32")]
+    fn process_pending_heif(&mut self, ctx: &egui::Context) {
+        let loaded: Vec<crate::image::loader::LoadedImageData> = {
+            if let Ok(mut queue) = self.pending_heif_queue.try_lock() {
+                if queue.is_empty() {
+                    return;
+                }
+                queue.drain(..).collect()
+            } else {
+                return;
+            }
+        };
+
+        for loaded_data in loaded {
+            let filename = loaded_data
+                .path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            match crate::image::loader::create_packed_image_from_data(loaded_data, ctx) {
+                Some(packed_image) => {
+                    log::info!("HEIF image ready: {}", filename);
+                    self.packed_images.push(packed_image);
+                }
+                None => {
+                    log::error!("Failed to create packed image from HEIF: {}", filename);
+                }
+            }
+        }
+    }
 }
 
 impl eframe::App for ChamaOptics {
@@ -1487,11 +1790,18 @@ impl eframe::App for ChamaOptics {
 impl ChamaOptics {
     fn ui_impl(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Render bottom panel using component
+        #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
         crate::ui_components::render_bottom_panel(
             ui,
             &mut self.load_progress,
             &mut self.save_progress,
             &self.update,
+        );
+        #[cfg(not(all(feature = "desktop", not(feature = "ios_integration"))))]
+        crate::ui_components::render_bottom_panel(
+            ui,
+            &mut self.load_progress,
+            &mut self.save_progress,
         );
 
         // Load cheki tab icon texture (once)
@@ -1544,8 +1854,17 @@ impl ChamaOptics {
             }
         });
 
-        // Process pending image loading and loaded images
+        // Process pending image loading and loaded images (desktop only - uses file paths)
+        #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
         self.process_image_loading(ui);
+
+        // WASM: Process files loaded via web file picker or drag & drop
+        #[cfg(target_arch = "wasm32")]
+        self.process_web_file_queue(ui.ctx());
+
+        // WASM: Process HEIF images decoded asynchronously by libheif-js
+        #[cfg(target_arch = "wasm32")]
+        self.process_pending_heif(ui.ctx());
 
         // Process face detection results from background thread
         self.process_detection_results();

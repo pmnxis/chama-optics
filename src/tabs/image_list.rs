@@ -60,6 +60,12 @@ impl ChamaOptics {
                 }
             }
 
+            // WASM: File picker via web_sys <input type="file">
+            #[cfg(target_arch = "wasm32")]
+            if ui.button(t!("app.open_files.button")).clicked() {
+                crate::util::web_helper::pick_files_to_queue(self.web_file_queue.clone());
+            }
+
             // Save all button
             if ui.button(t!("app.images.save_all")).clicked() {
                 self.save_packed_image_all(ui);

@@ -394,7 +394,7 @@ pub trait Theme: Send + Sync + std::any::Any {
         pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>>,
     ) -> Result<(), image::ImageError> {
         // Get original image dimensions before theming
-        let orig_img = image::open(&pi.path)?;
+        let (orig_img, _) = pi.get_image()?;
         let orig_width = orig_img.width();
         let orig_height = orig_img.height();
 
