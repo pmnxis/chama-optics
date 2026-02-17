@@ -17,7 +17,16 @@ impl ChamaOptics {
         ui.separator();
 
         // Import config section
+        let prev_simplify = self.import_config.simplify_lens_model;
         self.import_config.update_ui(ui);
+
+        // Reapply lens model simplification if the setting changed
+        if self.import_config.simplify_lens_model != prev_simplify {
+            for img in &mut self.packed_images {
+                img.view_exif
+                    .reapply_simplify_lens_model(self.import_config.simplify_lens_model);
+            }
+        }
 
         ui.add_space(10.0);
 

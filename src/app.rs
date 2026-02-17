@@ -1384,6 +1384,7 @@ impl ChamaOptics {
                 all_paths,
                 self.import_config.get_alt_fnumber,
                 self.import_config.use_35mm_focal_length,
+                self.import_config.simplify_lens_model,
                 self.load_progress.counter(),
                 self.loaded_image_queue.clone(),
                 ui.ctx().clone(),

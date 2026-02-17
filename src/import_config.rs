@@ -21,6 +21,10 @@ pub struct ImportConfig {
     /// If true, inject filtered EXIF metadata (excluding MakerNote and GPS)
     /// from the original image into the exported file. User edits are applied.
     pub save_exif: bool,
+
+    /// If true, strip redundant camera model prefix from lens model.
+    /// Useful for smartphones where the lens model repeats the camera model.
+    pub simplify_lens_model: bool,
 }
 
 impl ImportConfig {
@@ -43,6 +47,12 @@ impl ImportConfig {
                 t!("import_config.use_35mm_focal_length.name"),
             )
             .on_hover_text(t!("import_config.use_35mm_focal_length.description"));
+
+            ui.checkbox(
+                &mut self.simplify_lens_model,
+                t!("settings.simplify_lens_model"),
+            )
+            .on_hover_text(t!("settings.simplify_lens_model_hint"));
 
             ui.checkbox(&mut self.save_exif, t!("import_config.save_exif.name"))
                 .on_hover_text(t!("import_config.save_exif.description"));

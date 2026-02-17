@@ -85,6 +85,7 @@ pub fn load_image_data(
     path: &PathBuf,
     get_alt_fnumber: bool,
     use_35mm_focal_length: bool,
+    simplify_lens_model: bool,
 ) -> Result<LoadedImageData, image::ImageError> {
     use std::io::Seek;
 
@@ -108,6 +109,9 @@ pub fn load_image_data(
     }
     if use_35mm_focal_length {
         view_exif.use_35mm_focal_length(&original_exif);
+    }
+    if simplify_lens_model {
+        view_exif.apply_simplify_lens_model();
     }
 
     buf_reader
@@ -148,6 +152,7 @@ pub fn load_image_from_memory(
     filename: &str,
     get_alt_fnumber: bool,
     use_35mm_focal_length: bool,
+    simplify_lens_model: bool,
 ) -> Result<LoadedImageData, image::ImageError> {
     use std::io::{Cursor, Seek};
 
@@ -169,6 +174,9 @@ pub fn load_image_from_memory(
     }
     if use_35mm_focal_length {
         view_exif.use_35mm_focal_length(&original_exif);
+    }
+    if simplify_lens_model {
+        view_exif.apply_simplify_lens_model();
     }
 
     cursor
@@ -213,6 +221,7 @@ pub fn spawn_parallel_loader(
     paths: Vec<PathBuf>,
     get_alt_fnumber: bool,
     use_35mm_focal_length: bool,
+    simplify_lens_model: bool,
     progress_counter: Arc<AtomicUsize>,
     result_queue: LoadedImageQueue,
     ctx: egui::Context,
@@ -232,7 +241,12 @@ pub fn spawn_parallel_loader(
         // Process in parallel and push to queue immediately upon completion
         pool.install(|| {
             paths.par_iter().for_each(|path| {
-                match load_image_data(path, get_alt_fnumber, use_35mm_focal_length) {
+                match load_image_data(
+                    path,
+                    get_alt_fnumber,
+                    use_35mm_focal_length,
+                    simplify_lens_model,
+                ) {
                     Ok(loaded_data) => {
                         // Push to queue immediately
                         if let Ok(mut queue) = result_queue.lock() {

@@ -262,6 +262,8 @@ pub struct SimplifiedExif {
     pub camera_model: String,
     pub lens_mnf: String,
     pub lens_model: String,
+    /// Original lens model from EXIF (before simplification). Used for dynamic toggle.
+    pub raw_lens_model: String,
     pub focal: String,
     pub fnumber: String,
     pub exposure: String,
@@ -285,6 +287,7 @@ impl core::default::Default for SimplifiedExif {
             camera_model: String::new(),
             lens_mnf: String::new(),
             lens_model: String::new(),
+            raw_lens_model: String::new(),
             focal: String::new(),
             fnumber: String::new(),
             exposure: String::new(),
@@ -330,11 +333,13 @@ pub(crate) fn simplify_exif_string(input: &str) -> String {
 
 impl From<&OriginalExif> for SimplifiedExif {
     fn from(value: &OriginalExif) -> Self {
+        let lens_model = value.lens_model();
         Self {
             camera_mnf: value.camera_mnf(),
             camera_model: value.camera_model(),
             lens_mnf: value.lens_mnf(),
-            lens_model: value.lens_model(),
+            raw_lens_model: lens_model.clone(),
+            lens_model,
             focal: value.focal(),
             fnumber: value.fnumber(),
             exposure: value.exposure(),
@@ -420,6 +425,59 @@ impl SimplifiedExif {
             return true;
         }
         false
+    }
+
+    /// Strip redundant camera model prefix from lens model.
+    /// e.g. "iPhone 17 Pro back triple camera 2.22mm f/2.2" with camera_model "iPhone 17 Pro"
+    ///   -> "back triple camera 2.22mm f/2.2"
+    pub fn simplify_lens_model_value(lens_model: &str, camera_model: &str) -> String {
+        let trimmed_lens = lens_model.trim();
+        let trimmed_camera = camera_model.trim();
+        if trimmed_camera.is_empty() || trimmed_lens.is_empty() {
+            return lens_model.to_string();
+        }
+        if trimmed_lens
+            .to_lowercase()
+            .starts_with(&trimmed_camera.to_lowercase())
+        {
+            let remainder = trimmed_lens[trimmed_camera.len()..].trim();
+            if remainder.is_empty() {
+                trimmed_lens.to_string()
+            } else {
+                remainder.to_string()
+            }
+        } else {
+            trimmed_lens.to_string()
+        }
+    }
+
+    /// Apply lens model simplification, storing original in raw_lens_model.
+    pub fn apply_simplify_lens_model(&mut self) {
+        if self.raw_lens_model.is_empty() {
+            self.raw_lens_model = self.lens_model.clone();
+        }
+        self.lens_model = Self::simplify_lens_model_value(&self.raw_lens_model, &self.camera_model);
+    }
+
+    /// Reapply or restore lens model simplification based on enabled flag.
+    /// Respects manual user edits.
+    pub fn reapply_simplify_lens_model(&mut self, enabled: bool) {
+        // Backwards compat: if raw_lens_model is empty, treat current as raw
+        if self.raw_lens_model.is_empty() {
+            self.raw_lens_model = self.lens_model.clone();
+        }
+        let simplified = Self::simplify_lens_model_value(&self.raw_lens_model, &self.camera_model);
+        if enabled {
+            // Apply simplification if user hasn't manually edited
+            if self.lens_model == self.raw_lens_model {
+                self.lens_model = simplified;
+            }
+        } else {
+            // Restore raw if user hasn't manually edited the simplified version
+            if self.lens_model == simplified {
+                self.lens_model = self.raw_lens_model.clone();
+            }
+        }
     }
 
     pub fn get_exposure(&self) -> Option<String> {
@@ -1023,6 +1081,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
@@ -1052,6 +1111,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
@@ -1081,6 +1141,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
@@ -1119,6 +1180,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
@@ -1146,6 +1208,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
@@ -1195,6 +1258,7 @@ mod tests {
             camera_model: "Model".to_string(),
             lens_mnf: "Lens".to_string(),
             lens_model: "LensModel".to_string(),
+            raw_lens_model: "LensModel".to_string(),
             focal: "50mm".to_string(),
             fnumber: "2.8".to_string(),
             exposure: "1/60".to_string(),
