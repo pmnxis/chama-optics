@@ -6,21 +6,28 @@
 #
 # Usage:
 #   curl -sSf https://raw.githubusercontent.com/pmnxis/chama-optics/master/quick-install-linux.sh | bash
+#   curl -sSf ... | bash -s -- stable   (non-interactive)
+#   curl -sSf ... | bash -s -- latest   (non-interactive)
 
 set -e
 
 REPO="https://github.com/pmnxis/chama-optics.git"
 INSTALL_DIR="$HOME/chama-optics"
 
-echo "==========================================================================="
-echo "  chama-optics Quick Installer for Linux"
-echo "==========================================================================="
-echo ""
-echo "  1) stable  — Latest released version (recommended)"
-echo "  2) latest  — Master branch (may be unstable)"
-echo ""
-# Read from /dev/tty so it works with curl | bash (stdin is the script)
-read -rp "Select channel [1/2]: " choice < /dev/tty
+# Accept channel as argument (non-interactive) or prompt interactively
+if [ -n "$1" ]; then
+    choice="$1"
+else
+    echo "==========================================================================="
+    echo "  chama-optics Quick Installer for Linux"
+    echo "==========================================================================="
+    echo ""
+    echo "  1) stable  — Latest released version (recommended)"
+    echo "  2) latest  — Master branch (may be unstable)"
+    echo ""
+    # Read from /dev/tty so it works with curl | bash (stdin is the script)
+    read -rp "Select channel [1/2]: " choice < /dev/tty
+fi
 
 case "$choice" in
     1|stable)
@@ -30,7 +37,7 @@ case "$choice" in
         CHANNEL="latest"
         ;;
     *)
-        echo "Invalid choice. Exiting."
+        echo "Invalid choice '$choice'. Use: stable or latest"
         exit 1
         ;;
 esac
