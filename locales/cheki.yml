@@ -153,6 +153,11 @@ cheki:
     ko: "주사위 굴리기!"
     ja: "サイコロを振る！"
     id: "Lempar Dadu!"
+  play_dice_hint:
+    en: "Randomly places character stickers on the image"
+    ko: "캐릭터 스티커를 이미지에 랜덤으로 자동 배치합니다"
+    ja: "キャラクターステッカーを画像にランダム配置します"
+    id: "Menempatkan stiker karakter secara acak pada gambar"
   clear_stickers:
     en: "Clear"
     ko: "지우기"
@@ -169,7 +174,19 @@ cheki:
     ja: "ドラッグで移動。コーナーでリサイズ。上のハンドルで回転。右クリックで削除。スクロールでスケール。"
     id: "Seret untuk pindah. Sudut untuk ukuran. Pegangan atas untuk rotasi. Klik kanan hapus. Gulir untuk skala."
 
-  # No character stickers warning
+  # No stickers at all warning
+  no_stickers_title:
+    en: "No Stickers"
+    ko: "스티커 없음"
+    ja: "ステッカーなし"
+    id: "Tidak Ada Stiker"
+  no_stickers_message:
+    en: "Add stickers in Settings → Sticker Storage first, then enable the Character toggle to use Play Dice."
+    ko: "먼저 설정 → 스티커 저장소에서 스티커를 추가한 후, 캐릭터 토글을 활성화하면 주사위 굴리기를 사용할 수 있습니다."
+    ja: "まず設定→ステッカー保存庫でステッカーを追加し、キャラクタートグルを有効にしてください。"
+    id: "Tambahkan stiker di Pengaturan → Penyimpanan Stiker terlebih dahulu, lalu aktifkan toggle Karakter untuk menggunakan Lempar Dadu."
+
+  # No character stickers warning (stickers exist but none marked as character)
   no_character_stickers_title:
     en: "No Character Stickers"
     ko: "캐릭터 스티커 없음"

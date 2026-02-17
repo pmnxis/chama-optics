@@ -84,6 +84,11 @@ color:
     ko: "삭제"
     ja: "削除"
     id: "Hapus"
+  remove_all_luts:
+    en: "Remove All LUTs"
+    ko: "모든 LUT 삭제"
+    ja: "すべてのLUTを削除"
+    id: "Hapus Semua LUT"
   lut_info:
     en: "Info:"
     ko: "정보:"

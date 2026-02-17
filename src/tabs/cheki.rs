@@ -1123,13 +1123,23 @@ impl ChamaOptics {
                 ui.strong(t!("cheki.dice_section", default = "Random Character"));
                 ui.add_space(2.0);
                 {
+                    let total_count = self.sticker_storage.stickers.len();
                     let character_count = self.sticker_storage.character_stickers().len();
 
-                    if character_count == 0 {
+                    if total_count == 0 {
                         ui.label(
                             egui::RichText::new(t!(
-                                "cheki.no_characters",
-                                default = "No character stickers. Mark stickers as 'Character' in the Sticker tab."
+                                "cheki.no_stickers_message",
+                                default = "Add stickers in Settings → Sticker Storage first, then enable the Character toggle to use Play Dice."
+                            ))
+                            .size(11.0)
+                            .color(ui.visuals().weak_text_color()),
+                        );
+                    } else if character_count == 0 {
+                        ui.label(
+                            egui::RichText::new(t!(
+                                "cheki.no_character_stickers_message",
+                                default = "Enable the character toggle on stickers in Settings to use Play Dice."
                             ))
                             .size(11.0)
                             .color(ui.visuals().weak_text_color()),
@@ -1183,6 +1193,15 @@ impl ChamaOptics {
                                     deco.dice_stickers.clear();
                                 }
                         });
+
+                        ui.label(
+                            egui::RichText::new(t!(
+                                "cheki.play_dice_hint",
+                                default = "Randomly places character stickers on the image"
+                            ))
+                            .size(10.0)
+                            .color(ui.visuals().weak_text_color()),
+                        );
 
                         if let Some(deco) = self.cheki_decorations.get(&image_uuid)
                             && !deco.dice_stickers.is_empty() {
