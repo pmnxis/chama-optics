@@ -50,6 +50,10 @@ desktop = [
 ]
 # libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
 libheif = ["libheif-rs"]
+# Statically link libheif from bundled sources (no system libheif required)
+# Use: --features "desktop,libheif,embedded_libheif"
+# Note: codec dependencies (libde265, libaom, etc.) are still dynamically linked
+embedded_libheif = ["libheif-sys/embedded-libheif"]
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit"]
 # Android-specific features - core library only, no Metal/VisionKit
@@ -151,6 +155,7 @@ oxipng = "^10"
 libheif-rs = { version = "^2.6", default-features = false, features = [
     "v1_18",
 ], optional = true }
+libheif-sys = { version = "^5", optional = true, default-features = false }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a", optional = true }
 
 # ONNX Runtime for face detection

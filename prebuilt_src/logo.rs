@@ -23,13 +23,16 @@ mod builtin_logos {
     }
 
     impl BuildArtAsset {
+        /// Fallback mirror on GitHub for when primary URLs (e.g. Wikipedia) fail.
+        const FALLBACK_BASE: &'static str =
+            "https://raw.githubusercontent.com/pmnxis/chama-optics-assets/master/logo_mnf";
+
         pub fn load(&self, out_dir: &Path) -> PathBuf {
             use md5::{Digest, Md5};
 
             const MAX_RETRIES: usize = 3;
             const RETRY_DURATION: std::time::Duration = std::time::Duration::from_secs(5);
 
-            // let file_name = self.url.split('/').last().expect("cannot determine file name from URL");
             let file_path = out_dir.join(self.key.clone());
 
             println!("cargo:rerun-if-changed=build.rs");
@@ -47,68 +50,96 @@ mod builtin_logos {
             // Download
             if !file_path.exists() {
                 println!("Downloading {} ...", self.url);
-                // let resp = reqwest::blocking::get(&self.url).expect("failed to download file");
-                // let bytes = resp.bytes().expect("failed to read response bytes");
 
                 let bytes: Vec<u8> = if self.url.starts_with("http://")
                     || self.url.starts_with("https://")
                 {
-                    println!("cargo:warning=Downloading {}", self.url);
-
                     let client = reqwest::blocking::Client::builder()
                         .user_agent(&user_agent)
                         .gzip(true)
                         .build()
                         .expect("failed to build reqwest client");
 
-                    let mut last_error = None;
-                    let mut result_bytes = None;
+                    let fallback_url = format!("{}/{}", Self::FALLBACK_BASE, self.key);
 
-                    for attempt in 0..=MAX_RETRIES {
-                        if attempt > 0 {
-                            println!(
-                                "cargo:warning=Retrying download attempt {}/{} after {} seconds...",
-                                attempt,
-                                MAX_RETRIES,
-                                RETRY_DURATION.as_secs()
-                            );
-                            std::thread::sleep(RETRY_DURATION);
+                    // Try primary URL first, then fallback
+                    let urls = [self.url.as_str(), fallback_url.as_str()];
+
+                    let mut final_bytes = None;
+
+                    for (url_idx, url) in urls.iter().enumerate() {
+                        let is_primary = url_idx == 0;
+                        let label = if is_primary { "primary" } else { "fallback" };
+
+                        println!("cargo:warning=Trying {} URL: {}", label, url);
+
+                        let mut last_error = None;
+
+                        for attempt in 0..=MAX_RETRIES {
+                            if attempt > 0 {
+                                println!(
+                                    "cargo:warning=Retrying {} attempt {}/{} after {} seconds...",
+                                    label,
+                                    attempt,
+                                    MAX_RETRIES,
+                                    RETRY_DURATION.as_secs()
+                                );
+                                std::thread::sleep(RETRY_DURATION);
+                            }
+
+                            let resp = match client.get(*url).send() {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    last_error =
+                                        Some(format!("Failed to download {}: {e}", url));
+                                    continue;
+                                }
+                            };
+
+                            if resp.status().is_success() {
+                                let bytes = resp
+                                    .bytes()
+                                    .expect("failed to read response bytes")
+                                    .to_vec();
+                                final_bytes = Some(bytes);
+                                last_error = None;
+                                break;
+                            } else {
+                                last_error = Some(format!(
+                                    "HTTP {} for {}",
+                                    resp.status(),
+                                    url
+                                ));
+                                if resp.status() == reqwest::StatusCode::FORBIDDEN
+                                    || resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+                                {
+                                    if attempt < MAX_RETRIES {
+                                        continue;
+                                    }
+                                } else {
+                                    // Non-retryable error, break to try fallback
+                                    break;
+                                }
+                            }
                         }
 
-                        let resp = match client.get(&self.url).send() {
-                            Ok(r) => r,
-                            Err(e) => {
-                                last_error = Some(format!("Failed to download {}: {e}", &self.url));
-                                continue;
-                            }
-                        };
-
-                        if resp.status().is_success() {
-                            let bytes = resp
-                                .bytes()
-                                .expect("failed to read response bytes")
-                                .to_vec();
-                            result_bytes = Some(bytes);
-                            last_error = None;
+                        if final_bytes.is_some() {
                             break;
-                        } else if resp.status() == reqwest::StatusCode::FORBIDDEN {
-                            last_error = Some(format!(
-                                "HTTP 403 Forbidden for {} (server intentionally blocked)",
-                                self.url
-                            ));
-                            if attempt < MAX_RETRIES {
-                                continue;
+                        }
+
+                        if let Some(ref err) = last_error {
+                            if is_primary {
+                                println!(
+                                    "cargo:warning=Primary download failed ({}), trying fallback...",
+                                    err
+                                );
+                            } else {
+                                panic!("All download attempts failed for {}: {}", self.key, err);
                             }
-                        } else {
-                            panic!("HTTP error {} for {}", resp.status(), self.url);
                         }
                     }
 
-                    if let Some(err) = last_error {
-                        panic!("{}", err);
-                    }
-
-                    result_bytes.expect("Should have downloaded bytes")
+                    final_bytes.expect("Should have downloaded bytes")
                 } else {
                     // use local file
                     let src_path = PathBuf::from(&self.url);
