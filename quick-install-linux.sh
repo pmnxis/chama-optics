@@ -97,6 +97,13 @@ else
     fi
 fi
 
+# Ensure build-linux.sh exists (older tags may not have it)
+if [ ! -f "build-linux.sh" ]; then
+    echo "  build-linux.sh not found in $GIT_REF, fetching from master..."
+    curl -sSf "https://raw.githubusercontent.com/pmnxis/chama-optics/master/build-linux.sh" -o build-linux.sh
+    chmod +x build-linux.sh
+fi
+
 # Run build
 echo ""
 exec bash build-linux.sh
