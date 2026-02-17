@@ -1,3 +1,8 @@
+<!--
+  SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+
+  SPDX-License-Identifier: MIT
+-->
 <!DOCTYPE html>
 <html>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -92,10 +97,224 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Demo warning overlay */
+        .demo-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .demo-dialog {
+            background: #2b2b2b;
+            color: #e0e0e0;
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 480px;
+            width: 90%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        .demo-dialog h2 {
+            margin: 0 0 12px;
+            font-size: 18px;
+            color: #ffb74d;
+        }
+        .demo-dialog p {
+            margin: 0 0 16px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .demo-dialog .recommend {
+            background: #333;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .demo-dialog .recommend a {
+            color: #64b5f6;
+            text-decoration: none;
+        }
+        .demo-dialog .recommend a:hover {
+            text-decoration: underline;
+        }
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .demo-buttons button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .demo-buttons .btn-download {
+            background: #1976d2;
+            color: #fff;
+        }
+        .demo-buttons .btn-continue {
+            background: #555;
+            color: #ccc;
+        }
+        .demo-buttons button:hover {
+            filter: brightness(1.15);
+        }
     </style>
 </head>
 
 <body>
+    <!-- Demo warning overlay -->
+    <div class="demo-overlay" id="demo_warning">
+        <div class="demo-dialog">
+            <h2 id="warn_title"></h2>
+            <p id="warn_body"></p>
+            <div class="recommend" id="download_recommend"></div>
+            <div class="demo-buttons">
+                <button class="btn-download" id="btn_dl"></button>
+                <button class="btn-continue" id="btn_cont" onclick="document.getElementById('demo_warning').remove()"></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var i18n = {
+            en: {
+                title: '\u26A0 Technology Preview',
+                body: 'This Web App (WASM) is a technology preview for demonstration purposes.<br>'
+                    + 'Stable operation is not guaranteed and some features may be limited.<br>'
+                    + 'Please download the desktop or mobile app for reliable use.',
+                env: '\uD83D\uDCBB Your environment: ',
+                dl: 'Download latest release \u2192',
+                btnDl: 'Download',
+                btnCont: 'Continue to Web Demo',
+                ios: 'iOS (App Store - coming soon)',
+                android: 'Android (Google Play - coming soon)',
+                mac: 'macOS (Apple Silicon)',
+                win: 'Windows (x86_64)',
+                linux: 'Linux (coming soon)',
+                other: 'Desktop'
+            },
+            ko: {
+                title: '\u26A0 \uAE30\uC220 \uAC80\uC99D\uC6A9 \uBBF8\uB9AC\uBCF4\uAE30',
+                body: '\uC774 Web App (WASM)\uC740 \uAE30\uC220 \uAC80\uC99D\uC6A9 \uB370\uBAA8\uC785\uB2C8\uB2E4.<br>'
+                    + '\uC815\uC0C1\uC801\uC778 \uB3D9\uC791\uC744 \uBCF4\uC7A5\uD558\uC9C0 \uC54A\uC73C\uBA70, \uC77C\uBD80 \uAE30\uB2A5\uC774 \uC81C\uD55C\uB420 \uC218 \uC788\uC2B5\uB2C8\uB2E4.<br>'
+                    + '\uC548\uC815\uC801\uC778 \uC0AC\uC6A9\uC744 \uC704\uD574 \uB370\uC2A4\uD06C\uD0D1 \uB610\uB294 \uBAA8\uBC14\uC77C \uC571\uC744 \uB2E4\uC6B4\uB85C\uB4DC\uD574 \uC8FC\uC138\uC694.',
+                env: '\uD83D\uDCBB \uD604\uC7AC \uD658\uACBD: ',
+                dl: '\uCD5C\uC2E0 \uB9B4\uB9AC\uC988 \uB2E4\uC6B4\uB85C\uB4DC \u2192',
+                btnDl: '\uB2E4\uC6B4\uB85C\uB4DC',
+                btnCont: '\uC6F9 \uB370\uBAA8\uB85C \uACC4\uC18D',
+                ios: 'iOS (App Store - \uC900\uBE44\uC911)',
+                android: 'Android (Google Play - \uC900\uBE44\uC911)',
+                mac: 'macOS (Apple Silicon)',
+                win: 'Windows (x86_64)',
+                linux: 'Linux (\uC900\uBE44\uC911)',
+                other: 'Desktop'
+            },
+            ja: {
+                title: '\u26A0 \u6280\u8853\u30D7\u30EC\u30D3\u30E5\u30FC',
+                body: '\u3053\u306EWeb App (WASM)\u306F\u6280\u8853\u691C\u8A3C\u7528\u306E\u30C7\u30E2\u3067\u3059\u3002<br>'
+                    + '\u6B63\u5E38\u306A\u52D5\u4F5C\u3092\u4FDD\u8A3C\u305B\u305A\u3001\u4E00\u90E8\u306E\u6A5F\u80FD\u304C\u5236\u9650\u3055\u308C\u308B\u5834\u5408\u304C\u3042\u308A\u307E\u3059\u3002<br>'
+                    + '\u5B89\u5B9A\u3057\u305F\u5229\u7528\u306E\u305F\u3081\u3001\u30C7\u30B9\u30AF\u30C8\u30C3\u30D7\u307E\u305F\u306F\u30E2\u30D0\u30A4\u30EB\u30A2\u30D7\u30EA\u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u3057\u3066\u304F\u3060\u3055\u3044\u3002',
+                env: '\uD83D\uDCBB \u73FE\u5728\u306E\u74B0\u5883: ',
+                dl: '\u6700\u65B0\u30EA\u30EA\u30FC\u30B9\u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9 \u2192',
+                btnDl: '\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9',
+                btnCont: 'Web\u30C7\u30E2\u3078\u9032\u3080',
+                ios: 'iOS (App Store - \u6E96\u5099\u4E2D)',
+                android: 'Android (Google Play - \u6E96\u5099\u4E2D)',
+                mac: 'macOS (Apple Silicon)',
+                win: 'Windows (x86_64)',
+                linux: 'Linux (\u6E96\u5099\u4E2D)',
+                other: 'Desktop'
+            },
+            id: {
+                title: '\u26A0 Pratinjau Teknologi',
+                body: 'Web App (WASM) ini adalah demo untuk verifikasi teknologi.<br>'
+                    + 'Pengoperasian yang stabil tidak dijamin dan beberapa fitur mungkin terbatas.<br>'
+                    + 'Silakan unduh aplikasi desktop atau mobile untuk penggunaan yang andal.',
+                env: '\uD83D\uDCBB Lingkungan Anda: ',
+                dl: 'Unduh rilis terbaru \u2192',
+                btnDl: 'Unduh',
+                btnCont: 'Lanjut ke Web Demo',
+                ios: 'iOS (App Store - segera hadir)',
+                android: 'Android (Google Play - segera hadir)',
+                mac: 'macOS (Apple Silicon)',
+                win: 'Windows (x86_64)',
+                linux: 'Linux (segera hadir)',
+                other: 'Desktop'
+            }
+        };
+
+        // Detect browser language
+        var lang = (navigator.language || navigator.userLanguage || 'en').toLowerCase().split('-')[0];
+        var t = i18n[lang] || i18n['en'];
+
+        // Detect OS
+        var ua = navigator.userAgent;
+        var p = navigator.platform || '';
+        var fallback = 'https://github.com/pmnxis/chama-optics/releases/latest';
+        var osKey = 'other';
+
+        if (/iPhone|iPad|iPod/.test(ua)) {
+            osKey = 'ios';
+        } else if (/Android/.test(ua)) {
+            osKey = 'android';
+        } else if (/Mac/.test(p)) {
+            osKey = 'mac';
+        } else if (/Win/.test(p)) {
+            osKey = 'win';
+        } else if (/Linux/.test(p)) {
+            osKey = 'linux';
+        }
+
+        var osName = t[osKey];
+        var dlUrl = fallback;
+
+        // Direct links for mobile
+        if (osKey === 'ios') dlUrl = 'https://testflight.apple.com/join/qh9raejp';
+        if (osKey === 'android') dlUrl = 'https://play.google.com/apps/testing/com.github.pmnxis.chamaoptics';
+
+        // Apply translations (initial, before API fetch)
+        document.getElementById('warn_title').textContent = t.title;
+        document.getElementById('warn_body').innerHTML = t.body;
+        document.getElementById('download_recommend').innerHTML =
+            t.env + '<strong>' + osName + '</strong><br>'
+            + '<a id="dl_link" href="' + dlUrl + '" target="_blank">' + t.dl + '</a>';
+        document.getElementById('btn_dl').textContent = t.btnDl;
+        document.getElementById('btn_dl').onclick = function() { window.open(dlUrl, '_blank'); };
+        document.getElementById('btn_cont').textContent = t.btnCont;
+
+        // Fetch latest release for direct download URL (desktop only)
+        if (osKey === 'mac' || osKey === 'win') {
+            var pattern = osKey === 'mac' ? /macos_arm64.*\.dmg$/i : /win_x86_64.*\.zip$/i;
+            fetch('https://api.github.com/repos/pmnxis/chama-optics/releases/latest')
+                .then(function(r) { return r.ok ? r.json() : Promise.reject(r.status); })
+                .then(function(release) {
+                    var ver = release.tag_name;
+                    var asset = (release.assets || []).find(function(a) { return pattern.test(a.name); });
+                    if (asset) {
+                        dlUrl = asset.browser_download_url;
+                        var size = asset.size >= 1048576
+                            ? (asset.size / 1048576).toFixed(1) + ' MB'
+                            : (asset.size / 1024).toFixed(1) + ' KB';
+                        document.getElementById('download_recommend').innerHTML =
+                            t.env + '<strong>' + osName + '</strong><br>'
+                            + '<a id="dl_link" href="' + dlUrl + '" target="_blank">'
+                            + ver + ' \u00B7 ' + size + ' \u2192</a>';
+                        document.getElementById('btn_dl').onclick = function() { window.open(dlUrl, '_blank'); };
+                    }
+                })
+                .catch(function() { /* fallback already set */ });
+        }
+    })();
+    </script>
+
     <!-- egui canvas -->
     <canvas id="the_canvas_id"></canvas>
 
