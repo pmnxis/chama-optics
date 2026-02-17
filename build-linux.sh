@@ -173,7 +173,7 @@ if [ "$NEEDS_CONFIRM" = true ]; then
     echo ""
     echo "==========================================================================="
     echo ""
-    read -rp "Accept libdav1d-dev removal and proceed? [y/N] " confirm
+    read -rp "Accept libdav1d-dev removal and proceed? [y/N] " confirm < /dev/tty
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
         echo "Aborted by user."
         exit 1

@@ -19,7 +19,8 @@ echo ""
 echo "  1) stable  — Latest released version (recommended)"
 echo "  2) latest  — Master branch (may be unstable)"
 echo ""
-read -rp "Select channel [1/2]: " choice
+# Read from /dev/tty so it works with curl | bash (stdin is the script)
+read -rp "Select channel [1/2]: " choice < /dev/tty
 
 case "$choice" in
     1|stable)
