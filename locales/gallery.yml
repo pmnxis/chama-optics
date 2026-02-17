@@ -102,6 +102,12 @@ gallery:
     ja: "画像上の顔をタップして設定してください"
     id: "Ketuk wajah di gambar untuk mengonfigurasinya"
 
+  apply_to_all_faces:
+    en: "Apply to All Faces"
+    ko: "전체 얼굴에 적용"
+    ja: "すべての顔に適用"
+    id: "Terapkan ke Semua Wajah"
+
   # Save messages
   save_success:
     en: "Saved %d out of %d images to Photos"
