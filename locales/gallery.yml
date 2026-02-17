@@ -118,12 +118,12 @@ gallery:
   webp_saved:
     en: "WebP file saved to:\n%@\n\nOpen Files app to find it in ChamaOptics folder."
     ko: "WebP 파일이 다음 위치에 저장됨:\n%@\n\n파일 앱을 열어 ChamaOptics 폴더에서 확인하세요."
-    ja: "WebPファイルが保存されました：\n%@\n\nファイルアプリを開いてChamaOpticsフォルダで確인してください。"
+    ja: "WebPファイルが保存されました：\n%@\n\nファイルアプリを開いてChamaOpticsフォルダで確認してください。"
     id: "Berkas WebP disimpan ke:\n%@\n\nBuka aplikasi Files untuk menemukannya di folder ChamaOptics."
   webp_batch_saved:
     en: "%d WebP images saved.\n\nOpen Files app to find them in ChamaOptics folder."
     ko: "%d개의 WebP 이미지가 저장되었습니다.\n\n파일 앱을 열어 ChamaOptics 폴더에서 확인하세요."
-    ja: "%d個のWebP画像が保存されました。\n\nファイルアプリを開いてChamaOpticsフォルダで確인してください。"
+    ja: "%d個のWebP画像が保存されました。\n\nファイルアプリを開いてChamaOpticsフォルダで確認してください。"
     id: "%d gambar WebP disimpan.\n\nBuka aplikasi Files untuk menemukannya di folder ChamaOptics."
   photo_saved:
     en: "Your photo has been saved to the Photos library."
