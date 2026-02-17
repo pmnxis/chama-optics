@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 use strum_macros::{EnumString, IntoStaticStr};
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", target_arch = "wasm32"))]
 use std::str::FromStr;
 
 #[rustfmt::skip]
@@ -42,9 +42,22 @@ impl Language {
         }
     }
 
-    #[cfg(not(feature = "desktop"))]
+    #[cfg(all(not(feature = "desktop"), target_arch = "wasm32"))]
     pub fn get_system() -> Self {
-        // WASM/iOS: Default to English
+        // WASM: detect browser language via navigator.language()
+        if let Some(window) = web_sys::window() {
+            if let Some(lang) = window.navigator().language() {
+                if let Some(code) = lang.split(['-', '_']).next() {
+                    return Self::from_str(code).unwrap_or(Self::default());
+                }
+            }
+        }
+        Self::default()
+    }
+
+    #[cfg(all(not(feature = "desktop"), not(target_arch = "wasm32")))]
+    pub fn get_system() -> Self {
+        // iOS/Android: Default to English
         Self::default()
     }
 

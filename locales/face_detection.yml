@@ -155,6 +155,21 @@ face_detection:
     ko: "얼굴 추가"
     ja: "顔を追加"
     id: "Tambah Wajah"
+  delete_face:
+    en: "Delete Face"
+    ko: "얼굴 삭제"
+    ja: "顔を削除"
+    id: "Hapus Wajah"
+  delete_face_hint:
+    en: "Delete the selected face detection area"
+    ko: "선택된 얼굴 감지 영역을 삭제합니다"
+    ja: "選択した顔検出エリアを削除"
+    id: "Hapus area deteksi wajah yang dipilih"
+  loading_preview:
+    en: "Loading preview..."
+    ko: "미리보기 로딩 중..."
+    ja: "プレビュー読み込み中..."
+    id: "Memuat pratinjau..."
 
   # Sticker assignment
   assign_sticker:

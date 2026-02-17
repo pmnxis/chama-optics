@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT
+
+name: Web Deploy
+
+on:
+  push:
+    tags:
+      - 'web/v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one deployment at a time
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+env:
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  build:
+    name: Build WASM
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.92
+          override: true
+          target: wasm32-unknown-unknown
+
+      - name: Install Trunk
+        run: |
+          TRUNK_VERSION="0.21.14"
+          wget -qO- "https://github.com/trunk-rs/trunk/releases/download/v${TRUNK_VERSION}/trunk-x86_64-unknown-linux-gnu.tar.gz" | tar xzf -
+          chmod +x trunk
+          sudo mv trunk /usr/local/bin/
+
+      - name: Force zune-jpeg version to avoid 0.5.6 bug
+        run: cargo update -p zune-jpeg:0.5.6 --precise 0.5.8 || true
+
+      - name: Build with Trunk
+        run: trunk build --release --public-url /chama-optics/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

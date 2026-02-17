@@ -14,6 +14,7 @@ pub fn render_bottom_panel(
     ui: &mut egui::Ui,
     load_progress: &mut ProgressState,
     save_progress: &mut ProgressState,
+    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
     update_checker: &crate::util::check_update::CheckRelease,
 ) {
     egui::Panel::bottom("bottom_panel").show_inside(ui, |ui| {
@@ -48,7 +49,10 @@ pub fn render_bottom_panel(
 
             // Right: Version info (always on right)
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
                 render_version_info(ui, update_checker);
+                #[cfg(not(all(feature = "desktop", not(feature = "ios_integration"))))]
+                render_version_info(ui);
             });
         });
     });
@@ -106,6 +110,7 @@ fn render_progress_bar(
 }
 
 /// Render version information and update check
+#[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
 fn render_version_info(
     ui: &mut egui::Ui,
     update_checker: &crate::util::check_update::CheckRelease,
@@ -114,6 +119,16 @@ fn render_version_info(
     update_checker.ui(ui);
     ui.add_space(20.0);
 
+    ui.label(format!(
+        "v{} ({})",
+        env!("PROJECT_VERSION"),
+        env!("GIT_COMMIT_SHORT_HASH")
+    ));
+}
+
+/// Render version information (without update check — for web/WASM)
+#[cfg(not(all(feature = "desktop", not(feature = "ios_integration"))))]
+fn render_version_info(ui: &mut egui::Ui) {
     ui.label(format!(
         "v{} ({})",
         env!("PROJECT_VERSION"),

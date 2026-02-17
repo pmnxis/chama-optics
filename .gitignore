@@ -12,6 +12,7 @@ bak
 # Web / WASM build output
 dist/
 .trunk/
+web_fonts/
 assets/download
 assets/auto_generated
 Cargo.lock

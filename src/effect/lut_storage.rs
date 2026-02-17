@@ -64,8 +64,8 @@ impl From<LutType> for StoredLutType {
 }
 
 fn default_timestamp() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
+    web_time::SystemTime::now()
+        .duration_since(web_time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
@@ -182,10 +182,17 @@ impl LutStorage {
 
     /// Get default storage path for LUTs
     pub fn default_storage_path() -> PathBuf {
-        dirs::data_local_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("chama_optics")
-            .join("luts")
+        #[cfg(feature = "desktop")]
+        {
+            dirs::data_local_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join("chama_optics")
+                .join("luts")
+        }
+        #[cfg(not(feature = "desktop"))]
+        {
+            PathBuf::from(".").join("chama_optics").join("luts")
+        }
     }
 
     /// Ensure storage directory exists

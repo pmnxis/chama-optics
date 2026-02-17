@@ -8,6 +8,52 @@ use rust_i18n::t;
 use std::path::Path;
 use strum::Display;
 
+/// Detection speed modes — controls sliding window strategy for large images.
+/// Shared by InsightFace (ort) and Candle face detectors.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg(any(
+    feature = "face_detection_insightface",
+    feature = "face_detection_candle"
+))]
+pub enum SpeedMode {
+    /// Fastest: No sliding window (whole image resized to 640×640), ~0.5s avg
+    Fastest,
+    /// Fast: min(w,h) sliding windows only, ~0.6s avg
+    Fast,
+    /// Normal: min(w,h) sliding windows, ~7s avg
+    Normal,
+    /// Slow: 2560×2560 and 1280×1280 windows, ~13s avg
+    Slow,
+    /// Slowest: 2560×2560, 1280×1280, and 640×640 windows, ~28s avg
+    Slowest,
+}
+
+#[cfg(any(
+    feature = "face_detection_insightface",
+    feature = "face_detection_candle"
+))]
+impl SpeedMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SpeedMode::Fastest => "fastest",
+            SpeedMode::Fast => "fast",
+            SpeedMode::Normal => "normal",
+            SpeedMode::Slow => "slow",
+            SpeedMode::Slowest => "slowest",
+        }
+    }
+
+    pub fn max_depth(&self) -> u32 {
+        match self {
+            SpeedMode::Fastest => 0,
+            SpeedMode::Fast => 1,
+            SpeedMode::Normal => 1,
+            SpeedMode::Slow => 2,
+            SpeedMode::Slowest => 3,
+        }
+    }
+}
+
 /// Face effect mode - what effect to apply to detected faces
 /// This enum matches the iOS FaceEffectType for consistency
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, Default)]
@@ -55,61 +101,31 @@ pub enum FaceDetectionEngine {
     VisionKit,
     #[cfg(feature = "face_detection_insightface")]
     InsightFace,
+    #[cfg(feature = "face_detection_candle")]
+    Candle,
     #[cfg(not(any(
         feature = "face_detection_visionkit",
-        feature = "face_detection_insightface"
+        feature = "face_detection_insightface",
+        feature = "face_detection_candle"
     )))]
     NoOp,
 }
 
-#[cfg(all(
-    feature = "face_detection_visionkit",
-    feature = "face_detection_insightface"
-))]
 impl FaceDetectionEngine {
     /// Get display name for engine
     pub fn display_name(&self) -> &'static str {
         match self {
+            #[cfg(feature = "face_detection_visionkit")]
             Self::VisionKit => "VisionKit",
+            #[cfg(feature = "face_detection_insightface")]
             Self::InsightFace => "InsightFace",
-        }
-    }
-}
-
-#[cfg(all(
-    feature = "face_detection_visionkit",
-    not(feature = "face_detection_insightface")
-))]
-impl FaceDetectionEngine {
-    /// Get display name for engine
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::VisionKit => "VisionKit",
-        }
-    }
-}
-
-#[cfg(all(
-    feature = "face_detection_insightface",
-    not(feature = "face_detection_visionkit")
-))]
-impl FaceDetectionEngine {
-    /// Get display name for engine
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            Self::InsightFace => "InsightFace",
-        }
-    }
-}
-
-#[cfg(not(any(
-    feature = "face_detection_visionkit",
-    feature = "face_detection_insightface"
-)))]
-impl FaceDetectionEngine {
-    /// Get display name for engine
-    pub fn display_name(&self) -> &'static str {
-        match self {
+            #[cfg(feature = "face_detection_candle")]
+            Self::Candle => "Candle",
+            #[cfg(not(any(
+                feature = "face_detection_visionkit",
+                feature = "face_detection_insightface",
+                feature = "face_detection_candle"
+            )))]
             Self::NoOp => "NoOp",
         }
     }
@@ -129,8 +145,8 @@ pub struct FaceDetection {
     pub mosaic_block_size: u32,
     /// Legacy: mask faces with blur (deprecated, use effect_mode instead)
     pub mask_faces: bool, // todo - is this really used?
-    #[cfg(feature = "face_detection_insightface")]
-    pub speed_mode: crate::effect::insightface_detector::SpeedMode,
+    #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+    pub speed_mode: SpeedMode,
     #[cfg(feature = "face_detection_insightface")]
     pub provider: crate::effect::insightface_detector::ExecutionProvider,
     pub recursive_detection: bool,
@@ -159,7 +175,7 @@ impl core::default::Default for FaceDetection {
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
+                speed_mode: SpeedMode::Normal,
                 provider:
                     crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
                 recursive_detection: false,
@@ -202,8 +218,30 @@ impl core::default::Default for FaceDetection {
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
-                speed_mode: crate::effect::insightface_detector::SpeedMode::Normal,
+                speed_mode: SpeedMode::Normal,
                 provider: crate::effect::insightface_detector::ExecutionProvider::OnnxAuto,
+                recursive_detection: false,
+                recursive_min_size: 64,
+                recursive_max_depth: 4,
+                recursive_overlap: true,
+                recursive_overlap_ratio: 0.25,
+            }
+        }
+
+        #[cfg(all(
+            not(any(target_os = "ios", target_os = "android")),
+            feature = "face_detection_candle",
+            not(feature = "face_detection_visionkit"),
+            not(feature = "face_detection_insightface")
+        ))]
+        {
+            FaceDetection {
+                engine: FaceDetectionEngine::Candle,
+                effect_mode: FaceEffectMode::None,
+                border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
+                mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
+                mask_faces: false,
+                speed_mode: SpeedMode::Normal,
                 recursive_detection: false,
                 recursive_min_size: 64,
                 recursive_max_depth: 4,
@@ -215,7 +253,8 @@ impl core::default::Default for FaceDetection {
         #[cfg(all(
             not(any(
                 feature = "face_detection_visionkit",
-                feature = "face_detection_insightface"
+                feature = "face_detection_insightface",
+                feature = "face_detection_candle"
             )),
             not(any(target_os = "ios", target_os = "android"))
         ))]
@@ -253,7 +292,8 @@ impl core::default::Default for FaceDetection {
 
         #[cfg(all(
             any(target_os = "ios", target_os = "android"),
-            not(feature = "face_detection_visionkit")
+            not(feature = "face_detection_visionkit"),
+            not(feature = "face_detection_candle")
         ))]
         {
             Self {
@@ -824,13 +864,28 @@ impl FaceDetection {
                                 "InsightFace (requires feature flag)",
                             );
                         }
+                        // Show Candle (pure Rust ONNX, works on WASM + desktop)
+                        #[cfg(feature = "face_detection_candle")]
+                        {
+                            ui.selectable_value(
+                                &mut self.engine,
+                                FaceDetectionEngine::Candle,
+                                "Candle",
+                            );
+                        }
                     });
 
                 ui.separator();
 
-                // Show speed mode and provider options for InsightFace
+                // Show speed mode options for InsightFace and Candle
+                #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+                {
+                let mut show_speed_mode = false;
                 #[cfg(feature = "face_detection_insightface")]
-                if matches!(self.engine, FaceDetectionEngine::InsightFace) {
+                { show_speed_mode |= matches!(self.engine, FaceDetectionEngine::InsightFace); }
+                #[cfg(feature = "face_detection_candle")]
+                { show_speed_mode |= matches!(self.engine, FaceDetectionEngine::Candle); }
+                if show_speed_mode {
                     // Speed mode selection
                     ui.label(t!("face_detection.speed_mode"))
                         .on_hover_text(t!("face_detection.speed_mode_hint"));
@@ -838,7 +893,6 @@ impl FaceDetection {
                     egui::ComboBox::from_label(t!("face_detection.speed_mode"))
                         .selected_text(self.speed_mode.as_str().to_string())
                         .show_ui(ui, |ui| {
-                            use crate::effect::insightface_detector::SpeedMode;
                             let modes = [
                                 (
                                     SpeedMode::Fastest,
@@ -874,8 +928,12 @@ impl FaceDetection {
                         });
 
                     ui.separator();
+                }
+                } // #[cfg(any(face_detection_insightface, face_detection_candle))]
 
-                    // Execution provider selection
+                // Execution provider selection (InsightFace only)
+                #[cfg(feature = "face_detection_insightface")]
+                if matches!(self.engine, FaceDetectionEngine::InsightFace) {
                     ui.label(t!("face_detection.execution_provider"))
                         .on_hover_text(t!("face_detection.execution_provider_hint"));
 
@@ -916,14 +974,24 @@ impl FaceDetection {
     pub fn get_current_engine_name(&self) -> String {
         #[cfg(feature = "face_detection_insightface")]
         {
-            format!(
-                "{} {} {}",
-                self.engine.display_name(),
-                self.provider.as_str(),
-                self.speed_mode.as_str()
-            )
+            if matches!(self.engine, FaceDetectionEngine::InsightFace) {
+                return format!(
+                    "{} {} {}",
+                    self.engine.display_name(),
+                    self.provider.as_str(),
+                    self.speed_mode.as_str()
+                );
+            }
         }
-        #[cfg(not(feature = "face_detection_insightface"))]
+        #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+        {
+            return format!(
+                "{} {}",
+                self.engine.display_name(),
+                self.speed_mode.as_str()
+            );
+        }
+        #[cfg(not(any(feature = "face_detection_insightface", feature = "face_detection_candle")))]
         {
             self.engine.display_name().to_string()
         }

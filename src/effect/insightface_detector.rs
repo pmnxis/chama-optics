@@ -14,44 +14,8 @@ use ort::{session::Session, value::Tensor};
 #[cfg(feature = "face_detection_insightface")]
 use std::{path::Path, sync::RwLock};
 
-/// Detection speed modes based on Python test results
-#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg(feature = "face_detection_insightface")]
-pub enum SpeedMode {
-    /// Fastest: No sliding window (whole image resized to 640×640), ~0.5s avg
-    Fastest,
-    /// Fast: 2560×2560 windows only, ~0.6s avg
-    Fast,
-    /// Normal: 2560×2560 windows only, ~7s avg
-    Normal,
-    /// Slow: 2560×2560 and 1280×1280 windows, ~13s avg
-    Slow,
-    /// Slowest: 2560×2560, 1280×1280, and 640×640 windows, ~28s avg
-    Slowest,
-}
-
-#[cfg(feature = "face_detection_insightface")]
-impl SpeedMode {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SpeedMode::Fastest => "fastest",
-            SpeedMode::Fast => "fast",
-            SpeedMode::Normal => "normal",
-            SpeedMode::Slow => "slow",
-            SpeedMode::Slowest => "slowest",
-        }
-    }
-
-    pub fn max_depth(&self) -> u32 {
-        match self {
-            SpeedMode::Fastest => 0, // No sliding window (whole image resized)
-            SpeedMode::Fast => 1,    // Only 2560×2560 windows
-            SpeedMode::Normal => 1,  // Only 2560×2560 windows
-            SpeedMode::Slow => 2,    // 2560×2560 and 1280×1280 windows
-            SpeedMode::Slowest => 3, // 2560×2560, 1280×1280, and 640×640 windows
-        }
-    }
-}
+// SpeedMode is defined in face_detection.rs and shared with candle_face_detector.
+pub use crate::effect::face_detection::SpeedMode;
 
 /// ONNX Runtime execution providers
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]

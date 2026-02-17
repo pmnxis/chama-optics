@@ -26,5 +26,11 @@ pub(crate) mod watermark;
 #[cfg(feature = "face_detection_insightface")]
 pub mod insightface_detector;
 
+#[cfg(feature = "face_detection_candle")]
+pub mod candle_face_detector;
+
+#[cfg(all(target_arch = "wasm32", feature = "face_detection_candle"))]
+pub mod ort_web_detector;
+
 // Re-export FaceEffectMode for easier access
 pub use face_detection::FaceEffectMode;

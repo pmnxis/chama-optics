@@ -244,7 +244,6 @@ impl ChamaOptics {
         self.cheki_preview_cache_key = Some(cache_key);
         self.cheki_preview_texture = None;
 
-        let image_path = packed_image.path.clone();
         let orientation = packed_image.view_exif.orientation;
         let crop_rotate = packed_image.crop_rotate.clone();
         let image_uuid = packed_image.uuid;
@@ -253,45 +252,71 @@ impl ChamaOptics {
         let mut lut_storage = self.lut_storage.clone_for_thread();
         let queue = self.cheki_preview_queue.clone();
 
-        std::thread::spawn(move || {
-            let mut img = match image::open(&image_path) {
-                Ok(img) => img,
-                Err(e) => {
-                    log::error!("Failed to load image for cheki base texture: {:?}", e);
-                    return;
+        // Shared processing logic (image → preview ColorImage)
+        let mut process_image =
+            move |mut img: image::DynamicImage| -> Option<(egui::ColorImage, uuid::Uuid)> {
+                img.apply_orientation(orientation);
+
+                if !crop_rotate.is_identity() {
+                    img = crop_rotate.apply(&img);
                 }
+
+                color_adjustments.apply(&mut img);
+
+                if let Some(lut_id) = image_lut_id {
+                    lut_storage.apply_lut_to_image(lut_id, &mut img);
+                }
+
+                let max_size = 1920u32;
+                if img.width() > max_size || img.height() > max_size {
+                    let scale = (max_size as f32 / img.width() as f32)
+                        .min(max_size as f32 / img.height() as f32);
+                    let new_w = (img.width() as f32 * scale) as u32;
+                    let new_h = (img.height() as f32 * scale) as u32;
+                    img = img.resize(new_w, new_h, image::imageops::FilterType::Triangle);
+                }
+
+                let rgba = img.to_rgba8();
+                let size = [rgba.width() as usize, rgba.height() as usize];
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &rgba);
+                Some((color_image, image_uuid))
             };
-            img.apply_orientation(orientation);
 
-            if !crop_rotate.is_identity() {
-                img = crop_rotate.apply(&img);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let image_path = packed_image.path.clone();
+            std::thread::spawn(move || {
+                let img = match image::open(&image_path) {
+                    Ok(img) => img,
+                    Err(e) => {
+                        log::error!("Failed to load image for cheki base texture: {:?}", e);
+                        return;
+                    }
+                };
+                if let Some(result) = process_image(img) {
+                    if let Ok(mut q) = queue.lock() {
+                        *q = Some(result);
+                    }
+                }
+            });
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let img = packed_image
+                .image_bytes
+                .as_ref()
+                .and_then(|bytes| image::load_from_memory(bytes).ok());
+            if let Some(img) = img {
+                if let Some(result) = process_image(img) {
+                    if let Ok(mut q) = queue.lock() {
+                        *q = Some(result);
+                    }
+                }
+            } else {
+                log::error!("WASM: No image_bytes for cheki preview");
             }
-
-            // Apply color adjustments (Lightroom-style)
-            color_adjustments.apply(&mut img);
-
-            // Apply LUT if configured for this image
-            if let Some(lut_id) = image_lut_id {
-                lut_storage.apply_lut_to_image(lut_id, &mut img);
-            }
-
-            let max_size = 1920u32;
-            if img.width() > max_size || img.height() > max_size {
-                let scale = (max_size as f32 / img.width() as f32)
-                    .min(max_size as f32 / img.height() as f32);
-                let new_w = (img.width() as f32 * scale) as u32;
-                let new_h = (img.height() as f32 * scale) as u32;
-                img = img.resize(new_w, new_h, image::imageops::FilterType::Triangle);
-            }
-
-            let rgba = img.to_rgba8();
-            let size = [rgba.width() as usize, rgba.height() as usize];
-            let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &rgba);
-
-            if let Ok(mut q) = queue.lock() {
-                *q = Some((color_image, image_uuid));
-            }
-        });
+        }
 
         Some(())
     }

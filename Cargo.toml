@@ -42,12 +42,29 @@ desktop = [
     "egui-file-dialog",
     "sys-locale",
     "font-kit",
-    "reqwest",
-    "zip",
+    "dep:reqwest",
+    "native_encoders",
+    "threading",
+    "dep:clap",
+    "dep:env_logger",
+    "dep:dirs",
     # Note: ext_res removed from default
     # macOS: Use --features "desktop,ext_res" (recommended for notarization)
     # Windows/Linux: Use default (fonts/models embedded in binary)
 ]
+# Web/WASM target — full GUI via eframe WebGL, no native I/O
+web = [
+    "egui",
+    "eframe",
+    "dep:wasm-bindgen",
+    "dep:wasm-bindgen-futures",
+    "dep:web-sys",
+    "dep:js-sys",
+]
+# Native image encoders (mozjpeg, webp, oxipng) — C FFI, desktop only
+native_encoders = ["dep:mozjpeg", "dep:webp", "dep:oxipng"]
+# Threading support (rayon, num_cpus) — not available on WASM
+threading = ["dep:rayon", "dep:num_cpus"]
 # libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
 libheif = ["libheif-rs"]
 # Statically link libheif from bundled sources (no system libheif required)
@@ -85,6 +102,14 @@ face_detection_insightface = [
     "ndarray",
     "ort",
 ]
+# Candle-based face detection (WASM + cross-platform, no ort/C++ dependency)
+# Uses candle-onnx for ONNX inference — works on wasm32, macOS, Linux
+face_detection_candle = [
+    "candle-core",
+    "candle-nn",
+    "dep:candle-onnx",
+    "dep:prost",
+]
 build_assets = []
 
 [dependencies]
@@ -96,13 +121,7 @@ futures = { version = "^0.3", optional = true }
 egui = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", optional = true, features = [
     "serde",
 ] }
-eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
-    # "default_fonts",  # Removed: Use external fonts with ext_res feature or embedded fonts without it
-    "glow",
-    "persistence",
-    "wayland",
-    "x11",
-], optional = true }
+## eframe: platform-specific features are added in [target] sections below
 # Logging: enabled by default, disabled with disable_logging feature
 log = "0.4.29"
 serde = { version = "1", features = ["derive"] }
@@ -123,22 +142,22 @@ ab_glyph = "0.2.32"
 fast_image_resize = "^6.0"
 lazy_static = "1.5.0"
 gcd = "2.3.0"
-env_logger = "0.11.9"
-android_logger = "0.15"
+env_logger = { version = "0.11.9", optional = true }
+web-time = "1"
 rust-i18n = "3.1.5"
 uuid = { version = "1.21", features = ["v4", "serde"] }
 strum = { version = "0.27.2", features = ["std", "derive"] }
 strum_macros = "0.27.2"
 sys-locale = { version = "0.3.2", optional = true }
-dirs = "6.0"
+dirs = { version = "6.0", optional = true }
 num-traits = "0.2.19"
-clap = { version = "4.5.59", features = ["derive"] }
+clap = { version = "4.5.59", features = ["derive"], optional = true }
 chrono = { version = "^0.4", features = ["serde"] }
 resvg = "^0.47"
 tiny-skia = "^0.12"
 rand = "^0.10"
-rayon = "1.11"
-num_cpus = "1.16"
+rayon = { version = "1.11", optional = true }
+num_cpus = { version = "1.16", optional = true }
 ndarray = { version = "0.17", optional = true }
 reqwest = { version = "^0.13", optional = true, features = [
     "gzip",
@@ -147,10 +166,10 @@ reqwest = { version = "^0.13", optional = true, features = [
     # "rustls-tls",
 ] } # rustls is now the default TLS backend, instead of native-tls. Desktop only (update checker).
 
-mozjpeg = { version = "0.10.13" }
-webp = "0.3.1"
+mozjpeg = { version = "0.10.13", optional = true }
+webp = { version = "0.3.1", optional = true }
 img-parts = "0.4"
-oxipng = "^10"
+oxipng = { version = "^10", optional = true }
 libheif-rs = { version = "^2.6", default-features = false, features = [
     "v1_18",
 ], optional = true }
@@ -169,10 +188,58 @@ ort = { version = ">=2.0.0-rc.10, <=2.0.0-rc.11", optional = true }
 # LUT SYSTEM
 wagahai_lut = "0.1.0"
 
+# eframe: native desktop (glow + wayland/x11)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
+    "glow",
+    "persistence",
+    "wayland",
+    "x11",
+], optional = true }
+
+# eframe: WASM (glow only, no platform windowing)
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751afece4687c292615a767", default-features = false, features = [
+    "glow",
+    "persistence",
+], optional = true }
+# WASM randomness support
+getrandom = { version = "0.4", features = ["wasm_js"] }
+uuid = { version = "1.21", features = ["v4", "serde", "js"] }
+
+wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+web-sys = { version = "0.3", optional = true, features = [
+    "Window",
+    "Document",
+    "HtmlElement",
+    "HtmlInputElement",
+    "HtmlCanvasElement",
+    "HtmlAnchorElement",
+    "File",
+    "FileList",
+    "FileReader",
+    "Blob",
+    "BlobPropertyBag",
+    "Url",
+    "DragEvent",
+    "DataTransfer",
+    "Navigator",
+    "Event",
+] }
+js-sys = { version = "0.3", optional = true }
+# zip for WASM bulk export (create zip in memory → browser download)
+zip = { version = ">=8.1", default-features = false, features = ["deflate"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.15"
+
 [target.'cfg(not(windows))'.dependencies]
 candle-core = { version = "0.9", optional = true }
 candle-nn = { version = "0.9", optional = true }
+candle-onnx = { version = "0.9", optional = true }
 half = { version = "2.4", optional = true, default-features = false }
+prost = { version = "0.14", optional = true }
 
 [profile.release]
 opt-level = 3
@@ -187,7 +254,8 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package."fast_image_resize"]
 opt-level = 3
-[profile.dev.package."mozjpeg"]
+# mozjpeg and webp are optional (native_encoders feature), but optimize when present
+[profile.dev.package."mozjpeg-sys"]
 opt-level = 3
 [profile.dev.package."webp"]
 opt-level = 3
@@ -211,13 +279,13 @@ winres = "0.1"
 
 [build-dependencies]
 serde = { version = "1", features = ["derive"] }
-reqwest = { version = "^0.13", optional = true, features = [
+reqwest = { version = "^0.13", features = [
     "gzip",
     "blocking",
     "json",
     # "rustls-tls",
 ] }
-zip = { version = ">=8.1", optional = true }
+zip = { version = ">=8.1" }
 md-5 = "0.10.6"
 cargo_metadata = "0.23"
 csv = "1.4"

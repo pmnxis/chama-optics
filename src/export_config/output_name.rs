@@ -83,28 +83,43 @@ impl core::default::Default for OutputName {
 
 impl OutputName {
     fn default_path() -> std::path::PathBuf {
-        dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        #[cfg(feature = "desktop")]
+        {
+            dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        }
+        #[cfg(not(feature = "desktop"))]
+        {
+            std::path::PathBuf::from("/tmp")
+        }
     }
 
-    pub fn check_folder_available(&self, create_if_missing: bool) -> bool {
-        let folder = &self.folder;
-
-        if folder.exists() {
-            if !folder.is_dir() {
-                log::error!("Path exists but is not a directory: {}", folder.display());
-                return false;
-            }
-        } else if create_if_missing {
-            if let Err(e) = std::fs::create_dir_all(folder) {
-                log::error!("Failed to create folder {}: {}", folder.display(), e);
-                return false;
-            }
-        } else {
-            log::error!("Folder does not exist: {}", folder.display());
-            return false;
+    pub fn check_folder_available(&self, _create_if_missing: bool) -> bool {
+        // WASM: no filesystem — always OK (output goes to browser download)
+        #[cfg(target_arch = "wasm32")]
+        {
+            true
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let folder = &self.folder;
 
-        true
+            if folder.exists() {
+                if !folder.is_dir() {
+                    log::error!("Path exists but is not a directory: {}", folder.display());
+                    return false;
+                }
+            } else if _create_if_missing {
+                if let Err(e) = std::fs::create_dir_all(folder) {
+                    log::error!("Failed to create folder {}: {}", folder.display(), e);
+                    return false;
+                }
+            } else {
+                log::error!("Folder does not exist: {}", folder.display());
+                return false;
+            }
+
+            true
+        }
     }
 
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
@@ -125,6 +140,8 @@ impl OutputName {
             }
         }
 
+        // WASM: no folder picker — files are downloaded via browser
+        #[cfg(not(target_arch = "wasm32"))]
         ui.horizontal(|ui| {
             ui.label(t!("export_config.output_name.save_directory"));
 

@@ -41,9 +41,9 @@ impl ChamaOptics {
                 idx
             );
 
-            // Load original image
-            let mut dyn_image = match image::open(&image_path) {
-                Ok(img) => img,
+            // Load original image (use index access to avoid keeping packed_image borrow alive)
+            let mut dyn_image = match self.packed_images[idx].get_image() {
+                Ok((img, _)) => img,
                 Err(e) => {
                     log::error!("Failed to load image {:?}: {:?}", image_path, e);
                     return None;
@@ -179,8 +179,8 @@ impl ChamaOptics {
             // If LUT is configured, we need to apply it before theme
             if let Some(lut_id) = image_lut_id {
                 // Load image, apply LUT, save to sticker_bytes so theme can use it
-                let mut dyn_image = match image::open(&image_path) {
-                    Ok(img) => img,
+                let mut dyn_image = match self.packed_images[idx].get_image() {
+                    Ok((img, _)) => img,
                     Err(e) => {
                         log::error!("Failed to load image {:?}: {:?}", image_path, e);
                         return None;

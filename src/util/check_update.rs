@@ -109,7 +109,7 @@ impl CheckRelease {
         let new_version_clone = new_version.clone();
 
         thread::spawn(move || {
-            let before_start = std::time::Instant::now();
+            let before_start = web_time::Instant::now();
 
             log::info!("Let's check release from internet");
             let got = get_latest_stable_release();
@@ -123,7 +123,7 @@ impl CheckRelease {
 
             log::info!(
                 "{} msecs passed for getting new version info : {:?}",
-                (std::time::Instant::now() - before_start).as_millis(),
+                (web_time::Instant::now() - before_start).as_millis(),
                 got
             );
         });

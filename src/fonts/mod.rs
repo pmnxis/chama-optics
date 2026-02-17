@@ -23,7 +23,8 @@ pub(crate) mod variable_font;
 // ===== EMBEDDED FONTS (when ext_res is NOT enabled) =====
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub struct BuiltInFonts {
     pub name: &'static str,
@@ -32,7 +33,8 @@ pub struct BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
     name: "D2Coding-Nerd",
@@ -41,7 +43,8 @@ pub(crate) const FONT_D2CODING: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
     name: "Source Han Sans",
@@ -50,7 +53,8 @@ pub(crate) const FONT_SHSANS: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
     name: "Barlow",
@@ -59,7 +63,8 @@ pub(crate) const FONT_BARLOW: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
     name: "Barlow Narrow",
@@ -68,7 +73,8 @@ pub(crate) const FONT_BARLOW_NARROW: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
     name: "Digital 7",
@@ -77,7 +83,8 @@ pub(crate) const FONT_DIGITAL_7: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
     name: "Digital 7 Italic",
@@ -86,7 +93,8 @@ pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFonts = BuiltInFonts {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    not(feature = "ext_res")
+    not(feature = "ext_res"),
+    not(target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DYNAPUFF: BuiltInFonts = BuiltInFonts {
     name: "DynaPuff",
@@ -97,7 +105,7 @@ pub(crate) const FONT_DYNAPUFF: BuiltInFonts = BuiltInFonts {
 // Fonts are loaded at runtime from Resources/Fonts/ directory
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub struct BuiltInFontsExt {
     pub name: &'static str,
@@ -106,7 +114,7 @@ pub struct BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_D2CODING: BuiltInFontsExt = BuiltInFontsExt {
     name: "D2Coding-Nerd",
@@ -115,7 +123,7 @@ pub(crate) const FONT_D2CODING: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_SHSANS: BuiltInFontsExt = BuiltInFontsExt {
     name: "Source Han Sans",
@@ -124,7 +132,7 @@ pub(crate) const FONT_SHSANS: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_BARLOW: BuiltInFontsExt = BuiltInFontsExt {
     name: "Barlow",
@@ -133,7 +141,7 @@ pub(crate) const FONT_BARLOW: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_BARLOW_NARROW: BuiltInFontsExt = BuiltInFontsExt {
     name: "Barlow Narrow",
@@ -142,7 +150,7 @@ pub(crate) const FONT_BARLOW_NARROW: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DIGITAL_7: BuiltInFontsExt = BuiltInFontsExt {
     name: "Digital 7",
@@ -151,7 +159,7 @@ pub(crate) const FONT_DIGITAL_7: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFontsExt = BuiltInFontsExt {
     name: "Digital 7 Italic",
@@ -160,7 +168,7 @@ pub(crate) const FONT_DIGITAL_7_ITALIC: BuiltInFontsExt = BuiltInFontsExt {
 
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
-    feature = "ext_res"
+    any(feature = "ext_res", target_arch = "wasm32")
 ))]
 pub(crate) const FONT_DYNAPUFF: BuiltInFontsExt = BuiltInFontsExt {
     name: "DynaPuff",

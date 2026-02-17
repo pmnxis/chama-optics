@@ -58,6 +58,9 @@ impl core::default::Default for OutputFormat {
     }
 }
 
+// --- Native encoders (mozjpeg, webp) — desktop only ---
+
+#[cfg(feature = "native_encoders")]
 fn save_jpeg_moz<P: AsRef<Path>>(
     img: image::RgbImage,
     path: P,
@@ -84,6 +87,7 @@ fn save_jpeg_moz<P: AsRef<Path>>(
     Ok(())
 }
 
+#[cfg(feature = "native_encoders")]
 fn save_webp<P: AsRef<Path>>(
     img: image::RgbImage,
     path: P,
@@ -102,6 +106,7 @@ fn save_webp<P: AsRef<Path>>(
     Ok(())
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> Result<(), image::ImageError> {
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 
@@ -124,7 +129,64 @@ fn save_png<P: AsRef<Path>>(img: &DynamicImage, path: P) -> Result<(), image::Im
     Ok(())
 }
 
+// --- Fallback encoders (pure Rust, filesystem) — non-WASM only ---
+
+/// Encode JPEG using image crate's built-in encoder (fallback for non-native-encoders desktop)
+#[cfg(all(not(feature = "native_encoders"), not(target_arch = "wasm32")))]
+fn save_jpeg_fallback<P: AsRef<Path>>(
+    img: image::RgbImage,
+    path: P,
+    quality: u8,
+) -> Result<(), image::ImageError> {
+    if let Some(parent) = path.as_ref().parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let file = std::fs::File::create(path)?;
+    let writer = std::io::BufWriter::new(file);
+    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(writer, quality);
+    encoder.write_image(
+        &img,
+        img.width(),
+        img.height(),
+        image::ExtendedColorType::Rgb8,
+    )?;
+    Ok(())
+}
+
+/// Encode image to bytes in memory (for WASM download)
+pub fn encode_jpeg_to_bytes(
+    img: &image::RgbImage,
+    quality: u8,
+) -> Result<Vec<u8>, image::ImageError> {
+    let mut buf = std::io::Cursor::new(Vec::new());
+    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, quality);
+    encoder.write_image(
+        img,
+        img.width(),
+        img.height(),
+        image::ExtendedColorType::Rgb8,
+    )?;
+    Ok(buf.into_inner())
+}
+
+/// Encode PNG to bytes in memory (for WASM download)
+pub fn encode_png_to_bytes(img: &DynamicImage) -> Result<Vec<u8>, image::ImageError> {
+    use image::codecs::png::{CompressionType, FilterType, PngEncoder};
+
+    let mut buf = std::io::Cursor::new(Vec::new());
+    let encoder = PngEncoder::new_with_quality(&mut buf, CompressionType::Best, FilterType::Adaptive);
+    encoder.write_image(
+        &img.to_rgb8(),
+        img.width(),
+        img.height(),
+        image::ExtendedColorType::Rgb8,
+    )?;
+    Ok(buf.into_inner())
+}
+
 impl OutputFormat {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn save_image<P: AsRef<Path>>(
         &self,
         img: &DynamicImage,
@@ -134,8 +196,17 @@ impl OutputFormat {
             OutputExtension::Jpeg | OutputExtension::Webp => {
                 let rgb = img.to_rgb8();
                 match self.ext {
+                    #[cfg(feature = "native_encoders")]
                     OutputExtension::Jpeg => save_jpeg_moz(rgb, path, self.quality),
+                    #[cfg(not(feature = "native_encoders"))]
+                    OutputExtension::Jpeg => save_jpeg_fallback(rgb, path, self.quality),
+                    #[cfg(feature = "native_encoders")]
                     OutputExtension::Webp => save_webp(rgb, path, self.quality),
+                    #[cfg(not(feature = "native_encoders"))]
+                    OutputExtension::Webp => {
+                        // Fallback: save as JPEG when native WebP encoder not available
+                        save_jpeg_fallback(rgb, path, self.quality)
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -143,10 +214,35 @@ impl OutputFormat {
         }
     }
 
+    /// WASM stub: save_image can't write to filesystem, so encode to bytes and discard.
+    /// The WASM export pipeline should use encode_to_bytes() directly instead.
+    #[cfg(target_arch = "wasm32")]
+    pub fn save_image<P: AsRef<Path>>(
+        &self,
+        _img: &DynamicImage,
+        _path: P,
+    ) -> Result<(), image::ImageError> {
+        log::warn!("OutputFormat::save_image called on WASM — filesystem not available");
+        Ok(())
+    }
+
+    /// Encode image to bytes in memory (for WASM download or other in-memory use)
+    pub fn encode_to_bytes(&self, img: &DynamicImage) -> Result<Vec<u8>, image::ImageError> {
+        match self.ext {
+            OutputExtension::Jpeg | OutputExtension::Webp => {
+                let rgb = img.to_rgb8();
+                // Use JPEG encoder for both JPEG and WebP fallback in WASM
+                encode_jpeg_to_bytes(&rgb, self.quality)
+            }
+            OutputExtension::PngOptimized => encode_png_to_bytes(img),
+        }
+    }
+
     fn has_quality(&self) -> bool {
         matches!(self.ext, OutputExtension::Jpeg | OutputExtension::Webp)
     }
 
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
             ui.label(t!("output_format.label"));

@@ -32,6 +32,7 @@ impl ChamaOptics {
                             env!("GIT_COMMIT_SHORT_HASH")
                         ));
                     });
+                    #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
                     self.update.ui(ui);
                 });
                 ui.end_row();

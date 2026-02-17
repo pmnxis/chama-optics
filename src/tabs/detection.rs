@@ -291,7 +291,7 @@ impl ChamaOptics {
                                         );
                                         ui.spinner();
                                         ui.label(t!(
-                                            "detection.loading_preview",
+                                            "face_detection.loading_preview",
                                             default = "Loading preview..."
                                         ));
                                     });
@@ -331,7 +331,7 @@ impl ChamaOptics {
                                                 .selectable_label(
                                                     is_selected,
                                                     t!(
-                                                        "detection.face_label_format",
+                                                        "face_detection.face_label_format",
                                                         n1 = idx + 1,
                                                         n2 = face.width,
                                                         n3 = face.height
@@ -1166,14 +1166,15 @@ impl ChamaOptics {
         let results_queue = self.detection_results_queue.clone();
         let orientation = packed_image.view_exif.orientation;
 
-        #[cfg(feature = "face_detection_insightface")]
+        #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
         let speed_mode = self.export_config.face_detection.speed_mode;
         #[cfg(feature = "face_detection_insightface")]
         let provider = self.export_config.face_detection.provider;
         #[cfg(feature = "face_detection_insightface")]
         let detector_cache = self.insightface_detector.clone();
 
-        // Spawn background thread for face detection
+        // Spawn background thread for face detection (desktop only — WASM uses wonnx in Phase 9)
+        #[cfg(not(target_arch = "wasm32"))]
         std::thread::spawn(move || {
             log::info!("Face detection background thread started");
 
@@ -1254,6 +1255,52 @@ impl ChamaOptics {
                 }
             }
         });
+
+        // WASM: face detection using ORT Web (WebGPU) via async JS interop
+        #[cfg(target_arch = "wasm32")]
+        {
+            #[cfg(feature = "face_detection_candle")]
+            {
+                match self.packed_images[idx].get_image() {
+                    Ok((mut img, _)) => {
+                        img.apply_orientation(orientation);
+                        let oriented_size = (img.width(), img.height());
+                        log::info!(
+                            "WASM: Image loaded for detection, {}x{} (orientation {:?})",
+                            oriented_size.0,
+                            oriented_size.1,
+                            orientation
+                        );
+
+                        // Use ORT Web (WebGPU) via async spawn_local
+                        wasm_bindgen_futures::spawn_local(async move {
+                            let faces = crate::effect::ort_web_detector::detect_faces(
+                                &img, speed_mode,
+                            )
+                            .await;
+                            log::info!("ORT Web detected {} faces", faces.len());
+                            if let Ok(mut queue) = results_queue.lock() {
+                                *queue = Some((faces, image_uuid, oriented_size));
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        log::error!("WASM: Failed to load image for detection: {}", e);
+                        if let Ok(mut queue) = results_queue.lock() {
+                            *queue = Some((vec![], image_uuid, (0, 0)));
+                        }
+                    }
+                }
+            }
+
+            #[cfg(not(feature = "face_detection_candle"))]
+            {
+                log::warn!("Face detection not available on WASM (enable face_detection_candle)");
+                if let Ok(mut queue) = results_queue.lock() {
+                    *queue = Some((vec![], image_uuid, (0, 0)));
+                }
+            }
+        }
     }
 
     /// Process face detection results from background thread
@@ -1367,7 +1414,8 @@ impl ChamaOptics {
         // Update cache key immediately to prevent duplicate requests
         self.detection_preview_cache_key = Some(cache_key);
 
-        // Spawn background thread to generate preview
+        // Spawn background thread to generate preview (desktop: file path, WASM: skipped for now)
+        #[cfg(not(target_arch = "wasm32"))]
         std::thread::spawn(move || {
             log::info!(
                 "Starting async preview generation for image: {:?}",
@@ -1399,30 +1447,62 @@ impl ChamaOptics {
                 log::warn!("Failed to generate preview");
             }
         });
+
+        // WASM: generate preview synchronously (no background threads, load from image_bytes)
+        #[cfg(target_arch = "wasm32")]
+        {
+            if let Some(packed_image) = self.packed_images.get(idx) {
+                match packed_image.get_image() {
+                    Ok((mut dyn_image, _)) => {
+                        dyn_image.apply_orientation(orientation);
+                        log::info!(
+                            "WASM: Generating detection preview synchronously ({}x{})",
+                            dyn_image.width(),
+                            dyn_image.height()
+                        );
+
+                        let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                            block_size: mosaic_block_size,
+                            intensity: 1.0,
+                        };
+
+                        if let Some((color_image, orig_size, sticker_processed)) =
+                            Self::generate_detection_preview_from_image(
+                                dyn_image,
+                                &detected_faces,
+                                &sticker_storage,
+                                &sticker_config,
+                                &mosaic_config,
+                            )
+                        {
+                            if let Ok(mut queue) = texture_queue.lock() {
+                                *queue =
+                                    Some((color_image, image_uuid, orig_size, sticker_processed));
+                                log::info!("WASM: Preview generated successfully");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("WASM: Failed to load image for preview: {}", e);
+                    }
+                }
+            }
+        }
     }
 
-    /// Generate a preview image (with effects and stickers applied) - synchronous version
-    fn generate_detection_preview_sync(
-        image_path: &std::path::Path,
+    /// Generate a preview image from a pre-loaded DynamicImage (orientation already applied).
+    /// Used by both desktop (from file) and WASM (from bytes) paths.
+    fn generate_detection_preview_from_image(
+        dyn_image: image::DynamicImage,
         detected_faces: &[crate::effect::sticker_storage::FaceArea],
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
         mosaic_config: &crate::effect::mosaic::MosaicEffect,
-        orientation: image::metadata::Orientation,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         use crate::effect::FaceEffectMode;
         use crate::effect::mosaic::MosaicEffect;
         use crate::effect::stroke::StrokeEffect;
-        log::debug!(
-            "generate_detection_preview_sync with orientation: {:?}",
-            orientation
-        );
 
-        // Load original image and apply EXIF orientation for correct display
-        let mut dyn_image = image::open(image_path).ok()?;
-        dyn_image.apply_orientation(orientation);
-
-        // Get dimensions AFTER orientation is applied (may swap width/height for 90°/270° rotations)
         let orig_w = dyn_image.width();
         let orig_h = dyn_image.height();
 
@@ -1430,7 +1510,6 @@ impl ChamaOptics {
         let sticker_processed_image = if !detected_faces.is_empty() {
             let mut img_with_effects_and_stickers = dyn_image.clone();
 
-            // First, collect faces by effect type for batch processing
             let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
             let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
 
@@ -1438,9 +1517,7 @@ impl ChamaOptics {
                 let face_tuple = (face.x, face.y, face.width, face.height);
 
                 match face.effect_mode {
-                    FaceEffectMode::None => {
-                        // No effect
-                    }
+                    FaceEffectMode::None => {}
                     FaceEffectMode::Mosaic => {
                         mosaic_faces.push(face_tuple);
                     }
@@ -1451,16 +1528,11 @@ impl ChamaOptics {
                         mosaic_faces.push(face_tuple);
                         stroke_faces.push(face_tuple);
                     }
-                    FaceEffectMode::Sticker => {
-                        // Sticker is applied separately below
-                    }
+                    FaceEffectMode::Sticker => {}
                 }
             }
 
-            // Apply mosaic effect to all faces that need it
             if !mosaic_faces.is_empty() {
-                // Note: We'll use a default block size for now since we don't have access to
-                // export_config in this function. In production, this should be passed as a parameter.
                 let _ = MosaicEffect::apply(
                     &mut img_with_effects_and_stickers,
                     &mosaic_faces,
@@ -1468,14 +1540,12 @@ impl ChamaOptics {
                 );
             }
 
-            // Apply stroke effect to all faces that need it
             if !stroke_faces.is_empty() {
-                // Convert egui Color32 to RGBA
                 let border_rgba = crate::theme::color32_to_rgba(
                     egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255),
                 );
                 let stroke_config = StrokeEffect {
-                    thickness: 3, // Default, should come from config
+                    thickness: 3,
                     color: (
                         border_rgba[0],
                         border_rgba[1],
@@ -1491,58 +1561,46 @@ impl ChamaOptics {
                 );
             }
 
-            // Apply stickers to the image
             for face in detected_faces {
                 if let Some(sticker_id) = face.sticker_id
                     && let Some(sticker_img) = sticker_storage.get_sticker_image(sticker_id)
                 {
-                    // Calculate sticker size maintaining aspect ratio
                     let sticker_aspect = sticker_img.width() as f32 / sticker_img.height() as f32;
                     let face_aspect = face.width as f32 / face.height as f32;
 
-                    // Apply scale factor to face dimensions
                     let scaled_face_w = face.width as f32 * sticker_config.scale;
                     let scaled_face_h = face.height as f32 * sticker_config.scale;
 
-                    // Calculate sticker size to fit within scaled face rectangle while maintaining aspect ratio
                     let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
-                        // Sticker is wider than face - fit to width
                         (
                             scaled_face_w as u32,
                             (scaled_face_w / sticker_aspect) as u32,
                         )
                     } else {
-                        // Sticker is taller than face - fit to height
                         (
                             (scaled_face_h * sticker_aspect) as u32,
                             scaled_face_h as u32,
                         )
                     };
 
-                    // Resize sticker to calculated dimensions (maintains aspect ratio)
                     let resized_sticker = sticker_img.resize(
                         sticker_w,
                         sticker_h,
                         image::imageops::FilterType::Lanczos3,
                     );
 
-                    // Calculate center position of face rectangle (with offset applied to center)
                     let face_center_x = face.x as f32 + face.width as f32 / 2.0;
                     let face_center_y = face.y as f32 + face.height as f32 / 2.0;
 
-                    // Apply offset as percentage of sticker size
-                    // offset_x and offset_y are percentages (-100 to 100) of sticker size
                     let offset_pixel_x = sticker_w as f32 * sticker_config.offset_x as f32 / 100.0;
                     let offset_pixel_y = sticker_h as f32 * sticker_config.offset_y as f32 / 100.0;
 
                     let sticker_center_x = face_center_x + offset_pixel_x;
                     let sticker_center_y = face_center_y + offset_pixel_y;
 
-                    // Calculate top-left position to center the sticker
                     let sticker_x = (sticker_center_x - sticker_w as f32 / 2.0) as i64;
                     let sticker_y = (sticker_center_y - sticker_h as f32 / 2.0) as i64;
 
-                    // Apply sticker with alpha blending
                     image::imageops::overlay(
                         &mut img_with_effects_and_stickers,
                         &resized_sticker,
@@ -1557,10 +1615,8 @@ impl ChamaOptics {
             None
         };
 
-        // Use sticker-processed image for preview if available
         let preview_source = sticker_processed_image.as_ref().unwrap_or(&dyn_image);
 
-        // Scale down for preview if needed
         let max_preview_size = 1920u32;
         let (w, h) = (preview_source.width(), preview_source.height());
         let preview_image = if w > max_preview_size || h > max_preview_size {
@@ -1572,7 +1628,6 @@ impl ChamaOptics {
             preview_source.clone()
         };
 
-        // Convert to ColorImage
         let rgba_image = preview_image.to_rgba8();
         let size = [rgba_image.width() as usize, rgba_image.height() as usize];
         let pixels = rgba_image.into_raw();
@@ -1581,6 +1636,34 @@ impl ChamaOptics {
             (orig_w, orig_h),
             sticker_processed_image,
         ))
+    }
+
+    /// Generate a preview image (with effects and stickers applied) - synchronous version
+    /// Desktop: loads from filesystem path. WASM: use generate_detection_preview_from_image directly.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn generate_detection_preview_sync(
+        image_path: &std::path::Path,
+        detected_faces: &[crate::effect::sticker_storage::FaceArea],
+        sticker_storage: &crate::effect::sticker_storage::StickerStorage,
+        sticker_config: &crate::effect::sticker_storage::StickerConfig,
+        mosaic_config: &crate::effect::mosaic::MosaicEffect,
+        orientation: image::metadata::Orientation,
+    ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
+        log::debug!(
+            "generate_detection_preview_sync with orientation: {:?}",
+            orientation
+        );
+
+        let mut dyn_image = image::open(image_path).ok()?;
+        dyn_image.apply_orientation(orientation);
+
+        Self::generate_detection_preview_from_image(
+            dyn_image,
+            detected_faces,
+            sticker_storage,
+            sticker_config,
+            mosaic_config,
+        )
     }
 
     /// Process preview texture from background thread

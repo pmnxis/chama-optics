@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: MIT
  */
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 include!("prebuilt_src/fonts.rs");
 #[cfg(feature = "desktop")]
 include!("prebuilt_src/logo.rs");
 
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 use builtin_fonts::*;
 use std::env;
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 use std::path::PathBuf;
 
 /// Build assets for face detection models
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "face_detection_candle"))]
 #[allow(unused)]
 pub const BUILTIN_FACE_MODELS: [BuildAsset; 1] = [BuildAsset {
     // InsightFace buffalo_l model (v0.7)
@@ -54,7 +54,7 @@ fn main() {
     let logo_csv_path = PathBuf::from("assets/logo_mnf.csv");
     #[cfg(feature = "desktop")]
     let tmp_dir = PathBuf::from("assets/download");
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=locales");
     #[cfg(feature = "desktop")]
@@ -129,18 +129,80 @@ fn main() {
         println!("cargo:rustc-env=GIT_COMMIT_DATETIME=unknown");
     }
 
-    // Desktop only: download fonts, face models, and logos (requires reqwest + zip)
-    // Mobile builds (ios_integration, android_integration) load assets from app bundle
-    #[cfg(feature = "desktop")]
+    // Download fonts for desktop and web builds
+    #[cfg(any(feature = "desktop", feature = "web"))]
     {
-        // Enable only build-script logic in build_asset.rs
         for asset in BUILTIN_FONTS {
             asset.load(&out_dir);
         }
+    }
 
+    // For web builds: copy all font files to web_fonts/ for Trunk to serve
+    #[cfg(feature = "web")]
+    {
+        let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let web_fonts_dir = manifest_dir.join("web_fonts");
+        std::fs::create_dir_all(&web_fonts_dir).expect("failed to create web_fonts directory");
+
+        // Copy static fonts from assets/fonts/
+        for name in &[
+            "D2Coding-Ver1.3.2-20180524-all.ttc",
+            "SourceHanSansVF-remapped.otf",
+            "Barlow-Variable-Remapped.ttf",
+            "Barlow-Variable-Remapped-Narrow.ttf",
+        ] {
+            let src = manifest_dir.join("assets/fonts").join(name);
+            let dst = web_fonts_dir.join(name);
+            if src.exists() && !dst.exists() {
+                std::fs::copy(&src, &dst).unwrap_or_else(|e| {
+                    panic!("failed to copy font {} to web_fonts: {}", name, e);
+                });
+            }
+        }
+
+        // Copy downloaded fonts (from OUT_DIR) with ext_res-compatible names
+        let d7_src = out_dir.join("digital-7.ttf");
+        if d7_src.exists() {
+            let dst = web_fonts_dir.join("digital-7.ttf");
+            if !dst.exists() {
+                std::fs::copy(&d7_src, &dst).ok();
+            }
+        }
+        let d7i_src = out_dir.join("digital-7 (italic).ttf");
+        if d7i_src.exists() {
+            let dst = web_fonts_dir.join("digital-7-italic.ttf");
+            if !dst.exists() {
+                std::fs::copy(&d7i_src, &dst).ok();
+            }
+        }
+        let dp_src = out_dir.join("DynaPuff-Variable.ttf");
+        if dp_src.exists() {
+            let dst = web_fonts_dir.join("DynaPuff-Variable.ttf");
+            if !dst.exists() {
+                std::fs::copy(&dp_src, &dst).ok();
+            }
+        }
+
+        println!("cargo:warning=Web fonts staged in web_fonts/");
+    }
+
+    // Download face models (desktop + candle WASM face detection)
+    // Mobile builds (ios_integration, android_integration) load assets from app bundle
+    #[cfg(any(feature = "desktop", feature = "face_detection_candle"))]
+    {
+        let tmp_dir = if cfg!(feature = "desktop") {
+            PathBuf::from("assets/download")
+        } else {
+            PathBuf::from(env::var("OUT_DIR").unwrap())
+        };
         for asset in BUILTIN_FACE_MODELS {
             asset.load(&tmp_dir);
         }
+    }
+
+    // Desktop only: download logos
+    #[cfg(feature = "desktop")]
+    {
 
         // Logo related
         std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
