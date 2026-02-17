@@ -17,7 +17,7 @@
 #   FreeBSD 15.0    2026-02-18   desktop,libheif                     System libheif (x264 link issue with embedded)
 
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 
 BUILD_MODE="--release"
 if [ "$1" = "--debug" ]; then
