@@ -4,12 +4,49 @@
  * SPDX-License-Identifier: MIT
  */
 
-//! Web/WASM file input helpers using web-sys
+//! Web/WASM file input helpers and utilities using web-sys
 
 use std::cell::RefCell;
 use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+
+/// Race a JS Promise against a timeout. Returns `Err` if the timeout fires first.
+pub async fn race_with_timeout(
+    promise: js_sys::Promise,
+    timeout_ms: i32,
+) -> Result<JsValue, String> {
+    let timeout = js_sys::Promise::new(&mut |_, reject| {
+        if let Some(window) = web_sys::window() {
+            let cb = wasm_bindgen::closure::Closure::once(move || {
+                let _ = reject.call1(&JsValue::NULL, &JsValue::from_str("timeout"));
+            });
+            window
+                .set_timeout_with_callback_and_timeout_and_arguments_0(
+                    cb.as_ref().unchecked_ref(),
+                    timeout_ms,
+                )
+                .ok();
+            cb.forget();
+        }
+    });
+
+    let race_array = js_sys::Array::new();
+    race_array.push(&promise);
+    race_array.push(&timeout);
+    let race = js_sys::Promise::race(&race_array);
+
+    wasm_bindgen_futures::JsFuture::from(race)
+        .await
+        .map_err(|e| {
+            let msg = e.as_string().unwrap_or_else(|| format!("{:?}", e));
+            if msg == "timeout" {
+                format!("Timed out after {}ms", timeout_ms)
+            } else {
+                msg
+            }
+        })
+}
 
 /// A pending file read result: (filename, bytes)
 pub type FileData = (String, Vec<u8>);
@@ -38,7 +75,16 @@ pub fn pick_files_to_queue(queue: PendingFileQueue) {
     let queue_ref = queue.clone();
 
     let onchange = Closure::wrap(Box::new(move |event: web_sys::Event| {
-        let input: web_sys::HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
+        let input: web_sys::HtmlInputElement = match event
+            .target()
+            .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok())
+        {
+            Some(i) => i,
+            None => {
+                log::error!("File input event: target is not an HtmlInputElement");
+                return;
+            }
+        };
 
         if let Some(files) = input.files() {
             for i in 0..files.length() {

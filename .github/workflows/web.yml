@@ -54,6 +54,16 @@ jobs:
       - name: Force zune-jpeg version to avoid 0.5.6 bug
         run: cargo update -p zune-jpeg:0.5.6 --precise 0.5.8 || true
 
+      - name: Inject or remove Google Analytics
+        env:
+          GA_ID: ${{ secrets.GA_MEASUREMENT_ID }}
+        run: |
+          if [ -n "$GA_ID" ]; then
+            sed -i "s/%%GA_MEASUREMENT_ID%%/$GA_ID/g" index.html
+          else
+            sed -i '/<!-- GA:BEGIN/,/<!-- GA:END -->/d' index.html
+          fi
+
       - name: Build with Trunk
         run: trunk build --release --public-url /chama-optics/
 

@@ -17,7 +17,7 @@
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(feature = "desktop", feature = "web"))]
+#[cfg(any(feature = "desktop", target_arch = "wasm32"))]
 use rust_i18n::t;
 
 /// Color adjustment parameters (Lightroom-style)

@@ -252,6 +252,11 @@ impl OutputFormat {
                 .selected_text(self.ext.label())
                 .show_ui(ui, |ui| {
                     for ext in OutputExtension::iter() {
+                        // WebP uses native C encoder (libwebp) — not available on WASM
+                        #[cfg(target_arch = "wasm32")]
+                        if ext == OutputExtension::Webp {
+                            continue;
+                        }
                         ui.selectable_value(&mut self.ext, ext, ext.label());
                     }
                 });

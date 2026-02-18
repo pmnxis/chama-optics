@@ -1110,13 +1110,19 @@ impl ChamaOptics {
                         "image/png"
                     }
                 };
-                crate::util::web_download::download_file(filename, data, mime);
+                if let Err(e) = crate::util::web_download::download_file(filename, data, mime) {
+                    log::error!("WASM download failed: {}", e);
+                }
             } else if !zip_entries.is_empty() {
                 let entries: Vec<(&str, &[u8])> = zip_entries
                     .iter()
                     .map(|(n, d)| (n.as_str(), d.as_slice()))
                     .collect();
-                crate::util::web_download::download_zip("chama-optics-export.zip", &entries);
+                if let Err(e) =
+                    crate::util::web_download::download_zip("chama-optics-export.zip", &entries)
+                {
+                    log::error!("WASM zip download failed: {}", e);
+                }
             }
 
             log::info!(
@@ -1681,8 +1687,22 @@ impl ChamaOptics {
         let use_35mm = self.import_config.use_35mm_focal_length;
         let simplify = self.import_config.simplify_lens_model;
 
+        // WASM linear memory is limited (~256MB default, up to 4GB).
+        // Reject oversized files to prevent OOM panics during processing.
+        const MAX_FILE_SIZE: usize = 50 * 1024 * 1024; // 50 MB
+
         for (filename, bytes) in files {
             log::info!("WASM: Loading image: {} ({} bytes)", filename, bytes.len());
+
+            if bytes.len() > MAX_FILE_SIZE {
+                log::error!(
+                    "WASM: File '{}' too large ({:.1} MB, max {} MB) — skipping",
+                    filename,
+                    bytes.len() as f64 / (1024.0 * 1024.0),
+                    MAX_FILE_SIZE / 1024 / 1024,
+                );
+                continue;
+            }
 
             if crate::image::heic_web::is_heif(&filename, &bytes) {
                 // HEIF/HEIC: async decode via libheif-js (JS interop, involves data copies)
