@@ -280,28 +280,37 @@ fn apply_watermark(
 
     let transparency = config.font_color[3];
 
-    if config.is_screen_overlay {
-        crate::effect::draw_with_transparency::draw_text_screen_transparency_mut(
-            image,
-            color,
-            x,
-            y,
-            px_scale,
-            font,
-            transparency,
-            &config.text,
-        );
-    } else {
-        crate::effect::draw_with_transparency::draw_text_transparency_mut(
-            image,
-            color,
-            x,
-            y,
-            px_scale,
-            font,
-            transparency,
-            &config.text,
-        );
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+    {
+        if config.is_screen_overlay {
+            crate::effect::draw_with_transparency::draw_text_screen_transparency_mut(
+                image,
+                color,
+                x,
+                y,
+                px_scale,
+                font,
+                transparency,
+                &config.text,
+            );
+        } else {
+            crate::effect::draw_with_transparency::draw_text_transparency_mut(
+                image,
+                color,
+                x,
+                y,
+                px_scale,
+                font,
+                transparency,
+                &config.text,
+            );
+        }
+    }
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    {
+        // Watermark text rendering not yet available on mobile platforms.
+        let _ = (x, y, px_scale, font, transparency, color);
+        log::warn!("Watermark rendering is not yet supported on mobile platforms");
     }
 
     Ok(())

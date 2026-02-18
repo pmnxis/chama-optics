@@ -60,6 +60,7 @@ mod color;
 mod combined;
 mod face;
 mod lut;
+mod pipeline;
 mod theme;
 pub mod types;
 
