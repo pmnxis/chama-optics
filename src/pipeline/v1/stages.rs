@@ -220,14 +220,16 @@ pub enum Decoration {
 /// When `enabled` is false, the stage is skipped but its configuration is preserved.
 /// This allows UI toggles without losing settings.
 ///
-/// JSON: `{ "enabled": true, "type": "ColorAdjustments", "exposure": 0.5, ... }`
+/// JSON: `{ "enabled": true, "stage": { "type": "ColorAdjustments", "exposure": 0.5, ... } }`
 /// The `enabled` field defaults to `true` when omitted.
+///
+/// Note: Uses nested `stage` field instead of `#[serde(flatten)]` to avoid
+/// field name collisions (e.g. `ColorAdjustments` also has an `enabled` field).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StageEntry {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    #[serde(flatten)]
     pub stage: PipelineStage,
 }
 
@@ -264,7 +266,6 @@ pub struct DecorationEntry {
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    #[serde(flatten)]
     pub decoration: Decoration,
 }
 

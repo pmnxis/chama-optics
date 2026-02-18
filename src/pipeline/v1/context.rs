@@ -6,8 +6,10 @@
 
 //! Pipeline runtime context — immutable references to platform resources.
 //!
-//! All references are immutable. LUT data must be resolved (loaded) before
-//! pipeline execution to avoid borrow conflicts.
+//! All references are immutable. Resources (LUT, fonts, stickers) must be
+//! resolved/loaded before pipeline execution to avoid borrow conflicts.
+
+use std::collections::HashMap;
 
 use crate::effect::sticker_storage::StickerStorage;
 use crate::export_config::ExportConfig;
@@ -20,15 +22,30 @@ use crate::theme::ThemeRegistry;
 ///
 /// # Design decision: all references are immutable
 ///
-/// LUT data is pre-resolved before `execute()` to avoid `&mut` borrow conflicts.
-/// This also enables safe sharing across threads if parallelization is needed later.
+/// LUT data and fonts are pre-resolved before `execute()` to avoid
+/// `&mut` borrow conflicts. This also enables safe sharing across
+/// threads if parallelization is needed later.
+///
+/// # Example
+/// ```rust,ignore
+/// let ctx = PipelineContext {
+///     lut_map: Some(&lut_cache),
+///     sticker_storage: Some(&sticker_storage),
+///     font_map: Some(&fonts),
+///     ..PipelineContext::empty()
+/// };
+/// ```
 pub struct PipelineContext<'a> {
-    /// Sticker image storage (for FaceEffect with Sticker mode)
+    /// Sticker image storage (for FaceEffect with Sticker mode, and Cheki decoration)
     pub sticker_storage: Option<&'a StickerStorage>,
 
-    /// Pre-resolved LUT data (loaded before pipeline execution)
-    /// Using a type-erased approach for now; concrete type TBD during Phase 2
-    pub lut_data: Option<&'a dyn std::any::Any>,
+    /// Pre-resolved LUT data, keyed by UUID.
+    /// Caller must load/parse CubeLut before pipeline execution.
+    pub lut_map: Option<&'a HashMap<uuid::Uuid, wagahai_lut::CubeLut>>,
+
+    /// Pre-resolved fonts, keyed by font name.
+    /// Used by Watermark and other text-rendering stages.
+    pub font_map: Option<&'a HashMap<String, ab_glyph::FontArc>>,
 
     /// Theme registry (for Decoration::Theme)
     pub theme_registry: Option<&'a ThemeRegistry>,
@@ -43,7 +60,8 @@ impl<'a> PipelineContext<'a> {
     pub fn empty() -> Self {
         Self {
             sticker_storage: None,
-            lut_data: None,
+            lut_map: None,
+            font_map: None,
             theme_registry: None,
             export_config: None,
         }

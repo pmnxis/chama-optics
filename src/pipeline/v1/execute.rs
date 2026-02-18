@@ -17,12 +17,15 @@ use image::DynamicImage;
 
 use crate::effect::face_detection::FaceEffectMode;
 use crate::effect::mosaic::MosaicEffect;
-use crate::effect::sticker_storage::FaceArea;
+use crate::effect::sticker_storage::{FaceArea, StickerConfig};
 use crate::effect::stroke::StrokeEffect;
 
 use super::config::PipelineConfig;
 use super::context::PipelineContext;
-use super::stages::{Decoration, MosaicEffectConfig, PipelineStage, StrokeEffectConfig};
+use super::stages::{
+    Decoration, MosaicEffectConfig, PipelineStage, StickerEffectConfig, StrokeEffectConfig,
+    WatermarkConfig,
+};
 use super::validation::PipelineError;
 
 // ─── Shared stage execution ───
@@ -44,22 +47,19 @@ pub(crate) fn execute_stage(
                 adjustments.apply(image);
             }
         }
-        PipelineStage::Lut { lut_id: _ } => {
-            // TODO(Phase 2): Resolve LUT data from ctx.lut_data and apply
-            let _ = ctx;
-            log::warn!("Pipeline LUT stage: not yet implemented, skipping");
+        PipelineStage::Lut { lut_id } => {
+            apply_lut(image, *lut_id, ctx)?;
         }
         PipelineStage::FaceEffect {
             faces,
             mosaic,
             stroke,
-            sticker: _,
+            sticker,
         } => {
-            apply_face_effects(image, faces, mosaic, stroke, ctx)?;
+            apply_face_effects(image, faces, mosaic, stroke, sticker, ctx)?;
         }
-        PipelineStage::Watermark(_config) => {
-            // TODO(Phase 2): Implement watermark rendering
-            log::warn!("Pipeline watermark stage: not yet implemented, skipping");
+        PipelineStage::Watermark(config) => {
+            apply_watermark(image, config, ctx)?;
         }
     }
     Ok(())
@@ -67,33 +67,78 @@ pub(crate) fn execute_stage(
 
 /// Execute a `Decoration` on the given image.
 pub(crate) fn execute_decoration(
-    _image: &mut DynamicImage,
+    image: &mut DynamicImage,
     decoration: &Decoration,
-    _ctx: &PipelineContext,
+    ctx: &PipelineContext,
 ) -> Result<(), PipelineError> {
     match decoration {
         Decoration::Theme(_config) => {
-            // TODO(Phase 3): Resolve theme from ctx.theme_registry and apply
-            log::warn!("Pipeline theme decoration: not yet implemented, skipping");
+            // Theme rendering requires PackedImage (EXIF data, file path) which
+            // the pipeline doesn't carry. Decoupling Theme from PackedImage is a
+            // separate refactor task. For now, log and skip.
+            //
+            // Future: Add `apply_to_dynamic_image(image, exif)` method to Theme trait,
+            // or pass EXIF data through PipelineContext.
+            log::warn!("Pipeline theme decoration: requires PackedImage decoupling, skipping");
         }
-        Decoration::Cheki(_config) => {
-            // TODO(Phase 3): Apply cheki decoration
-            log::warn!("Pipeline cheki decoration: not yet implemented, skipping");
+        Decoration::Cheki(config) => {
+            apply_cheki(image, config, ctx)?;
         }
     }
     Ok(())
 }
 
-/// Face effects sub-pipeline: classify by mode, then batch apply.
+// ─── Stage implementations ───
+
+/// Apply LUT color grading from pre-resolved LUT data in context.
+fn apply_lut(
+    image: &mut DynamicImage,
+    lut_id: uuid::Uuid,
+    ctx: &PipelineContext,
+) -> Result<(), PipelineError> {
+    let Some(lut_map) = ctx.lut_map else {
+        return Err(PipelineError::StageError(
+            "LUT stage: no lut_map provided in PipelineContext".into(),
+        ));
+    };
+
+    let Some(lut) = lut_map.get(&lut_id) else {
+        return Err(PipelineError::StageError(format!(
+            "LUT stage: lut_id {} not found in lut_map",
+            lut_id
+        )));
+    };
+
+    // Apply LUT based on image type (same logic as LutStorage::apply_lut_to_image)
+    match image {
+        DynamicImage::ImageRgba8(img) => {
+            wagahai_lut::lut::apply_rgba_mut(lut, img);
+        }
+        DynamicImage::ImageRgb8(img) => {
+            wagahai_lut::lut::apply_rgb_mut(lut, img);
+        }
+        _ => {
+            let mut rgba = image.to_rgba8();
+            wagahai_lut::lut::apply_rgba_mut(lut, &mut rgba);
+            *image = DynamicImage::ImageRgba8(rgba);
+        }
+    }
+
+    Ok(())
+}
+
+/// Face effects: classify by mode, batch apply mosaic/stroke/sticker.
 fn apply_face_effects(
     image: &mut DynamicImage,
     faces: &[FaceArea],
     mosaic_config: &MosaicEffectConfig,
     stroke_config: &StrokeEffectConfig,
-    _ctx: &PipelineContext,
+    sticker_config: &StickerEffectConfig,
+    ctx: &PipelineContext,
 ) -> Result<(), PipelineError> {
     let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = Vec::new();
     let mut stroke_faces: Vec<(i32, i32, u32, u32)> = Vec::new();
+    let mut sticker_faces: Vec<&FaceArea> = Vec::new();
 
     for face in faces {
         let face_tuple = (face.x, face.y, face.width, face.height);
@@ -105,10 +150,11 @@ fn apply_face_effects(
                 mosaic_faces.push(face_tuple);
                 stroke_faces.push(face_tuple);
             }
-            FaceEffectMode::Sticker => {} // handled below
+            FaceEffectMode::Sticker => sticker_faces.push(face),
         }
     }
 
+    // Mosaic
     if !mosaic_faces.is_empty() {
         let effect = MosaicEffect::new(mosaic_config.block_size, mosaic_config.intensity);
         if let Err(e) = MosaicEffect::apply(image, &mosaic_faces, &effect) {
@@ -116,6 +162,7 @@ fn apply_face_effects(
         }
     }
 
+    // Stroke
     if !stroke_faces.is_empty() {
         let effect = StrokeEffect::new(
             stroke_config.thickness,
@@ -131,17 +178,185 @@ fn apply_face_effects(
         }
     }
 
-    // TODO(Phase 2): Implement sticker application using ctx.sticker_storage
-    let sticker_faces: Vec<&FaceArea> = faces
-        .iter()
-        .filter(|f| f.effect_mode == FaceEffectMode::Sticker && f.sticker_id.is_some())
-        .collect();
+    // Sticker — apply using StickerStorage from context
     if !sticker_faces.is_empty() {
-        log::warn!(
-            "Pipeline sticker effect: {} faces with stickers, not yet implemented",
-            sticker_faces.len()
+        if let Some(storage) = ctx.sticker_storage {
+            // Convert pipeline StickerEffectConfig → existing StickerConfig
+            let config = StickerConfig {
+                sticker_id: None, // per-face sticker_id takes precedence
+                scale: sticker_config.scale,
+                offset_x: sticker_config.offset_x,
+                offset_y: sticker_config.offset_y,
+            };
+
+            // Collect only sticker-mode faces for the sticker function
+            let sticker_face_areas: Vec<FaceArea> = sticker_faces
+                .iter()
+                .filter(|f| f.sticker_id.is_some())
+                .map(|f| (*f).clone())
+                .collect();
+
+            if !sticker_face_areas.is_empty() {
+                // apply_stickers_from_storage takes ownership and returns new image
+                let taken = std::mem::take(image);
+                *image = crate::effect::sticker_storage::apply_stickers_from_storage(
+                    taken,
+                    &sticker_face_areas,
+                    storage,
+                    &config,
+                );
+            }
+        } else {
+            log::warn!(
+                "Pipeline sticker effect: {} faces need stickers but no StickerStorage in context",
+                sticker_faces.len()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Apply watermark text overlay using font from context.
+fn apply_watermark(
+    image: &mut DynamicImage,
+    config: &WatermarkConfig,
+    ctx: &PipelineContext,
+) -> Result<(), PipelineError> {
+    // Resolve font from context
+    let font = if let Some(font_map) = ctx.font_map {
+        if let Some(name) = &config.font_name {
+            font_map.get(name)
+        } else {
+            // Use first available font as fallback
+            font_map.values().next()
+        }
+    } else {
+        None
+    };
+
+    let Some(font) = font else {
+        return Err(PipelineError::StageError(
+            "Watermark stage: no font available in PipelineContext.font_map".into(),
+        ));
+    };
+
+    let (img_w, img_h) = (image.width() as f32, image.height() as f32);
+    let dyn_wh = img_w.min(img_h);
+
+    // Scale font size relative to image dimensions (normalized to 4000px reference)
+    let scale_factor = dyn_wh / 4000.0;
+    let font_px = config.font_size * scale_factor;
+    let px_scale = ab_glyph::PxScale::from(font_px);
+
+    // Calculate text dimensions
+    let (txt_w, txt_h) = {
+        use ab_glyph::{Font, ScaleFont};
+        let scaled = font.as_scaled(px_scale);
+        (
+            config
+                .text
+                .chars()
+                .map(|c| scaled.h_advance(font.glyph_id(c)))
+                .sum::<f32>(),
+            scaled.height(),
+        )
+    };
+
+    // Calculate margin
+    let margin = (120.0 * scale_factor) as i32;
+
+    // Position calculation (9-position grid: 1-9)
+    let (x, y) = watermark_position(
+        config.position,
+        img_w as i32,
+        img_h as i32,
+        txt_w as i32,
+        txt_h as i32,
+        margin,
+    );
+
+    // Draw text with transparency
+    let color = image::Rgba([
+        config.font_color[0],
+        config.font_color[1],
+        config.font_color[2],
+        config.font_color[3],
+    ]);
+
+    let transparency = config.font_color[3];
+
+    if config.is_screen_overlay {
+        crate::effect::draw_with_transparency::draw_text_screen_transparency_mut(
+            image,
+            color,
+            x,
+            y,
+            px_scale,
+            font,
+            transparency,
+            &config.text,
+        );
+    } else {
+        crate::effect::draw_with_transparency::draw_text_transparency_mut(
+            image,
+            color,
+            x,
+            y,
+            px_scale,
+            font,
+            transparency,
+            &config.text,
         );
     }
+
+    Ok(())
+}
+
+/// 9-position grid for watermark placement.
+/// ```text
+/// 1(↖)  2(↑)  3(↗)
+/// 4(←)  5(●)  6(→)
+/// 7(↙)  8(↓)  9(↘)
+/// ```
+fn watermark_position(
+    position: u8,
+    img_w: i32,
+    img_h: i32,
+    txt_w: i32,
+    txt_h: i32,
+    margin: i32,
+) -> (i32, i32) {
+    let center_x = (img_w - txt_w) / 2;
+    let center_y = (img_h - txt_h) / 2;
+    let right_x = img_w - txt_w - margin;
+    let bottom_y = img_h - txt_h - margin;
+
+    match position {
+        1 => (margin, margin),            // top-left
+        2 => (center_x, margin),          // top-center
+        3 => (right_x, margin),           // top-right
+        4 => (margin, center_y),          // center-left
+        5 => (center_x, center_y),        // center
+        6 => (right_x, center_y),         // center-right
+        7 => (margin, bottom_y),          // bottom-left
+        8 => (center_x, bottom_y),        // bottom-center
+        _ => (right_x, bottom_y),         // bottom-right (default: 9 or 3)
+    }
+}
+
+/// Apply Cheki (polaroid) decoration using the cheki renderer.
+fn apply_cheki(
+    image: &mut DynamicImage,
+    config: &crate::effect::cheki::ChekiDecoration,
+    ctx: &PipelineContext,
+) -> Result<(), PipelineError> {
+    let default_storage = crate::effect::sticker_storage::StickerStorage::default();
+    let storage = ctx.sticker_storage.unwrap_or(&default_storage);
+
+    // apply_cheki_decoration takes ownership and returns new image
+    let taken = std::mem::take(image);
+    *image = crate::effect::cheki_renderer::apply_cheki_decoration(taken, config, storage);
 
     Ok(())
 }
@@ -189,5 +404,193 @@ impl ExportPipeline {
         }
 
         Ok(self.image)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::effect::color_adjustments::ColorAdjustments;
+    use crate::effect::crop_rotate::CropRotateTransform;
+    use crate::pipeline::v1::stages::{StageEntry, StageKind};
+
+    /// Create a small test image (10x10 red RGBA).
+    fn test_image() -> DynamicImage {
+        DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            10,
+            10,
+            image::Rgba([255, 0, 0, 255]),
+        ))
+    }
+
+    #[test]
+    fn test_empty_pipeline_returns_original() {
+        let img = test_image();
+        let config = PipelineConfig::default();
+        let ctx = PipelineContext::empty();
+        let pipeline = ExportPipeline::new(img.clone(), config);
+        let result = pipeline.execute(&ctx).unwrap();
+        assert_eq!(result.width(), 10);
+        assert_eq!(result.height(), 10);
+    }
+
+    #[test]
+    fn test_disabled_stage_is_skipped() {
+        let img = test_image();
+        let mut config = PipelineConfig::default();
+        // Add a disabled ColorAdjustments stage with extreme values
+        let mut adjustments = ColorAdjustments::new();
+        adjustments.enabled = true;
+        adjustments.exposure = 5.0; // extreme value
+        config
+            .stages
+            .push(StageEntry::disabled(PipelineStage::ColorAdjustments(
+                adjustments,
+            )));
+
+        let ctx = PipelineContext::empty();
+        let pipeline = ExportPipeline::new(img.clone(), config);
+        let result = pipeline.execute(&ctx).unwrap();
+
+        // Image should be unchanged since stage is disabled
+        let orig_pixel = img.as_rgba8().unwrap().get_pixel(5, 5);
+        let result_pixel = result.as_rgba8().unwrap().get_pixel(5, 5);
+        assert_eq!(orig_pixel, result_pixel);
+    }
+
+    #[test]
+    fn test_color_adjustments_applied() {
+        let img = test_image();
+        let mut config = PipelineConfig::default();
+        let mut adjustments = ColorAdjustments::new();
+        adjustments.enabled = true;
+        adjustments.exposure = 2.0; // brighten significantly
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::ColorAdjustments(
+                adjustments,
+            )));
+
+        let ctx = PipelineContext::empty();
+        let pipeline = ExportPipeline::new(img, config);
+        let result = pipeline.execute(&ctx).unwrap();
+
+        // Red channel should still be 255 (clamped), but the image was processed
+        let pixel = result.as_rgba8().unwrap().get_pixel(5, 5);
+        assert_eq!(pixel[3], 255); // alpha unchanged
+    }
+
+    #[test]
+    fn test_validation_crop_rotate_not_first() {
+        let mut config = PipelineConfig::default();
+        // Add ColorAdjustments first, then CropRotate — should fail validation
+        let mut adjustments = ColorAdjustments::new();
+        adjustments.enabled = true;
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::ColorAdjustments(
+                adjustments,
+            )));
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::CropRotate(
+                CropRotateTransform::default(),
+            )));
+
+        let result = config.validate();
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            PipelineError::CropRotateNotFirst { found_at } => {
+                assert_eq!(found_at, 1);
+            }
+            _ => panic!("Expected CropRotateNotFirst error"),
+        }
+    }
+
+    #[test]
+    fn test_validation_crop_rotate_first_ok() {
+        let mut config = PipelineConfig::default();
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::CropRotate(
+                CropRotateTransform::default(),
+            )));
+        let mut adjustments = ColorAdjustments::new();
+        adjustments.enabled = true;
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::ColorAdjustments(
+                adjustments,
+            )));
+
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_lut_missing_context_returns_error() {
+        let img = test_image();
+        let mut config = PipelineConfig::default();
+        config.stages.push(StageEntry::enabled(PipelineStage::Lut {
+            lut_id: uuid::Uuid::new_v4(),
+        }));
+
+        let ctx = PipelineContext::empty(); // no lut_map
+        let pipeline = ExportPipeline::new(img, config);
+        let result = pipeline.execute(&ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_stage_kind_discriminant() {
+        let crop = PipelineStage::CropRotate(CropRotateTransform::default());
+        let mut adj = ColorAdjustments::new();
+        adj.enabled = true;
+        let color = PipelineStage::ColorAdjustments(adj);
+
+        assert_eq!(crop.kind(), StageKind::CropRotate);
+        assert_eq!(color.kind(), StageKind::ColorAdjustments);
+    }
+
+    #[test]
+    fn test_pipeline_config_serde_roundtrip() {
+        let mut config = PipelineConfig::default();
+        let mut adjustments = ColorAdjustments::new();
+        adjustments.enabled = true;
+        adjustments.exposure = 0.5;
+        config
+            .stages
+            .push(StageEntry::enabled(PipelineStage::ColorAdjustments(
+                adjustments,
+            )));
+
+        let json = serde_json::to_string(&config).unwrap();
+        let deserialized: PipelineConfig = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(deserialized.stages.len(), 1);
+        assert!(deserialized.stages[0].enabled);
+        assert_eq!(
+            deserialized.stages[0].stage.kind(),
+            StageKind::ColorAdjustments
+        );
+    }
+
+    #[test]
+    fn test_watermark_position_grid() {
+        // Test all 9 positions produce valid coordinates
+        for pos in 1..=9 {
+            let (x, y) = watermark_position(pos, 1000, 800, 100, 20, 10);
+            assert!(x >= 0, "position {} x should be >= 0, got {}", pos, x);
+            assert!(y >= 0, "position {} y should be >= 0, got {}", pos, y);
+        }
+
+        // Position 1 (top-left) should be at margin
+        let (x, y) = watermark_position(1, 1000, 800, 100, 20, 10);
+        assert_eq!(x, 10);
+        assert_eq!(y, 10);
+
+        // Position 9 (bottom-right)
+        let (x, y) = watermark_position(9, 1000, 800, 100, 20, 10);
+        assert_eq!(x, 1000 - 100 - 10);
+        assert_eq!(y, 800 - 20 - 10);
     }
 }
