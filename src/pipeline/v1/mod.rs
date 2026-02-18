@@ -9,6 +9,7 @@
 //! Queue-based stage execution with Decoration (Theme/Cheki) always last.
 //! All types are Serialize/Deserialize for JSON FFI, CLI, and preset support.
 
+mod bridge;
 mod config;
 mod context;
 mod execute;
@@ -17,6 +18,7 @@ mod preview;
 mod stages;
 mod validation;
 
+pub use bridge::*;
 pub use config::*;
 pub use context::*;
 pub use execute::*;
