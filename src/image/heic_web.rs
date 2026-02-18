@@ -49,9 +49,10 @@ pub fn is_heif(filename: &str, bytes: &[u8]) -> bool {
 async fn decode_heif_rgba(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
     let promise = decode_heif_from_bytes(bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
 
-    let js_result = wasm_bindgen_futures::JsFuture::from(promise)
+    // 30-second timeout to prevent hanging on corrupt/huge HEIF files
+    let js_result = crate::util::web_helper::race_with_timeout(promise, 30_000)
         .await
-        .map_err(|e| format!("HEIF decode failed: {:?}", e))?;
+        .map_err(|e| format!("HEIF decode failed: {}", e))?;
 
     let width = Reflect::get(&js_result, &"width".into())
         .map_err(|_| "Missing width".to_string())?

@@ -13,6 +13,11 @@
 <head>
     <title>Chama Optics</title>
 
+    <!-- GA:BEGIN (injected by CI if GA_MEASUREMENT_ID is set, otherwise removed) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=%%GA_MEASUREMENT_ID%%"></script>
+    <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','%%GA_MEASUREMENT_ID%%');</script>
+    <!-- GA:END -->
+
     <!-- Trunk: compile Rust WASM with "web" feature, no default features -->
     <link data-trunk rel="rust"
         data-bin="chama-optics"

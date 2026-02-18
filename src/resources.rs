@@ -326,9 +326,25 @@ extern "C" {
 
 #[cfg(target_arch = "wasm32")]
 async fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
-    let js_val = fetch_font_bytes(url)
+    // Wrap the async fetch in a JS Promise so we can race it with a timeout
+    let url_owned = url.to_string();
+    let fetch_promise = js_sys::Promise::new(&mut |resolve, reject| {
+        let url_inner = url_owned.clone();
+        wasm_bindgen_futures::spawn_local(async move {
+            match fetch_font_bytes(&url_inner).await {
+                Ok(val) => {
+                    let _ = resolve.call1(&JsValue::NULL, &val);
+                }
+                Err(e) => {
+                    let _ = reject.call1(&JsValue::NULL, &e);
+                }
+            }
+        });
+    });
+
+    let js_val = crate::util::web_helper::race_with_timeout(fetch_promise, 15_000)
         .await
-        .map_err(|e| format!("{:?}", e))?;
+        .map_err(|e| format!("Font fetch '{}': {}", url, e))?;
 
     let uint8_array = js_sys::Uint8Array::new(&js_val);
     let vec = uint8_array.to_vec();

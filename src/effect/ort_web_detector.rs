@@ -64,27 +64,38 @@ fn preprocess_model_for_webgpu(bytes: &[u8]) -> Result<Vec<u8>, String> {
     Ok(buf)
 }
 
+/// Cache for preprocessed model bytes (avoid re-decoding/encoding on each session init)
+static PREPROCESSED_MODEL: std::sync::OnceLock<Result<Vec<u8>, String>> =
+    std::sync::OnceLock::new();
+
+fn get_preprocessed_model() -> Result<&'static [u8], String> {
+    let result = PREPROCESSED_MODEL.get_or_init(|| {
+        let raw_bytes = crate::effect::candle_face_detector::model_bytes();
+        log::info!(
+            "Preprocessing ONNX model for WebGPU ({} bytes)",
+            raw_bytes.len()
+        );
+        preprocess_model_for_webgpu(raw_bytes)
+    });
+    match result {
+        Ok(bytes) => Ok(bytes.as_slice()),
+        Err(e) => Err(e.clone()),
+    }
+}
+
 /// Ensure the ORT session is initialized (loads model on first call).
 pub async fn ensure_session() -> Result<String, String> {
     if is_ort_ready() {
         return Ok(get_ort_backend());
     }
 
-    // Share model bytes with candle_face_detector (single include_bytes! in binary)
-    let raw_bytes = crate::effect::candle_face_detector::model_bytes();
-    log::info!(
-        "Preprocessing ONNX model for WebGPU ({} bytes)",
-        raw_bytes.len()
-    );
-
-    // Fix AveragePool ceil_mode for WebGPU compatibility
-    let model_bytes = preprocess_model_for_webgpu(raw_bytes)?;
+    let model_bytes = get_preprocessed_model()?;
     log::info!(
         "Initializing ORT Web session ({} bytes model)",
         model_bytes.len()
     );
 
-    let promise = init_ort_session(&model_bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
+    let promise = init_ort_session(model_bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
 
     let result = wasm_bindgen_futures::JsFuture::from(promise)
         .await
