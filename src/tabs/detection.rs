@@ -1165,6 +1165,8 @@ impl ChamaOptics {
         let image_uuid = packed_image.uuid;
         let results_queue = self.detection_results_queue.clone();
         let orientation = packed_image.view_exif.orientation;
+        #[cfg(feature = "face_detection_insightface")]
+        let camera_mnf = packed_image.view_exif.camera_mnf.clone();
 
         #[cfg(any(
             feature = "face_detection_insightface",
@@ -1237,7 +1239,7 @@ impl ChamaOptics {
 
                 // Detect faces on the orientation-corrected image
                 // Face coordinates are now in the same space as the displayed preview
-                let faces = detector.detect_faces_from_image(&img);
+                let faces = detector.detect_faces_from_image(&img, &camera_mnf);
 
                 log::info!(
                     "Detected {} faces on orientation-corrected image",

@@ -20,11 +20,13 @@ pub enum SpeedMode {
     Fastest,
     /// Fast: min(w,h) sliding windows only, ~0.6s avg
     Fast,
-    /// Normal: min(w,h) sliding windows, ~7s avg
+    /// Normal: 1 depth level from m_max window, ~7s avg
     Normal,
-    /// Slow: 2560×2560 and 1280×1280 windows, ~13s avg
+    /// Slow: 2 depth levels from m_max down, ~13s avg
     Slow,
-    /// Slowest: 2560×2560, 1280×1280, and 640×640 windows, ~28s avg
+    /// Slowest: 3 depth levels from m_max down, ~28s avg.
+    /// For professional ILC cameras (Panasonic/Sony/Canon/Sigma/Fuji/Hasselblad/Nikon/Leica)
+    /// the depth extends to m_max+1 levels, reaching down to 640 px.
     Slowest,
 }
 
@@ -52,6 +54,22 @@ impl SpeedMode {
             SpeedMode::Slowest => 3,
         }
     }
+}
+
+/// Returns `true` if the EXIF Make string belongs to a professional ILC camera brand.
+///
+/// When `Slowest` mode is active for an ILC camera, the sliding-window pyramid is
+/// extended by one extra level (m_max + 1), reaching down to the 640 px base window.
+pub fn is_ilc_camera_make(make: &str) -> bool {
+    let m = make.to_lowercase();
+    m.contains("panasonic")
+        || m.contains("sony")
+        || m.contains("canon")
+        || m.contains("sigma")
+        || m.contains("fuji")
+        || m.contains("hasselblad")
+        || m.contains("nikon")
+        || m.contains("leica")
 }
 
 /// Face effect mode - what effect to apply to detected faces
@@ -927,7 +945,7 @@ impl FaceDetection {
                                     (
                                         SpeedMode::Slowest,
                                         t!("face_detection.speed_mode_slowest"),
-                                        "Large group photo of more than 50 people",
+                                        "Large group photo of more than 50 people (ILC cameras: extends to 640px)",
                                     ),
                                 ];
 

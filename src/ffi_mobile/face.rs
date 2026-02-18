@@ -22,6 +22,13 @@ use crate::core::ImageProcessor;
 /// Opaque pointer to ChamaOptics instance (now using headless core)
 pub struct ChamaOpticsHandle {
     processor: ImageProcessor,
+    #[cfg(feature = "face_detection_insightface")]
+    insightface_detector: std::sync::Mutex<
+        Option<(
+            crate::effect::face_detection::SpeedMode,
+            crate::effect::insightface_detector::InsightFaceDetector,
+        )>,
+    >,
 }
 
 // Note: chama_optics_init(), chama_optics_version(), and chama_optics_free_string()
@@ -33,6 +40,8 @@ pub extern "C" fn chama_optics_create() -> *mut ChamaOpticsHandle {
     log::info!("Creating ChamaOptics instance");
     Box::into_raw(Box::new(ChamaOpticsHandle {
         processor: ImageProcessor::new(),
+        #[cfg(feature = "face_detection_insightface")]
+        insightface_detector: std::sync::Mutex::new(None),
     }))
 }
 
@@ -274,6 +283,137 @@ pub extern "C" fn chama_optics_detect_faces_ios(
     });
     std::mem::forget(faces);
     Box::into_raw(list)
+}
+
+/// Free a CFaceRectList allocated by face detection functions
+#[unsafe(no_mangle)]
+pub extern "C" fn chama_optics_free_face_rect_list(list: *mut CFaceRectList) {
+    if !list.is_null() {
+        unsafe {
+            let list_box = Box::from_raw(list);
+            if !list_box.faces.is_null() && list_box.count > 0 {
+                drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    list_box.faces,
+                    list_box.count,
+                )));
+            }
+        }
+    }
+}
+
+/// Detect faces using InsightFace ONNX sliding-window algorithm.
+///
+/// `camera_mnf` is the EXIF Make string (e.g. `"PANASONIC"`). When `speed_mode`
+/// is `4` (Slowest) and the camera is a known ILC brand, the sliding-window
+/// pyramid extends one extra level down to the 640 px base window.
+///
+/// `speed_mode`: 0=Fastest, 1=Fast, 2=Normal, 3=Slow, 4=Slowest
+///
+/// Returns a `CFaceRectList` that must be freed with `chama_optics_free_face_rect_list`,
+/// or null on error.
+#[cfg(all(target_os = "ios", feature = "face_detection_insightface"))]
+#[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_detect_faces_insightface(
+    handle: *mut ChamaOpticsHandle,
+    image_path: *const c_char,
+    camera_mnf: *const c_char,
+    speed_mode: u32,
+) -> *mut CFaceRectList {
+    if handle.is_null() || image_path.is_null() {
+        return std::ptr::null_mut();
+    }
+
+    let image_str = cstr_to_str!(image_path, return std::ptr::null_mut());
+    let camera_mnf_str = cstr_to_str_or!(camera_mnf, "");
+
+    let speed = match speed_mode {
+        0 => crate::effect::face_detection::SpeedMode::Fastest,
+        1 => crate::effect::face_detection::SpeedMode::Fast,
+        2 => crate::effect::face_detection::SpeedMode::Normal,
+        3 => crate::effect::face_detection::SpeedMode::Slow,
+        4 => crate::effect::face_detection::SpeedMode::Slowest,
+        _ => {
+            log::warn!("Invalid speed_mode {}, using Normal", speed_mode);
+            crate::effect::face_detection::SpeedMode::Normal
+        }
+    };
+
+    unsafe {
+        let handle_ref = &mut *handle;
+
+        // Load image
+        let path_buf = std::path::PathBuf::from(image_str);
+        let img = match handle_ref.processor.load_image_direct(&path_buf) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image for InsightFace detection: {}", e);
+                return std::ptr::null_mut();
+            }
+        };
+
+        // Initialize or re-initialize detector if speed mode changed
+        {
+            let mut cache = handle_ref.insightface_detector.lock().unwrap();
+            let needs_reinit = match &*cache {
+                None => true,
+                Some((cached_mode, _)) => *cached_mode != speed,
+            };
+            if needs_reinit {
+                log::info!(
+                    "Initializing InsightFace detector with speed_mode={:?}",
+                    speed
+                );
+                match crate::effect::insightface_detector::InsightFaceDetector::new(
+                    speed,
+                    crate::effect::insightface_detector::ExecutionProvider::CPUExecutionProvider,
+                ) {
+                    Ok(detector) => {
+                        *cache = Some((speed, detector));
+                    }
+                    Err(e) => {
+                        log::error!("Failed to create InsightFace detector: {}", e);
+                        return std::ptr::null_mut();
+                    }
+                }
+            }
+        }
+
+        // Run detection
+        let faces = {
+            let cache = handle_ref.insightface_detector.lock().unwrap();
+            match &*cache {
+                Some((_, detector)) => {
+                    log::info!(
+                        "Running InsightFace detection on iOS: make='{}'",
+                        camera_mnf_str
+                    );
+                    detector.detect_faces_from_image(&img, camera_mnf_str)
+                }
+                None => return std::ptr::null_mut(),
+            }
+        };
+
+        log::info!("InsightFace detected {} faces", faces.len());
+
+        // Convert to CFaceRectList
+        let c_faces: Vec<CFaceRect> = faces
+            .into_iter()
+            .map(|(x, y, w, h)| CFaceRect {
+                x,
+                y,
+                width: w,
+                height: h,
+            })
+            .collect();
+        let mut c_faces = c_faces.into_boxed_slice();
+        let list = Box::new(CFaceRectList {
+            faces: c_faces.as_mut_ptr(),
+            count: c_faces.len(),
+        });
+        std::mem::forget(c_faces);
+        Box::into_raw(list)
+    }
 }
 
 /// Apply face detection rectangles to an image (v2: uses CFaceDetectionConfig struct)

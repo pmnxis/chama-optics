@@ -674,6 +674,7 @@ impl InsightFaceDetector {
         &self,
         image_path: &Path,
         max_depth: Option<u32>,
+        camera_mnf: &str,
     ) -> Vec<(i32, i32, u32, u32)> {
         let max_depth = max_depth.unwrap_or(self.max_depth);
         log::info!(
@@ -783,22 +784,41 @@ impl InsightFaceDetector {
             return all_faces;
         }
 
-        // Calculate scaling factors for different depths
-        // Process from largest windows (coarse) to smallest (fine detail)
-        // Depth 0: largest window (2^max_depth × 640)
-        // Depth 1: half size (2^(max_depth-1) × 640)
-        // ...
-        // Depth max_depth-1: base window (640x640)
-        for depth in 0..max_depth as usize {
-            // Reverse the depth to process large windows first
-            let scale_factor = 1 << (max_depth as usize - depth - 1); // 2^(max_depth - depth - 1)
-            let window_scaled = self.window_size * scale_factor;
+        // Dynamic m_max: floor(log2(min_side × 0.9 / 640))
+        //   S5M2 (min=4000): floor(log2(5.625))=2 → top=2560
+        //   S1R2 (min=5424): floor(log2(7.627))=2 → top=2560
+        //   A7R5 (min=6336): floor(log2(8.910))=3 → top=5120
+        let img_min_side = img_width.min(img_height);
+        let m_max = ((img_min_side as f32 * 0.9 / self.window_size as f32)
+            .log2()
+            .floor()) as u32;
+
+        // Slowest on ILC camera → extend one extra level (down to 640 px base window)
+        let num_levels = if self.speed_mode == SpeedMode::Slowest
+            && crate::effect::face_detection::is_ilc_camera_make(camera_mnf)
+        {
+            m_max + 1
+        } else {
+            max_depth.min(m_max + 1)
+        };
+
+        log::info!(
+            "Sliding window depth loop: min_side={}, m_max={}, num_levels={}, ilc={}",
+            img_min_side,
+            m_max,
+            num_levels,
+            crate::effect::face_detection::is_ilc_camera_make(camera_mnf),
+        );
+
+        for depth in 0..num_levels as usize {
+            // Window size: 640 × 2^(m_max - depth)
+            // depth 0 → largest (e.g. 5120), depth m_max → 640
+            let window_scaled = self.window_size << (m_max - depth as u32);
 
             log::info!(
-                "Processing depth {}: window_size={}, scale={}",
+                "Processing depth {}: window_size={}",
                 depth,
-                window_scaled,
-                scale_factor
+                window_scaled
             );
 
             // Calculate step size (with overlap)
@@ -872,16 +892,24 @@ impl InsightFaceDetector {
         all_faces
     }
 
-    /// Detect faces from a DynamicImage directly (for pre-processed/rotated images)
-    /// This is useful when the image has already been loaded and orientation-corrected.
-    pub fn detect_faces_from_image(&self, img: &image::DynamicImage) -> Vec<(i32, i32, u32, u32)> {
+    /// Detect faces from a DynamicImage directly (for pre-processed/rotated images).
+    ///
+    /// `camera_mnf` is the EXIF Make string (e.g. `"PANASONIC"`). When `Slowest` mode
+    /// is active and the camera is a professional ILC brand, the sliding-window pyramid
+    /// extends one extra level down to the 640 px base window.
+    pub fn detect_faces_from_image(
+        &self,
+        img: &image::DynamicImage,
+        camera_mnf: &str,
+    ) -> Vec<(i32, i32, u32, u32)> {
         let img_width = img.width();
         let img_height = img.height();
 
         log::info!(
-            "Running InsightFace inference on {}x{} DynamicImage",
+            "Running InsightFace inference on {}x{} DynamicImage (make='{}')",
             img_width,
-            img_height
+            img_height,
+            camera_mnf,
         );
 
         // For small images, use single detection
@@ -892,14 +920,21 @@ impl InsightFaceDetector {
         }
 
         // For large images, use sliding window detection
-        self.detect_faces_sliding_window_from_image(img, None)
+        self.detect_faces_sliding_window_from_image(img, None, camera_mnf)
     }
 
-    /// Detect faces using 640x640 sliding window with configurable depth (from DynamicImage)
+    /// Detect faces using sliding window with configurable depth (from DynamicImage).
+    ///
+    /// Window sizes are determined dynamically from the image dimensions:
+    ///   `m_max = floor(log2(min_side × 0.9 / 640))`
+    ///   window at depth d = 640 × 2^(m_max − d)
+    ///
+    /// For `Slowest` mode on ILC cameras, `num_levels = m_max + 1` (reaches 640 px).
     pub fn detect_faces_sliding_window_from_image(
         &self,
         img: &image::DynamicImage,
         max_depth: Option<u32>,
+        camera_mnf: &str,
     ) -> Vec<(i32, i32, u32, u32)> {
         let max_depth = max_depth.unwrap_or(self.max_depth);
         let img_width = img.width();
@@ -978,16 +1013,40 @@ impl InsightFaceDetector {
             return all_faces;
         }
 
+        // Dynamic m_max: floor(log2(min_side × 0.9 / 640))
+        //   S5M2 (min=4000): floor(log2(5.625))=2 → top=2560
+        //   S1R2 (min=5424): floor(log2(7.627))=2 → top=2560  (×0.9 기준)
+        //   A7R5 (min=6336): floor(log2(8.910))=3 → top=5120
+        let img_min_side = img_width.min(img_height);
+        let m_max = ((img_min_side as f32 * 0.9 / self.window_size as f32)
+            .log2()
+            .floor()) as u32;
+
+        // Slowest on ILC camera → extend one extra level (down to 640 px base window)
+        let num_levels = if self.speed_mode == SpeedMode::Slowest
+            && crate::effect::face_detection::is_ilc_camera_make(camera_mnf)
+        {
+            m_max + 1
+        } else {
+            max_depth.min(m_max + 1)
+        };
+
+        log::info!(
+            "Sliding window depth loop: min_side={}, m_max={}, num_levels={}, ilc={}",
+            img_min_side,
+            m_max,
+            num_levels,
+            crate::effect::face_detection::is_ilc_camera_make(camera_mnf),
+        );
+
         // Process deeper levels
-        for depth in 0..max_depth as usize {
-            let scale_factor = 1 << (max_depth as usize - depth - 1);
-            let window_scaled = self.window_size * scale_factor;
+        for depth in 0..num_levels as usize {
+            let window_scaled = self.window_size << (m_max - depth as u32);
 
             log::info!(
-                "Processing depth {}: window_size={}, scale={}",
+                "Processing depth {}: window_size={}",
                 depth,
-                window_scaled,
-                scale_factor
+                window_scaled
             );
 
             let step = (window_scaled as f32 * (1.0 - self.overlap_ratio)) as i32;
@@ -1068,14 +1127,10 @@ impl super::face_detectors::FaceDetector for InsightFaceDetector {
             log::info!("InsightFace detected {} faces", faces.len());
             faces
         } else {
-            // For large images, use sliding window with appropriate depth
-            // Use SpeedMode's max_depth, which provides sensible defaults:
-            // Fastest : None (no sliding window, just resized image)
-            // Fast : None + 0 (sliding window with shorter from height/weight)
-            // Normal: Fast Mode + 1 (640×640 and 1280×1280 windows)
-            // Slow: Fast Mode + 2 (640×640, 1280×1280, and 2560×2560 windows)
-            // Slowest: Fast Mode + 3 (640×640, 1280×1280, 2560×2560, and 5120×5120 windows)
-            self.detect_faces_sliding_window(image_path, None) // Use default from SpeedMode
+            // FaceDetector trait does not carry EXIF; camera_mnf is unknown here.
+            // Pass empty string — Slowest ILC extension won't activate via this path.
+            // Use detect_faces_from_image (with camera_mnf) for full behaviour.
+            self.detect_faces_sliding_window(image_path, None, "")
         }
     }
 

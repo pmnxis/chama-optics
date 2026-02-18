@@ -132,6 +132,27 @@ pub extern "C" fn chama_optics_free_exif_data(exif_data: *mut CExifData) {
 }
 
 // ============================================================================
+// Face Detection Helpers
+// ============================================================================
+
+/// Returns `true` if the EXIF Make string belongs to a professional ILC camera brand
+/// (Panasonic, Sony, Canon, Sigma, Fuji, Hasselblad, Nikon, Leica).
+///
+/// iOS uses this to decide whether to extend the sliding-window pyramid by one
+/// extra level when `Slowest` speed mode is active.
+#[unsafe(no_mangle)]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
+pub extern "C" fn chama_optics_is_ilc_camera_make(camera_make: *const c_char) -> bool {
+    if camera_make.is_null() {
+        return false;
+    }
+    let make = unsafe { CStr::from_ptr(camera_make) }
+        .to_str()
+        .unwrap_or("");
+    crate::effect::face_detection::is_ilc_camera_make(make)
+}
+
+// ============================================================================
 // EXIF Extraction (Platform-Agnostic)
 // ============================================================================
 

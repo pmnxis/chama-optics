@@ -261,6 +261,11 @@ face_detection:
     ko: "가장느림 (50~100명의 단체사진)"
     ja: "最低速（50～100人の団体写真）"
     id: "Paling Lambat (Foto kelompok dengan 50-100 orang)"
+  speed_mode_max:
+    en: "Max (100+ people, ILC cameras only)"
+    ko: "최대 (100명 이상, 교환식 렌즈 카메라 전용)"
+    ja: "最大（100人以上、交換レンズカメラ専用）"
+    id: "Maks (100+ orang, hanya kamera ILC)"
 
   # Execution provider
   execution_provider:
