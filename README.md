@@ -11,6 +11,10 @@ SPDX-License-Identifier: MIT OR Apache-2.0
 
 <p align="center"><img src="assets/mac-icon.png" width="256" height="256"/></p>
 
+> **Web App Demo**: [https://pmnxis.github.io/chama-optics/](https://pmnxis.github.io/chama-optics/)
+>
+> This is a **technology preview** built with WebAssembly (WASM). Stable operation is not guaranteed and some features may be limited compared to the desktop version. The web support is experimentally maintained on the [`web`](https://github.com/pmnxis/chama-optics/tree/web) branch.
+
 Chama Optics is a program created for recent mirrorless and DSLR cameras, <br/>
 inspired by the travel VTuber Akai Haato([赤井はあと](https://www.youtube.com/@AkaiHaato)), who loves photography.
 
@@ -38,6 +42,7 @@ This program is developed in [Rust](https://rust-lang.org/) using the [eframe](h
 - [x] Function to group similar photos or images taken around the same time
 - [x] Adjustment controls for contrast, brightness, grain, texture, and LUT
 - [ ] Preset for color grading and complex procedure by EXIF or user request
+- [x] Web version
 
 
 ## Building and Running
