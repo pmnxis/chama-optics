@@ -306,7 +306,11 @@ pub async fn preload_fonts() {
         }
     }
 
-    log::info!("Font preload complete: {}/{} fonts loaded", cache.len(), font_names.len());
+    log::info!(
+        "Font preload complete: {}/{} fonts loaded",
+        cache.len(),
+        font_names.len()
+    );
     wasm_font_cache::init(cache);
 }
 

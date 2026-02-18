@@ -1480,8 +1480,7 @@ impl ChamaOptics {
                                                 id
                                             );
                                             if let Some(idx) = self.color_selected_index
-                                                && let Some(pi) =
-                                                    self.packed_images.get_mut(idx)
+                                                && let Some(pi) = self.packed_images.get_mut(idx)
                                             {
                                                 pi.lut_id = Some(id);
                                             }
@@ -1683,11 +1682,7 @@ impl ChamaOptics {
         let simplify = self.import_config.simplify_lens_model;
 
         for (filename, bytes) in files {
-            log::info!(
-                "WASM: Loading image: {} ({} bytes)",
-                filename,
-                bytes.len()
-            );
+            log::info!("WASM: Loading image: {} ({} bytes)", filename, bytes.len());
 
             if crate::image::heic_web::is_heif(&filename, &bytes) {
                 // HEIF/HEIC: async decode via libheif-js (JS interop, involves data copies)
@@ -1717,18 +1712,14 @@ impl ChamaOptics {
                     &bytes, &filename, get_alt, use_35mm, simplify,
                 ) {
                     Ok(loaded_data) => {
-                        match crate::image::loader::create_packed_image_from_data(
-                            loaded_data, ctx,
-                        ) {
+                        match crate::image::loader::create_packed_image_from_data(loaded_data, ctx)
+                        {
                             Some(packed_image) => {
                                 log::info!("WASM: Successfully loaded image: {}", filename);
                                 self.packed_images.push(packed_image);
                             }
                             None => {
-                                log::error!(
-                                    "WASM: Failed to create packed image for {}",
-                                    filename
-                                );
+                                log::error!("WASM: Failed to create packed image for {}", filename);
                             }
                         }
                     }

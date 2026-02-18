@@ -454,10 +454,10 @@ impl ChamaOptics {
                     }
                 };
 
-                if let Some(result) = process_image(img, need_orientation) {
-                    if let Ok(mut q) = queue.lock() {
-                        *q = Some(result);
-                    }
+                if let Some(result) = process_image(img, need_orientation)
+                    && let Ok(mut q) = queue.lock()
+                {
+                    *q = Some(result);
                 }
             });
         }
@@ -469,10 +469,10 @@ impl ChamaOptics {
                 .as_ref()
                 .and_then(|bytes| image::load_from_memory(bytes).ok());
             if let Some(img) = img {
-                if let Some(result) = process_image(img, true) {
-                    if let Ok(mut q) = queue.lock() {
-                        *q = Some(result);
-                    }
+                if let Some(result) = process_image(img, true)
+                    && let Ok(mut q) = queue.lock()
+                {
+                    *q = Some(result);
                 }
             } else {
                 log::error!("WASM: No image_bytes for crop canvas preview");

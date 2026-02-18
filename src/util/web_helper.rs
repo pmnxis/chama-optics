@@ -8,8 +8,8 @@
 
 use std::cell::RefCell;
 use std::sync::Arc;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 /// A pending file read result: (filename, bytes)
 pub type FileData = (String, Vec<u8>);
@@ -31,16 +31,14 @@ pub fn pick_files_to_queue(queue: PendingFileQueue) {
         .unwrap();
     input.set_type("file");
     input.set_attribute("multiple", "").unwrap();
-    input.set_attribute("accept", "image/*,.heic,.heif").unwrap();
+    input
+        .set_attribute("accept", "image/*,.heic,.heif")
+        .unwrap();
 
     let queue_ref = queue.clone();
 
     let onchange = Closure::wrap(Box::new(move |event: web_sys::Event| {
-        let input: web_sys::HtmlInputElement = event
-            .target()
-            .unwrap()
-            .dyn_into()
-            .unwrap();
+        let input: web_sys::HtmlInputElement = event.target().unwrap().dyn_into().unwrap();
 
         if let Some(files) = input.files() {
             for i in 0..files.length() {
@@ -76,16 +74,12 @@ pub fn pick_files_to_queue(queue: PendingFileQueue) {
 }
 
 /// Process dropped file bytes from egui's DroppedFile into (name, bytes) tuples
-pub fn extract_dropped_file_bytes(
-    dropped_files: &[egui::DroppedFile],
-) -> Vec<FileData> {
+pub fn extract_dropped_file_bytes(dropped_files: &[egui::DroppedFile]) -> Vec<FileData> {
     dropped_files
         .iter()
         .filter_map(|f| {
             let name = f.name.clone();
-            f.bytes.as_ref().map(|bytes| {
-                (name, bytes.to_vec())
-            })
+            f.bytes.as_ref().map(|bytes| (name, bytes.to_vec()))
         })
         .collect()
 }

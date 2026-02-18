@@ -175,7 +175,8 @@ pub fn encode_png_to_bytes(img: &DynamicImage) -> Result<Vec<u8>, image::ImageEr
     use image::codecs::png::{CompressionType, FilterType, PngEncoder};
 
     let mut buf = std::io::Cursor::new(Vec::new());
-    let encoder = PngEncoder::new_with_quality(&mut buf, CompressionType::Best, FilterType::Adaptive);
+    let encoder =
+        PngEncoder::new_with_quality(&mut buf, CompressionType::Best, FilterType::Adaptive);
     encoder.write_image(
         &img.to_rgb8(),
         img.width(),

@@ -1166,7 +1166,10 @@ impl ChamaOptics {
         let results_queue = self.detection_results_queue.clone();
         let orientation = packed_image.view_exif.orientation;
 
-        #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+        #[cfg(any(
+            feature = "face_detection_insightface",
+            feature = "face_detection_candle"
+        ))]
         let speed_mode = self.export_config.face_detection.speed_mode;
         #[cfg(feature = "face_detection_insightface")]
         let provider = self.export_config.face_detection.provider;
@@ -1274,10 +1277,9 @@ impl ChamaOptics {
 
                         // Use ORT Web (WebGPU) via async spawn_local
                         wasm_bindgen_futures::spawn_local(async move {
-                            let faces = crate::effect::ort_web_detector::detect_faces(
-                                &img, speed_mode,
-                            )
-                            .await;
+                            let faces =
+                                crate::effect::ort_web_detector::detect_faces(&img, speed_mode)
+                                    .await;
                             log::info!("ORT Web detected {} faces", faces.len());
                             if let Ok(mut queue) = results_queue.lock() {
                                 *queue = Some((faces, image_uuid, oriented_size));

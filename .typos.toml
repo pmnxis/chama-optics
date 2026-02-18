@@ -30,6 +30,7 @@ Faktor = "Faktor"       # Factor
 # Technical terms
 wdth = "wdth"           # Font variable axis for width
 wght = "wght"           # Font variable axis for weight
+iy = "iy"               # intersection y-coordinate variable prefix (iy1, iy2)
 
 [files]
 # Optionally ignore specific files if needed

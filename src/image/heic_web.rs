@@ -16,8 +16,8 @@ use crate::exif_impl::{OriginalExif, SimplifiedExif};
 use crate::image::loader::LoadedImageData;
 use js_sys::{Promise, Reflect, Uint8Array};
 use std::path::PathBuf;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen(module = "/js/heif_helper.js")]
 extern "C" {
@@ -47,8 +47,7 @@ pub fn is_heif(filename: &str, bytes: &[u8]) -> bool {
 /// The returned RGBA buffer is full-resolution (width * height * 4 bytes).
 /// Caller should generate thumbnail and drop the large buffer promptly.
 async fn decode_heif_rgba(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), String> {
-    let promise =
-        decode_heif_from_bytes(bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
+    let promise = decode_heif_from_bytes(bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
 
     let js_result = wasm_bindgen_futures::JsFuture::from(promise)
         .await
