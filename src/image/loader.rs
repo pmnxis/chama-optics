@@ -35,7 +35,9 @@ pub struct LoadedImageData {
 pub type LoadedImageQueue = Arc<Mutex<Vec<LoadedImageData>>>;
 
 /// Calculate perceptual hash from ColorImage (8x8 average hash)
-pub(crate) fn calculate_perceptual_hash_from_thumbnail(thumbnail: &egui::ColorImage) -> Option<u64> {
+pub(crate) fn calculate_perceptual_hash_from_thumbnail(
+    thumbnail: &egui::ColorImage,
+) -> Option<u64> {
     // Convert ColorImage to grayscale 8x8
     let width = thumbnail.size[0];
     let height = thumbnail.size[1];
@@ -234,8 +236,12 @@ pub fn spawn_parallel_loader(
 
         // Sequential loading (single-threaded is actually faster for I/O-bound work)
         for path in &paths {
-            match load_image_data(path, get_alt_fnumber, use_35mm_focal_length, simplify_lens_model)
-            {
+            match load_image_data(
+                path,
+                get_alt_fnumber,
+                use_35mm_focal_length,
+                simplify_lens_model,
+            ) {
                 Ok(loaded_data) => {
                     if let Ok(mut queue) = result_queue.lock() {
                         queue.push(loaded_data);

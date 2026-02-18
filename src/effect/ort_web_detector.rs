@@ -14,8 +14,8 @@
 //!   Rust (preprocess) → JS (ORT WebGPU inference) → Rust (postprocess)
 
 use js_sys::{Array, Float32Array, Promise, Reflect};
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
 use crate::effect::face_detection::SpeedMode;
 
@@ -84,16 +84,13 @@ pub async fn ensure_session() -> Result<String, String> {
         model_bytes.len()
     );
 
-    let promise =
-        init_ort_session(&model_bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
+    let promise = init_ort_session(&model_bytes).map_err(|e| format!("JS call failed: {:?}", e))?;
 
     let result = wasm_bindgen_futures::JsFuture::from(promise)
         .await
         .map_err(|e| format!("ORT session init failed: {:?}", e))?;
 
-    let backend = result
-        .as_string()
-        .unwrap_or_else(|| "unknown".to_string());
+    let backend = result.as_string().unwrap_or_else(|| "unknown".to_string());
     log::info!("ORT Web session ready, backend: {}", backend);
     Ok(backend)
 }
@@ -196,9 +193,7 @@ pub async fn detect_faces(
                     let crop_h = (h as u32).min(img.height().saturating_sub(crop_y));
                     if crop_w > 0 && crop_h > 0 {
                         let cropped = img.crop_imm(crop_x, crop_y, crop_w, crop_h);
-                        all_faces.extend(
-                            detect_single(&cropped, x, y, w as u32, h as u32).await,
-                        );
+                        all_faces.extend(detect_single(&cropped, x, y, w as u32, h as u32).await);
                     }
                 }
                 y += step;
@@ -276,9 +271,7 @@ fn preprocess_image(img: &image::DynamicImage) -> Vec<f32> {
 
 // ---- Inference via ONNX Runtime Web JS ----
 
-async fn run_inference_js(
-    input_data: Vec<f32>,
-) -> Result<Vec<(f32, f32, f32, f32, f32)>, String> {
+async fn run_inference_js(input_data: Vec<f32>) -> Result<Vec<(f32, f32, f32, f32, f32)>, String> {
     let ws = WINDOW_SIZE;
     let promise = run_ort_inference(&input_data, ws, ws)
         .map_err(|e| format!("JS inference call failed: {:?}", e))?;
@@ -304,8 +297,7 @@ async fn run_inference_js(
             .ok_or("Invalid output name")?;
 
         let dims_js = Array::from(
-            &Reflect::get(&output, &"dims".into())
-                .map_err(|_| "Missing dims".to_string())?,
+            &Reflect::get(&output, &"dims".into()).map_err(|_| "Missing dims".to_string())?,
         );
 
         let data_js = Reflect::get(&output, &"data".into())
@@ -444,9 +436,9 @@ fn nms_final(faces: Vec<(i32, i32, u32, u32)>) -> Vec<(i32, i32, u32, u32)> {
     let iou_threshold = 0.4f32;
     let mut keep = Vec::new();
     for face in &faces {
-        let dominated = keep.iter().any(|kept: &(i32, i32, u32, u32)| {
-            iou_int(*face, *kept) >= iou_threshold
-        });
+        let dominated = keep
+            .iter()
+            .any(|kept: &(i32, i32, u32, u32)| iou_int(*face, *kept) >= iou_threshold);
         if !dominated {
             keep.push(*face);
         }

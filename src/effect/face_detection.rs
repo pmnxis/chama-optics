@@ -145,7 +145,10 @@ pub struct FaceDetection {
     pub mosaic_block_size: u32,
     /// Legacy: mask faces with blur (deprecated, use effect_mode instead)
     pub mask_faces: bool, // todo - is this really used?
-    #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+    #[cfg(any(
+        feature = "face_detection_insightface",
+        feature = "face_detection_candle"
+    ))]
     pub speed_mode: SpeedMode,
     #[cfg(feature = "face_detection_insightface")]
     pub provider: crate::effect::insightface_detector::ExecutionProvider,
@@ -878,57 +881,64 @@ impl FaceDetection {
                 ui.separator();
 
                 // Show speed mode options for InsightFace and Candle
-                #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+                #[cfg(any(
+                    feature = "face_detection_insightface",
+                    feature = "face_detection_candle"
+                ))]
                 {
-                let mut show_speed_mode = false;
-                #[cfg(feature = "face_detection_insightface")]
-                { show_speed_mode |= matches!(self.engine, FaceDetectionEngine::InsightFace); }
-                #[cfg(feature = "face_detection_candle")]
-                { show_speed_mode |= matches!(self.engine, FaceDetectionEngine::Candle); }
-                if show_speed_mode {
-                    // Speed mode selection
-                    ui.label(t!("face_detection.speed_mode"))
-                        .on_hover_text(t!("face_detection.speed_mode_hint"));
+                    let mut show_speed_mode = false;
+                    #[cfg(feature = "face_detection_insightface")]
+                    {
+                        show_speed_mode |= matches!(self.engine, FaceDetectionEngine::InsightFace);
+                    }
+                    #[cfg(feature = "face_detection_candle")]
+                    {
+                        show_speed_mode |= matches!(self.engine, FaceDetectionEngine::Candle);
+                    }
+                    if show_speed_mode {
+                        // Speed mode selection
+                        ui.label(t!("face_detection.speed_mode"))
+                            .on_hover_text(t!("face_detection.speed_mode_hint"));
 
-                    egui::ComboBox::from_label(t!("face_detection.speed_mode"))
-                        .selected_text(self.speed_mode.as_str().to_string())
-                        .show_ui(ui, |ui| {
-                            let modes = [
-                                (
-                                    SpeedMode::Fastest,
-                                    t!("face_detection.speed_mode_fastest"),
-                                    "Single or two person photo",
-                                ),
-                                (
-                                    SpeedMode::Fast,
-                                    t!("face_detection.speed_mode_fast"),
-                                    "Single or two person photo with an unusual aspect ratio",
-                                ),
-                                (
-                                    SpeedMode::Normal,
-                                    t!("face_detection.speed_mode_normal"),
-                                    "Group photo of around 10 people",
-                                ),
-                                (
-                                    SpeedMode::Slow,
-                                    t!("face_detection.speed_mode_slow"),
-                                    "Group photo of 40~50 people",
-                                ),
-                                (
-                                    SpeedMode::Slowest,
-                                    t!("face_detection.speed_mode_slowest"),
-                                    "Large group photo of more than 50 people",
-                                ),
-                            ];
+                        egui::ComboBox::from_label(t!("face_detection.speed_mode"))
+                            .selected_text(self.speed_mode.as_str().to_string())
+                            .show_ui(ui, |ui| {
+                                let modes = [
+                                    (
+                                        SpeedMode::Fastest,
+                                        t!("face_detection.speed_mode_fastest"),
+                                        "Single or two person photo",
+                                    ),
+                                    (
+                                        SpeedMode::Fast,
+                                        t!("face_detection.speed_mode_fast"),
+                                        "Single or two person photo with an unusual aspect ratio",
+                                    ),
+                                    (
+                                        SpeedMode::Normal,
+                                        t!("face_detection.speed_mode_normal"),
+                                        "Group photo of around 10 people",
+                                    ),
+                                    (
+                                        SpeedMode::Slow,
+                                        t!("face_detection.speed_mode_slow"),
+                                        "Group photo of 40~50 people",
+                                    ),
+                                    (
+                                        SpeedMode::Slowest,
+                                        t!("face_detection.speed_mode_slowest"),
+                                        "Large group photo of more than 50 people",
+                                    ),
+                                ];
 
-                            for (mode, label, hint) in modes {
-                                ui.selectable_value(&mut self.speed_mode, mode, label)
-                                    .on_hover_text(hint);
-                            }
-                        });
+                                for (mode, label, hint) in modes {
+                                    ui.selectable_value(&mut self.speed_mode, mode, label)
+                                        .on_hover_text(hint);
+                                }
+                            });
 
-                    ui.separator();
-                }
+                        ui.separator();
+                    }
                 } // #[cfg(any(face_detection_insightface, face_detection_candle))]
 
                 // Execution provider selection (InsightFace only)
@@ -983,15 +993,21 @@ impl FaceDetection {
                 );
             }
         }
-        #[cfg(any(feature = "face_detection_insightface", feature = "face_detection_candle"))]
+        #[cfg(any(
+            feature = "face_detection_insightface",
+            feature = "face_detection_candle"
+        ))]
         {
-            return format!(
+            format!(
                 "{} {}",
                 self.engine.display_name(),
                 self.speed_mode.as_str()
-            );
+            )
         }
-        #[cfg(not(any(feature = "face_detection_insightface", feature = "face_detection_candle")))]
+        #[cfg(not(any(
+            feature = "face_detection_insightface",
+            feature = "face_detection_candle"
+        )))]
         {
             self.engine.display_name().to_string()
         }

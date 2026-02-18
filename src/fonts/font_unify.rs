@@ -332,7 +332,10 @@ impl FontsUnify {
         }
     }
 
-    #[cfg(all(not(feature = "desktop"), not(any(feature = "ios_integration", feature = "android_integration"))))]
+    #[cfg(all(
+        not(feature = "desktop"),
+        not(any(feature = "ios_integration", feature = "android_integration"))
+    ))]
     pub fn deep_get(&'static self, select: &FontSelection) -> Result<FontSearchResult, FontError> {
         // WASM: Only builtin fonts available
         let name = &select.name;
@@ -419,7 +422,10 @@ impl FontsUnify {
     }
 
     #[allow(dead_code)]
-    #[cfg(all(not(feature = "desktop"), not(any(feature = "ios_integration", feature = "android_integration"))))]
+    #[cfg(all(
+        not(feature = "desktop"),
+        not(any(feature = "ios_integration", feature = "android_integration"))
+    ))]
     pub fn get_by_select(&'static self, select: &FontSelection) -> Result<FontArc, FontError> {
         // WASM: Only builtin fonts
         let prev_idx = select.select.index;

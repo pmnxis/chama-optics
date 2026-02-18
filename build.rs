@@ -203,7 +203,6 @@ fn main() {
     // Desktop only: download logos
     #[cfg(feature = "desktop")]
     {
-
         // Logo related
         std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
         let generated_dir = PathBuf::from("assets/auto_generated");

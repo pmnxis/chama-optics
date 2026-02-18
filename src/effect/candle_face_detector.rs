@@ -152,9 +152,8 @@ impl CandleFaceDetector {
                         let crop_h = (h as u32).min(img.height().saturating_sub(crop_y));
                         if crop_w > 0 && crop_h > 0 {
                             let cropped = img.crop_imm(crop_x, crop_y, crop_w, crop_h);
-                            all_faces.extend(self.detect_single(
-                                &cropped, x, y, w as u32, h as u32,
-                            ));
+                            all_faces
+                                .extend(self.detect_single(&cropped, x, y, w as u32, h as u32));
                         }
                     }
                     y += step;
@@ -245,11 +244,7 @@ impl CandleFaceDetector {
             Tensor::from_vec(input_data, &[1, 3, ws, ws], &device).map_err(|e| e.to_string())?;
 
         // Discover the input name from the model graph
-        let graph = self
-            .model
-            .graph
-            .as_ref()
-            .ok_or("ONNX model has no graph")?;
+        let graph = self.model.graph.as_ref().ok_or("ONNX model has no graph")?;
         let input_name = graph
             .input
             .first()
@@ -403,9 +398,9 @@ impl CandleFaceDetector {
         let iou_threshold = 0.4f32;
         let mut keep = Vec::new();
         for face in &faces {
-            let dominated = keep.iter().any(|kept: &(i32, i32, u32, u32)| {
-                Self::iou_int(*face, *kept) >= iou_threshold
-            });
+            let dominated = keep
+                .iter()
+                .any(|kept: &(i32, i32, u32, u32)| Self::iou_int(*face, *kept) >= iou_threshold);
             if !dominated {
                 keep.push(*face);
             }
