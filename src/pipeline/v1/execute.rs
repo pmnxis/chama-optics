@@ -348,18 +348,16 @@ fn watermark_position(
     }
 }
 
-/// Apply Theme decoration using the theme registry.
+/// Apply Theme decoration by creating a fresh theme instance and applying params.
+///
+/// Uses `create_theme()` to get a mutable `Box<dyn Theme>`, then applies
+/// `ThemeConfig.params` via downcast-based `update_from_json`. This matches
+/// the existing FFI flow in `ffi_mobile/theme.rs::export_final_impl`.
 fn apply_theme(
     image: &mut DynamicImage,
     config: &super::stages::ThemeConfig,
     ctx: &PipelineContext,
 ) -> Result<(), PipelineError> {
-    let Some(registry) = ctx.theme_registry else {
-        return Err(PipelineError::StageError(
-            "Theme decoration: no theme_registry provided in PipelineContext".into(),
-        ));
-    };
-
     let Some(export_config) = ctx.export_config else {
         return Err(PipelineError::StageError(
             "Theme decoration: no export_config provided in PipelineContext".into(),
@@ -369,17 +367,67 @@ fn apply_theme(
     let default_exif = crate::image::exif_impl::SimplifiedExif::default();
     let exif = ctx.exif.unwrap_or(&default_exif);
 
-    let theme_guard = registry.find(&config.name).ok_or_else(|| {
+    // Create a fresh theme instance (mutable, with default params)
+    let mut theme = crate::theme::create_theme(&config.name).ok_or_else(|| {
         PipelineError::StageError(format!(
-            "Theme decoration: theme '{}' not found in registry",
+            "Theme decoration: theme '{}' not found",
             config.name
         ))
     })?;
 
+    // Apply parameter overrides from config.params if present
+    if let Some(params_value) = &config.params {
+        if let Some(params_map) = params_value.as_object() {
+            if !params_map.is_empty() {
+                if let Err(e) = update_theme_params(&mut *theme, params_map) {
+                    log::warn!("Theme param update warning (using defaults): {}", e);
+                }
+            }
+        }
+    }
+
     let taken = std::mem::take(image);
-    *image = theme_guard.apply_to_dynamic_image(taken, exif, export_config)?;
+    *image = theme.apply_to_dynamic_image(taken, exif, export_config)?;
 
     Ok(())
+}
+
+/// Update theme parameters via downcast to concrete types.
+///
+/// This mirrors `ffi_mobile/theme.rs::update_theme_from_json` but returns
+/// a plain `String` error instead of `ChamaOpticsError`.
+fn update_theme_params(
+    theme: &mut dyn crate::theme::Theme,
+    updates: &serde_json::Map<String, serde_json::Value>,
+) -> Result<(), String> {
+    use crate::theme::parameter_schema::ThemeParameters;
+
+    macro_rules! try_update {
+        ($theme_type:ty) => {
+            if let Some(concrete) =
+                (theme as &mut dyn std::any::Any).downcast_mut::<$theme_type>()
+            {
+                return concrete.update_from_json(updates);
+            }
+        };
+    }
+
+    try_update!(crate::theme::just_frame::JustFrame);
+    try_update!(crate::theme::one_line::OneLine);
+    try_update!(crate::theme::two_line::TwoLine);
+    try_update!(crate::theme::shot_on_one_line::ShotOnOneLine);
+    try_update!(crate::theme::shot_on_two_line::ShotOnTwoLine);
+    try_update!(crate::theme::strap::Strap);
+    try_update!(crate::theme::monitor::Monitor);
+    try_update!(crate::theme::lightroom::Lightroom);
+    try_update!(crate::theme::film::Film);
+    try_update!(crate::theme::film_date::FilmDate);
+    try_update!(crate::theme::film_glow::FilmGlow);
+
+    Err(format!(
+        "Could not downcast theme '{}' for parameter update",
+        theme.unique_name()
+    ))
 }
 
 /// Apply Cheki (polaroid) decoration using the cheki renderer.

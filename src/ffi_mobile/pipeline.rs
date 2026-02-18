@@ -123,8 +123,8 @@ pub unsafe extern "C" fn chama_pipeline_execute(
         }
     }
 
-    // Load image
-    let image = match image::open(image_path) {
+    // Load image (with HEIF support on Apple platforms)
+    let image = match super::load_image_with_heif_support(std::path::Path::new(image_path)) {
         Ok(img) => img,
         Err(e) => {
             log::error!("Image load error: {}", e);
@@ -158,11 +158,21 @@ pub unsafe extern "C" fn chama_pipeline_execute(
     };
 
     // Execute pipeline
+    let scale_config = config.scale;
     let pipeline = crate::pipeline::v1::ExportPipeline::new(image, config);
     let result = match pipeline.execute(&ctx) {
         Ok(img) => img,
         Err(e) => {
             log::error!("Pipeline execution error: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    };
+
+    // Apply scaling from config
+    let result = match crate::pipeline::v1::apply_scale(result, &scale_config) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Pipeline scale error: {}", e);
             return ChamaError::ImageProcessError;
         }
     };
@@ -370,6 +380,22 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
     let theme_registry = crate::theme::ThemeRegistry::new();
     let sticker_storage = crate::effect::sticker_storage::StickerStorage::default();
 
+    // Load font if path is provided (for watermark rendering)
+    let font_path_str = cstr_to_str_or!(config_ref.font_path, "");
+    let mut font_map: HashMap<String, ab_glyph::FontArc> = HashMap::new();
+    if !font_path_str.is_empty() {
+        match std::fs::read(font_path_str) {
+            Ok(font_data) => match ab_glyph::FontArc::try_from_vec(font_data) {
+                Ok(font) => {
+                    font_map.insert("default".to_string(), font);
+                    log::info!("  Loaded font: {}", font_path_str);
+                }
+                Err(e) => log::warn!("  Font parse error (non-fatal): {}", e),
+            },
+            Err(e) => log::warn!("  Font read error (non-fatal): {}", e),
+        }
+    }
+
     // Build export config from pipeline's scale/output_format for theme rendering
     let export_config = crate::export_config::ExportConfig {
         scale_config: pipeline_config.scale,
@@ -380,12 +406,17 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
     let ctx = v1::PipelineContext {
         sticker_storage: Some(&sticker_storage),
         lut_map: None,
-        font_map: None,
+        font_map: if font_map.is_empty() {
+            None
+        } else {
+            Some(&font_map)
+        },
         theme_registry: Some(&theme_registry),
         export_config: Some(&export_config),
         exif: Some(&exif),
     };
 
+    let scale_config = pipeline_config.scale;
     let pipeline = v1::ExportPipeline::new(dyn_image, pipeline_config);
     let result = match pipeline.execute(&ctx) {
         Ok(img) => img,
@@ -395,7 +426,16 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
         }
     };
 
-    // Step 6: Save output using the configured format
+    // Step 6: Apply scaling from config
+    let result = match v1::apply_scale(result, &scale_config) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Pipeline scale error: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    };
+
+    // Step 7: Save output using the configured format
     match super::save_image_with_c_format(
         &result,
         output_path_str,
@@ -440,4 +480,469 @@ pub extern "C" fn chama_pipeline_default_config() -> *mut c_char {
     let config = crate::pipeline::v1::PipelineConfig::default();
     let json = serde_json::to_string_pretty(&config).unwrap_or_else(|_| "{}".to_string());
     CString::new(json).unwrap().into_raw()
+}
+
+// ============================================================================
+// Preview Pipeline FFI Entry Points
+// ============================================================================
+
+/// Opaque handle to a `PreviewPipeline` with owned context resources.
+///
+/// Created via `chama_preview_pipeline_create`, destroyed via `chama_preview_pipeline_destroy`.
+/// The handle owns all resources (LUTs, fonts, sticker storage, theme registry)
+/// so that the native caller only manages this single pointer.
+pub struct PreviewPipelineHandle {
+    pipeline: crate::pipeline::v1::PreviewPipeline,
+    theme_registry: crate::theme::ThemeRegistry,
+    sticker_storage: crate::effect::sticker_storage::StickerStorage,
+    export_config: crate::export_config::ExportConfig,
+    exif: Option<crate::image::exif_impl::SimplifiedExif>,
+    lut_map: HashMap<uuid::Uuid, wagahai_lut::CubeLut>,
+    font_map: HashMap<String, ab_glyph::FontArc>,
+}
+
+/// Helper: render preview through a handle, splitting borrows correctly.
+///
+/// Takes individual field references to avoid borrow conflicts between
+/// `&mut pipeline` and `&context_fields`.
+fn render_preview<'a>(
+    pipeline: &'a mut crate::pipeline::v1::PreviewPipeline,
+    theme_registry: &crate::theme::ThemeRegistry,
+    sticker_storage: &crate::effect::sticker_storage::StickerStorage,
+    export_config: &crate::export_config::ExportConfig,
+    exif: Option<&crate::image::exif_impl::SimplifiedExif>,
+    lut_map: &HashMap<uuid::Uuid, wagahai_lut::CubeLut>,
+    font_map: &HashMap<String, ab_glyph::FontArc>,
+    with_decoration: bool,
+) -> Result<image::DynamicImage, crate::pipeline::v1::PipelineError> {
+    let ctx = crate::pipeline::v1::PipelineContext {
+        sticker_storage: Some(sticker_storage),
+        lut_map: if lut_map.is_empty() {
+            None
+        } else {
+            Some(lut_map)
+        },
+        font_map: if font_map.is_empty() {
+            None
+        } else {
+            Some(font_map)
+        },
+        theme_registry: Some(theme_registry),
+        export_config: Some(export_config),
+        exif,
+    };
+
+    if with_decoration {
+        pipeline.render_with_decoration(&ctx)
+    } else {
+        pipeline.render(&ctx).map(|img| img.clone())
+    }
+}
+
+/// Create a new PreviewPipeline for interactive editing.
+///
+/// Loads the image, parses config/EXIF/LUTs, and returns an opaque handle.
+/// The base image is used as-is (caller should provide a thumbnail for fast preview).
+///
+/// # Parameters
+/// - `image_path`: Path to the preview image (thumbnail or EXIF preview).
+/// - `pipeline_config_json`: JSON string of `PipelineConfig`.
+/// - `exif_json`: Optional JSON string of `SimplifiedExif`. Pass NULL if not needed.
+/// - `lut_paths_json`: Optional JSON object `{"uuid": "/path/to/lut.cube"}`. Pass NULL if none.
+/// - `font_path`: Optional path to a font file for watermark rendering. Pass NULL if none.
+///
+/// # Returns
+/// An opaque handle pointer, or NULL on failure.
+/// Caller must free with `chama_preview_pipeline_destroy`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_create(
+    image_path: *const c_char,
+    pipeline_config_json: *const c_char,
+    exif_json: *const c_char,
+    lut_paths_json: *const c_char,
+    font_path: *const c_char,
+) -> *mut PreviewPipelineHandle {
+    let image_path_str = cstr_to_str!(image_path, return std::ptr::null_mut());
+    let config_json = cstr_to_str!(pipeline_config_json, return std::ptr::null_mut());
+
+    // Parse pipeline config
+    let config: crate::pipeline::v1::PipelineConfig = match serde_json::from_str(config_json) {
+        Ok(c) => c,
+        Err(e) => {
+            log::error!("Preview pipeline config parse error: {}", e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    // Load image (with HEIF support)
+    let image = match super::load_image_with_heif_support(std::path::Path::new(image_path_str)) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Preview pipeline image load error: {}", e);
+            return std::ptr::null_mut();
+        }
+    };
+
+    // Parse optional EXIF
+    let exif: Option<crate::image::exif_impl::SimplifiedExif> = if exif_json.is_null() {
+        None
+    } else {
+        let exif_str = cstr_to_str!(exif_json, return std::ptr::null_mut());
+        if exif_str.is_empty() {
+            None
+        } else {
+            serde_json::from_str(exif_str).ok()
+        }
+    };
+
+    // Parse optional LUT paths
+    let mut lut_map: HashMap<uuid::Uuid, wagahai_lut::CubeLut> = HashMap::new();
+    if !lut_paths_json.is_null() {
+        let lut_str = cstr_to_str!(lut_paths_json, return std::ptr::null_mut());
+        if !lut_str.is_empty() {
+            if let Ok(paths) = serde_json::from_str::<HashMap<String, String>>(lut_str) {
+                for (uuid_str, path) in &paths {
+                    if let Ok(uuid) = uuid::Uuid::parse_str(uuid_str) {
+                        match wagahai_lut::CubeParser::from_file(path) {
+                            Ok(lut) => {
+                                lut_map.insert(uuid, lut);
+                            }
+                            Err(e) => {
+                                log::error!("Preview LUT load error for '{}': {:?}", path, e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Load font if path provided
+    let mut font_map: HashMap<String, ab_glyph::FontArc> = HashMap::new();
+    let font_path_str = cstr_to_str_or!(font_path, "");
+    if !font_path_str.is_empty() {
+        if let Ok(font_data) = std::fs::read(font_path_str) {
+            if let Ok(font) = ab_glyph::FontArc::try_from_vec(font_data) {
+                font_map.insert("default".to_string(), font);
+            }
+        }
+    }
+
+    // Build export config from pipeline config
+    let export_config = crate::export_config::ExportConfig {
+        scale_config: config.scale,
+        output_format: config.output_format,
+        ..crate::export_config::ExportConfig::default()
+    };
+
+    let pipeline = crate::pipeline::v1::PreviewPipeline::new(image, config);
+
+    let handle = Box::new(PreviewPipelineHandle {
+        pipeline,
+        theme_registry: crate::theme::ThemeRegistry::new(),
+        sticker_storage: crate::effect::sticker_storage::StickerStorage::default(),
+        export_config,
+        exif,
+        lut_map,
+        font_map,
+    });
+
+    log::info!("Preview pipeline created successfully");
+    Box::into_raw(handle)
+}
+
+/// Render the preview pipeline and save result to a file.
+///
+/// Re-executes only dirty stages (incremental caching).
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+/// - `output_path`: Path to save the rendered preview image.
+/// - `output_format`: 0=JPEG, 1=PNG, 2=WebP.
+/// - `quality`: Encoding quality (1-100).
+/// - `with_decoration`: If true, apply decoration (Theme/Cheki) after stages.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_render(
+    handle: *mut PreviewPipelineHandle,
+    output_path: *const c_char,
+    output_format: u32,
+    quality: u8,
+    with_decoration: bool,
+) -> ChamaError {
+    if handle.is_null() {
+        return ChamaError::InvalidParameters;
+    }
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+    let handle = unsafe { &mut *handle };
+
+    let result = match render_preview(
+        &mut handle.pipeline,
+        &handle.theme_registry,
+        &handle.sticker_storage,
+        &handle.export_config,
+        handle.exif.as_ref(),
+        &handle.lut_map,
+        &handle.font_map,
+        with_decoration,
+    ) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Preview render error: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    };
+
+    let save_format = crate::pipeline::v1::build_output_format(output_format, quality);
+    match save_format.save_image(&result, output_path_str) {
+        Ok(()) => ChamaError::Success,
+        Err(e) => {
+            log::error!("Preview save error: {}", e);
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+/// Render the preview pipeline and return encoded image bytes.
+///
+/// More efficient than `chama_preview_pipeline_render` for UI display since
+/// it avoids writing to disk. The caller receives encoded bytes (JPEG/PNG)
+/// that can be decoded directly into a UIImage (iOS) or Bitmap (Android).
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+/// - `output_format`: 0=JPEG, 1=PNG, 2=WebP.
+/// - `quality`: Encoding quality (1-100).
+/// - `with_decoration`: If true, apply decoration after stages.
+/// - `out_data`: Output pointer to the encoded byte buffer. Caller must free with
+///   `chama_preview_pipeline_free_bytes`.
+/// - `out_len`: Output length of the encoded byte buffer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_render_bytes(
+    handle: *mut PreviewPipelineHandle,
+    output_format: u32,
+    quality: u8,
+    with_decoration: bool,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> ChamaError {
+    if handle.is_null() || out_data.is_null() || out_len.is_null() {
+        return ChamaError::InvalidParameters;
+    }
+    let handle = unsafe { &mut *handle };
+
+    let result = match render_preview(
+        &mut handle.pipeline,
+        &handle.theme_registry,
+        &handle.sticker_storage,
+        &handle.export_config,
+        handle.exif.as_ref(),
+        &handle.lut_map,
+        &handle.font_map,
+        with_decoration,
+    ) {
+        Ok(img) => img,
+        Err(e) => {
+            log::error!("Preview render error: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    };
+
+    let format = crate::pipeline::v1::build_output_format(output_format, quality);
+    let bytes = match format.encode_to_bytes(&result) {
+        Ok(b) => b,
+        Err(e) => {
+            log::error!("Preview encode error: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    };
+
+    let len = bytes.len();
+    let boxed = bytes.into_boxed_slice();
+    let ptr = Box::into_raw(boxed) as *mut u8;
+
+    unsafe {
+        *out_data = ptr;
+        *out_len = len;
+    }
+
+    ChamaError::Success
+}
+
+/// Free bytes returned by `chama_preview_pipeline_render_bytes`.
+///
+/// # Safety
+/// - `data` must be a pointer returned by `chama_preview_pipeline_render_bytes`.
+/// - `len` must be the exact length returned alongside the data pointer.
+/// - Must not be called more than once for the same pointer.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_free_bytes(data: *mut u8, len: usize) {
+    if !data.is_null() && len > 0 {
+        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(data, len)) };
+    }
+}
+
+/// Update a pipeline stage's configuration by kind.
+///
+/// Finds the stage matching the type in `stage_json` and replaces its config.
+/// Only the affected stage and subsequent stages will be re-executed on next render.
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+/// - `stage_json`: JSON string of the new `PipelineStage` (must include `"type"` field).
+///   Example: `{"type": "ColorAdjustments", "enabled": true, "exposure": 0.5}`
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_update_stage(
+    handle: *mut PreviewPipelineHandle,
+    stage_json: *const c_char,
+) -> ChamaError {
+    if handle.is_null() {
+        return ChamaError::InvalidParameters;
+    }
+    let stage_str = cstr_to_str!(stage_json, return ChamaError::InvalidParameters);
+    let handle = unsafe { &mut *handle };
+
+    let new_stage: crate::pipeline::v1::PipelineStage = match serde_json::from_str(stage_str) {
+        Ok(s) => s,
+        Err(e) => {
+            log::error!("Preview stage parse error: {}", e);
+            return ChamaError::InvalidParameters;
+        }
+    };
+
+    let kind = new_stage.kind();
+    if handle.pipeline.update_stage(kind, new_stage) {
+        ChamaError::Success
+    } else {
+        log::warn!("Preview update_stage: no stage of kind {:?} found", kind);
+        ChamaError::InvalidParameters
+    }
+}
+
+/// Toggle a pipeline stage's enabled flag by kind.
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+/// - `stage_kind`: Stage type to toggle:
+///   0=CropRotate, 1=ColorAdjustments, 2=Lut, 3=FaceEffect, 4=Watermark.
+/// - `enabled`: New enabled state.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_toggle_stage(
+    handle: *mut PreviewPipelineHandle,
+    stage_kind: u32,
+    enabled: bool,
+) -> ChamaError {
+    if handle.is_null() {
+        return ChamaError::InvalidParameters;
+    }
+    let handle = unsafe { &mut *handle };
+
+    let kind = match stage_kind {
+        0 => crate::pipeline::v1::StageKind::CropRotate,
+        1 => crate::pipeline::v1::StageKind::ColorAdjustments,
+        2 => crate::pipeline::v1::StageKind::Lut,
+        3 => crate::pipeline::v1::StageKind::FaceEffect,
+        4 => crate::pipeline::v1::StageKind::Watermark,
+        _ => {
+            log::error!("Preview toggle_stage: invalid stage_kind {}", stage_kind);
+            return ChamaError::InvalidParameters;
+        }
+    };
+
+    if handle.pipeline.toggle_stage(kind, enabled) {
+        ChamaError::Success
+    } else {
+        log::warn!("Preview toggle_stage: no stage of kind {:?} found", kind);
+        ChamaError::InvalidParameters
+    }
+}
+
+/// Replace the entire pipeline configuration.
+///
+/// This invalidates all cached snapshots. Use for reordering stages,
+/// adding/removing stages, or changing decoration.
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+/// - `pipeline_config_json`: New JSON string of `PipelineConfig`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_update_config(
+    handle: *mut PreviewPipelineHandle,
+    pipeline_config_json: *const c_char,
+) -> ChamaError {
+    if handle.is_null() {
+        return ChamaError::InvalidParameters;
+    }
+    let config_json = cstr_to_str!(pipeline_config_json, return ChamaError::InvalidParameters);
+    let handle = unsafe { &mut *handle };
+
+    let config: crate::pipeline::v1::PipelineConfig = match serde_json::from_str(config_json) {
+        Ok(c) => c,
+        Err(e) => {
+            log::error!("Preview config parse error: {}", e);
+            return ChamaError::InvalidParameters;
+        }
+    };
+
+    // Update export config to match new pipeline config
+    handle.export_config.scale_config = config.scale;
+    handle.export_config.output_format = config.output_format;
+
+    // Rebuild pipeline with new config, keeping the same base image
+    // We need to get the current config to extract the base image...
+    // PreviewPipeline doesn't expose base_image, so we recreate by
+    // reordering stages (which invalidates all caches)
+    let order: Vec<crate::pipeline::v1::StageKind> = config
+        .stages
+        .iter()
+        .map(|e| e.stage.kind())
+        .collect();
+    handle.pipeline.reorder_stages(&order);
+
+    // Update individual stages with new config values
+    for entry in &config.stages {
+        handle.pipeline.update_stage(entry.stage.kind(), entry.stage.clone());
+        if !entry.enabled {
+            handle.pipeline.toggle_stage(entry.stage.kind(), false);
+        }
+    }
+
+    ChamaError::Success
+}
+
+/// Get the current pipeline configuration as JSON.
+///
+/// # Parameters
+/// - `handle`: Opaque handle from `chama_preview_pipeline_create`.
+///
+/// # Returns
+/// JSON string of the current `PipelineConfig`.
+/// Caller must free with `chama_free_string()`. Returns NULL on failure.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_get_config(
+    handle: *mut PreviewPipelineHandle,
+) -> *mut c_char {
+    if handle.is_null() {
+        return std::ptr::null_mut();
+    }
+    let handle = unsafe { &*handle };
+
+    let json = serde_json::to_string_pretty(handle.pipeline.config())
+        .unwrap_or_else(|_| "{}".to_string());
+    CString::new(json)
+        .unwrap_or_else(|_| CString::new("{}").unwrap())
+        .into_raw()
+}
+
+/// Destroy a PreviewPipeline handle and free all owned resources.
+///
+/// # Safety
+/// - `handle` must be a pointer returned by `chama_preview_pipeline_create`.
+/// - Must not be called more than once for the same handle.
+/// - Must not use the handle after calling this function.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_destroy(handle: *mut PreviewPipelineHandle) {
+    if !handle.is_null() {
+        let _ = unsafe { Box::from_raw(handle) };
+        log::info!("Preview pipeline destroyed");
+    }
 }

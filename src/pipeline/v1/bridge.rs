@@ -116,6 +116,12 @@ pub enum BridgeFaceEffectType {
 }
 
 /// Parameters for building a FaceEffect pipeline stage from legacy FFI data.
+///
+/// Note: Sticker effects through the bridge only support Mosaic/Stroke/MosaicStroke.
+/// Sticker overlays require `FaceArea.sticker_id` (UUID) mapped to a pre-populated
+/// `StickerStorage` — the legacy `sticker_path`/`sticker_id` string approach is not
+/// bridged. For sticker support, use the JSON-based `chama_pipeline_execute` API
+/// where the native caller populates sticker UUIDs directly in `PipelineConfig`.
 pub struct BridgeFaceEffectParams {
     pub effect_type: BridgeFaceEffectType,
     pub mosaic_block_size: u32,
@@ -206,6 +212,56 @@ pub fn build_scale_config(
         sub_value,
         scale_value: scale_value as f32,
     }
+}
+
+// ─── Image scaling ───
+
+/// Apply `ScaleConfig` to a `DynamicImage`, returning the scaled result.
+///
+/// Uses `fast_image_resize` for high-quality Lanczos3 downscaling.
+/// Returns the original image unchanged if mode is `None` or dimensions match.
+pub fn apply_scale(
+    image: image::DynamicImage,
+    scale: &ScaleConfig,
+) -> Result<image::DynamicImage, image::ImageError> {
+    if scale.mode == ScaleMode::None {
+        return Ok(image);
+    }
+
+    let (src_w, src_h) = (image.width(), image.height());
+    let (new_w, new_h) = scale.apply(src_w, src_h, false);
+
+    if new_w == src_w && new_h == src_h {
+        return Ok(image);
+    }
+
+    if new_w == 0 || new_h == 0 {
+        return Ok(image);
+    }
+
+    log::info!(
+        "Pipeline scale: {}x{} → {}x{} (mode={:?})",
+        src_w,
+        src_h,
+        new_w,
+        new_h,
+        scale.mode
+    );
+
+    let resized = crate::image::common::resize_image(image, new_w, new_h)?;
+    let buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
+        new_w,
+        new_h,
+        resized.into_vec(),
+    )
+    .ok_or_else(|| {
+        image::ImageError::Encoding(image::error::EncodingError::new(
+            image::error::ImageFormatHint::Unknown,
+            "Failed to create ImageBuffer from resized data",
+        ))
+    })?;
+
+    Ok(image::DynamicImage::ImageRgba8(buffer))
 }
 
 // ─── Output format conversion ───
