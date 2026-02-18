@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use strum::{EnumIter, IntoEnumIterator};
 
-#[derive(EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputExtension {
     Jpeg,
     Webp,
@@ -37,7 +37,7 @@ impl OutputExtension {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct OutputFormat {
     pub ext: OutputExtension,
     pub quality: u8,

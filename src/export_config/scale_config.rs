@@ -80,7 +80,7 @@ impl ScaleMode {
     }
 }
 
-#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, PartialOrd)]
 
 pub struct ScaleConfig {
     pub mode: ScaleMode,

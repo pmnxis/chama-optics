@@ -48,6 +48,9 @@ pub mod art;
 // Effect modules - available for desktop, web, and iOS integration
 pub mod effect;
 
+// Pipeline V1 — platform-agnostic export pipeline
+pub mod pipeline;
+
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod image_group;
 
