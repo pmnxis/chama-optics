@@ -6,7 +6,7 @@
 
 #[cfg(any(feature = "desktop", feature = "web"))]
 include!("prebuilt_src/fonts.rs");
-#[cfg(feature = "desktop")]
+#[cfg(any(feature = "desktop", feature = "web"))]
 include!("prebuilt_src/logo.rs");
 
 #[cfg(any(feature = "desktop", feature = "web"))]
@@ -50,14 +50,14 @@ fn get_git_commit_hash(short: bool) -> Option<String> {
 }
 
 fn main() {
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     let logo_csv_path = PathBuf::from("assets/logo_mnf.csv");
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     let tmp_dir = PathBuf::from("assets/download");
     #[cfg(any(feature = "desktop", feature = "web"))]
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
     println!("cargo:rerun-if-changed=locales");
-    #[cfg(feature = "desktop")]
+    #[cfg(any(feature = "desktop", feature = "web"))]
     println!("cargo:rerun-if-changed={}", logo_csv_path.display());
 
     // Use CARGO_CFG_TARGET_OS to check the cross-compilation target, not the host OS.
@@ -200,8 +200,8 @@ fn main() {
         }
     }
 
-    // Desktop only: download logos
-    #[cfg(feature = "desktop")]
+    // Desktop + Web: download logos and generate logo_assets.rs
+    #[cfg(any(feature = "desktop", feature = "web"))]
     {
         // Logo related
         std::fs::create_dir_all(&tmp_dir).expect("failed to create temp_dir directory");
