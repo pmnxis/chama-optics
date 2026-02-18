@@ -38,6 +38,10 @@ test_image
 libheif
 secret/
 
+# Build script temporaries
+.cargo/config.toml
+Cargo.toml.bak
+
 # Fort testing
 face_detection_output/
 face_detection_output/**

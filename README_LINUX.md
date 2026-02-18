@@ -22,15 +22,15 @@ bash build-linux.sh
 
 ## Supported Distributions
 
-| Distro | Tested | Cargo Features | Notes |
-|---|---|---|---|
-| Debian 12 (Bookworm) | 2026-02-18 | `desktop,libheif,embedded_libheif` | Standard |
-| Debian 13 (Trixie) | 2026-02-18 | `desktop,libheif,embedded_libheif` | Standard |
-| Ubuntu 22.04 LTS | 2026-02-18 | `desktop,libheif,embedded_libheif` | `libdav1d-dev` must be removed |
-| Ubuntu 24.04 LTS | 2026-02-18 | `desktop,libheif,embedded_libheif` | Standard |
-| Fedora 41 | 2026-02-18 | `desktop,libheif,embedded_libheif` | Standard |
-| Rocky Linux 9 | 2026-02-18 | `desktop,libheif,embedded_libheif` | freetype 2.13.3 built from source |
-| Arch Linux | 2026-02-18 | `desktop,libheif` | System libheif (no `embedded_libheif`) |
+| Distro | Tested | glibc | ort | Cargo Features | Notes |
+|---|---|---|---|---|---|
+| Debian 12 (Bookworm) | 2026-02-18 | 2.36 | rc.10 | `desktop,libheif,embedded_libheif,face_detection_insightface` | Standard |
+| Debian 13 (Trixie) | 2026-02-18 | 2.41 | rc.11 | `desktop,libheif,embedded_libheif,face_detection_insightface` | Standard |
+| Ubuntu 22.04 LTS | 2026-02-18 | 2.35 | rc.10 | `desktop,libheif,embedded_libheif,face_detection_insightface` | `libdav1d-dev` must be removed |
+| Ubuntu 24.04 LTS | 2026-02-18 | 2.39 | rc.11 | `desktop,libheif,embedded_libheif,face_detection_insightface` | Standard |
+| Fedora 41 | 2026-02-18 | 2.40 | rc.11 | `desktop,libheif,embedded_libheif,face_detection_insightface` | Standard |
+| Rocky Linux 9 | 2026-02-18 | 2.34 | rc.10 | `desktop,libheif,embedded_libheif,face_detection_insightface` | freetype 2.13.3 built from source |
+| Arch Linux | 2026-02-18 | 2.43 | rc.11 | `desktop,libheif,face_detection_insightface` | System libheif (no `embedded_libheif`) |
 
 ## Scripts
 
@@ -38,6 +38,21 @@ bash build-linux.sh
 |---|---|
 | `build-linux.sh` | Build on the current Linux environment. Auto-detects distro and applies the correct cargo features. |
 | `package-all-linux-distro.sh` | Build & package across all supported distros via Proxmox LXC containers (VMIDs 400–406). Run from a Mac/host machine. |
+
+## ONNX Runtime (ort) Version
+
+`face_detection_insightface` depends on the [ort](https://github.com/pykeio/ort) crate (ONNX Runtime).
+
+- **ort rc.11** bundles ONNX Runtime 1.21, built on Ubuntu 24.04 (glibc 2.39). Its prebuilt binaries reference `__isoc23_strtol@GLIBC_2.38`, which is absent on systems with glibc < 2.38.
+- **ort rc.10** bundles ONNX Runtime 1.20, compatible with glibc 2.34+.
+
+`build-linux.sh` auto-detects the system glibc version:
+- **glibc >= 2.38**: Uses ort rc.11 (default from `Cargo.toml`)
+- **glibc < 2.38**: Creates `.cargo/config.toml` with `[patch.crates-io]` to override ort to rc.10
+
+The `.cargo/config.toml` file is in `.gitignore` so it does not dirty the repository.
+
+See: https://github.com/pykeio/ort/issues/523
 
 ## HEIF Support
 
@@ -52,7 +67,7 @@ On Linux, HEIF/HEIC image support is provided by [libheif](https://github.com/ni
 
 Ubuntu 22.04's `libdav1d-dev` provides an old dav1d API (0.9.x) that is **incompatible** with embedded libheif's expected API. Specifically, `Dav1dSettings.n_threads` does not exist (Ubuntu 22.04 uses `n_tile_threads` instead).
 
-`build-linux.sh` will warn and ask for confirmation before removing `libdav1d-dev`. The resulting binary will **not** have dav1d (AV1) decode support.
+`build-linux.sh` will warn and ask for confirmation before removing `libdav1d-dev` (auto-accepts in non-interactive environments). The resulting binary will **not** have dav1d (AV1) decode support.
 
 ### Ubuntu 22.04 / Rocky Linux 9 — freetype
 
@@ -68,7 +83,7 @@ Arch uses the system-provided libheif (1.21+) rather than the embedded build. Th
 
 - Wayland and X11 support
 - HEIF/HEIC support (via libheif or embedded_libheif)
-- Face detection with InsightFace (experimental, may require additional system dependencies depending on ONNX Runtime version)
+- Face detection with InsightFace (via ONNX Runtime, ort version auto-selected by glibc)
 
 ## Output
 

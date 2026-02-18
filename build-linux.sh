@@ -12,18 +12,18 @@
 #
 # Supported & tested distros:
 #
-#   Distro          Tested       Features                            Notes
-#   --------------- ------------ ----------------------------------- -----------------------------------
-#   Debian 12       2026-02-18   desktop,libheif,embedded_libheif    Standard
-#   Debian 13       2026-02-18   desktop,libheif,embedded_libheif    Standard
-#   Ubuntu 22.04    2026-02-18   desktop,libheif,embedded_libheif    libdav1d-dev MUST be removed
-#   Ubuntu 24.04    2026-02-18   desktop,libheif,embedded_libheif    Standard
-#   Fedora 41       2026-02-18   desktop,libheif,embedded_libheif    Standard
-#   Rocky 9         2026-02-18   desktop,libheif,embedded_libheif    freetype 2.13.3 from source required
-#   Arch Linux      2026-02-18   desktop,libheif                     System libheif (no embedded_libheif)
+#   Distro          Tested       glibc  ort     Features                                                    Notes
+#   --------------- ------------ ------ ------- ----------------------------------------------------------- -----------------------------------
+#   Debian 12       2026-02-18   2.36   rc.10   desktop,libheif,embedded_libheif,face_detection_insightface  Standard
+#   Debian 13       2026-02-18   2.41   rc.11   desktop,libheif,embedded_libheif,face_detection_insightface  Standard
+#   Ubuntu 22.04    2026-02-18   2.35   rc.10   desktop,libheif,embedded_libheif,face_detection_insightface  libdav1d-dev MUST be removed
+#   Ubuntu 24.04    2026-02-18   2.39   rc.11   desktop,libheif,embedded_libheif,face_detection_insightface  Standard
+#   Fedora 41       2026-02-18   2.40   rc.11   desktop,libheif,embedded_libheif,face_detection_insightface  Standard
+#   Rocky 9         2026-02-18   2.34   rc.10   desktop,libheif,embedded_libheif,face_detection_insightface  freetype 2.13.3 from source required
+#   Arch Linux      2026-02-18   2.43   rc.11   desktop,libheif,face_detection_insightface                   System libheif (no embedded_libheif)
 
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 
 BUILD_MODE="--release"
 if [ "$1" = "--debug" ]; then
@@ -63,22 +63,35 @@ detect_pretty_name() {
     fi
 }
 
+detect_glibc_version() {
+    # Returns glibc version as "MAJOR.MINOR" (e.g. "2.38")
+    local ver
+    ver=$(ldd --version 2>&1 | head -1 | grep -oE '[0-9]+\.[0-9]+$') || true
+    echo "${ver:-0.0}"
+}
+
+# Compare two version strings: returns 0 if $1 >= $2
+version_ge() {
+    [ "$(printf '%s\n%s' "$1" "$2" | sort -V | head -1)" = "$2" ]
+}
+
 DISTRO=$(detect_distro)
 DISTRO_VERSION=$(detect_version)
 DISTRO_PRETTY=$(detect_pretty_name)
+GLIBC_VERSION=$(detect_glibc_version)
 
 # ============================================================================
 # Determine features and special handling per distro
 # ============================================================================
 
-FEATURES="desktop,libheif,embedded_libheif"
+FEATURES="desktop,libheif,embedded_libheif,face_detection_insightface"
 SPECIAL_NOTES=""
 NEEDS_CONFIRM=false
 
 case "$DISTRO" in
     arch|manjaro)
         # Arch: use system libheif (embedded_libheif has x264 linking issues)
-        FEATURES="desktop,libheif"
+        FEATURES="desktop,libheif,face_detection_insightface"
         SPECIAL_NOTES="Using system libheif (embedded_libheif disabled due to x264 link issue)"
         ;;
     ubuntu)
@@ -99,6 +112,34 @@ case "$DISTRO" in
 esac
 
 # ============================================================================
+# Determine ort (ONNX Runtime) version based on glibc
+# ============================================================================
+#
+# ort rc.11 bundles ONNX Runtime 1.21, built on Ubuntu 24.04 (glibc 2.39).
+# Its prebuilt binaries reference __isoc23_strtol@GLIBC_2.38, which is
+# absent on systems with glibc < 2.38.
+#
+# ort rc.10 bundles ONNX Runtime 1.20, compatible with glibc 2.34+.
+#
+# Cargo.toml defaults to rc.11 (for Windows/macOS).
+# On Linux systems with glibc < 2.38, we override via .cargo/config.toml [patch].
+#
+# See: https://github.com/pykeio/ort/issues/523
+
+ORT_PATCHED=false
+ORT_VERSION="rc.11"
+
+if ! version_ge "$GLIBC_VERSION" "2.38"; then
+    ORT_VERSION="rc.10"
+    mkdir -p .cargo
+    cat > .cargo/config.toml <<'CARGO_CONFIG'
+[patch.crates-io]
+ort = { git = "https://github.com/pykeio/ort", tag = "v2.0.0-rc.10" }
+CARGO_CONFIG
+    ORT_PATCHED=true
+fi
+
+# ============================================================================
 # Display build info
 # ============================================================================
 
@@ -108,8 +149,13 @@ echo "==========================================================================
 echo ""
 echo "  Distro:   $DISTRO_PRETTY"
 echo "  ID:       $DISTRO $DISTRO_VERSION"
+echo "  glibc:    $GLIBC_VERSION"
 echo "  Features: $FEATURES"
+echo "  ort:      v2.0.0-$ORT_VERSION (ONNX Runtime)"
 echo "  Mode:     ${BUILD_MODE:---debug}"
+if [ "$ORT_PATCHED" = true ]; then
+    echo "  Override: .cargo/config.toml patches ort rc.11 -> rc.10 (glibc $GLIBC_VERSION < 2.38)"
+fi
 if [ -n "$SPECIAL_NOTES" ]; then
     echo "  Notes:    $SPECIAL_NOTES"
 fi
@@ -173,10 +219,14 @@ if [ "$NEEDS_CONFIRM" = true ]; then
     echo ""
     echo "==========================================================================="
     echo ""
-    read -rp "Accept libdav1d-dev removal and proceed? [y/N] " confirm < /dev/tty
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        echo "Aborted by user."
-        exit 1
+    if [ -t 0 ] && [ -e /dev/tty ]; then
+        read -rp "Accept libdav1d-dev removal and proceed? [y/N] " confirm < /dev/tty
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo "Aborted by user."
+            exit 1
+        fi
+    else
+        echo "  (non-interactive: auto-accepting)"
     fi
 
     echo ""
@@ -189,6 +239,10 @@ fi
 # ============================================================================
 # Build
 # ============================================================================
+
+if [ "$ORT_PATCHED" = true ]; then
+    cargo update -p ort
+fi
 
 echo "==========================================================================="
 echo "  Starting build: cargo build $BUILD_MODE --features \"$FEATURES\""
