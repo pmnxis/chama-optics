@@ -12,6 +12,7 @@
 mod config;
 mod context;
 mod execute;
+mod preset;
 mod preview;
 mod stages;
 mod validation;
@@ -19,6 +20,7 @@ mod validation;
 pub use config::*;
 pub use context::*;
 pub use execute::*;
+pub use preset::*;
 pub use preview::*;
 pub use stages::*;
 pub use validation::*;
