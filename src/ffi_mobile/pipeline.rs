@@ -132,10 +132,17 @@ pub unsafe extern "C" fn chama_pipeline_execute(
         }
     };
 
-    // Build context
+    // Build context with config's scale/output_format for theme rendering
     let theme_registry = crate::theme::ThemeRegistry::new();
-    let export_config = crate::export_config::ExportConfig::default();
     let sticker_storage = crate::effect::sticker_storage::StickerStorage::default();
+
+    // Use output_format/quality params as override if provided, otherwise use config values
+    let save_format = crate::pipeline::v1::build_output_format(output_format, quality);
+    let export_config = crate::export_config::ExportConfig {
+        scale_config: config.scale,
+        output_format: save_format,
+        ..crate::export_config::ExportConfig::default()
+    };
 
     let ctx = crate::pipeline::v1::PipelineContext {
         sticker_storage: Some(&sticker_storage),
@@ -160,42 +167,9 @@ pub unsafe extern "C" fn chama_pipeline_execute(
         }
     };
 
-    // Save output
+    // Save output using OutputFormat
     let output_path = std::path::Path::new(output_path);
-    let save_result = match output_format {
-        1 => result.save_with_format(output_path, image::ImageFormat::Png),
-        2 => {
-            // WebP (lossless)
-            let file = match std::fs::File::create(output_path) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Output file create error: {}", e);
-                    return ChamaError::InvalidPath;
-                }
-            };
-            let rgba = result.to_rgba8();
-            image::codecs::webp::WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
-        }
-        _ => {
-            // JPEG
-            let file = match std::fs::File::create(output_path) {
-                Ok(f) => f,
-                Err(e) => {
-                    log::error!("Output file create error: {}", e);
-                    return ChamaError::InvalidPath;
-                }
-            };
-            let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(file, quality);
-            result.write_with_encoder(encoder)
-        }
-    };
-
-    match save_result {
+    match save_format.save_image(&result, output_path) {
         Ok(()) => ChamaError::Success,
         Err(e) => {
             log::error!("Image save error: {}", e);
