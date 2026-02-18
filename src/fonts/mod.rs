@@ -176,13 +176,8 @@ pub(crate) const FONT_DYNAPUFF: BuiltInFontsExt = BuiltInFontsExt {
 };
 
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
-lazy_static::lazy_static! {
-    pub static ref FONTS_UNIFY: crate::fonts::font_unify::FontsUnify = crate::fonts::font_unify::FontsUnify::new();
-
-    // Digital 7 fonts not currently available
-    // pub static ref FONT_DIGITS: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_FONT_PATH"))).expect("Cannot init font.");
-    // pub static ref FONT_DIGITS_ITALIC: ab_glyph::FontArc = ab_glyph::FontArc::try_from_slice(include_bytes!(env!("DIGITAL_7_ITALIC_FONT_PATH"))).expect("Cannot init font.");
-}
+pub static FONTS_UNIFY: std::sync::LazyLock<crate::fonts::font_unify::FontsUnify> =
+    std::sync::LazyLock::new(crate::fonts::font_unify::FontsUnify::new);
 
 // Load and setup fonts - supports both external and embedded
 // Not used for iOS - fonts are loaded from app bundle via FFI

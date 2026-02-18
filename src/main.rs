@@ -51,7 +51,7 @@ fn main() {
 
     wasm_bindgen_futures::spawn_local(async {
         // Preload fonts from server before starting eframe
-        // (fonts must be cached before lazy_static FONTS_UNIFY is accessed)
+        // (fonts must be cached before LazyLock FONTS_UNIFY is accessed)
         chama_optics::resources::preload_fonts().await;
 
         let document = web_sys::window()

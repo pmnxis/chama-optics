@@ -61,136 +61,134 @@ impl VariableFontPack {
     not(feature = "ext_res"),
     not(target_arch = "wasm32")
 ))]
-lazy_static::lazy_static! {
-    static ref BARLOW: VariableFontPack = VariableFontPack {
+mod embedded {
+    use super::VariableFontPack;
+    use std::sync::LazyLock;
+
+    pub static BARLOW: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
-        font: ab_glyph::FontRef::try_from_slice(
-             crate::fonts::FONT_BARLOW.data
-        ).expect("Failed to load Barlow variable font"),
+        font: ab_glyph::FontRef::try_from_slice(crate::fonts::FONT_BARLOW.data)
+            .expect("Failed to load Barlow variable font"),
         default: 300,
         start: 100,
         end_include: 900,
-    };
+    });
 
-    static ref BARLOW_NARROW: VariableFontPack = VariableFontPack {
+    pub static BARLOW_NARROW: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_BARLOW_NARROW.name,
-        font: ab_glyph::FontRef::try_from_slice(
-             crate::fonts::FONT_BARLOW_NARROW.data
-        ).expect("Failed to load Barlow narrow variable font"),
+        font: ab_glyph::FontRef::try_from_slice(crate::fonts::FONT_BARLOW_NARROW.data)
+            .expect("Failed to load Barlow narrow variable font"),
         default: 400, // too narrow, add 100 from 300
         start: 100,
         end_include: 900,
-    };
+    });
 
-    static ref SOURCE_HAN_SANS: VariableFontPack = VariableFontPack {
+    pub static SOURCE_HAN_SANS: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_SHSANS.name,
-        font: ab_glyph::FontRef::try_from_slice(
-        crate::fonts::FONT_SHSANS.data).expect("Failed to load Source Han Sans variable font"),
+        font: ab_glyph::FontRef::try_from_slice(crate::fonts::FONT_SHSANS.data)
+            .expect("Failed to load Source Han Sans variable font"),
         default: 300,
         start: 200,
         end_include: 800,
-    };
+    });
 
-    static ref DYNAPUFF: VariableFontPack = VariableFontPack {
+    pub static DYNAPUFF: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_DYNAPUFF.name,
-        font: ab_glyph::FontRef::try_from_slice(
-             crate::fonts::FONT_DYNAPUFF.data
-        ).expect("Failed to load DynaPuff variable font"),
+        font: ab_glyph::FontRef::try_from_slice(crate::fonts::FONT_DYNAPUFF.data)
+            .expect("Failed to load DynaPuff variable font"),
         default: 400,
         start: 400,
         end_include: 700,
-    };
+    });
 
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 4] = [
-        &*BARLOW,
-        &*BARLOW_NARROW,
-        &*SOURCE_HAN_SANS,
-        &*DYNAPUFF,
-    ];
+    pub static BUILTIN_VARIABLE_FONTS: LazyLock<[&'static VariableFontPack; 4]> =
+        LazyLock::new(|| [&*BARLOW, &*BARLOW_NARROW, &*SOURCE_HAN_SANS, &*DYNAPUFF]);
 }
 
-// ===== EXTERNAL RESOURCES VERSION (ext_res enabled) =====
+// ===== EXTERNAL RESOURCES VERSION (ext_res enabled or WASM) =====
 // Fonts are loaded at runtime from Resources directory
 // Uses leaked Box to create 'static lifetime for FontRef
 #[cfg(all(
     not(any(feature = "ios_integration", feature = "android_integration")),
     any(feature = "ext_res", target_arch = "wasm32")
 ))]
-lazy_static::lazy_static! {
+mod embedded {
+    use super::VariableFontPack;
+    use std::sync::LazyLock;
+
     // Load and leak font data to get 'static lifetime
-    static ref BARLOW_DATA: &'static [u8] = {
+    static BARLOW_DATA: LazyLock<&'static [u8]> = LazyLock::new(|| {
         let data = crate::resources::load_font(crate::fonts::FONT_BARLOW.filename)
             .expect("Failed to load Barlow font from Resources");
         Box::leak(data.into_boxed_slice())
-    };
+    });
 
-    static ref BARLOW_NARROW_DATA: &'static [u8] = {
+    static BARLOW_NARROW_DATA: LazyLock<&'static [u8]> = LazyLock::new(|| {
         let data = crate::resources::load_font(crate::fonts::FONT_BARLOW_NARROW.filename)
             .expect("Failed to load Barlow Narrow font from Resources");
         Box::leak(data.into_boxed_slice())
-    };
+    });
 
-    static ref SOURCE_HAN_SANS_DATA: &'static [u8] = {
+    static SOURCE_HAN_SANS_DATA: LazyLock<&'static [u8]> = LazyLock::new(|| {
         let data = crate::resources::load_font(crate::fonts::FONT_SHSANS.filename)
             .expect("Failed to load Source Han Sans font from Resources");
         Box::leak(data.into_boxed_slice())
-    };
+    });
 
-    static ref BARLOW: VariableFontPack = VariableFontPack {
+    static DYNAPUFF_DATA: LazyLock<&'static [u8]> = LazyLock::new(|| {
+        let data = crate::resources::load_font(crate::fonts::FONT_DYNAPUFF.filename)
+            .expect("Failed to load DynaPuff font from Resources");
+        Box::leak(data.into_boxed_slice())
+    });
+
+    pub static BARLOW: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_BARLOW.name,
         font: ab_glyph::FontRef::try_from_slice(&BARLOW_DATA)
             .expect("Failed to parse Barlow variable font"),
         default: 300,
         start: 100,
         end_include: 900,
-    };
+    });
 
-    static ref BARLOW_NARROW: VariableFontPack = VariableFontPack {
+    pub static BARLOW_NARROW: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_BARLOW_NARROW.name,
         font: ab_glyph::FontRef::try_from_slice(&BARLOW_NARROW_DATA)
             .expect("Failed to parse Barlow narrow variable font"),
         default: 400,
         start: 100,
         end_include: 900,
-    };
+    });
 
-    static ref SOURCE_HAN_SANS: VariableFontPack = VariableFontPack {
+    pub static SOURCE_HAN_SANS: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_SHSANS.name,
         font: ab_glyph::FontRef::try_from_slice(&SOURCE_HAN_SANS_DATA)
             .expect("Failed to parse Source Han Sans variable font"),
         default: 300,
         start: 200,
         end_include: 800,
-    };
+    });
 
-    static ref DYNAPUFF_DATA: &'static [u8] = {
-        let data = crate::resources::load_font(crate::fonts::FONT_DYNAPUFF.filename)
-            .expect("Failed to load DynaPuff font from Resources");
-        Box::leak(data.into_boxed_slice())
-    };
-
-    static ref DYNAPUFF: VariableFontPack = VariableFontPack {
+    pub static DYNAPUFF: LazyLock<VariableFontPack> = LazyLock::new(|| VariableFontPack {
         label: crate::fonts::FONT_DYNAPUFF.name,
         font: ab_glyph::FontRef::try_from_slice(&DYNAPUFF_DATA)
             .expect("Failed to parse DynaPuff variable font"),
         default: 400,
         start: 400,
         end_include: 700,
-    };
+    });
 
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 4] = [
-        &*BARLOW,
-        &*BARLOW_NARROW,
-        &*SOURCE_HAN_SANS,
-        &*DYNAPUFF,
-    ];
+    pub static BUILTIN_VARIABLE_FONTS: LazyLock<[&'static VariableFontPack; 4]> =
+        LazyLock::new(|| [&*BARLOW, &*BARLOW_NARROW, &*SOURCE_HAN_SANS, &*DYNAPUFF]);
 }
 
-// For iOS, create empty placeholder
+// Re-export from the active cfg module
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+pub use embedded::BUILTIN_VARIABLE_FONTS;
+
+// For iOS/Android, create empty placeholder
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-lazy_static::lazy_static! {
-    pub static ref BUILTIN_VARIABLE_FONTS: [&'static VariableFontPack; 0] = [];
-}
+pub static BUILTIN_VARIABLE_FONTS: std::sync::LazyLock<[&'static VariableFontPack; 0]> =
+    std::sync::LazyLock::new(|| []);
 
 #[rustfmt::skip]
 #[repr(usize)]

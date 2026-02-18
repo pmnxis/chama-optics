@@ -16,12 +16,10 @@ use std::sync::Mutex;
 
 use super::{COutputFormat, ChamaError, read_exif_orientation, save_image_with_c_format};
 
-lazy_static::lazy_static! {
-    /// Global LUT storage for iOS
-    /// Uses a Mutex to allow thread-safe access from Swift
-    pub(super) static ref LUT_STORAGE: Mutex<crate::effect::lut_storage::LutStorage> = {
-        // let mut storage = crate::effect::lut_storage::LutStorage::new();
-        // Set iOS-specific storage path
+/// Global LUT storage for iOS
+/// Uses a Mutex to allow thread-safe access from Swift
+pub(super) static LUT_STORAGE: std::sync::LazyLock<Mutex<crate::effect::lut_storage::LutStorage>> =
+    std::sync::LazyLock::new(|| {
         #[cfg(any(target_os = "ios", target_os = "android"))]
         {
             let mut storage = crate::effect::lut_storage::LutStorage::new();
@@ -36,8 +34,7 @@ lazy_static::lazy_static! {
             let storage = crate::effect::lut_storage::LutStorage::new();
             Mutex::new(storage)
         }
-    };
-}
+    });
 
 /// Set the LUT storage directory path
 /// Must be called before chama_lut_init() for the path to take effect

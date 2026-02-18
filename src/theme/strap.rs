@@ -210,7 +210,6 @@ impl Theme for Strap {
             min_right_x = min_right_x.min(new_right_x);
         }
 
-        // temporary implementation
         if let Some(svg) = crate::ART_UNIFY.get_camera_logo(&pi.view_exif) {
             use image::GenericImageView;
 
@@ -225,7 +224,6 @@ impl Theme for Strap {
 
             let logo_x = (min_right_x - (txt_b_gap * 2.0)) as i32 - logo.width() as i32;
             let logo_y = (new_image.dimensions().1 as i32) - ((bb + logo.height()) / 2) as i32;
-            // (new_image.dimensions().1 as i32) - (bb as i32) + self.rel_size(0.125, bb) as i32;
 
             // resolve overflow issue
             let logo_x = if logo_x < 0 {

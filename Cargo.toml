@@ -70,16 +70,14 @@ libheif = ["libheif-rs"]
 # Statically link libheif from bundled sources (no system libheif required)
 # Use: --features "desktop,libheif,embedded_libheif"
 # Note: codec dependencies (libde265, libaom, etc.) are still dynamically linked
-embedded_libheif = ["libheif-sys/embedded-libheif"]
+embedded_libheif = ["libheif", "libheif-sys/embedded-libheif"]
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
-ios_integration = ["metal_integration", "face_detection_visionkit"]
+ios_integration = ["metal_integration", "face_detection_visionkit", "dep:dirs", "dep:env_logger"]
 # Android-specific features - core library only, no Metal/VisionKit
 # egui is needed for types (Color32, Vec2) used in themes/effects, not for GUI
-android_integration = ["egui"]
+android_integration = ["egui", "dep:dirs"]
 # Disable logging - for Xcode Release/TestFlight builds (logging enabled by default for Debug)
 disable_logging = ["log/max_level_off", "log/release_max_level_off"]
-# Theme support for iOS (without egui GUI dependencies) - not currently used
-theme_ios = ["egui"]
 # Metal rendering for iOS/macOS integration
 metal_rendering = ["egui", "wgpu", "egui-wgpu", "swift-bridge", "futures"]
 # Metal-based FFI for iOS/macOS (path-based fonts, no egui GUI, but needs egui types)
@@ -132,7 +130,6 @@ exif = { git = "https://github.com/pmnxis/exif-rs", rev = "c6f30cbca14d8d31e1aa7
 ] }
 image = { version = "0.25.9", features = ["serde"] }
 zune-jpeg = "0.5.12"
-base64 = "0.22.1"
 rfd = { version = "0.17.2", optional = true }
 egui-file-dialog = { version = "0.12.0", optional = true }
 imageproc = { version = "0.26" }
@@ -140,7 +137,6 @@ anyhow = "^1.0"
 thiserror = "^2"
 ab_glyph = "0.2.32"
 fast_image_resize = "^6.0"
-lazy_static = "1.5.0"
 gcd = "2.3.0"
 env_logger = { version = "0.11.9", optional = true }
 web-time = "1"
@@ -153,6 +149,10 @@ dirs = { version = "6.0", optional = true }
 num-traits = "0.2.19"
 clap = { version = "4.5.59", features = ["derive"], optional = true }
 chrono = { version = "^0.4", features = ["serde"] }
+# SVG rendering (resvg + tiny-skia): required on all platforms
+# Desktop: camera manufacturer logos, UI icons
+# Web/WASM: same logos via pure-Rust rasterizer (no native deps)
+# iOS/Android: logo overlays in exported images
 resvg = "^0.47"
 tiny-skia = "^0.12"
 rand = "^0.10"

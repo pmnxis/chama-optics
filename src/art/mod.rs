@@ -11,11 +11,8 @@ use types::ArtAsset;
 
 #[cfg(has_logo_asset_path)]
 include!(env!("LOGO_ASSET_PATH"));
-#[cfg(all(not(has_logo_asset_path), not(target_arch = "wasm32")))]
+#[cfg(not(has_logo_asset_path))]
 include!("../../assets/auto_generated/logo_assets.rs");
-// WASM: logo assets are not available (build.rs only downloads them for desktop)
-#[cfg(all(not(has_logo_asset_path), target_arch = "wasm32"))]
-pub const LOGO_ASSETS: &[types::ArtAsset] = &[];
 
 pub const ART_UNIFY: ArtUnify = ArtUnify {
     builtin_logos: LOGO_ASSETS,
