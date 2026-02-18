@@ -160,14 +160,13 @@ impl Theme for ShotOnTwoLine {
         t!("theme.shot_on_two_line.title")
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
-        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
 
@@ -203,7 +202,7 @@ impl Theme for ShotOnTwoLine {
 
         let mut y = txt_y_base;
 
-        let first_txt = self.first.format_custom(&pi.view_exif);
+        let first_txt = self.first.format_custom(exif);
         let (www, _hhh) = self.first.text_dimensions(first_txt_scale, &first_txt);
         let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
@@ -217,7 +216,7 @@ impl Theme for ShotOnTwoLine {
         );
         y += sf_a * 5.0 / 3.0;
 
-        let second_txt = self.second.format_custom(&pi.view_exif);
+        let second_txt = self.second.format_custom(exif);
         let (www, _hhh) = self.second.text_dimensions(second_txt_scale, &second_txt);
         let new_bottom_x = self.bottom_align.x_point(ll, dyn_w, gap_x, www as i32);
 
@@ -234,7 +233,7 @@ impl Theme for ShotOnTwoLine {
         if tt >= 10 {
             let y = tt / 2;
             let top_font = &self.top.get_font();
-            let top_txt = self.top.format_custom(&pi.view_exif);
+            let top_txt = self.top.format_custom(exif);
             let top_scale = self.rel_scale(self.top_font_height as f32 / 100.0, tt);
             let (top_www, _) = crate::theme::text_dimensions_with_fallback(
                 top_scale,
@@ -263,6 +262,16 @@ impl Theme for ShotOnTwoLine {
         }
 
         Ok(new_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

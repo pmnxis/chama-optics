@@ -161,16 +161,14 @@ impl Theme for FilmGlow {
         }
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        mut dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let exif = &pi.view_exif;
         let color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
         let glow_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.glow_color);
-        let scale_config = &export_config.scale_config;
-        let mut dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let mut luma_text = image::GrayImage::new(dyn_image.width(), dyn_image.height());
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: f32 = (dyn_w as f32).max(dyn_h as f32);
@@ -278,6 +276,16 @@ impl Theme for FilmGlow {
         );
 
         Ok(dyn_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

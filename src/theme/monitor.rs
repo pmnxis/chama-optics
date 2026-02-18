@@ -101,14 +101,13 @@ impl Theme for Monitor {
         t!("theme.monitor.title")
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
-        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: u32 = dyn_w.max(dyn_h);
 
@@ -127,7 +126,7 @@ impl Theme for Monitor {
                 .bottoms
                 .iter()
                 .map(|item| {
-                    let txt = item.format_custom(&pi.view_exif);
+                    let txt = item.format_custom(exif);
                     let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
                         txt_scale,
                         &item.get_font(),
@@ -141,7 +140,7 @@ impl Theme for Monitor {
             let gap = ((dyn_w as f32) - total_www) / 5.0;
 
             for item in self.bottoms.iter() {
-                let txt = item.format_custom(&pi.view_exif);
+                let txt = item.format_custom(exif);
                 let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
                     txt_scale,
                     &item.get_font(),
@@ -172,7 +171,7 @@ impl Theme for Monitor {
         } else {
             for (idx, item) in self.bottoms.iter().enumerate() {
                 let mut xxx = (ll as f32) + ((dyn_w as f32 / 5.0) * (idx + 1) as f32);
-                let txt = item.format_custom(&pi.view_exif);
+                let txt = item.format_custom(exif);
                 let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
                     txt_scale,
                     &item.get_font(),
@@ -200,6 +199,16 @@ impl Theme for Monitor {
         }
 
         Ok(new_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

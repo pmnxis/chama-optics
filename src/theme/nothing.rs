@@ -19,6 +19,15 @@ impl Theme for Nothing {
         t!("theme.nothing")
     }
 
+    fn apply_to_dynamic_image(
+        &self,
+        image: image::DynamicImage,
+        _exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        Ok(image)
+    }
+
     fn apply_to_image(
         &self,
         pi: &crate::packed_image::PackedImage,

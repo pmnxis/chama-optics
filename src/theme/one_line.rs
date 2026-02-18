@@ -142,14 +142,13 @@ impl Theme for OneLine {
         t!("theme.one_line.title")
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
-        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
 
@@ -167,9 +166,9 @@ impl Theme for OneLine {
         let right_x_end = (new_image.width() - rr - (bb / 4).max(2)) as i32;
         let available = right_x_end - left_x;
         let left_font = &self.left.get_font();
-        let left_txt = self.left.format_custom(&pi.view_exif);
+        let left_txt = self.left.format_custom(exif);
         let right_font = &self.right.get_font();
-        let right_txt = self.right.format_custom(&pi.view_exif);
+        let right_txt = self.right.format_custom(exif);
 
         if available < 1 {
             panic!("unreachable");
@@ -245,7 +244,7 @@ impl Theme for OneLine {
         if tt >= 10 {
             let y = tt / 2;
             let top_font = &self.top.get_font();
-            let top_txt = self.top.format_custom(&pi.view_exif);
+            let top_txt = self.top.format_custom(exif);
             let top_scale = self.rel_scale(self.top_font_height as f32 / 100.0, tt);
             let (top_www, _) = crate::theme::text_dimensions_with_fallback(
                 top_scale,
@@ -274,6 +273,16 @@ impl Theme for OneLine {
         }
 
         Ok(new_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

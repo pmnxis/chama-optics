@@ -72,14 +72,8 @@ pub(crate) fn execute_decoration(
     ctx: &PipelineContext,
 ) -> Result<(), PipelineError> {
     match decoration {
-        Decoration::Theme(_config) => {
-            // Theme rendering requires PackedImage (EXIF data, file path) which
-            // the pipeline doesn't carry. Decoupling Theme from PackedImage is a
-            // separate refactor task. For now, log and skip.
-            //
-            // Future: Add `apply_to_dynamic_image(image, exif)` method to Theme trait,
-            // or pass EXIF data through PipelineContext.
-            log::warn!("Pipeline theme decoration: requires PackedImage decoupling, skipping");
+        Decoration::Theme(config) => {
+            apply_theme(image, config, ctx)?;
         }
         Decoration::Cheki(config) => {
             apply_cheki(image, config, ctx)?;
@@ -343,6 +337,40 @@ fn watermark_position(
         8 => (center_x, bottom_y),        // bottom-center
         _ => (right_x, bottom_y),         // bottom-right (default: 9 or 3)
     }
+}
+
+/// Apply Theme decoration using the theme registry.
+fn apply_theme(
+    image: &mut DynamicImage,
+    config: &super::stages::ThemeConfig,
+    ctx: &PipelineContext,
+) -> Result<(), PipelineError> {
+    let Some(registry) = ctx.theme_registry else {
+        return Err(PipelineError::StageError(
+            "Theme decoration: no theme_registry provided in PipelineContext".into(),
+        ));
+    };
+
+    let Some(export_config) = ctx.export_config else {
+        return Err(PipelineError::StageError(
+            "Theme decoration: no export_config provided in PipelineContext".into(),
+        ));
+    };
+
+    let default_exif = crate::image::exif_impl::SimplifiedExif::default();
+    let exif = ctx.exif.unwrap_or(&default_exif);
+
+    let theme_guard = registry.find(&config.name).ok_or_else(|| {
+        PipelineError::StageError(format!(
+            "Theme decoration: theme '{}' not found in registry",
+            config.name
+        ))
+    })?;
+
+    let taken = std::mem::take(image);
+    *image = theme_guard.apply_to_dynamic_image(taken, exif, export_config)?;
+
+    Ok(())
 }
 
 /// Apply Cheki (polaroid) decoration using the cheki renderer.

@@ -38,6 +38,12 @@ impl fmt::Display for PipelineError {
 
 impl std::error::Error for PipelineError {}
 
+impl From<image::ImageError> for PipelineError {
+    fn from(err: image::ImageError) -> Self {
+        PipelineError::StageError(err.to_string())
+    }
+}
+
 impl super::config::PipelineConfig {
     /// Validate the pipeline configuration before execution.
     ///

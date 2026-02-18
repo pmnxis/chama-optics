@@ -42,6 +42,20 @@ impl Theme for JustFrame {
         t!("theme.just_frame.title")
     }
 
+    fn apply_to_dynamic_image(
+        &self,
+        dyn_image: image::DynamicImage,
+        _exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
+        let dyn_wh: u32 = dyn_w.max(dyn_h);
+
+        let new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
+
+        Ok(new_image)
+    }
+
     fn apply_to_image(
         &self,
         pi: &crate::packed_image::PackedImage,
@@ -49,12 +63,7 @@ impl Theme for JustFrame {
     ) -> Result<image::DynamicImage, image::ImageError> {
         let scale_config = &export_config.scale_config;
         let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
-        let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
-        let dyn_wh: u32 = dyn_w.max(dyn_h);
-
-        let new_image = self.border.take_from_exist(&dyn_image, dyn_wh)?;
-
-        Ok(new_image)
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

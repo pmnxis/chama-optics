@@ -368,6 +368,26 @@ pub trait Theme: Send + Sync + std::any::Any {
     /// return label to show on UI
     fn label(&self) -> std::borrow::Cow<'static, str>;
 
+    /// Apply theme to a pre-processed DynamicImage with EXIF metadata.
+    ///
+    /// This is the pipeline-compatible entry point. The image is already
+    /// scaled/oriented; the theme just adds borders, text overlays, etc.
+    ///
+    /// Default implementation logs a warning and returns the image unchanged.
+    /// Themes should override this with their actual rendering logic.
+    fn apply_to_dynamic_image(
+        &self,
+        image: image::DynamicImage,
+        _exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        log::warn!(
+            "Theme '{}' has no pipeline implementation yet, returning image unchanged",
+            self.unique_name()
+        );
+        Ok(image)
+    }
+
     /// Apply theme and return the resulting DynamicImage (for preview)
     fn apply_to_image(
         &self,

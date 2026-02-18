@@ -128,14 +128,13 @@ impl Theme for Strap {
         t!("theme.strap.title")
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
-        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh = dyn_w.max(dyn_h);
         // For text dimension calculation - use left_top font on iOS, Barlow on desktop
@@ -169,7 +168,7 @@ impl Theme for Strap {
         let mut max_left_x = left_x;
 
         for item in [&self.left_top, &self.left_bot].iter().rev() {
-            let txt = item.format_custom(&pi.view_exif);
+            let txt = item.format_custom(exif);
             let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
                 txt_scale,
                 &item.get_font(),
@@ -189,7 +188,7 @@ impl Theme for Strap {
         let right_x = new_image.width() as f32 - txt_b_gap * 1.2 - rr as f32;
         let mut min_right_x = right_x;
         for item in [&self.right_top, &self.right_bot].iter().rev() {
-            let txt = item.format_custom(&pi.view_exif);
+            let txt = item.format_custom(exif);
             let (www, _hhh) = crate::theme::text_dimensions_with_fallback(
                 txt_scale,
                 &item.get_font(),
@@ -211,7 +210,7 @@ impl Theme for Strap {
         }
 
         // temporary implementation
-        if let Some(svg) = crate::ART_UNIFY.get_camera_logo(&pi.view_exif) {
+        if let Some(svg) = crate::ART_UNIFY.get_camera_logo(exif) {
             use image::GenericImageView;
 
             // | Left Str1                                Right Str1 |
@@ -262,6 +261,16 @@ impl Theme for Strap {
         }
 
         Ok(new_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(

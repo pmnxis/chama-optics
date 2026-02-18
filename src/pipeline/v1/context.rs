@@ -13,6 +13,7 @@ use std::collections::HashMap;
 
 use crate::effect::sticker_storage::StickerStorage;
 use crate::export_config::ExportConfig;
+use crate::image::exif_impl::SimplifiedExif;
 use crate::theme::ThemeRegistry;
 
 /// Runtime dependencies for pipeline execution.
@@ -52,6 +53,10 @@ pub struct PipelineContext<'a> {
 
     /// Export config (for Theme rendering parameters)
     pub export_config: Option<&'a ExportConfig>,
+
+    /// EXIF metadata for Theme decoration text overlays.
+    /// Themes use this to render camera info (model, lens, ISO, etc.).
+    pub exif: Option<&'a SimplifiedExif>,
 }
 
 impl<'a> PipelineContext<'a> {
@@ -64,6 +69,7 @@ impl<'a> PipelineContext<'a> {
             font_map: None,
             theme_registry: None,
             export_config: None,
+            exif: None,
         }
     }
 }

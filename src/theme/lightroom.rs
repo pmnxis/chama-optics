@@ -124,14 +124,13 @@ impl Theme for Lightroom {
         t!("theme.lightroom.title")
     }
 
-    fn apply_to_image(
+    fn apply_to_dynamic_image(
         &self,
-        pi: &crate::packed_image::PackedImage,
-        export_config: &crate::export_config::ExportConfig,
+        dyn_image: image::DynamicImage,
+        exif: &crate::image::exif_impl::SimplifiedExif,
+        _export_config: &crate::export_config::ExportConfig,
     ) -> Result<image::DynamicImage, image::ImageError> {
-        let scale_config = &export_config.scale_config;
         let font_color: image::Rgba<u8> = crate::theme::color32_to_rgba(self.font_color);
-        let dyn_image: image::DynamicImage = pi.with_scale_and_orientation(*scale_config)?;
         let (dyn_w, dyn_h) = (dyn_image.width(), dyn_image.height());
         let dyn_wh: u32 = dyn_w.max(dyn_h);
 
@@ -145,7 +144,7 @@ impl Theme for Lightroom {
 
         // left
         let left_font = &self.left.get_font();
-        let left_txt = self.left.format_custom(&pi.view_exif);
+        let left_txt = self.left.format_custom(exif);
         let left_x = ((bb / 10).min(2) + ll) as i32;
         let (left_www, _) = crate::theme::text_dimensions_with_fallback(
             txt_scale,
@@ -170,7 +169,7 @@ impl Theme for Lightroom {
         // center
         let y = new_image.height() - (bb / 2);
         let center_font = &self.center.get_font();
-        let center_txt = self.center.format_custom(&pi.view_exif);
+        let center_txt = self.center.format_custom(exif);
         let (center_www, _) = crate::theme::text_dimensions_with_fallback(
             txt_scale,
             center_font,
@@ -207,7 +206,7 @@ impl Theme for Lightroom {
 
         // right
         let right_font = &self.right.get_font();
-        let right_txt = self.right.format_custom(&pi.view_exif);
+        let right_txt = self.right.format_custom(exif);
         let (right_www, _) = crate::theme::text_dimensions_with_fallback(
             txt_scale,
             right_font,
@@ -230,6 +229,16 @@ impl Theme for Lightroom {
         );
 
         Ok(new_image)
+    }
+
+    fn apply_to_image(
+        &self,
+        pi: &crate::packed_image::PackedImage,
+        export_config: &crate::export_config::ExportConfig,
+    ) -> Result<image::DynamicImage, image::ImageError> {
+        let scale_config = &export_config.scale_config;
+        let dyn_image = pi.with_scale_and_orientation(*scale_config)?;
+        self.apply_to_dynamic_image(dyn_image, &pi.view_exif, export_config)
     }
 
     fn apply(
