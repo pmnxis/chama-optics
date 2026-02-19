@@ -189,12 +189,7 @@ pub fn build_face_effect_stage(
 ///
 /// This duplicates the mapping in `ffi_mobile/mod.rs::convert_c_scale_config`
 /// but operates on raw mode/value tuples, avoiding `#[repr(C)]` dependency.
-pub fn build_scale_config(
-    mode: u8,
-    value: u32,
-    sub_value: u32,
-    scale_value: f64,
-) -> ScaleConfig {
+pub fn build_scale_config(mode: u8, value: u32, sub_value: u32, scale_value: f64) -> ScaleConfig {
     let scale_mode = match mode {
         1 => ScaleMode::MaxWidth,
         2 => ScaleMode::MaxHeight,
@@ -249,17 +244,14 @@ pub fn apply_scale(
     );
 
     let resized = crate::image::common::resize_image(image, new_w, new_h)?;
-    let buffer = image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(
-        new_w,
-        new_h,
-        resized.into_vec(),
-    )
-    .ok_or_else(|| {
-        image::ImageError::Encoding(image::error::EncodingError::new(
-            image::error::ImageFormatHint::Unknown,
-            "Failed to create ImageBuffer from resized data",
-        ))
-    })?;
+    let buffer =
+        image::ImageBuffer::<image::Rgba<u8>, _>::from_raw(new_w, new_h, resized.into_vec())
+            .ok_or_else(|| {
+                image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Unknown,
+                    "Failed to create ImageBuffer from resized data",
+                ))
+            })?;
 
     Ok(image::DynamicImage::ImageRgba8(buffer))
 }
@@ -322,13 +314,12 @@ pub fn build_pipeline_config(params: &BridgeExportParams) -> PipelineConfig {
 
     // Decoration: Theme
     let decoration = if !params.theme_name.is_empty() {
-        let theme_params: Option<serde_json::Value> = if params.theme_params_json.is_empty()
-            || params.theme_params_json == "{}"
-        {
-            None
-        } else {
-            serde_json::from_str(params.theme_params_json).ok()
-        };
+        let theme_params: Option<serde_json::Value> =
+            if params.theme_params_json.is_empty() || params.theme_params_json == "{}" {
+                None
+            } else {
+                serde_json::from_str(params.theme_params_json).ok()
+            };
 
         Some(DecorationEntry::enabled(Decoration::Theme(ThemeConfig {
             name: params.theme_name.to_string(),
@@ -407,10 +398,7 @@ mod tests {
         let stage = build_face_effect_stage(&rects, &params).unwrap();
         assert_eq!(stage.kind(), StageKind::FaceEffect);
 
-        if let PipelineStage::FaceEffect {
-            faces, mosaic, ..
-        } = &stage
-        {
+        if let PipelineStage::FaceEffect { faces, mosaic, .. } = &stage {
             assert_eq!(faces.len(), 2);
             assert_eq!(faces[0].effect_mode, FaceEffectMode::Mosaic);
             assert_eq!(mosaic.block_size, 15);

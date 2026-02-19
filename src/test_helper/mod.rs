@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
+pub mod synthetic;
+
 pub fn list_import_images_path() -> std::io::Result<Vec<std::path::PathBuf>> {
     let import_dir = std::path::Path::new("test_image/import");
 

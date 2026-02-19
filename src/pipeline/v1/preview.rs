@@ -123,7 +123,8 @@ impl PreviewPipeline {
         }
 
         // Ensure snapshots vec matches stages count
-        self.snapshots.resize_with(self.config.stages.len(), || None);
+        self.snapshots
+            .resize_with(self.config.stages.len(), || None);
 
         // Find the starting image: snapshot before dirty_from, or base_image
         let mut image = if self.dirty_from == 0 {
@@ -163,10 +164,10 @@ impl PreviewPipeline {
         let stages_result = self.render(ctx)?.clone();
         let mut image = stages_result;
 
-        if let Some(deco_entry) = &self.config.decoration {
-            if deco_entry.enabled {
-                execute_decoration(&mut image, &deco_entry.decoration, ctx)?;
-            }
+        if let Some(deco_entry) = &self.config.decoration
+            && deco_entry.enabled
+        {
+            execute_decoration(&mut image, &deco_entry.decoration, ctx)?;
         }
 
         Ok(image)
@@ -175,10 +176,7 @@ impl PreviewPipeline {
     /// Build an `ExportPipeline` from the current config for full-resolution export.
     ///
     /// `full_image` is the original full-resolution image (not the preview thumbnail).
-    pub fn to_export_pipeline(
-        &self,
-        full_image: DynamicImage,
-    ) -> super::execute::ExportPipeline {
+    pub fn to_export_pipeline(&self, full_image: DynamicImage) -> super::execute::ExportPipeline {
         super::execute::ExportPipeline::new(full_image, self.config.clone())
     }
 

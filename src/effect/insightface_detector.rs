@@ -815,11 +815,7 @@ impl InsightFaceDetector {
             // depth 0 → largest (e.g. 5120), depth m_max → 640
             let window_scaled = self.window_size << (m_max - depth as u32);
 
-            log::info!(
-                "Processing depth {}: window_size={}",
-                depth,
-                window_scaled
-            );
+            log::info!("Processing depth {}: window_size={}", depth, window_scaled);
 
             // Calculate step size (with overlap)
             let step = (window_scaled as f32 * (1.0 - self.overlap_ratio)) as i32;
@@ -1043,11 +1039,7 @@ impl InsightFaceDetector {
         for depth in 0..num_levels as usize {
             let window_scaled = self.window_size << (m_max - depth as u32);
 
-            log::info!(
-                "Processing depth {}: window_size={}",
-                depth,
-                window_scaled
-            );
+            log::info!("Processing depth {}: window_size={}", depth, window_scaled);
 
             let step = (window_scaled as f32 * (1.0 - self.overlap_ratio)) as i32;
 

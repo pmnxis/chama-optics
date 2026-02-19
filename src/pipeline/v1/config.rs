@@ -39,7 +39,7 @@ use super::stages::{DecorationEntry, StageEntry};
 ///   "output_format": { "ext": "Jpeg", "quality": 95 }
 /// }
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PipelineConfig {
     /// Ordered queue of processing stages.
     /// Each `StageEntry` has an `enabled` flag — disabled stages are skipped.
@@ -56,15 +56,4 @@ pub struct PipelineConfig {
 
     /// Output format and quality.
     pub output_format: OutputFormat,
-}
-
-impl Default for PipelineConfig {
-    fn default() -> Self {
-        Self {
-            stages: Vec::new(),
-            decoration: None,
-            scale: ScaleConfig::default(),
-            output_format: OutputFormat::default(),
-        }
-    }
 }

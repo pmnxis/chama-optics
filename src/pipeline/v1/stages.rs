@@ -164,9 +164,7 @@ pub enum PipelineStage {
     ColorAdjustments(ColorAdjustments),
 
     /// LUT color grading by UUID (resolved from LUT storage at runtime)
-    Lut {
-        lut_id: Uuid,
-    },
+    Lut { lut_id: Uuid },
 
     /// Face effects (mosaic, stroke, sticker) applied to detected faces.
     /// Each FaceArea carries its own effect_mode, enabling per-face effects.

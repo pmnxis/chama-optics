@@ -336,15 +336,15 @@ fn watermark_position(
     let bottom_y = img_h - txt_h - margin;
 
     match position {
-        1 => (margin, margin),            // top-left
-        2 => (center_x, margin),          // top-center
-        3 => (right_x, margin),           // top-right
-        4 => (margin, center_y),          // center-left
-        5 => (center_x, center_y),        // center
-        6 => (right_x, center_y),         // center-right
-        7 => (margin, bottom_y),          // bottom-left
-        8 => (center_x, bottom_y),        // bottom-center
-        _ => (right_x, bottom_y),         // bottom-right (default: 9 or 3)
+        1 => (margin, margin),     // top-left
+        2 => (center_x, margin),   // top-center
+        3 => (right_x, margin),    // top-right
+        4 => (margin, center_y),   // center-left
+        5 => (center_x, center_y), // center
+        6 => (right_x, center_y),  // center-right
+        7 => (margin, bottom_y),   // bottom-left
+        8 => (center_x, bottom_y), // bottom-center
+        _ => (right_x, bottom_y),  // bottom-right (default: 9 or 3)
     }
 }
 
@@ -376,14 +376,12 @@ fn apply_theme(
     })?;
 
     // Apply parameter overrides from config.params if present
-    if let Some(params_value) = &config.params {
-        if let Some(params_map) = params_value.as_object() {
-            if !params_map.is_empty() {
-                if let Err(e) = update_theme_params(&mut *theme, params_map) {
-                    log::warn!("Theme param update warning (using defaults): {}", e);
-                }
-            }
-        }
+    if let Some(params_value) = &config.params
+        && let Some(params_map) = params_value.as_object()
+        && !params_map.is_empty()
+        && let Err(e) = update_theme_params(&mut *theme, params_map)
+    {
+        log::warn!("Theme param update warning (using defaults): {}", e);
     }
 
     let taken = std::mem::take(image);
@@ -404,8 +402,7 @@ fn update_theme_params(
 
     macro_rules! try_update {
         ($theme_type:ty) => {
-            if let Some(concrete) =
-                (theme as &mut dyn std::any::Any).downcast_mut::<$theme_type>()
+            if let Some(concrete) = (theme as &mut dyn std::any::Any).downcast_mut::<$theme_type>()
             {
                 return concrete.update_from_json(updates);
             }
@@ -467,10 +464,7 @@ impl ExportPipeline {
     /// Execute the pipeline: validate → run stages → apply decoration.
     ///
     /// Consumes `self` and returns the fully processed image.
-    pub fn execute(
-        mut self,
-        ctx: &PipelineContext,
-    ) -> Result<DynamicImage, PipelineError> {
+    pub fn execute(mut self, ctx: &PipelineContext) -> Result<DynamicImage, PipelineError> {
         self.config.validate()?;
 
         let stages = std::mem::take(&mut self.config.stages);
@@ -482,10 +476,10 @@ impl ExportPipeline {
         }
 
         let decoration = self.config.decoration.take();
-        if let Some(deco_entry) = &decoration {
-            if deco_entry.enabled {
-                execute_decoration(&mut self.image, &deco_entry.decoration, ctx)?;
-            }
+        if let Some(deco_entry) = &decoration
+            && deco_entry.enabled
+        {
+            execute_decoration(&mut self.image, &deco_entry.decoration, ctx)?;
         }
 
         Ok(self.image)

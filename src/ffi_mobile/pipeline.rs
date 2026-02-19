@@ -200,7 +200,12 @@ pub unsafe extern "C" fn chama_pipeline_execute(
 pub unsafe extern "C" fn chama_pipeline_validate(
     pipeline_config_json: *const c_char,
 ) -> *mut c_char {
-    let config_json = cstr_to_str!(pipeline_config_json, return CString::new("Invalid UTF-8 in config JSON").unwrap().into_raw());
+    let config_json = cstr_to_str!(
+        pipeline_config_json,
+        return CString::new("Invalid UTF-8 in config JSON")
+            .unwrap()
+            .into_raw()
+    );
 
     let config: crate::pipeline::v1::PipelineConfig = match serde_json::from_str(config_json) {
         Ok(c) => c,
@@ -269,13 +274,14 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
     log::info!("  Face count: {}", face_count);
 
     // Step 1: Load image and apply EXIF orientation
-    let mut dyn_image = match super::load_image_with_heif_support(std::path::Path::new(image_path_str)) {
-        Ok(img) => img,
-        Err(e) => {
-            log::error!("Failed to load image: {}", e);
-            return ChamaError::ImageLoadError;
-        }
-    };
+    let mut dyn_image =
+        match super::load_image_with_heif_support(std::path::Path::new(image_path_str)) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image: {}", e);
+                return ChamaError::ImageLoadError;
+            }
+        };
 
     let orientation = super::read_exif_orientation(image_path_str);
     dyn_image.apply_orientation(orientation);
@@ -444,7 +450,8 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
     ) {
         Ok(_) => {
             // Step 7: Inject EXIF if enabled
-            if config_ref.save_exif && config_ref.output_format != super::types::COutputFormat::Png {
+            if config_ref.save_exif && config_ref.output_format != super::types::COutputFormat::Png
+            {
                 let exif_override_str = if config_ref.exif_override_json.is_null() {
                     None
                 } else {
@@ -891,16 +898,15 @@ pub unsafe extern "C" fn chama_preview_pipeline_update_config(
     // We need to get the current config to extract the base image...
     // PreviewPipeline doesn't expose base_image, so we recreate by
     // reordering stages (which invalidates all caches)
-    let order: Vec<crate::pipeline::v1::StageKind> = config
-        .stages
-        .iter()
-        .map(|e| e.stage.kind())
-        .collect();
+    let order: Vec<crate::pipeline::v1::StageKind> =
+        config.stages.iter().map(|e| e.stage.kind()).collect();
     handle.pipeline.reorder_stages(&order);
 
     // Update individual stages with new config values
     for entry in &config.stages {
-        handle.pipeline.update_stage(entry.stage.kind(), entry.stage.clone());
+        handle
+            .pipeline
+            .update_stage(entry.stage.kind(), entry.stage.clone());
         if !entry.enabled {
             handle.pipeline.toggle_stage(entry.stage.kind(), false);
         }
@@ -926,8 +932,8 @@ pub unsafe extern "C" fn chama_preview_pipeline_get_config(
     }
     let handle = unsafe { &*handle };
 
-    let json = serde_json::to_string_pretty(handle.pipeline.config())
-        .unwrap_or_else(|_| "{}".to_string());
+    let json =
+        serde_json::to_string_pretty(handle.pipeline.config()).unwrap_or_else(|_| "{}".to_string());
     CString::new(json)
         .unwrap_or_else(|_| CString::new("{}").unwrap())
         .into_raw()
