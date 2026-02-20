@@ -72,6 +72,13 @@ tabs:
     ja: "入出力設定"
     id: "Pengaturan Impor & Ekspor"
 
+  # Edit tab (unified ColorGrading + Cheki + ThemePreview)
+  edit:
+    en: "Edit"
+    ko: "편집"
+    ja: "編集"
+    id: "Edit"
+
   # Settings tab
   settings:
     en: "Settings"

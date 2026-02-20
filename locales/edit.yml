@@ -1,0 +1,100 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# Edit tab translations (unified edit view)
+# Used in both EGUI (desktop) and mobile
+
+_version: 2
+
+edit:
+  # Empty state
+  no_images:
+    en: "No images to edit"
+    ko: "편집할 이미지가 없습니다"
+    ja: "編集する画像がありません"
+    id: "Tidak ada gambar untuk diedit"
+  no_images_hint:
+    en: "Add images in the Gallery tab to start editing"
+    ko: "갤러리 탭에서 이미지를 추가하면 편집을 시작할 수 있습니다"
+    ja: "ギャラリータブで画像を追加して編集を開始してください"
+    id: "Tambahkan gambar di tab Galeri untuk mulai mengedit"
+
+  # Photo indicator
+  photo_indicator:
+    en: "Photo %d/%d"
+    ko: "사진 %d/%d"
+    ja: "写真 %d/%d"
+    id: "Foto %d/%d"
+
+  # Edit mode
+  mode_individual:
+    en: "Individual"
+    ko: "개별"
+    ja: "個別"
+    id: "Individual"
+  mode_all:
+    en: "All"
+    ko: "전체"
+    ja: "すべて"
+    id: "Semua"
+
+  # Section titles
+  section:
+    color_adjustments:
+      en: "Color Adjustments"
+      ko: "색상 조정"
+      ja: "色調補正"
+      id: "Penyesuaian Warna"
+    lut:
+      en: "LUT"
+      ko: "LUT"
+      ja: "LUT"
+      id: "LUT"
+    decoration:
+      en: "Decoration"
+      ko: "데코레이션"
+      ja: "デコレーション"
+      id: "Dekorasi"
+
+  # Decoration mode toggle
+  decoration:
+    cheki:
+      en: "Cheki"
+      ko: "체키"
+      ja: "チェキ"
+      id: "Cheki"
+    theme:
+      en: "Theme"
+      ko: "테마"
+      ja: "テーマ"
+      id: "Tema"
+
+  # Preview
+  no_image_selected:
+    en: "No image selected"
+    ko: "이미지가 선택되지 않았습니다"
+    ja: "画像が選択されていません"
+    id: "Tidak ada gambar yang dipilih"
+
+  # Action buttons
+  export:
+    en: "Export"
+    ko: "내보내기"
+    ja: "エクスポート"
+    id: "Ekspor"
+  apply_to_all:
+    en: "Apply to All"
+    ko: "전체 적용"
+    ja: "すべてに適用"
+    id: "Terapkan ke Semua"
+  export_result:
+    en: "Export Result"
+    ko: "내보내기 결과"
+    ja: "エクスポート結果"
+    id: "Hasil Ekspor"
+  export_all_result:
+    en: "Exported %d/%d"
+    ko: "%d/%d장 내보내기 완료"
+    ja: "%d/%d枚エクスポート完了"
+    id: "%d/%d diekspor"
