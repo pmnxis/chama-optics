@@ -208,7 +208,7 @@ pub enum Decoration {
     /// Theme: border/logo/text overlay with final resize
     Theme(ThemeConfig),
     /// Cheki: polaroid-style border, text, dice stickers
-    Cheki(crate::effect::cheki::ChekiDecoration),
+    Cheki(Box<crate::effect::cheki::ChekiDecoration>),
 }
 
 // ─── StageEntry / DecorationEntry wrappers ───
