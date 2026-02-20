@@ -56,6 +56,7 @@ pub unsafe extern "C" fn chama_pipeline_execute(
     pipeline_config_json: *const c_char,
     exif_json: *const c_char,
     lut_paths_json: *const c_char,
+    font_paths_json: *const c_char,
     output_format: u32,
     quality: u8,
 ) -> ChamaError {
@@ -144,6 +145,33 @@ pub unsafe extern "C" fn chama_pipeline_execute(
         ..crate::export_config::ExportConfig::default()
     };
 
+    // Parse optional font paths and load fonts
+    let mut font_map: HashMap<String, ab_glyph::FontArc> = HashMap::new();
+    if !font_paths_json.is_null() {
+        let font_str = cstr_to_str!(font_paths_json, return ChamaError::InvalidParameters);
+        if !font_str.is_empty() {
+            let paths: HashMap<String, String> = match serde_json::from_str(font_str) {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("Font paths parse error (non-fatal): {}", e);
+                    HashMap::new()
+                }
+            };
+            for (name, path) in &paths {
+                match std::fs::read(path) {
+                    Ok(font_data) => match ab_glyph::FontArc::try_from_vec(font_data) {
+                        Ok(font) => {
+                            font_map.insert(name.clone(), font);
+                            log::info!("Loaded font '{}': {}", name, path);
+                        }
+                        Err(e) => log::warn!("Font parse error for '{}' (non-fatal): {}", path, e),
+                    },
+                    Err(e) => log::warn!("Font read error for '{}' (non-fatal): {}", path, e),
+                }
+            }
+        }
+    }
+
     let ctx = crate::pipeline::v1::PipelineContext {
         sticker_storage: Some(&sticker_storage),
         lut_map: if lut_map.is_empty() {
@@ -151,7 +179,11 @@ pub unsafe extern "C" fn chama_pipeline_execute(
         } else {
             Some(&lut_map)
         },
-        font_map: None, // TODO: font loading from paths
+        font_map: if font_map.is_empty() {
+            None
+        } else {
+            Some(&font_map)
+        },
         theme_registry: Some(&theme_registry),
         export_config: Some(&export_config),
         exif: exif.as_ref(),
@@ -222,9 +254,7 @@ pub unsafe extern "C" fn chama_pipeline_validate(
         Err(e) => {
             let msg = format!("{}", e);
             CString::new(msg)
-                .unwrap_or_else(|_| {
-                    CString::new("validation error").expect("static literal")
-                })
+                .unwrap_or_else(|_| CString::new("validation error").expect("static literal"))
                 .into_raw()
         }
     }

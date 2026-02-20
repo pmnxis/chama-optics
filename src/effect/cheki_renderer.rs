@@ -99,7 +99,9 @@ pub fn apply_cheki_decoration(
 
 /// Overlay a sticker image with alpha blending, optionally clipped to a rect.
 /// `clip` is `Some((left, top, right, bottom))` in canvas pixel coordinates.
-/// Uses direct buffer access for performance.
+///
+/// When no clip rect is provided, uses `image::imageops::overlay()` for speed.
+/// When clipping, pre-computes visible bounds to avoid per-pixel clip checks.
 fn overlay_with_alpha_clipped(
     base: &mut DynamicImage,
     sticker: &DynamicImage,
@@ -107,6 +109,17 @@ fn overlay_with_alpha_clipped(
     y: i32,
     clip: Option<(i32, i32, i32, i32)>,
 ) {
+    // Fast path: no clipping — use the image crate's optimized overlay
+    if clip.is_none() {
+        if let Some(base_rgba) = base.as_mut_rgba8() {
+            let sticker_rgba = sticker.to_rgba8();
+            image::imageops::overlay(base_rgba, &sticker_rgba, x as i64, y as i64);
+        }
+        return;
+    }
+
+    // Clipped path: pre-compute visible range incorporating canvas + clip bounds
+    let (cl, ct, cr, cb) = clip.unwrap();
     let sticker_rgba = sticker.to_rgba8();
     let sw = sticker_rgba.width() as i32;
     let sh = sticker_rgba.height() as i32;
@@ -122,39 +135,23 @@ fn overlay_with_alpha_clipped(
     let base_stride = bw as usize * 4;
     let base_pixels: &mut [u8] = base_rgba.as_mut();
 
-    // Calculate visible row range
-    let sy_start = (-y).max(0);
-    let sy_end = sh.min(bh - y);
-    let sx_start = (-x).max(0);
-    let sx_end = sw.min(bw - x);
+    // Pre-compute loop bounds: intersection of canvas, sticker, and clip rect
+    let sy_start = (-y).max(0).max(ct - y);
+    let sy_end = sh.min(bh - y).min(cb - y);
+    let sx_start = (-x).max(0).max(cl - x);
+    let sx_end = sw.min(bw - x).min(cr - x);
 
     if sy_start >= sy_end || sx_start >= sx_end {
         return;
     }
 
+    // Inner loop has zero per-pixel clip checks
     for sy in sy_start..sy_end {
         let ty = (y + sy) as usize;
-
-        // Apply vertical clip
-        if let Some((_, ct, _, cb)) = clip
-            && ((ty as i32) < ct || (ty as i32) >= cb)
-        {
-            continue;
-        }
-
         let sticker_row = sy as usize * sticker_stride;
         let base_row = ty * base_stride;
 
         for sx in sx_start..sx_end {
-            let tx = (x + sx) as usize;
-
-            // Apply horizontal clip
-            if let Some((cl, _, cr, _)) = clip
-                && ((tx as i32) < cl || (tx as i32) >= cr)
-            {
-                continue;
-            }
-
             let si = sticker_row + sx as usize * 4;
             let sa = sticker_pixels[si + 3];
 
@@ -162,16 +159,15 @@ fn overlay_with_alpha_clipped(
                 continue;
             }
 
+            let tx = (x + sx) as usize;
             let bi = base_row + tx * 4;
 
             if sa == 255 {
-                // Fully opaque — direct copy
                 base_pixels[bi] = sticker_pixels[si];
                 base_pixels[bi + 1] = sticker_pixels[si + 1];
                 base_pixels[bi + 2] = sticker_pixels[si + 2];
                 base_pixels[bi + 3] = 255;
             } else {
-                // Alpha blend using integer arithmetic (avoid f32 per pixel)
                 let alpha = sa as u16;
                 let inv = 255 - alpha;
                 base_pixels[bi] = ((sticker_pixels[si] as u16 * alpha

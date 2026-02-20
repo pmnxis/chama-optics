@@ -153,9 +153,7 @@ impl PreviewPipeline {
         self.snapshots
             .last()
             .and_then(|s| s.as_ref())
-            .ok_or_else(|| {
-                PipelineError::StageError("Preview render produced no output".into())
-            })
+            .ok_or_else(|| PipelineError::StageError("Preview render produced no output".into()))
     }
 
     /// Render preview with decoration applied.

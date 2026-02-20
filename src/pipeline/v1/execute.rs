@@ -103,20 +103,12 @@ fn apply_lut(
         )));
     };
 
-    // Apply LUT based on image type (same logic as LutStorage::apply_lut_to_image)
-    match image {
-        DynamicImage::ImageRgba8(img) => {
-            wagahai_lut::lut::apply_rgba_mut(lut, img);
-        }
-        DynamicImage::ImageRgb8(img) => {
-            wagahai_lut::lut::apply_rgb_mut(lut, img);
-        }
-        _ => {
-            let mut rgba = image.to_rgba8();
-            wagahai_lut::lut::apply_rgba_mut(lut, &mut rgba);
-            *image = DynamicImage::ImageRgba8(rgba);
-        }
-    }
+    // Apply LUT based on image type (shared helper avoids pattern duplication)
+    crate::effect::with_image_buffer_mut(
+        image,
+        |rgba| wagahai_lut::lut::apply_rgba_mut(lut, rgba),
+        |rgb| wagahai_lut::lut::apply_rgb_mut(lut, rgb),
+    );
 
     Ok(())
 }

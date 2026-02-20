@@ -296,23 +296,12 @@ impl LutStorage {
         };
 
         // Apply LUT based on image type
-        match image {
-            DynamicImage::ImageRgba8(img) => {
-                wagahai_lut::lut::apply_rgba_mut(lut, img);
-                true
-            }
-            DynamicImage::ImageRgb8(img) => {
-                wagahai_lut::lut::apply_rgb_mut(lut, img);
-                true
-            }
-            _ => {
-                // Convert to RGBA8, apply, then convert back
-                let mut rgba = image.to_rgba8();
-                wagahai_lut::lut::apply_rgba_mut(lut, &mut rgba);
-                *image = DynamicImage::ImageRgba8(rgba);
-                true
-            }
-        }
+        super::with_image_buffer_mut(
+            image,
+            |rgba| wagahai_lut::lut::apply_rgba_mut(lut, rgba),
+            |rgb| wagahai_lut::lut::apply_rgb_mut(lut, rgb),
+        );
+        true
     }
 
     /// Clone for use in background threads (excludes cache)

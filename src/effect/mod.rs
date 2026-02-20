@@ -34,3 +34,24 @@ pub mod ort_web_detector;
 
 // Re-export FaceEffectMode for easier access
 pub use face_detection::FaceEffectMode;
+
+/// Apply a mutation to a DynamicImage's pixel buffer, handling RGBA8/RGB8 fast paths
+/// and converting other formats to RGBA8.
+///
+/// This avoids duplicating the `match image { RGBA8 => ..., RGB8 => ..., _ => to_rgba8 }`
+/// pattern across LUT application, pipeline execution, and color adjustments.
+pub fn with_image_buffer_mut(
+    image: &mut image::DynamicImage,
+    apply_rgba: impl FnOnce(&mut image::RgbaImage),
+    apply_rgb: impl FnOnce(&mut image::RgbImage),
+) {
+    match image {
+        image::DynamicImage::ImageRgba8(img) => apply_rgba(img),
+        image::DynamicImage::ImageRgb8(img) => apply_rgb(img),
+        _ => {
+            let mut rgba = image.to_rgba8();
+            apply_rgba(&mut rgba);
+            *image = image::DynamicImage::ImageRgba8(rgba);
+        }
+    }
+}

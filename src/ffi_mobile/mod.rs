@@ -324,10 +324,7 @@ fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
 
     log::info!("Found EXIF thumbnail: {} bytes", biggest_thumbnail.length);
 
-    // Reopen file to extract thumbnail data
-    let file = std::fs::File::open(image_path).ok()?;
-    let mut buf_reader = std::io::BufReader::new(file);
-
+    // Reuse the same buf_reader — extract_data seeks to the thumbnail offset
     let thumbnail_data = biggest_thumbnail.extract_data(&mut buf_reader).ok()?;
 
     // Load the thumbnail as an image

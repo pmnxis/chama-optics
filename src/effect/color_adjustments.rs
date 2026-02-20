@@ -267,58 +267,11 @@ impl ColorAdjustments {
             return;
         }
 
-        let mut rgba = image.to_rgba8();
-        let (width, height) = rgba.dimensions();
-        let total_pixels = (width as usize) * (height as usize);
-
-        // Pre-compute all adjustment parameters once
-        let params = AdjustmentParams::from_adjustments(self);
-
-        // Get mutable access to raw pixel data
-        let pixels: &mut [u8] = rgba.as_mut();
-
-        // Use parallel processing for large images (> 100K pixels)
-        const PARALLEL_THRESHOLD: usize = 100_000;
-
-        #[cfg(feature = "threading")]
-        if total_pixels >= PARALLEL_THRESHOLD {
-            // Process in chunks of 4 bytes (RGBA) using rayon
-            pixels.par_chunks_exact_mut(4).for_each(|chunk| {
-                let (r, g, b) = process_pixel(chunk[0], chunk[1], chunk[2], &params);
-                chunk[0] = r;
-                chunk[1] = g;
-                chunk[2] = b;
-                // chunk[3] (alpha) is preserved
-            });
-        } else {
-            // Sequential processing for small images (less overhead)
-            let mut idx = 0;
-            for _ in 0..total_pixels {
-                let (r, g, b) =
-                    process_pixel(pixels[idx], pixels[idx + 1], pixels[idx + 2], &params);
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                // pixels[idx + 3] (alpha) is preserved
-                idx += 4;
-            }
-        }
-
-        // Sequential fallback when threading is not available (WASM)
-        #[cfg(not(feature = "threading"))]
-        {
-            let mut idx = 0;
-            for _ in 0..total_pixels {
-                let (r, g, b) =
-                    process_pixel(pixels[idx], pixels[idx + 1], pixels[idx + 2], &params);
-                pixels[idx] = r;
-                pixels[idx + 1] = g;
-                pixels[idx + 2] = b;
-                idx += 4;
-            }
-        }
-
-        *image = image::DynamicImage::ImageRgba8(rgba);
+        super::with_image_buffer_mut(
+            image,
+            |rgba| self.apply_to_rgba_mut(rgba),
+            |rgb| self.apply_to_rgb_mut(rgb),
+        );
     }
 
     /// Apply color adjustments to an RGBA image buffer in-place
