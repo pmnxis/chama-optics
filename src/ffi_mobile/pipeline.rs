@@ -203,7 +203,7 @@ pub unsafe extern "C" fn chama_pipeline_validate(
     let config_json = cstr_to_str!(
         pipeline_config_json,
         return CString::new("Invalid UTF-8 in config JSON")
-            .unwrap()
+            .unwrap_or_else(|_| CString::new("invalid config").expect("static literal"))
             .into_raw()
     );
 
@@ -211,7 +211,9 @@ pub unsafe extern "C" fn chama_pipeline_validate(
         Ok(c) => c,
         Err(e) => {
             let msg = format!("JSON parse error: {}", e);
-            return CString::new(msg).unwrap().into_raw();
+            return CString::new(msg)
+                .unwrap_or_else(|_| CString::new("JSON parse error").expect("static literal"))
+                .into_raw();
         }
     };
 
@@ -219,7 +221,11 @@ pub unsafe extern "C" fn chama_pipeline_validate(
         Ok(()) => std::ptr::null_mut(),
         Err(e) => {
             let msg = format!("{}", e);
-            CString::new(msg).unwrap().into_raw()
+            CString::new(msg)
+                .unwrap_or_else(|_| {
+                    CString::new("validation error").expect("static literal")
+                })
+                .into_raw()
         }
     }
 }
@@ -486,7 +492,9 @@ pub unsafe extern "C" fn chama_pipeline_export_combined(
 pub extern "C" fn chama_pipeline_default_config() -> *mut c_char {
     let config = crate::pipeline::v1::PipelineConfig::default();
     let json = serde_json::to_string_pretty(&config).unwrap_or_else(|_| "{}".to_string());
-    CString::new(json).unwrap().into_raw()
+    CString::new(json)
+        .unwrap_or_else(|_| CString::new("{}").expect("static literal"))
+        .into_raw()
 }
 
 // ============================================================================

@@ -709,8 +709,17 @@ impl SimplifiedExif {
 
     pub fn format_custom(&self, fmt: impl AsRef<str>) -> String {
         let fmt = fmt.as_ref();
-        let json_value = serde_json::to_value(self).unwrap();
-        let map = json_value.as_object().unwrap();
+        let json_value = match serde_json::to_value(self) {
+            Ok(v) => v,
+            Err(e) => {
+                log::error!("Failed to serialize EXIF for format_custom: {}", e);
+                return String::new();
+            }
+        };
+        let Some(map) = json_value.as_object() else {
+            log::error!("EXIF serialization did not produce a JSON object");
+            return String::new();
+        };
 
         // Debug logging to see what EXIF data we have
         log::debug!("format_custom called with template: '{}'", fmt);

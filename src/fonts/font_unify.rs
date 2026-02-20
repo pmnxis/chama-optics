@@ -172,7 +172,10 @@ impl FontsUnify {
                 }
             }
 
-            *thread_ref.write().unwrap() = ret;
+            *thread_ref.write().unwrap_or_else(|p| {
+                log::error!("Font system_fonts RwLock poisoned, recovering");
+                p.into_inner()
+            }) = ret;
 
             log::info!(
                 "{} msecs passed for getting OS fonts",
@@ -408,7 +411,10 @@ impl FontsUnify {
             FontSort::Builtin => self.load_builtin_font(prev_idx),
 
             FontSort::System => {
-                let sys_lock = self.system_fonts.read().unwrap();
+                let sys_lock = self.system_fonts.read().unwrap_or_else(|p| {
+                    log::error!("Font system_fonts RwLock poisoned, recovering");
+                    p.into_inner()
+                });
                 let sf = sys_lock
                     .get(prev_idx)
                     .ok_or(FontError::InvalidIndex(prev_idx))?
@@ -492,7 +498,10 @@ impl FontSelection {
                 .unwrap_or_else(|| "<Invalid builtin font>".to_string()),
 
             FontSort::System => {
-                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
+                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap_or_else(|p| {
+                    log::error!("Font system_fonts RwLock poisoned, recovering");
+                    p.into_inner()
+                });
                 sys_lock
                     .get(self.select.index)
                     .map(|sf| sf.name.clone())
@@ -531,7 +540,10 @@ impl FontSelection {
                 ui.separator();
                 ui.label(t!("fonts_selector.system_fonts"));
 
-                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap();
+                let sys_lock = FONTS_UNIFY.system_fonts.read().unwrap_or_else(|p| {
+                    log::error!("Font system_fonts RwLock poisoned, recovering");
+                    p.into_inner()
+                });
                 if sys_lock.is_empty() {
                     ui.label(t!("fonts_selector.system_fonts_loading"));
                 } else {

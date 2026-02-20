@@ -73,19 +73,41 @@ pub enum ChamaError {
     Unknown = 99,
 }
 
-/// Convert ChamaOpticsError to ChamaError (FFI error code)
+/// Convert ChamaOpticsError to ChamaError (FFI error code).
+///
+/// Logs the original error details before converting, since the FFI boundary
+/// only carries integer error codes and would otherwise lose context.
 impl From<ChamaOpticsError> for ChamaError {
     fn from(e: ChamaOpticsError) -> Self {
+        log::error!("ChamaOpticsError → ChamaError: {}", e);
         match e {
-            ChamaOpticsError::Io(_) => ChamaError::ImageLoadError,
-            ChamaOpticsError::ImageLoad(_) => ChamaError::ImageLoadError,
-            ChamaOpticsError::ImageProcess(_) => ChamaError::ImageProcessError,
+            ChamaOpticsError::Io(ref io_err) => {
+                log::error!("  IO error kind: {:?}", io_err.kind());
+                ChamaError::ImageLoadError
+            }
+            ChamaOpticsError::ImageLoad(ref msg) => {
+                log::error!("  Image load details: {}", msg);
+                ChamaError::ImageLoadError
+            }
+            ChamaOpticsError::ImageProcess(ref msg) => {
+                log::error!("  Image process details: {}", msg);
+                ChamaError::ImageProcessError
+            }
             ChamaOpticsError::InvalidTheme => ChamaError::InvalidTheme,
             ChamaOpticsError::InvalidFont => ChamaError::InvalidFont,
-            ChamaOpticsError::InvalidParameters(_) => ChamaError::InvalidParameters,
+            ChamaOpticsError::InvalidParameters(ref msg) => {
+                log::error!("  Parameter details: {}", msg);
+                ChamaError::InvalidParameters
+            }
             ChamaOpticsError::ExifError => ChamaError::ExifError,
-            ChamaOpticsError::LutParse(_) => ChamaError::ImageProcessError,
-            ChamaOpticsError::FontNotAvailable(_) => ChamaError::InvalidFont,
+            ChamaOpticsError::LutParse(ref msg) => {
+                log::error!("  LUT parse details: {}", msg);
+                ChamaError::ImageProcessError
+            }
+            ChamaOpticsError::FontNotAvailable(ref name) => {
+                log::error!("  Font not available: {}", name);
+                ChamaError::InvalidFont
+            }
         }
     }
 }

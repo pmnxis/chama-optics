@@ -266,7 +266,10 @@ impl InsightFaceDetector {
         // log::debug!("Running ONNX inference...");
 
         // Get session write lock for inference
-        let mut session = self.session.write().unwrap();
+        let mut session = self.session.write().unwrap_or_else(|p| {
+            log::error!("InsightFace session RwLock poisoned, recovering");
+            p.into_inner()
+        });
         let allocator = session.allocator();
 
         // Create input tensor with correct shape [1, 3, 640, 640]

@@ -354,7 +354,13 @@ pub extern "C" fn chama_optics_detect_faces_insightface(
 
         // Initialize or re-initialize detector if speed mode changed
         {
-            let mut cache = handle_ref.insightface_detector.lock().unwrap();
+            let mut cache = match handle_ref.insightface_detector.lock() {
+                Ok(c) => c,
+                Err(poisoned) => {
+                    log::error!("InsightFace detector mutex poisoned, recovering");
+                    poisoned.into_inner()
+                }
+            };
             let needs_reinit = match &*cache {
                 None => true,
                 Some((cached_mode, _)) => *cached_mode != speed,
@@ -381,7 +387,13 @@ pub extern "C" fn chama_optics_detect_faces_insightface(
 
         // Run detection
         let faces = {
-            let cache = handle_ref.insightface_detector.lock().unwrap();
+            let cache = match handle_ref.insightface_detector.lock() {
+                Ok(c) => c,
+                Err(poisoned) => {
+                    log::error!("InsightFace detector mutex poisoned, recovering");
+                    poisoned.into_inner()
+                }
+            };
             match &*cache {
                 Some((_, detector)) => {
                     log::info!(

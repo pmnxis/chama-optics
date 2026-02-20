@@ -535,7 +535,12 @@ impl ThemeRegistry {
                     .map(|tt| tt.unique_name() == unique)
                     .unwrap_or(false)
             })
-            .map(|idx| self.themes[idx].read().unwrap())
+            .map(|idx| {
+                self.themes[idx].read().unwrap_or_else(|p| {
+                    log::error!("Theme RwLock poisoned in find(), recovering");
+                    p.into_inner()
+                })
+            })
     }
 
     pub fn from_state(state: ThemeRegistryState) -> Self {
@@ -546,7 +551,9 @@ impl ThemeRegistry {
 
         for saved_name in &state.names {
             if let Some(pos) = remaining.iter().position(|t: &Arc<RwLock<dyn Theme>>| {
-                t.read().unwrap().unique_name() == saved_name
+                t.read()
+                    .map(|tt| tt.unique_name() == saved_name)
+                    .unwrap_or(false)
             }) {
                 ordered.push(remaining.remove(pos));
             }
@@ -566,14 +573,21 @@ impl ThemeRegistry {
             names: self
                 .themes
                 .iter()
-                .map(|t| t.read().unwrap().unique_name().to_string())
+                .map(|t| {
+                    t.read()
+                        .map(|tt| tt.unique_name().to_string())
+                        .unwrap_or_default()
+                })
                 .collect(),
             selected: self.selected.min(self.themes.len().saturating_sub(1)),
         }
     }
 
     pub fn selected_theme_read(&self) -> std::sync::RwLockReadGuard<'_, dyn Theme> {
-        self.themes[self.selected].read().unwrap()
+        self.themes[self.selected].read().unwrap_or_else(|p| {
+            log::error!("Theme RwLock poisoned in selected_theme_read(), recovering");
+            p.into_inner()
+        })
     }
 
     #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
@@ -581,22 +595,29 @@ impl ThemeRegistry {
         ui.vertical(|ui| {
             ui.label(rust_i18n::t!("theme.selector"));
 
+            let selected_read = self.themes[self.selected].read().unwrap_or_else(|p| {
+                log::error!("Theme RwLock poisoned in update_ui(), recovering");
+                p.into_inner()
+            });
             let selected_text = if show_english_name {
-                // Temporarily switch to English locale to get English label
                 let current_locale = rust_i18n::locale();
                 rust_i18n::set_locale("en");
-                let label = self.themes[self.selected].read().unwrap().label();
+                let label = selected_read.label();
                 rust_i18n::set_locale(&current_locale);
                 label
             } else {
-                self.themes[self.selected].read().unwrap().label()
+                selected_read.label()
             };
+            drop(selected_read);
 
             egui::ComboBox::from_id_salt("theme_selector")
                 .selected_text(selected_text)
                 .show_ui(ui, |ui| {
                     for (i, theme) in self.themes.iter().enumerate() {
-                        let theme_guard = theme.read().unwrap();
+                        let theme_guard = theme.read().unwrap_or_else(|p| {
+                            log::error!("Theme RwLock poisoned in update_ui() combo, recovering");
+                            p.into_inner()
+                        });
                         let display_name = if show_english_name {
                             // Temporarily switch to English locale to get English label
                             let current_locale = rust_i18n::locale();
@@ -617,7 +638,10 @@ impl ThemeRegistry {
                     }
                 });
 
-            let mut theme = self.themes[self.selected].write().unwrap();
+            let mut theme = self.themes[self.selected].write().unwrap_or_else(|p| {
+                log::error!("Theme RwLock poisoned in update_ui() write, recovering");
+                p.into_inner()
+            });
             if theme.is_ui_config_available() {
                 ui.collapsing(rust_i18n::t!("theme.settings"), |ui| {
                     theme.ui_config(ui);

@@ -152,19 +152,37 @@ fn save_image_with_c_format(
 }
 
 /// Collect face rectangles from a raw CFaceRect pointer into a Vec of tuples.
+///
+/// Validates pointer, clamps count to a reasonable maximum, and filters out
+/// face rects with invalid dimensions.
 #[allow(dead_code)]
 unsafe fn collect_face_areas(
     face_rects: *const CFaceRect,
     face_count: usize,
 ) -> Vec<(i32, i32, u32, u32)> {
-    let mut face_areas = Vec::with_capacity(face_count);
-    if !face_rects.is_null() && face_count > 0 {
-        for i in 0..face_count {
-            let face_rect = unsafe { *face_rects.add(i) };
-            face_areas.push((face_rect.x, face_rect.y, face_rect.width, face_rect.height));
-        }
+    const MAX_FACE_COUNT: usize = 1000;
+
+    if face_rects.is_null() || face_count == 0 {
+        return Vec::new();
     }
-    face_areas
+
+    let count = if face_count > MAX_FACE_COUNT {
+        log::error!(
+            "collect_face_areas: face_count {} exceeds maximum {}, clamping",
+            face_count,
+            MAX_FACE_COUNT
+        );
+        MAX_FACE_COUNT
+    } else {
+        face_count
+    };
+
+    let slice = unsafe { std::slice::from_raw_parts(face_rects, count) };
+    slice
+        .iter()
+        .filter(|r| r.width > 0 && r.height > 0 && r.width < 100_000 && r.height < 100_000)
+        .map(|r| (r.x, r.y, r.width, r.height))
+        .collect()
 }
 
 /// Read EXIF orientation from an image file and return the Orientation value.
