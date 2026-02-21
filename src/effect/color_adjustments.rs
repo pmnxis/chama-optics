@@ -294,6 +294,7 @@ impl ColorAdjustments {
         let pixels: &mut [u8] = rgba.as_mut();
 
         // Use parallel processing for large images
+        #[cfg(feature = "threading")]
         const PARALLEL_THRESHOLD: usize = 100_000;
 
         #[cfg(feature = "threading")]
@@ -347,6 +348,7 @@ impl ColorAdjustments {
         let pixels: &mut [u8] = rgb.as_mut();
 
         // Use parallel processing for large images
+        #[cfg(feature = "threading")]
         const PARALLEL_THRESHOLD: usize = 100_000;
 
         #[cfg(feature = "threading")]

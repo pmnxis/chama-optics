@@ -7,10 +7,15 @@
 //! Output format, but actually describe about encoder configuration together
 
 use image::{DynamicImage, ImageEncoder};
-use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use strum::{EnumIter, IntoEnumIterator};
+use strum::EnumIter;
+
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+use rust_i18n::t;
+
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+use strum::IntoEnumIterator;
 
 #[derive(Debug, EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputExtension {
@@ -28,6 +33,7 @@ impl OutputExtension {
         }
     }
 
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn label(&self) -> &str {
         match self {
             Self::Jpeg { .. } => "JPEG",
@@ -239,6 +245,7 @@ impl OutputFormat {
         }
     }
 
+    #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     fn has_quality(&self) -> bool {
         matches!(self.ext, OutputExtension::Jpeg | OutputExtension::Webp)
     }

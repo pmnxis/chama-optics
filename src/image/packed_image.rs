@@ -14,7 +14,8 @@ use crate::exif_impl::{OriginalExif, SimplifiedExif};
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 use rust_i18n::t;
 
-// Re-export PackedImageEvent from common module for external access
+// Re-export PackedImageEvent from common module for external access (desktop/egui only)
+#[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub use crate::image::common::PackedImageEvent;
 
 #[non_exhaustive]
