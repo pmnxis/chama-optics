@@ -154,9 +154,24 @@ impl ExportConfig {
                         }
                     }
 
+                    #[cfg(feature = "face_detection_candle")]
+                    crate::effect::face_detection::FaceDetectionEngine::Candle => {
+                        match crate::effect::candle_face_detector::CandleFaceDetector::new() {
+                            Ok(detector) => detector.detect_faces_from_image(
+                                &dyn_image,
+                                self.face_detection.speed_mode,
+                            ),
+                            Err(e) => {
+                                log::error!("Failed to create Candle face detector: {}", e);
+                                Vec::new()
+                            }
+                        }
+                    }
+
                     #[cfg(not(any(
                         feature = "face_detection_visionkit",
-                        feature = "face_detection_insightface"
+                        feature = "face_detection_insightface",
+                        feature = "face_detection_candle"
                     )))]
                     _ => {
                         log::warn!(

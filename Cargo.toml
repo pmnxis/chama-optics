@@ -68,10 +68,11 @@ native_encoders = ["dep:mozjpeg", "dep:webp", "dep:oxipng"]
 threading = ["dep:rayon", "dep:num_cpus"]
 # libheif for Windows/Linux desktop (macOS/iOS use native Apple ImageIO)
 libheif = ["libheif-rs"]
-# Statically link libheif from bundled sources (no system libheif required)
+# Statically link libheif from bundled sources (no system libheif required).
 # Use: --features "desktop,libheif,embedded_libheif"
-# Note: codec dependencies (libde265, libaom, etc.) are still dynamically linked
-embedded_libheif = ["libheif-sys/embedded-libheif"]
+# Note: macOS/iOS use native ImageIO — embedded cmake build is skipped there
+# automatically because libheif-sys is declared only in non-Apple target deps.
+embedded_libheif = ["dep:libheif-sys"]
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
 ios_integration = ["metal_integration", "face_detection_visionkit", "dep:dirs", "dep:env_logger"]
 # Android-specific features - core library only, no Metal/VisionKit
@@ -172,7 +173,6 @@ oxipng = { version = "^10", optional = true }
 libheif-rs = { version = "^2.6", default-features = false, features = [
     "v1_18",
 ], optional = true }
-libheif-sys = { version = "^5", optional = true, default-features = false }
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a", optional = true }
 
 # ONNX Runtime for face detection
@@ -231,6 +231,13 @@ web-sys = { version = "0.3", optional = true, features = [
 js-sys = { version = "0.3", optional = true }
 # zip for WASM bulk export (create zip in memory → browser download)
 zip = { version = ">=8.1", default-features = false, features = ["deflate"] }
+
+# libheif-sys with embedded cmake build — Windows/Linux only.
+# macOS/iOS use native ImageIO; Android uses system libraries via JNI.
+# The embedded cmake build conflicts with system codec libs (e.g. SVT-AV1 API
+# changes) and is never needed on Apple/Android platforms.
+[target.'cfg(not(any(target_os = "macos", target_os = "ios", target_os = "android", target_arch = "wasm32")))'.dependencies]
+libheif-sys = { version = "^5", optional = true, default-features = false, features = ["embedded-libheif"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.15"
