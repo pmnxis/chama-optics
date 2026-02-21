@@ -168,6 +168,7 @@ impl OriginalExif {
     pub fn make_note(&self) -> Option<SimplifiedMakeNote> {
         self.0.as_ref().map(|exif| SimplifiedMakeNote {
             photo_style: crate::image::make_note::MakePhotoStyle::from_exif(exif),
+            color_temperature: crate::image::make_note::color_temperature_from_exif(exif),
         })
     }
 
