@@ -297,6 +297,56 @@ fn load_image_with_heif_support(path: &Path) -> Result<image::DynamicImage, imag
 // Preview Extraction
 // ============================================================================
 
+/// Extract the largest embedded EXIF/MPF preview from `image_path` and save it
+/// to `output_path` as JPEG.
+///
+/// Professional cameras (e.g. Panasonic DC-S1RM2, Sony, Nikon) and iPhones embed
+/// a high-quality preview image (≥ 100 KB) inside the EXIF/MPF container.
+/// Extracting it is orders of magnitude faster than decoding the full compressed
+/// image, making it ideal as a fast base for the 1024 px preview pipeline.
+///
+/// # Returns
+/// - `ChamaError::Success` — preview found and saved to `output_path`
+/// - `ChamaError::ImageLoadError` — no suitable embedded preview (< 100 KB or absent)
+/// - `ChamaError::InvalidPath` — null or invalid paths
+/// - `ChamaError::ImageProcessError` — preview found but JPEG save failed
+///
+/// # Safety
+/// All C string pointers must be valid null-terminated strings.
+#[unsafe(no_mangle)]
+#[cfg(any(target_os = "ios", target_os = "android"))]
+pub unsafe extern "C" fn chama_extract_embedded_preview(
+    image_path: *const std::os::raw::c_char,
+    output_path: *const std::os::raw::c_char,
+) -> ChamaError {
+    use std::ffi::CStr;
+
+    if image_path.is_null() || output_path.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+
+    match extract_exif_preview(image_path_str) {
+        Some(img) => match save_image_with_c_format(&img, output_path_str, COutputFormat::Jpeg, 92)
+        {
+            Ok(_) => ChamaError::Success,
+            Err(e) => {
+                log::error!("chama_extract_embedded_preview: JPEG save failed: {}", e);
+                ChamaError::ImageProcessError
+            }
+        },
+        None => {
+            log::info!(
+                "chama_extract_embedded_preview: no suitable embedded preview in {}",
+                image_path_str
+            );
+            ChamaError::ImageLoadError
+        }
+    }
+}
+
 /// Extract EXIF preview from image
 /// Returns the preview as a DynamicImage, or None if no suitable preview exists
 fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
