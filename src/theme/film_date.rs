@@ -100,18 +100,135 @@ impl core::default::Default for FilmDate {
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl crate::theme::parameter_schema::ThemeParameters for FilmDate {
     fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
+        use crate::theme::parameter_schema::{ParameterMeta, ParameterType};
+        let fc = self.font_color;
+        let gc = self.glow_color;
         crate::theme::parameter_schema::ThemeSchema {
             theme_name: "film_date".to_string(),
             theme_label: "Film Date".to_string(),
-            parameters: vec![],
+            parameters: vec![
+                ParameterMeta {
+                    name: "font_color".to_string(),
+                    label: "Font Color".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Color,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!([255u8, 138u8, 0u8, 255u8]),
+                    current: serde_json::json!([fc.r(), fc.g(), fc.b(), fc.a()]),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "glow_color".to_string(),
+                    label: "Glow Color".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Color,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!([238u8, 140u8, 128u8, 255u8]),
+                    current: serde_json::json!([gc.r(), gc.g(), gc.b(), gc.a()]),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "font_size".to_string(),
+                    label: "Font Size".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Slider,
+                    min: Some(10.0),
+                    max: Some(100.0),
+                    default: serde_json::json!(DEFAULT_FONT_SIZE),
+                    current: serde_json::json!(self.font_size),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "glow_gain".to_string(),
+                    label: "Glow Range".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Slider,
+                    min: Some(0.0),
+                    max: Some(20.0),
+                    default: serde_json::json!(DEFAULT_GLOW_GAIN),
+                    current: serde_json::json!(self.glow_gain),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "hide_camera_exif".to_string(),
+                    label: "Hide Camera & Lens Info".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Boolean,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!(true),
+                    current: serde_json::json!(self.hide_camera_exif),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "show_ps".to_string(),
+                    label: "Show Photo Style".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Boolean,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!(false),
+                    current: serde_json::json!(self.show_ps),
+                    exif_fields: None,
+                },
+            ],
         }
     }
 
     fn update_from_json(
         &mut self,
-        _updates: &serde_json::Map<String, serde_json::Value>,
+        updates: &serde_json::Map<String, serde_json::Value>,
     ) -> Result<(), String> {
+        if let Some(v) = updates.get("font_color") {
+            if let Ok(arr) = serde_json::from_value::<[u8; 4]>(v.clone()) {
+                self.font_color =
+                    egui::Color32::from_rgba_unmultiplied(arr[0], arr[1], arr[2], arr[3]);
+            }
+        }
+        if let Some(v) = updates.get("glow_color") {
+            if let Ok(arr) = serde_json::from_value::<[u8; 4]>(v.clone()) {
+                self.glow_color =
+                    egui::Color32::from_rgba_unmultiplied(arr[0], arr[1], arr[2], arr[3]);
+            }
+        }
+        if let Some(v) = updates.get("font_size") {
+            if let Some(n) = v.as_f64() {
+                self.font_size = (n as u32).clamp(10, 100);
+            }
+        }
+        if let Some(v) = updates.get("glow_gain") {
+            if let Some(n) = v.as_f64() {
+                self.glow_gain = (n as u32).clamp(0, 20);
+            }
+        }
+        if let Some(v) = updates.get("hide_camera_exif") {
+            if let Some(b) = v.as_bool() {
+                self.hide_camera_exif = b;
+            }
+        }
+        if let Some(v) = updates.get("show_ps") {
+            if let Some(b) = v.as_bool() {
+                self.show_ps = b;
+            }
+        }
         Ok(())
+    }
+}
+
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+impl FilmDate {
+    fn get_parameters_json_mobile(&self) -> String {
+        use crate::theme::parameter_schema::ThemeParameters;
+        let schema = self.schema();
+        match serde_json::to_string(&serde_json::json!({
+            "theme_name": schema.theme_name,
+            "parameters": schema.parameters,
+        })) {
+            Ok(s) => s,
+            Err(_) => r#"{"parameters":[]}"#.to_string(),
+        }
     }
 }
 
@@ -256,6 +373,11 @@ impl Theme for FilmDate {
         let x_datetime = (x_right - datetime_w).round() as i32;
         draw!(x_datetime, y, &font_italic, datetime_scale, &date);
 
+        // JPEG images load as RGB8; convert to RGBA8 for the glow compositing step
+        if dyn_image.as_rgba8().is_none() {
+            dyn_image = image::DynamicImage::ImageRgba8(dyn_image.to_rgba8());
+        }
+
         let rgba_image = dyn_image
             .as_mut_rgba8()
             .ok_or(image::ImageError::Parameter(
@@ -319,14 +441,7 @@ impl Theme for FilmDate {
     }
 
     fn is_ui_config_available(&self) -> bool {
-        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
-        {
-            true
-        }
-        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-        {
-            false
-        }
+        true
     }
 
     fn get_parameters_json(&self) -> String {
@@ -336,7 +451,7 @@ impl Theme for FilmDate {
         }
         #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
-            r#"{"parameters": []}"#.to_string()
+            self.get_parameters_json_mobile()
         }
     }
 }

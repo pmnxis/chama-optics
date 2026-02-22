@@ -68,18 +68,85 @@ impl core::default::Default for Film {
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 impl crate::theme::parameter_schema::ThemeParameters for Film {
     fn schema(&self) -> crate::theme::parameter_schema::ThemeSchema {
+        use crate::theme::parameter_schema::{ParameterMeta, ParameterType};
+        let color = self.font_color;
         crate::theme::parameter_schema::ThemeSchema {
             theme_name: "film".to_string(),
             theme_label: "Film".to_string(),
-            parameters: vec![],
+            parameters: vec![
+                ParameterMeta {
+                    name: "font_color".to_string(),
+                    label: "Font Color".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Color,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!([255u8, 153u8, 0u8, 255u8]),
+                    current: serde_json::json!([color.r(), color.g(), color.b(), color.a()]),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "font_size".to_string(),
+                    label: "Font Size".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Slider,
+                    min: Some(10.0),
+                    max: Some(100.0),
+                    default: serde_json::json!(DEFAULT_FONT_SIZE),
+                    current: serde_json::json!(self.font_size),
+                    exif_fields: None,
+                },
+                ParameterMeta {
+                    name: "show_ps".to_string(),
+                    label: "Show Photo Style".to_string(),
+                    hint: None,
+                    param_type: ParameterType::Boolean,
+                    min: None,
+                    max: None,
+                    default: serde_json::json!(false),
+                    current: serde_json::json!(self.show_ps),
+                    exif_fields: None,
+                },
+            ],
         }
     }
 
     fn update_from_json(
         &mut self,
-        _updates: &serde_json::Map<String, serde_json::Value>,
+        updates: &serde_json::Map<String, serde_json::Value>,
     ) -> Result<(), String> {
+        if let Some(v) = updates.get("font_color") {
+            if let Ok(arr) = serde_json::from_value::<[u8; 4]>(v.clone()) {
+                self.font_color =
+                    egui::Color32::from_rgba_unmultiplied(arr[0], arr[1], arr[2], arr[3]);
+            }
+        }
+        if let Some(v) = updates.get("font_size") {
+            if let Some(n) = v.as_f64() {
+                self.font_size = (n as u32).clamp(10, 100);
+            }
+        }
+        if let Some(v) = updates.get("show_ps") {
+            if let Some(b) = v.as_bool() {
+                self.show_ps = b;
+            }
+        }
         Ok(())
+    }
+}
+
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+impl Film {
+    fn get_parameters_json_mobile(&self) -> String {
+        use crate::theme::parameter_schema::ThemeParameters;
+        let schema = self.schema();
+        match serde_json::to_string(&serde_json::json!({
+            "theme_name": schema.theme_name,
+            "parameters": schema.parameters,
+        })) {
+            Ok(s) => s,
+            Err(_) => r#"{"parameters":[]}"#.to_string(),
+        }
     }
 }
 
@@ -278,14 +345,7 @@ impl Theme for Film {
     }
 
     fn is_ui_config_available(&self) -> bool {
-        #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
-        {
-            true
-        }
-        #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-        {
-            false
-        }
+        true
     }
 
     fn get_parameters_json(&self) -> String {
@@ -295,7 +355,7 @@ impl Theme for Film {
         }
         #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
         {
-            r#"{"parameters": []}"#.to_string()
+            self.get_parameters_json_mobile()
         }
     }
 }

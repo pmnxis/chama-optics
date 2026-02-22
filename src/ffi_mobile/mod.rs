@@ -314,3 +314,102 @@ fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
     // Load the thumbnail as an image
     image::load_from_memory(&thumbnail_data).ok()
 }
+
+// ============================================================================
+// Embedded Preview Extraction (FFI)
+// ============================================================================
+
+/// Extract the largest embedded EXIF/MPF preview from `image_path` and save as JPEG to `output_path`.
+///
+/// Professional cameras (Panasonic, Sony, Nikon) and iPhones embed a high-quality preview
+/// JPEG (≥ 100 KB) in the EXIF/MPF container. Extracting it is orders of magnitude faster
+/// than decoding the full compressed image.
+///
+/// Returns `ChamaError::Success` (0) if a preview ≥ 100 KB was found and saved, non-zero otherwise.
+///
+/// # Safety
+/// - `image_path` and `output_path` must be valid null-terminated C strings
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn chama_extract_embedded_preview(
+    image_path: *const std::os::raw::c_char,
+    output_path: *const std::os::raw::c_char,
+) -> ChamaError {
+    use std::ffi::CStr;
+
+    if image_path.is_null() || output_path.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
+
+    match extract_exif_preview(image_path_str) {
+        Some(preview) => {
+            match preview.save(output_path_str) {
+                Ok(_) => {
+                    log::info!("Extracted embedded preview to: {}", output_path_str);
+                    ChamaError::Success
+                }
+                Err(e) => {
+                    log::error!("Failed to save extracted preview: {}", e);
+                    ChamaError::ImageProcessError
+                }
+            }
+        }
+        None => {
+            log::info!("No suitable embedded preview found in: {}", image_path_str);
+            ChamaError::ImageLoadError
+        }
+    }
+}
+
+// ============================================================================
+// ILC Camera Make Detection (FFI)
+// ============================================================================
+
+/// Returns `true` if `camera_make` is a known Interchangeable Lens Camera (ILC) manufacturer.
+///
+/// ILC cameras (Sony Alpha, Canon EOS, Nikon Z/F, Fujifilm X, etc.) typically produce
+/// higher-resolution images suitable for deeper face detection pyramid levels.
+///
+/// # Safety
+/// - `camera_make` must be a valid null-terminated C string
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn chama_optics_is_ilc_camera_make(
+    camera_make: *const std::os::raw::c_char,
+) -> bool {
+    use std::ffi::CStr;
+
+    if camera_make.is_null() {
+        return false;
+    }
+    let make_str = match CStr::from_ptr(camera_make).to_str() {
+        Ok(s) => s.to_lowercase(),
+        Err(_) => return false,
+    };
+
+    // Known ILC (Interchangeable Lens Camera) manufacturers
+    const ILC_MAKES: &[&str] = &[
+        "sony",
+        "canon",
+        "nikon",
+        "fujifilm",
+        "panasonic",
+        "olympus",
+        "om system",
+        "om digital",
+        "leica",
+        "sigma",
+        "pentax",
+        "ricoh imaging",
+        "hasselblad",
+        "phase one",
+        "mamiya",
+        "red",
+        "arri",
+    ];
+
+    ILC_MAKES.iter().any(|&ilc| make_str.contains(ilc))
+}

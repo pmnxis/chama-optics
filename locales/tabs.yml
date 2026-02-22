@@ -46,6 +46,13 @@ tabs:
     ja: "顔認識"
     id: "Deteksi Wajah"
 
+  # Edit tab (unified iOS/Android 3-tab layout)
+  edit:
+    en: "Edit"
+    ko: "편집"
+    ja: "編集"
+    id: "Edit"
+
   # Color grading tab (for iOS)
   color_grading:
     en: "Color Grading"

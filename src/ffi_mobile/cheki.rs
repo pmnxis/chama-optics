@@ -334,3 +334,220 @@ fn build_sticker_storage_from_dir_and_json(
 
     storage
 }
+
+// ============================================================================
+// Cheki Preview (in-memory bytes)
+// ============================================================================
+
+/// Free a byte buffer previously returned by `chama_preview_cheki_bytes`.
+///
+/// Must be called after consuming the buffer to avoid memory leaks.
+///
+/// # Safety
+/// - `data` must have been returned by `chama_preview_cheki_bytes`
+/// - `len` must match the length reported by that call
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_preview_pipeline_free_bytes(data: *mut u8, len: usize) {
+    if !data.is_null() && len > 0 {
+        drop(unsafe { Vec::from_raw_parts(data, len, len) });
+    }
+}
+
+/// Render cheki decoration to JPEG bytes for UI preview.
+///
+/// Runs the same pipeline as `chama_export_cheki` but writes the result
+/// to a heap-allocated byte buffer instead of a file.  The caller must free
+/// the buffer with `chama_preview_pipeline_free_bytes`.
+///
+/// # Parameters
+/// - `image_path`: Source image path
+/// - `cheki_json`: JSON ChekiDecoration config
+/// - `sticker_dir`: Optional sticker directory (null = none)
+/// - `crop_rotate_json`: Optional crop/rotate JSON (null = none)
+/// - `color_adjustments_json`: Optional color adjustments JSON (null = none)
+/// - `lut_id`: Optional LUT UUID string (null = none)
+/// - `max_dimension`: Downscale so max(w,h) ≤ this before decoration (0 = no limit)
+/// - `out_data`: Set to the allocated JPEG byte buffer on success
+/// - `out_len`: Set to the byte count on success
+///
+/// # Safety
+/// - All string pointers must be valid null-terminated C strings or null
+/// - `out_data` and `out_len` must be valid non-null pointers
+#[unsafe(no_mangle)]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn chama_preview_cheki_bytes(
+    image_path: *const c_char,
+    cheki_json: *const c_char,
+    sticker_dir: *const c_char,
+    crop_rotate_json: *const c_char,
+    color_adjustments_json: *const c_char,
+    lut_id: *const c_char,
+    max_dimension: u32,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> super::ChamaError {
+    use super::ChamaError;
+
+    if image_path.is_null() || cheki_json.is_null() || out_data.is_null() || out_len.is_null() {
+        return ChamaError::InvalidPath;
+    }
+
+    // Initialize outputs to safe defaults
+    *out_data = std::ptr::null_mut();
+    *out_len = 0;
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        chama_preview_cheki_bytes_impl(
+            image_path,
+            cheki_json,
+            sticker_dir,
+            crop_rotate_json,
+            color_adjustments_json,
+            lut_id,
+            max_dimension,
+            out_data,
+            out_len,
+        )
+    }));
+
+    match result {
+        Ok(error_code) => error_code,
+        Err(panic_info) => {
+            log::error!(
+                "Caught panic in chama_preview_cheki_bytes: {}",
+                super::extract_panic_message(&panic_info)
+            );
+            ChamaError::ImageProcessError
+        }
+    }
+}
+
+#[allow(unsafe_op_in_unsafe_fn)]
+unsafe fn chama_preview_cheki_bytes_impl(
+    image_path: *const c_char,
+    cheki_json: *const c_char,
+    sticker_dir: *const c_char,
+    crop_rotate_json: *const c_char,
+    color_adjustments_json: *const c_char,
+    lut_id: *const c_char,
+    max_dimension: u32,
+    out_data: *mut *mut u8,
+    out_len: *mut usize,
+) -> super::ChamaError {
+    use super::ChamaError;
+
+    let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
+    let cheki_json_str = cstr_to_str!(cheki_json, return ChamaError::InvalidParameters);
+    let sticker_dir_str = cstr_to_str_or!(sticker_dir, "");
+
+    // Parse ChekiDecoration
+    let decoration: crate::effect::cheki::ChekiDecoration =
+        match serde_json::from_str(cheki_json_str) {
+            Ok(d) => d,
+            Err(e) => {
+                log::error!("Failed to parse ChekiDecoration JSON: {}", e);
+                return ChamaError::InvalidParameters;
+            }
+        };
+
+    // Load image
+    let mut dyn_image =
+        match super::load_image_with_heif_support(std::path::Path::new(image_path_str)) {
+            Ok(img) => img,
+            Err(e) => {
+                log::error!("Failed to load image: {}", e);
+                return ChamaError::ImageLoadError;
+            }
+        };
+
+    // Apply EXIF orientation
+    dyn_image.apply_orientation(super::read_exif_orientation(image_path_str));
+
+    // Downscale for preview if max_dimension is set
+    if max_dimension > 0 {
+        let (w, h) = (dyn_image.width(), dyn_image.height());
+        let long_side = w.max(h);
+        if long_side > max_dimension {
+            let scale = max_dimension as f32 / long_side as f32;
+            let new_w = ((w as f32 * scale).round() as u32).max(1);
+            let new_h = ((h as f32 * scale).round() as u32).max(1);
+            dyn_image =
+                dyn_image.resize(new_w, new_h, image::imageops::FilterType::Triangle);
+        }
+    }
+
+    // Apply crop/rotate
+    if !crop_rotate_json.is_null() {
+        let crop_rotate_str = cstr_to_str_or!(crop_rotate_json, "{}");
+        if !crop_rotate_str.is_empty() && crop_rotate_str != "{}" {
+            if let Ok(transform) =
+                serde_json::from_str::<crate::effect::crop_rotate::CropRotateTransform>(
+                    crop_rotate_str,
+                )
+            {
+                if !transform.is_identity() {
+                    dyn_image = transform.apply(&dyn_image);
+                }
+            }
+        }
+    }
+
+    // Apply color adjustments
+    if !color_adjustments_json.is_null() {
+        let adjustments_str = cstr_to_str_or!(color_adjustments_json, "{}");
+        if !adjustments_str.is_empty() && adjustments_str != "{}" {
+            if let Ok(adjustments) = serde_json::from_str::<
+                crate::effect::color_adjustments::ColorAdjustments,
+            >(adjustments_str)
+            {
+                if !adjustments.is_identity() {
+                    adjustments.apply(&mut dyn_image);
+                }
+            }
+        }
+    }
+
+    // Apply LUT
+    if !lut_id.is_null() {
+        let lut_id_str = cstr_to_str_or!(lut_id, "");
+        if !lut_id_str.is_empty() {
+            if let Ok(uuid) = uuid::Uuid::parse_str(lut_id_str) {
+                if let Ok(mut storage) = super::lut::LUT_STORAGE.lock() {
+                    storage.apply_lut_to_image(uuid, &mut dyn_image);
+                }
+            }
+        }
+    }
+
+    // Build sticker storage and apply cheki decoration
+    let sticker_storage = build_sticker_storage_from_dir_and_json(sticker_dir_str, &decoration);
+    let result_image = crate::effect::cheki_renderer::apply_cheki_decoration(
+        dyn_image,
+        &decoration,
+        &sticker_storage,
+    );
+
+    // Encode to JPEG in memory
+    let mut jpeg_bytes: Vec<u8> = Vec::new();
+    {
+        use image::codecs::jpeg::JpegEncoder;
+        use std::io::Cursor;
+        let mut cursor = Cursor::new(&mut jpeg_bytes);
+        let mut encoder = JpegEncoder::new_with_quality(&mut cursor, 85);
+        if let Err(e) = encoder.encode_image(&result_image) {
+            log::error!("Failed to encode preview JPEG: {}", e);
+            return ChamaError::ImageProcessError;
+        }
+    }
+
+    // Transfer ownership of the Vec to the caller
+    let len = jpeg_bytes.len();
+    jpeg_bytes.shrink_to_fit();
+    let ptr = jpeg_bytes.as_mut_ptr();
+    std::mem::forget(jpeg_bytes);
+
+    *out_data = ptr;
+    *out_len = len;
+
+    ChamaError::Success
+}

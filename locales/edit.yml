@@ -1,0 +1,98 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+_version: 2
+
+edit:
+  # Photo navigation indicator (format: Photo X/N)
+  photo_indicator:
+    en: "Photo %d/%d"
+    ko: "사진 %d/%d"
+    ja: "写真 %d/%d"
+    id: "Foto %d/%d"
+
+  # Edit mode toggle
+  mode_individual:
+    en: "Individual"
+    ko: "개별"
+    ja: "個別"
+    id: "Individual"
+  mode_all:
+    en: "All"
+    ko: "전체"
+    ja: "全体"
+    id: "Semua"
+
+  # Section headers
+  section:
+    color_adjustments:
+      en: "Color Adjustments"
+      ko: "색상 조정"
+      ja: "カラー調整"
+      id: "Penyesuaian Warna"
+    lut:
+      en: "LUT"
+      ko: "LUT"
+      ja: "LUT"
+      id: "LUT"
+    decoration:
+      en: "Decoration"
+      ko: "데코레이션"
+      ja: "デコレーション"
+      id: "Dekorasi"
+
+  # Decoration mode labels
+  decoration:
+    cheki:
+      en: "Cheki"
+      ko: "체키"
+      ja: "チェキ"
+      id: "Cheki"
+    theme:
+      en: "Theme"
+      ko: "테마"
+      ja: "テーマ"
+      id: "Tema"
+
+  # Action buttons
+  export:
+    en: "Export"
+    ko: "내보내기"
+    ja: "書き出し"
+    id: "Ekspor"
+  apply_to_all:
+    en: "Apply to All"
+    ko: "전체에 적용"
+    ja: "すべてに適用"
+    id: "Terapkan ke Semua"
+
+  # Result / alert messages
+  export_result:
+    en: "Export Result"
+    ko: "내보내기 결과"
+    ja: "書き出し結果"
+    id: "Hasil Ekspor"
+  # format: exported_count / total_count
+  export_all_result:
+    en: "Exported %d/%d"
+    ko: "%d/%d 내보내기 완료"
+    ja: "%d/%d 書き出し完了"
+    id: "Diekspor %d/%d"
+
+  # Empty state
+  no_images:
+    en: "No images to edit"
+    ko: "편집할 이미지가 없습니다"
+    ja: "編集する画像がありません"
+    id: "Tidak ada gambar untuk diedit"
+  no_images_hint:
+    en: "Add images in the Gallery tab to start editing"
+    ko: "갤러리 탭에서 이미지를 추가하여 편집을 시작하세요"
+    ja: "ギャラリータブで画像を追加して編集を始めましょう"
+    id: "Tambahkan gambar di tab Galeri untuk mulai mengedit"
+  no_image_selected:
+    en: "No image selected"
+    ko: "이미지가 선택되지 않았습니다"
+    ja: "画像が選択されていません"
+    id: "Tidak ada gambar yang dipilih"

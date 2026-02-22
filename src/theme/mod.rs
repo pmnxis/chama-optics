@@ -29,7 +29,7 @@ use std::sync::{Arc, RwLock};
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 pub(crate) const DEFAULT_DIGITAL7_FONT_FILE: &str = "digital-7.ttf";
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-pub(crate) const DEFAULT_DIGITAL7_ITALIC_FILE: &str = "digital-7-italic.ttf";
+pub(crate) const DEFAULT_DIGITAL7_ITALIC_FILE: &str = "digital-7 (italic).ttf";
 
 pub fn color32_to_rgba(color: egui::Color32) -> image::Rgba<u8> {
     let [r, g, b, a] = color.to_array();
