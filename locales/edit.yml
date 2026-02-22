@@ -64,6 +64,26 @@ edit:
       ko: "이 이미지에서 인식된 얼굴이 없습니다"
       ja: "この画像では顔が検出されていません"
       id: "Tidak ada wajah terdeteksi dalam gambar ini"
+    effect_override:
+      en: "Effect Override"
+      ko: "효과 오버라이드"
+      ja: "エフェクトオーバーライド"
+      id: "Penggantian Efek"
+    override_warning:
+      en: "This will reset per-face effects set in Gallery to use the global default. Continue?"
+      ko: "갤러리에서 개별 설정한 얼굴 효과가 전역 기본값으로 대체됩니다. 계속하시겠습니까?"
+      ja: "ギャラリーで個別設定した顔エフェクトがグローバルデフォルトに置き換えられます。続行しますか？"
+      id: "Efek per-wajah yang diatur di Galeri akan diganti dengan default global. Lanjutkan?"
+    override_confirm:
+      en: "Override"
+      ko: "오버라이드"
+      ja: "オーバーライド"
+      id: "Ganti"
+    override_active_banner:
+      en: "Per-face effects have been replaced with global default"
+      ko: "개별 얼굴 효과가 전역 기본값으로 대체되었습니다"
+      ja: "個別顔エフェクトがグローバルデフォルトに置き換えられました"
+      id: "Efek per-wajah telah diganti dengan default global"
 
   # Decoration mode labels
   decoration:
