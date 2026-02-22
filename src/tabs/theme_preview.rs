@@ -11,9 +11,12 @@ use rust_i18n::t;
 
 impl ChamaOptics {
     /// Generate theme preview for selected image
-    /// Generates LUT-processed and sticker-processed image on-demand based on current state
-    /// Pipeline: Load → LUT → Stickers → Theme
+    /// Pipeline: Load → Face Effects (mosaic/stroke/sticker) → Color Adj → LUT → Theme
     pub(crate) fn generate_theme_preview(&mut self, ui_ctx: &egui::Context) -> Option<()> {
+        use crate::effect::FaceEffectMode;
+        use crate::effect::mosaic::MosaicEffect;
+        use crate::effect::stroke::StrokeEffect;
+
         let idx = self.preview_selected_index?;
 
         // Extract path, theme_name, and lut_id before borrowing
@@ -26,22 +29,45 @@ impl ChamaOptics {
             .selected_theme_read()
             .unique_name();
 
-        // Check if we need to regenerate (cache invalidation)
-        // Cache key now includes lut_id for per-image LUT
-        let cache_key = (idx, format!("{}_{:?}", theme_name, image_lut_id));
+        // Hash-based cache key (includes all pipeline parameters)
+        let cache_key = {
+            use std::hash::{Hash, Hasher};
+            let mut hasher = std::hash::DefaultHasher::new();
+            Hash::hash(&theme_name, &mut hasher);
+            Hash::hash(&image_lut_id, &mut hasher);
+            Hash::hash(&self.detected_faces.len(), &mut hasher);
+            Hash::hash(&self.mosaic_block_size, &mut hasher);
+            Hash::hash(&self.stroke_thickness, &mut hasher);
+            let sc = self.stroke_color;
+            Hash::hash(&[sc.r(), sc.g(), sc.b(), sc.a()], &mut hasher);
+            Hash::hash(&self.color_adjustments.enabled, &mut hasher);
+            Hash::hash(&self.color_adjustments.exposure.to_bits(), &mut hasher);
+            Hash::hash(&self.color_adjustments.contrast, &mut hasher);
+            Hash::hash(&self.color_adjustments.highlights, &mut hasher);
+            Hash::hash(&self.color_adjustments.shadows, &mut hasher);
+            Hash::hash(&self.color_adjustments.whites, &mut hasher);
+            Hash::hash(&self.color_adjustments.blacks, &mut hasher);
+            Hash::hash(&self.color_adjustments.clarity, &mut hasher);
+            Hash::hash(&self.color_adjustments.vibrance, &mut hasher);
+            Hash::hash(&self.color_adjustments.saturation, &mut hasher);
+            for face in &self.detected_faces {
+                Hash::hash(&face.effect_mode, &mut hasher);
+                Hash::hash(&face.sticker_id, &mut hasher);
+            }
+            (idx, hasher.finish())
+        };
         if self.theme_preview_cache_key.as_ref() == Some(&cache_key) {
-            // Cache is still valid
             return Some(());
         }
 
-        // Generate LUT-processed and sticker-processed image on-demand
+        // Generate preview with full pipeline
         let preview_result = if !self.detected_faces.is_empty() {
             log::info!(
-                "Theme preview: Generating LUT/sticker-processed image on-demand for index {}",
+                "Theme preview: Generating with full pipeline for index {}",
                 idx
             );
 
-            // Load original image (use index access to avoid keeping packed_image borrow alive)
+            // Load original image
             let mut dyn_image = match self.packed_images[idx].get_image() {
                 Ok((img, _)) => img,
                 Err(e) => {
@@ -50,13 +76,50 @@ impl ChamaOptics {
                 }
             };
 
-            // Apply LUT first (if configured for this image)
-            if let Some(lut_id) = image_lut_id {
-                log::info!("Theme preview: Applying LUT {:?} to image", lut_id);
-                self.lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+            // Step 1: Apply mosaic/stroke face effects
+            let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
+            let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
+
+            for face in &self.detected_faces {
+                let face_tuple = (face.x, face.y, face.width, face.height);
+                match face.effect_mode {
+                    FaceEffectMode::None | FaceEffectMode::Sticker => {}
+                    FaceEffectMode::Mosaic => {
+                        mosaic_faces.push(face_tuple);
+                    }
+                    FaceEffectMode::Stroke => {
+                        stroke_faces.push(face_tuple);
+                    }
+                    FaceEffectMode::MosaicStroke => {
+                        mosaic_faces.push(face_tuple);
+                        stroke_faces.push(face_tuple);
+                    }
+                }
             }
 
-            // Apply stickers to image based on current detected faces
+            if !mosaic_faces.is_empty() {
+                let mosaic_config = MosaicEffect {
+                    block_size: self.mosaic_block_size,
+                    intensity: 1.0,
+                };
+                let _ = MosaicEffect::apply(&mut dyn_image, &mosaic_faces, &mosaic_config);
+            }
+
+            if !stroke_faces.is_empty() {
+                let border_rgba = crate::theme::color32_to_rgba(self.stroke_color);
+                let stroke_config = StrokeEffect {
+                    thickness: self.stroke_thickness,
+                    color: (
+                        border_rgba[0],
+                        border_rgba[1],
+                        border_rgba[2],
+                        border_rgba[3],
+                    ),
+                };
+                let _ = StrokeEffect::apply(&mut dyn_image, &stroke_faces, &stroke_config);
+            }
+
+            // Step 2: Apply stickers
             let sticker_processed_image = {
                 let mut img_with_stickers = dyn_image.clone();
 
@@ -65,43 +128,34 @@ impl ChamaOptics {
                         && let Some(sticker_img) =
                             self.sticker_storage.get_sticker_image(sticker_id)
                     {
-                        // Calculate sticker size maintaining aspect ratio
                         let sticker_aspect =
                             sticker_img.width() as f32 / sticker_img.height() as f32;
                         let face_aspect = face.width as f32 / face.height as f32;
 
-                        // Apply scale factor to face dimensions
                         let scaled_face_w = face.width as f32 * self.sticker_config.scale;
                         let scaled_face_h = face.height as f32 * self.sticker_config.scale;
 
-                        // Calculate sticker size to fit within scaled face rectangle while maintaining aspect ratio
                         let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
-                            // Sticker is wider than face - fit to width
                             (
                                 scaled_face_w as u32,
                                 (scaled_face_w / sticker_aspect) as u32,
                             )
                         } else {
-                            // Sticker is taller than face - fit to height
                             (
                                 (scaled_face_h * sticker_aspect) as u32,
                                 scaled_face_h as u32,
                             )
                         };
 
-                        // Resize sticker to calculated dimensions (maintains aspect ratio)
                         let resized_sticker = sticker_img.resize(
                             sticker_w,
                             sticker_h,
                             image::imageops::FilterType::Lanczos3,
                         );
 
-                        // Calculate center position of face rectangle
                         let face_center_x = face.x as f32 + face.width as f32 / 2.0;
                         let face_center_y = face.y as f32 + face.height as f32 / 2.0;
 
-                        // Apply offset as percentage of sticker size
-                        // offset_x and offset_y are percentages (-100 to 100) of sticker size
                         let offset_pixel_x =
                             sticker_w as f32 * self.sticker_config.offset_x as f32 / 100.0;
                         let offset_pixel_y =
@@ -110,11 +164,9 @@ impl ChamaOptics {
                         let sticker_center_x = face_center_x + offset_pixel_x;
                         let sticker_center_y = face_center_y + offset_pixel_y;
 
-                        // Calculate top-left position to center sticker
                         let sticker_x = (sticker_center_x - sticker_w as f32 / 2.0) as i64;
                         let sticker_y = (sticker_center_y - sticker_h as f32 / 2.0) as i64;
 
-                        // Apply sticker with alpha blending
                         image::imageops::overlay(
                             &mut img_with_stickers,
                             &resized_sticker,
@@ -127,37 +179,57 @@ impl ChamaOptics {
                 Some(img_with_stickers)
             };
 
-            // Save sticker-processed image to bytes and update PackedImage
-            if let Some(ref sticker_img) = sticker_processed_image {
-                let original_ext = image_path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("jpg");
+            // Step 3: Apply color adjustments
+            let processed_image = if let Some(mut img) = sticker_processed_image {
+                if !self.color_adjustments.is_identity() {
+                    self.color_adjustments.apply(&mut img);
+                }
+                img
+            } else {
+                let mut img = dyn_image;
+                if !self.color_adjustments.is_identity() {
+                    self.color_adjustments.apply(&mut img);
+                }
+                img
+            };
 
-                let format = match original_ext.to_lowercase().as_str() {
-                    "png" => image::ImageFormat::Png,
-                    "heic" | "heif" => image::ImageFormat::Jpeg,
-                    _ => image::ImageFormat::Jpeg,
-                };
+            // Step 4: Apply LUT
+            let mut final_image = processed_image;
+            if let Some(lut_id) = image_lut_id {
+                log::info!("Theme preview: Applying LUT {:?} to image", lut_id);
+                self.lut_storage
+                    .apply_lut_to_image(lut_id, &mut final_image);
+            }
 
-                let mut bytes = Vec::new();
-                if sticker_img
-                    .write_to(&mut std::io::Cursor::new(&mut bytes), format)
-                    .is_ok()
-                {
-                    let bytes_len = bytes.len();
-                    if let Some(packed_img) = self.packed_images.get_mut(idx) {
-                        packed_img.sticker_bytes = Some(bytes);
-                        log::info!(
-                            "Updated sticker_bytes in PackedImage[{}]: {} bytes (on-demand generation)",
-                            idx,
-                            bytes_len
-                        );
-                    }
+            // Save to sticker_bytes for theme to use
+            let original_ext = image_path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("jpg");
+
+            let format = match original_ext.to_lowercase().as_str() {
+                "png" => image::ImageFormat::Png,
+                "heic" | "heif" => image::ImageFormat::Jpeg,
+                _ => image::ImageFormat::Jpeg,
+            };
+
+            let mut bytes = Vec::new();
+            if final_image
+                .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+                .is_ok()
+            {
+                let bytes_len = bytes.len();
+                if let Some(packed_img) = self.packed_images.get_mut(idx) {
+                    packed_img.sticker_bytes = Some(bytes);
+                    log::info!(
+                        "Updated sticker_bytes in PackedImage[{}]: {} bytes (full pipeline)",
+                        idx,
+                        bytes_len
+                    );
                 }
             }
 
-            // Apply theme to PackedImage (now with updated sticker_bytes)
+            // Step 5: Apply theme
             match self.packed_images.get(idx) {
                 Some(pi) => self
                     .export_config
@@ -170,15 +242,15 @@ impl ChamaOptics {
                 ))),
             }
         } else {
-            // No faces, apply LUT (if configured) then theme to original image
+            // No faces: apply Color Adj → LUT → Theme
             log::info!(
-                "Theme preview: No faces detected, applying LUT/theme to original image for index {}",
+                "Theme preview: No faces, applying color adj + LUT + theme for index {}",
                 idx
             );
 
-            // If LUT is configured, we need to apply it before theme
-            if let Some(lut_id) = image_lut_id {
-                // Load image, apply LUT, save to sticker_bytes so theme can use it
+            let needs_processing = !self.color_adjustments.is_identity() || image_lut_id.is_some();
+
+            if needs_processing {
                 let mut dyn_image = match self.packed_images[idx].get_image() {
                     Ok((img, _)) => img,
                     Err(e) => {
@@ -187,13 +259,21 @@ impl ChamaOptics {
                     }
                 };
 
-                log::info!(
-                    "Theme preview: Applying LUT {:?} to image (no faces)",
-                    lut_id
-                );
-                self.lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+                // Apply color adjustments
+                if !self.color_adjustments.is_identity() {
+                    self.color_adjustments.apply(&mut dyn_image);
+                }
 
-                // Save LUT-processed image to sticker_bytes for theme to use
+                // Apply LUT
+                if let Some(lut_id) = image_lut_id {
+                    log::info!(
+                        "Theme preview: Applying LUT {:?} to image (no faces)",
+                        lut_id
+                    );
+                    self.lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+                }
+
+                // Save to sticker_bytes
                 let original_ext = image_path
                     .extension()
                     .and_then(|e| e.to_str())
@@ -213,7 +293,7 @@ impl ChamaOptics {
                 {
                     packed_img.sticker_bytes = Some(bytes);
                     log::info!(
-                        "Updated sticker_bytes in PackedImage[{}] with LUT-processed image",
+                        "Updated sticker_bytes in PackedImage[{}] with processed image",
                         idx
                     );
                 }

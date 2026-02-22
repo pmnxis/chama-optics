@@ -52,6 +52,7 @@ impl ChamaOptics {
                 self.detection_pan = egui::Vec2::ZERO;
                 self.detection_preview_texture = None;
                 self.detection_preview_cache_key = None;
+                self.theme_preview_cache_key = None;
 
                 // Reset detection progress state to allow detection on new image
                 self.detection_progress = crate::ui_state::ProgressState::new();
@@ -153,6 +154,7 @@ impl ChamaOptics {
                     {
                         img.configured_faces.clear();
                         self.detection_preview_cache_key = None;
+                        self.theme_preview_cache_key = None;
                     }
                 }
             }
@@ -178,6 +180,7 @@ impl ChamaOptics {
                 self.detected_faces.remove(selected_idx);
                 self.selected_face_index = None;
                 self.detection_preview_cache_key = None;
+                self.theme_preview_cache_key = None;
 
                 // Update configured faces
                 if let Some(idx) = self.preview_selected_index
@@ -257,7 +260,15 @@ impl ChamaOptics {
                                 let thumbnail_texture = packed_image.texture.get().clone();
 
                                 // Generate base preview texture
-                                let cache_key = (idx, self.detected_faces.len());
+                                let sc = self.stroke_color;
+                                let cache_key = (
+                                    idx,
+                                    self.detected_faces.len(),
+                                    self.packed_images.get(idx).and_then(|pi| pi.lut_id),
+                                    self.color_adjustments.clone(),
+                                    self.stroke_thickness,
+                                    [sc.r(), sc.g(), sc.b(), sc.a()],
+                                );
                                 let needs_regenerate =
                                     self.detection_preview_cache_key != Some(cache_key);
 
@@ -370,6 +381,7 @@ impl ChamaOptics {
                                     // Invalidate preview cache if faces were deleted
                                     if faces_deleted {
                                         self.detection_preview_cache_key = None;
+                                        self.theme_preview_cache_key = None;
                                     }
                                 });
 
@@ -415,6 +427,7 @@ impl ChamaOptics {
                                                     }
                                                     // Invalidate preview cache to regenerate with updated effect
                                                     self.detection_preview_cache_key = None;
+                                                    self.theme_preview_cache_key = None;
                                                 }
                                             }
                                         });
@@ -457,6 +470,7 @@ impl ChamaOptics {
                                                         None;
                                                     // Invalidate preview cache to regenerate with updated sticker
                                                     self.detection_preview_cache_key = None;
+                                                    self.theme_preview_cache_key = None;
                                                 }
 
                                                 // Sticker options
@@ -474,6 +488,7 @@ impl ChamaOptics {
                                                             .sticker_id = Some(sticker.id);
                                                         // Invalidate preview cache to regenerate with updated sticker
                                                         self.detection_preview_cache_key = None;
+                                                        self.theme_preview_cache_key = None;
                                                     }
                                                 }
                                             });
@@ -736,6 +751,7 @@ impl ChamaOptics {
         if response.drag_stopped() {
             // Invalidate preview cache to trigger regeneration with updated face positions
             self.detection_preview_cache_key = None;
+            self.theme_preview_cache_key = None;
             log::info!("Preview cache invalidated - manual face edit completed");
             self.face_interaction_state = FaceInteractionState::Idle;
 
@@ -916,6 +932,7 @@ impl ChamaOptics {
                     }
                     // Invalidate preview cache when face is deleted
                     self.detection_preview_cache_key = None;
+                    self.theme_preview_cache_key = None;
                     return;
                 }
             }
@@ -963,6 +980,7 @@ impl ChamaOptics {
                 self.selected_face_index = Some(self.detected_faces.len() - 1);
                 // Invalidate preview cache when new face is added
                 self.detection_preview_cache_key = None;
+                self.theme_preview_cache_key = None;
             }
         }
     }
@@ -1122,6 +1140,7 @@ impl ChamaOptics {
             self.detected_faces.push(new_face);
             self.selected_face_index = Some(self.detected_faces.len() - 1);
             self.detection_preview_cache_key = None;
+            self.theme_preview_cache_key = None;
 
             // Update configured faces
             if let Some(packed_image) = self.packed_images.get_mut(idx) {
@@ -1152,6 +1171,7 @@ impl ChamaOptics {
         self.detected_faces.clear();
         self.selected_face_index = None;
         self.detection_preview_cache_key = None;
+        self.theme_preview_cache_key = None;
 
         // Start progress tracking (1 item to detect)
         self.detection_progress.start(1);
@@ -1397,7 +1417,17 @@ impl ChamaOptics {
         idx: usize,
     ) {
         let mosaic_block_size = self.mosaic_block_size;
-        let cache_key = (idx, self.detected_faces.len());
+        let stroke_thickness = self.stroke_thickness;
+        let stroke_color = self.stroke_color;
+        let sc = self.stroke_color;
+        let cache_key = (
+            idx,
+            self.detected_faces.len(),
+            self.packed_images.get(idx).and_then(|pi| pi.lut_id),
+            self.color_adjustments.clone(),
+            self.stroke_thickness,
+            [sc.r(), sc.g(), sc.b(), sc.a()],
+        );
         let texture_queue = self.preview_texture_queue.clone();
         let image_path = image_path.to_path_buf();
 
@@ -1405,6 +1435,11 @@ impl ChamaOptics {
         let detected_faces = self.detected_faces.clone();
         let sticker_storage = self.sticker_storage.clone_for_thread();
         let sticker_config = self.sticker_config.clone();
+
+        // Clone color adjustment and LUT data for display pipeline
+        let color_adjustments = self.color_adjustments.clone();
+        let mut lut_storage = self.lut_storage.clone_for_thread();
+        let image_lut_id = self.packed_images.get(idx).and_then(|pi| pi.lut_id);
 
         // Get orientation from the packed image for proper display
         let orientation = self
@@ -1437,6 +1472,11 @@ impl ChamaOptics {
                 &sticker_config,
                 &mosaic_config,
                 orientation,
+                &color_adjustments,
+                &mut lut_storage,
+                image_lut_id,
+                stroke_thickness,
+                stroke_color,
             );
 
             if let Some((color_image, orig_size, sticker_processed)) = color_image {
@@ -1475,6 +1515,11 @@ impl ChamaOptics {
                                 &sticker_storage,
                                 &sticker_config,
                                 &mosaic_config,
+                                &color_adjustments,
+                                &mut lut_storage,
+                                image_lut_id,
+                                stroke_thickness,
+                                stroke_color,
                             )
                         {
                             if let Ok(mut queue) = texture_queue.lock() {
@@ -1494,12 +1539,18 @@ impl ChamaOptics {
 
     /// Generate a preview image from a pre-loaded DynamicImage (orientation already applied).
     /// Used by both desktop (from file) and WASM (from bytes) paths.
+    #[allow(clippy::too_many_arguments)]
     fn generate_detection_preview_from_image(
         dyn_image: image::DynamicImage,
         detected_faces: &[crate::effect::sticker_storage::FaceArea],
         sticker_storage: &crate::effect::sticker_storage::StickerStorage,
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
         mosaic_config: &crate::effect::mosaic::MosaicEffect,
+        color_adjustments: &crate::effect::color_adjustments::ColorAdjustments,
+        lut_storage: &mut crate::effect::lut_storage::LutStorage,
+        image_lut_id: Option<uuid::Uuid>,
+        stroke_thickness: u32,
+        stroke_color: egui::Color32,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         use crate::effect::FaceEffectMode;
         use crate::effect::mosaic::MosaicEffect;
@@ -1543,11 +1594,9 @@ impl ChamaOptics {
             }
 
             if !stroke_faces.is_empty() {
-                let border_rgba = crate::theme::color32_to_rgba(
-                    egui::Color32::from_rgba_unmultiplied(255, 0, 0, 255),
-                );
+                let border_rgba = crate::theme::color32_to_rgba(stroke_color);
                 let stroke_config = StrokeEffect {
-                    thickness: 3,
+                    thickness: stroke_thickness,
                     color: (
                         border_rgba[0],
                         border_rgba[1],
@@ -1617,17 +1666,27 @@ impl ChamaOptics {
             None
         };
 
-        let preview_source = sticker_processed_image.as_ref().unwrap_or(&dyn_image);
+        // Display pipeline: apply color_adj + LUT on top of face effects
+        // sticker_processed_image remains face-effects-only for export
+        let mut display_image = sticker_processed_image
+            .clone()
+            .unwrap_or_else(|| dyn_image.clone());
+        if !color_adjustments.is_identity() {
+            color_adjustments.apply(&mut display_image);
+        }
+        if let Some(lut_id) = image_lut_id {
+            lut_storage.apply_lut_to_image(lut_id, &mut display_image);
+        }
 
         let max_preview_size = 1920u32;
-        let (w, h) = (preview_source.width(), preview_source.height());
+        let (w, h) = (display_image.width(), display_image.height());
         let preview_image = if w > max_preview_size || h > max_preview_size {
             let scale = max_preview_size as f32 / w.max(h) as f32;
             let new_w = (w as f32 * scale) as u32;
             let new_h = (h as f32 * scale) as u32;
-            preview_source.resize(new_w, new_h, image::imageops::FilterType::Triangle)
+            display_image.resize(new_w, new_h, image::imageops::FilterType::Triangle)
         } else {
-            preview_source.clone()
+            display_image
         };
 
         let rgba_image = preview_image.to_rgba8();
@@ -1643,6 +1702,7 @@ impl ChamaOptics {
     /// Generate a preview image (with effects and stickers applied) - synchronous version
     /// Desktop: loads from filesystem path. WASM: use generate_detection_preview_from_image directly.
     #[cfg(not(target_arch = "wasm32"))]
+    #[allow(clippy::too_many_arguments)]
     fn generate_detection_preview_sync(
         image_path: &std::path::Path,
         detected_faces: &[crate::effect::sticker_storage::FaceArea],
@@ -1650,6 +1710,11 @@ impl ChamaOptics {
         sticker_config: &crate::effect::sticker_storage::StickerConfig,
         mosaic_config: &crate::effect::mosaic::MosaicEffect,
         orientation: image::metadata::Orientation,
+        color_adjustments: &crate::effect::color_adjustments::ColorAdjustments,
+        lut_storage: &mut crate::effect::lut_storage::LutStorage,
+        image_lut_id: Option<uuid::Uuid>,
+        stroke_thickness: u32,
+        stroke_color: egui::Color32,
     ) -> Option<(egui::ColorImage, (u32, u32), Option<image::DynamicImage>)> {
         log::debug!(
             "generate_detection_preview_sync with orientation: {:?}",
@@ -1665,6 +1730,11 @@ impl ChamaOptics {
             sticker_storage,
             sticker_config,
             mosaic_config,
+            color_adjustments,
+            lut_storage,
+            image_lut_id,
+            stroke_thickness,
+            stroke_color,
         )
     }
 

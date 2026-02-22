@@ -222,7 +222,7 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Last theme preview generation params (to detect when to regenerate)
-    pub(crate) theme_preview_cache_key: Option<(usize, String)>, // (image_index, theme_name)
+    pub(crate) theme_preview_cache_key: Option<(usize, u64)>, // (image_index, params_hash)
 
     #[serde(skip)]
     /// Cached detection preview texture
@@ -235,7 +235,15 @@ pub struct ChamaOptics {
 
     #[serde(skip)]
     /// Last detection preview cache key
-    pub(crate) detection_preview_cache_key: Option<(usize, usize)>, // (image_index, face_count)
+    #[allow(clippy::type_complexity)]
+    pub(crate) detection_preview_cache_key: Option<(
+        usize,
+        usize,
+        Option<uuid::Uuid>,
+        crate::effect::color_adjustments::ColorAdjustments,
+        u32,
+        [u8; 4],
+    )>, // (image_index, face_count, lut_id, color_adj, stroke_thickness, stroke_rgba)
 
     #[serde(skip)]
     /// Detected faces for the current image (editable)
@@ -618,6 +626,7 @@ impl ChamaOptics {
         }
 
         // save each
+        #[allow(clippy::too_many_arguments)]
         fn __save_bulk_each(
             idx: usize,
             task: &SaveTask,
@@ -629,6 +638,7 @@ impl ChamaOptics {
             lut_storage: &mut crate::effect::lut_storage::LutStorage,
             sticker_storage: &crate::effect::sticker_storage::StickerStorage,
             import_config: &crate::import_config::ImportConfig,
+            color_adjustments: &crate::effect::color_adjustments::ColorAdjustments,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
             let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
@@ -640,18 +650,33 @@ impl ChamaOptics {
             pi.lut_id = task.lut_id;
             pi.crop_rotate = task.crop_rotate.clone();
 
-            // Apply LUT to image if configured
-            // LUT is applied before stickers/theme in the pipeline
-            if let Some(lut_id) = task.lut_id {
-                log::info!("Export: Applying LUT {:?} to image {}", lut_id, idx);
+            // Apply Color Adjustments and/or LUT to image if configured
+            // Order: color adjustments → LUT (matching mobile pipeline)
+            let needs_color_adj = !color_adjustments.is_identity();
+            if needs_color_adj || task.lut_id.is_some() {
+                log::info!(
+                    "Export: color_adj={}, LUT={:?} for image {}",
+                    needs_color_adj,
+                    task.lut_id,
+                    idx
+                );
 
                 // Load original image
                 let mut dyn_image = image::open(&task.path)?;
 
-                // Apply LUT
-                lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+                // Apply color adjustments first (before LUT)
+                if needs_color_adj {
+                    color_adjustments.apply(&mut dyn_image);
+                    log::info!("Export: Applied color adjustments to image {}", idx);
+                }
 
-                // Save LUT-processed image to sticker_bytes for theme to use
+                // Apply LUT second
+                if let Some(lut_id) = task.lut_id {
+                    lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
+                    log::info!("Export: Applied LUT {:?} to image {}", lut_id, idx);
+                }
+
+                // Save processed image to sticker_bytes for theme to use
                 let original_ext = task
                     .path
                     .extension()
@@ -671,12 +696,12 @@ impl ChamaOptics {
                 {
                     pi.sticker_bytes = Some(bytes);
                     log::info!(
-                        "Export: Saved LUT-processed image to sticker_bytes for image {}",
+                        "Export: Saved processed image to sticker_bytes for image {}",
                         idx
                     );
                 }
             } else {
-                // No LUT - use sticker_bytes from task if available (prioritize over HashMap)
+                // No color adj, no LUT - use sticker_bytes from task if available
                 pi.sticker_bytes = task.sticker_bytes.clone();
             }
 
@@ -904,6 +929,9 @@ impl ChamaOptics {
         // Clone import_config for EXIF injection settings
         let import_config = self.import_config.clone();
 
+        // Clone color_adjustments for the background thread
+        let color_adjustments = self.color_adjustments.clone();
+
         // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
 
@@ -943,6 +971,7 @@ impl ChamaOptics {
                             &mut lut_storage_guard,
                             &sticker_storage,
                             &import_config,
+                            &color_adjustments,
                         ) {
                             Ok(_) => {
                                 log::info!("Successfully saved image {}", idx);
@@ -977,6 +1006,7 @@ impl ChamaOptics {
                         &mut lut_storage_guard,
                         &sticker_storage,
                         &import_config,
+                        &color_adjustments,
                     ) {
                         Ok(_) => log::info!("Successfully saved image {}", idx),
                         Err(e) => log::error!("Failed to save image {}: {e:?}", idx),
@@ -1004,13 +1034,22 @@ impl ChamaOptics {
                 // Save original sticker_bytes to restore after export
                 let original_sticker_bytes = self.packed_images[idx].sticker_bytes.clone();
 
-                // Apply LUT to image if configured
-                if let Some(lut_id) = task.lut_id {
+                // Apply Color Adjustments and/or LUT to image if configured
+                let needs_color_adj = !self.color_adjustments.is_identity();
+                if needs_color_adj || task.lut_id.is_some() {
                     match self.packed_images[idx].get_image() {
                         Ok((mut dyn_image, _)) => {
-                            let mut lut_guard = lut_storage.lock().unwrap();
-                            lut_guard.apply_lut_to_image(lut_id, &mut dyn_image);
-                            drop(lut_guard);
+                            // Apply color adjustments first (before LUT)
+                            if needs_color_adj {
+                                self.color_adjustments.apply(&mut dyn_image);
+                            }
+
+                            // Apply LUT second
+                            if let Some(lut_id) = task.lut_id {
+                                let mut lut_guard = lut_storage.lock().unwrap();
+                                lut_guard.apply_lut_to_image(lut_id, &mut dyn_image);
+                                drop(lut_guard);
+                            }
 
                             let mut bytes = Vec::new();
                             if dyn_image
@@ -1024,14 +1063,14 @@ impl ChamaOptics {
                             }
                         }
                         Err(e) => {
-                            log::error!("Failed to load image {} for LUT: {:?}", idx, e);
+                            log::error!("Failed to load image {} for processing: {:?}", idx, e);
                             progress_counter.fetch_add(1, Ordering::Relaxed);
                             ctx.request_repaint();
                             continue;
                         }
                     }
                 } else {
-                    // Use sticker_bytes from task (may have sticker overlay)
+                    // No color adj, no LUT - use sticker_bytes from task
                     self.packed_images[idx].sticker_bytes = task.sticker_bytes.clone();
                 }
 

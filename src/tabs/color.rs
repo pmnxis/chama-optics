@@ -345,9 +345,11 @@ impl ChamaOptics {
                         self.color_adjustments.update_ui(ui);
                     },
                 );
-                // Invalidate cache if color adjustments changed
+                // Invalidate caches if color adjustments changed
                 if self.color_adjustments != adjustments_before {
                     self.color_preview_cache_key = None;
+                    self.detection_preview_cache_key = None;
+                    self.theme_preview_cache_key = None;
                 }
 
                 ui.add_space(10.0);

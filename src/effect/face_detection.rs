@@ -56,7 +56,9 @@ impl SpeedMode {
 
 /// Face effect mode - what effect to apply to detected faces
 /// This enum matches the iOS FaceEffectType for consistency
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize, Default)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize, Default,
+)]
 pub enum FaceEffectMode {
     /// No effect applied to faces
     #[default]
