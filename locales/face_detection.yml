@@ -350,6 +350,48 @@ face_detection:
     ja: "顔検出矩形の枠線の太さ（ピクセル単位）"
     id: "Ketebalan bingkai persegi panjang deteksi wajah dalam piksel"
 
+  # Detection mode (iOS DetectionView)
+  mode:
+    en: "Mode"
+    ko: "모드"
+    ja: "モード"
+    id: "Mode"
+  detecting:
+    en: "Detecting..."
+    ko: "감지 중..."
+    ja: "検出中..."
+    id: "Mendeteksi..."
+  detect_faces_with_engine:
+    en: "Detect Faces (%@)"
+    ko: "얼굴 감지 (%@)"
+    ja: "顔検出（%@）"
+    id: "Deteksi Wajah (%@)"
+  detected_faces:
+    en: "%d face(s) detected"
+    ko: "%d개 얼굴 감지됨"
+    ja: "%d個の顔を検出"
+    id: "%d wajah terdeteksi"
+  position:
+    en: "Pos: (%.1f, %.1f)"
+    ko: "위치: (%.1f, %.1f)"
+    ja: "位置：(%.1f, %.1f)"
+    id: "Pos: (%.1f, %.1f)"
+  size:
+    en: "Size: %.1f x %.1f"
+    ko: "크기: %.1f x %.1f"
+    ja: "サイズ：%.1f x %.1f"
+    id: "Ukuran: %.1f x %.1f"
+  select_image_to_detect:
+    en: "Select an image to detect faces"
+    ko: "얼굴을 감지할 이미지를 선택하세요"
+    ja: "顔を検出する画像を選択してください"
+    id: "Pilih gambar untuk mendeteksi wajah"
+  no_faces_detected:
+    en: "No faces detected"
+    ko: "감지된 얼굴 없음"
+    ja: "顔が検出されませんでした"
+    id: "Tidak ada wajah terdeteksi"
+
   # Face detection editor (iOS)
   face_detection_editor:
     en: "Face Detection Editor"

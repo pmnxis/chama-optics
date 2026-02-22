@@ -36,11 +36,34 @@ edit:
       ko: "LUT"
       ja: "LUT"
       id: "LUT"
+    face:
+      en: "Face Detection Area"
+      ko: "얼굴 인식 영역"
+      ja: "顔検出エリア"
+      id: "Area Deteksi Wajah"
     decoration:
       en: "Decoration"
       ko: "데코레이션"
       ja: "デコレーション"
       id: "Dekorasi"
+
+  # Face section (Edit tab read-only face info)
+  face:
+    gallery_hint:
+      en: "To add/remove faces and apply per-face effects, please use the Gallery preview."
+      ko: "얼굴 추가 및 삭제, 각 얼굴마다의 효과 개별적용은 갤러리에서 진행해주세요."
+      ja: "顔の追加・削除、各顔への個別エフェクト適用はギャラリーで行ってください。"
+      id: "Untuk menambah/menghapus wajah dan menerapkan efek per wajah, silakan gunakan pratinjau Galeri."
+    detected_count:
+      en: "%d face(s) detected"
+      ko: "%d개 얼굴 인식됨"
+      ja: "%d個の顔を検出"
+      id: "%d wajah terdeteksi"
+    no_faces:
+      en: "No faces detected in this image"
+      ko: "이 이미지에서 인식된 얼굴이 없습니다"
+      ja: "この画像では顔が検出されていません"
+      id: "Tidak ada wajah terdeteksi dalam gambar ini"
 
   # Decoration mode labels
   decoration:
