@@ -25,7 +25,7 @@ pub struct ShotOnOneLine {
 
     #[param(
         slider,
-        label_key = "theme.font_height_ratio.label",
+        label_key = "theme.font_height_ratio.bottom",
         hint_key = "theme.font_height_ratio.hint",
         min = 5,
         max = 80,
@@ -35,7 +35,7 @@ pub struct ShotOnOneLine {
 
     #[param(
         slider,
-        label_key = "theme.font_height_ratio.label",
+        label_key = "theme.font_height_ratio.top",
         hint_key = "theme.font_height_ratio.hint",
         min = 5,
         max = 80,

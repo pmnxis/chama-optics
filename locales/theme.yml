@@ -227,6 +227,16 @@ theme:
       ko: "두 번째 폰트 높이 비율"
       ja: "2つ目のフォント高さ比率"
       id: "Rasio tinggi font kedua"
+    top:
+      en: "Top font height ratio"
+      ko: "상단 폰트 높이 비율"
+      ja: "上部フォント高さ比率"
+      id: "Rasio tinggi font atas"
+    bottom:
+      en: "Bottom font height ratio"
+      ko: "하단 폰트 높이 비율"
+      ja: "下部フォント高さ比率"
+      id: "Rasio tinggi font bawah"
     label:
       en: "Font height ratio"
       ko: "폰트 높이 비율"
