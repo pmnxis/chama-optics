@@ -471,8 +471,7 @@ unsafe fn chama_preview_cheki_bytes_impl(
             let scale = max_dimension as f32 / long_side as f32;
             let new_w = ((w as f32 * scale).round() as u32).max(1);
             let new_h = ((h as f32 * scale).round() as u32).max(1);
-            dyn_image =
-                dyn_image.resize(new_w, new_h, image::imageops::FilterType::Triangle);
+            dyn_image = dyn_image.resize(new_w, new_h, image::imageops::FilterType::Triangle);
         }
     }
 
@@ -480,10 +479,9 @@ unsafe fn chama_preview_cheki_bytes_impl(
     if !crop_rotate_json.is_null() {
         let crop_rotate_str = cstr_to_str_or!(crop_rotate_json, "{}");
         if !crop_rotate_str.is_empty() && crop_rotate_str != "{}" {
-            if let Ok(transform) =
-                serde_json::from_str::<crate::effect::crop_rotate::CropRotateTransform>(
-                    crop_rotate_str,
-                )
+            if let Ok(transform) = serde_json::from_str::<
+                crate::effect::crop_rotate::CropRotateTransform,
+            >(crop_rotate_str)
             {
                 if !transform.is_identity() {
                     dyn_image = transform.apply(&dyn_image);

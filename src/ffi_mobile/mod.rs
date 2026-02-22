@@ -345,18 +345,16 @@ pub unsafe extern "C" fn chama_extract_embedded_preview(
     let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
     match extract_exif_preview(image_path_str) {
-        Some(preview) => {
-            match preview.save(output_path_str) {
-                Ok(_) => {
-                    log::info!("Extracted embedded preview to: {}", output_path_str);
-                    ChamaError::Success
-                }
-                Err(e) => {
-                    log::error!("Failed to save extracted preview: {}", e);
-                    ChamaError::ImageProcessError
-                }
+        Some(preview) => match preview.save(output_path_str) {
+            Ok(_) => {
+                log::info!("Extracted embedded preview to: {}", output_path_str);
+                ChamaError::Success
             }
-        }
+            Err(e) => {
+                log::error!("Failed to save extracted preview: {}", e);
+                ChamaError::ImageProcessError
+            }
+        },
         None => {
             log::info!("No suitable embedded preview found in: {}", image_path_str);
             ChamaError::ImageLoadError
