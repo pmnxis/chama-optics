@@ -212,17 +212,6 @@ pub struct CFaceEffectConfig {
     pub sticker_offset_y: i32,
 }
 
-/// Face detection configuration
-#[repr(C)]
-pub struct CFaceDetectionConfig {
-    pub engine_type: u32,
-    pub border_color: CRgbaColor,
-    pub border_thickness: u32,
-    pub mask_faces: bool,
-    pub mask_blur_radius: f32,
-    pub speed_mode: u32,
-}
-
 /// Theme export configuration (replaces 5 theme function variants)
 #[repr(C)]
 pub struct CThemeExportConfig {

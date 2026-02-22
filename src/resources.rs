@@ -363,14 +363,13 @@ pub fn list_available_fonts() -> Vec<String> {
             let fonts_dir = resources_dir.join("Fonts");
             if let Ok(entries) = std::fs::read_dir(fonts_dir) {
                 for entry in entries.filter_map(|e| e.ok()) {
-                    if let Ok(name) = entry.file_name().into_string() {
-                        if name.ends_with(".ttf")
+                    if let Ok(name) = entry.file_name().into_string()
+                        && (name.ends_with(".ttf")
                             || name.ends_with(".otf")
-                            || name.ends_with(".ttc")
+                            || name.ends_with(".ttc"))
                         {
                             fonts.push(name);
                         }
-                    }
                 }
             }
         }

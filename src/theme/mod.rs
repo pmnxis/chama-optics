@@ -100,20 +100,18 @@ fn get_fallback_font() -> Option<ab_glyph::FontArc> {
             let base_dir = crate::effect::variable_text::get_fonts_base_directory();
             if !base_dir.is_empty() {
                 let path = std::path::PathBuf::from(&base_dir).join("SourceHanSansVF-remapped.otf");
-                if let Ok(data) = std::fs::read(&path) {
-                    if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
+                if let Ok(data) = std::fs::read(&path)
+                    && let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
                         log::info!("✅ Loaded CJK fallback font from: {}", path.display());
                         return Some(font);
                     }
-                }
             }
             // 2nd: Load from embedded resources
-            if let Some(data) = crate::resources::load_font("SourceHanSansVF-remapped.otf") {
-                if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
+            if let Some(data) = crate::resources::load_font("SourceHanSansVF-remapped.otf")
+                && let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
                     log::info!("✅ Loaded CJK fallback font from embedded resources");
                     return Some(font);
                 }
-            }
             log::warn!("⚠️ Failed to load CJK fallback font (SourceHanSans)");
             None
         })

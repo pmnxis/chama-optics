@@ -43,18 +43,4 @@ impl MacFaceDetector {
         }
     }
 
-    /// Apply face detection with rectangles to an image
-    #[cfg(target_os = "ios")]
-    pub fn apply_to_image(
-        &self,
-        face_detection: &FaceDetection,
-        dyn_image: &mut image::DynamicImage,
-        image_path: &Path,
-    ) -> Result<(), image::ImageError> {
-        // Detect faces using selected engine
-        let face_rectangles = self.detect_faces(image_path);
-
-        // Apply rectangles to image
-        face_detection.apply(dyn_image, face_rectangles)
-    }
 }

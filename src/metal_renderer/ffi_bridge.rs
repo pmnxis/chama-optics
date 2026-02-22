@@ -6,6 +6,9 @@
 
 //! Swift-bridge FFI layer for Metal renderer
 
+// Casts inside the swift_bridge proc-macro expansion are macro-generated artifacts.
+#![allow(clippy::unnecessary_cast)]
+
 use super::input_output::{CursorIcon, InputEvent, Modifiers, OutputState};
 use super::renderer::Renderer;
 use std::ffi::c_void;
@@ -82,6 +85,7 @@ pub struct ChamaEguiRenderer {
 }
 
 impl ChamaEguiRenderer {
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn new(layer_ptr: *mut c_void, width: u32, height: u32, scale: f32) -> Self {
         let renderer = unsafe { Renderer::new(layer_ptr, width, height, scale) };
 

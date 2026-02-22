@@ -43,12 +43,11 @@ impl CandleFaceDetector {
         // incorrectly thinks both are present. Clear the unused input.
         if let Some(graph) = &mut model.graph {
             for node in &mut graph.node {
-                if node.op_type == "Resize" && node.input.len() >= 4 {
-                    if !node.input[2].is_empty() && !node.input[3].is_empty() {
+                if node.op_type == "Resize" && node.input.len() >= 4
+                    && !node.input[2].is_empty() && !node.input[3].is_empty() {
                         // Both scales and sizes have names — prefer sizes, clear scales
                         node.input[2] = String::new();
                     }
-                }
             }
         }
 
@@ -232,6 +231,7 @@ impl CandleFaceDetector {
 
     // ---- Inference via candle-onnx ----
 
+    #[allow(clippy::type_complexity)]
     fn run_inference(
         &self,
         input_data: Vec<f32>,
@@ -415,6 +415,7 @@ impl CandleFaceDetector {
         Self::iou_float((ax1, ay1, aw, ah), (bx1, by1, bw, bh))
     }
 
+    #[allow(dead_code)]
     fn nms_float(mut faces: Vec<(f32, f32, f32, f32, f32)>) -> Vec<(f32, f32, f32, f32, f32)> {
         if faces.is_empty() {
             return faces;

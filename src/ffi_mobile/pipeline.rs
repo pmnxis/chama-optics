@@ -550,8 +550,9 @@ pub struct PreviewPipelineHandle {
 ///
 /// Takes individual field references to avoid borrow conflicts between
 /// `&mut pipeline` and `&context_fields`.
-fn render_preview<'a>(
-    pipeline: &'a mut crate::pipeline::v1::PreviewPipeline,
+#[allow(clippy::too_many_arguments)]
+fn render_preview(
+    pipeline: &mut crate::pipeline::v1::PreviewPipeline,
     theme_registry: &crate::theme::ThemeRegistry,
     sticker_storage: &crate::effect::sticker_storage::StickerStorage,
     export_config: &crate::export_config::ExportConfig,
@@ -580,7 +581,7 @@ fn render_preview<'a>(
     if with_decoration {
         pipeline.render_with_decoration(&ctx)
     } else {
-        pipeline.render(&ctx).map(|img| img.clone())
+        pipeline.render(&ctx).cloned()
     }
 }
 
@@ -644,8 +645,8 @@ pub unsafe extern "C" fn chama_preview_pipeline_create(
     let mut lut_map: HashMap<uuid::Uuid, wagahai_lut::CubeLut> = HashMap::new();
     if !lut_paths_json.is_null() {
         let lut_str = cstr_to_str!(lut_paths_json, return std::ptr::null_mut());
-        if !lut_str.is_empty() {
-            if let Ok(paths) = serde_json::from_str::<HashMap<String, String>>(lut_str) {
+        if !lut_str.is_empty()
+            && let Ok(paths) = serde_json::from_str::<HashMap<String, String>>(lut_str) {
                 for (uuid_str, path) in &paths {
                     if let Ok(uuid) = uuid::Uuid::parse_str(uuid_str) {
                         match wagahai_lut::CubeParser::from_file(path) {
@@ -659,19 +660,16 @@ pub unsafe extern "C" fn chama_preview_pipeline_create(
                     }
                 }
             }
-        }
     }
 
     // Load font if path provided
     let mut font_map: HashMap<String, ab_glyph::FontArc> = HashMap::new();
     let font_path_str = cstr_to_str_or!(font_path, "");
-    if !font_path_str.is_empty() {
-        if let Ok(font_data) = std::fs::read(font_path_str) {
-            if let Ok(font) = ab_glyph::FontArc::try_from_vec(font_data) {
+    if !font_path_str.is_empty()
+        && let Ok(font_data) = std::fs::read(font_path_str)
+            && let Ok(font) = ab_glyph::FontArc::try_from_vec(font_data) {
                 font_map.insert("default".to_string(), font);
             }
-        }
-    }
 
     // Build export config from pipeline config
     let export_config = crate::export_config::ExportConfig {
@@ -822,7 +820,7 @@ pub unsafe extern "C" fn chama_preview_pipeline_render_bytes(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn chama_preview_pipeline_free_bytes(data: *mut u8, len: usize) {
     if !data.is_null() && len > 0 {
-        let _ = unsafe { Box::from_raw(std::slice::from_raw_parts_mut(data, len)) };
+        let _ = unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(data, len)) };
     }
 }
 

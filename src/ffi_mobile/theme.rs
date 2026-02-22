@@ -207,8 +207,8 @@ pub(super) fn export_final_impl(params: &ThemeExportParams) -> Result<(), ChamaO
     }
 
     // Apply EXIF overrides from user edits (if provided)
-    if let Some(override_json) = params.exif_override_json {
-        if !override_json.is_empty() && override_json != "{}" {
+    if let Some(override_json) = params.exif_override_json
+        && !override_json.is_empty() && override_json != "{}" {
             match serde_json::from_str::<crate::image::exif_impl::SimplifiedExif>(override_json) {
                 Ok(override_exif) => {
                     if !override_exif.camera_mnf.is_empty() {
@@ -245,7 +245,6 @@ pub(super) fn export_final_impl(params: &ThemeExportParams) -> Result<(), ChamaO
                 }
             }
         }
-    }
 
     // If image_path differs from exif_source_path, the image has already been processed
     // (e.g., face effects applied via load_image_direct which applies orientation).
@@ -1171,7 +1170,7 @@ mod tests {
             let version_ptr = chama_get_version();
             assert!(!version_ptr.is_null());
 
-            let version = unsafe { CStr::from_ptr(version_ptr) }.to_str().unwrap();
+            let version = CStr::from_ptr(version_ptr).to_str().unwrap();
             assert!(!version.is_empty());
 
             chama_free_string(version_ptr);
@@ -1184,10 +1183,10 @@ mod tests {
             let themes_ptr = chama_get_available_themes();
             assert!(!themes_ptr.is_null());
 
-            let themes_json = unsafe { CStr::from_ptr(themes_ptr) }.to_str().unwrap();
+            let themes_json = CStr::from_ptr(themes_ptr).to_str().unwrap();
             let themes: Vec<serde_json::Value> = serde_json::from_str(themes_json).unwrap();
 
-            assert!(themes.len() > 0);
+            assert!(!themes.is_empty());
             assert!(themes[0]["name"].is_string());
             assert!(themes[0]["label"].is_string());
 

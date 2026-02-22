@@ -139,6 +139,7 @@ pub unsafe extern "C" fn chama_preview_cheki_bytes(
 }
 
 #[allow(unsafe_op_in_unsafe_fn)]
+#[allow(clippy::too_many_arguments)]
 unsafe fn chama_preview_cheki_bytes_impl(
     image_path: *const c_char,
     cheki_json: *const c_char,
@@ -194,6 +195,7 @@ unsafe fn chama_preview_cheki_bytes_impl(
 }
 
 #[allow(unsafe_op_in_unsafe_fn)]
+#[allow(clippy::too_many_arguments)]
 unsafe fn chama_export_cheki_impl(
     image_path: *const c_char,
     output_path: *const c_char,
@@ -332,8 +334,8 @@ unsafe fn build_cheki_image(
     );
 
     // Downscale for preview if max_dimension is set
-    if let Some(max_dim) = max_dimension {
-        if max_dim > 0 {
+    if let Some(max_dim) = max_dimension
+        && max_dim > 0 {
             let long_edge = dyn_image.width().max(dyn_image.height());
             if long_edge > max_dim {
                 dyn_image =
@@ -345,7 +347,6 @@ unsafe fn build_cheki_image(
                 );
             }
         }
-    }
 
     // Step 3: Apply crop/rotate transform
     if !crop_rotate_json.is_null() {
@@ -399,8 +400,8 @@ unsafe fn build_cheki_image(
     // Step 5: Apply LUT
     if !lut_id.is_null() {
         let lut_id_str = cstr_to_str_or!(lut_id, "");
-        if !lut_id_str.is_empty() {
-            if let Ok(uuid) = uuid::Uuid::parse_str(lut_id_str) {
+        if !lut_id_str.is_empty()
+            && let Ok(uuid) = uuid::Uuid::parse_str(lut_id_str) {
                 let mut storage = match super::lut::LUT_STORAGE.lock() {
                     Ok(s) => s,
                     Err(_) => {
@@ -414,7 +415,6 @@ unsafe fn build_cheki_image(
                     log::warn!("  LUT not found or failed: {}", lut_id_str);
                 }
             }
-        }
     }
 
     // Step 6: Build sticker storage

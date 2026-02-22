@@ -32,6 +32,7 @@ pub struct Watermark {
 // iOS version - watermark disabled (no font selection system)
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Default)]
 pub struct Watermark {
     pub is_enabled: bool,
 }
@@ -62,11 +63,6 @@ impl core::default::Default for Watermark {
 }
 
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-impl core::default::Default for Watermark {
-    fn default() -> Self {
-        Self { is_enabled: false }
-    }
-}
 
 // Desktop implementation with full functionality
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]

@@ -17,7 +17,7 @@ pub struct ExportConfig {
     pub output_name: output_name::OutputName,
     pub theme_reg: crate::theme::ThemeRegistry,
     pub watermark: crate::effect::watermark::Watermark,
-    pub face_detection: crate::effect::face_detection::FaceDetection,
+    pub face_detection: crate::effect::face_detection::FaceDetectionConfig,
 }
 
 impl core::default::Default for ExportConfig {
@@ -30,7 +30,7 @@ impl core::default::Default for ExportConfig {
                 output_name: output_name::OutputName::default(),
                 theme_reg: crate::theme::ThemeRegistry::new(),
                 watermark: crate::effect::watermark::Watermark::default(),
-                face_detection: crate::effect::face_detection::FaceDetection::default(),
+                face_detection: crate::effect::face_detection::FaceDetectionConfig::default(),
             }
         }
         #[cfg(test)]
@@ -74,7 +74,7 @@ impl ExportConfig {
             },
             theme_reg: crate::theme::ThemeRegistry::new(),
             watermark: crate::effect::watermark::Watermark::default(),
-            face_detection: crate::effect::face_detection::FaceDetection::default(),
+            face_detection: crate::effect::face_detection::FaceDetectionConfig::default(),
         }
     }
 
@@ -125,14 +125,18 @@ impl ExportConfig {
                     path.as_ref()
                 );
 
-                // Get image dimensions for recursive detection
-                let _img_width = dyn_image.width();
-                let _img_height = dyn_image.height();
-
                 match &self.face_detection.engine {
-                    #[cfg(feature = "face_detection_visionkit")]
+                    #[cfg(any(feature = "face_detection_visionkit", target_os = "macos"))]
                     crate::effect::face_detection::FaceDetectionEngine::VisionKit => {
-                        self.detect_visionkit(path.as_ref())
+                        #[cfg(target_os = "macos")]
+                        { self.detect_visionkit(path.as_ref()) }
+                        #[cfg(not(target_os = "macos"))]
+                        {
+                            log::warn!(
+                                "[Face Detection] VisionKit subprocess not available on this platform"
+                            );
+                            vec![]
+                        }
                     }
 
                     #[cfg(feature = "face_detection_insightface")]
@@ -144,8 +148,6 @@ impl ExportConfig {
                             Ok(detector) => self.run_detection(
                                 &detector,
                                 path.as_ref(),
-                                _img_width,
-                                _img_height,
                             ),
                             Err(e) => {
                                 log::error!("Failed to create InsightFace detector: {}", e);
@@ -158,7 +160,7 @@ impl ExportConfig {
                     crate::effect::face_detection::FaceDetectionEngine::Candle => {
                         match crate::effect::candle_face_detector::CandleFaceDetector::new() {
                             Ok(detector) => detector.detect_faces_from_image(
-                                &dyn_image,
+                                dyn_image,
                                 self.face_detection.speed_mode,
                             ),
                             Err(e) => {
@@ -170,6 +172,7 @@ impl ExportConfig {
 
                     #[cfg(not(any(
                         feature = "face_detection_visionkit",
+                        target_os = "macos",
                         feature = "face_detection_insightface",
                         feature = "face_detection_candle"
                     )))]
@@ -208,44 +211,20 @@ impl ExportConfig {
         &self,
         detector: &D,
         image_path: &std::path::Path,
-        _img_width: u32,
-        _img_height: u32,
     ) -> Vec<(i32, i32, u32, u32)> {
-        if self.face_detection.recursive_detection {
-            log::info!(
-                "🔄 [Face Detection] Running recursive face detection with {} (min size: {}px)",
-                detector.engine_name(),
-                self.face_detection.recursive_min_size
-            );
+        log::info!(
+            "[Face Detection] Running detection with {}",
+            detector.engine_name()
+        );
 
-            let faces = self.face_detection.detect_faces_recursive(
-                detector,
-                image_path,
-                _img_width,
-                _img_height,
-            );
+        let faces = detector.detect_faces(image_path);
 
-            log::info!(
-                "Recursive detection complete: {} unique faces found",
-                faces.len()
-            );
+        log::info!("Detection complete: {} face(s) found", faces.len());
 
-            faces
-        } else {
-            log::info!(
-                "🎯 [Face Detection] Running standard detection with {}",
-                detector.engine_name()
-            );
-
-            let faces = detector.detect_faces(image_path);
-
-            log::info!("Standard detection complete: {} face(s) found", faces.len());
-
-            faces
-        }
+        faces
     }
 
-    #[cfg(all(target_os = "macos", feature = "face_detection_visionkit"))]
+    #[cfg(target_os = "macos")]
     pub fn detect_visionkit(&self, path: &std::path::Path) -> Vec<(i32, i32, u32, u32)> {
         use std::process::Command;
 
@@ -256,7 +235,8 @@ impl ExportConfig {
 
         // Create JSON input for Swift detector
         let input_json = serde_json::json!({
-            "image_path": path_str
+            "image_path": path_str,
+            "speed_mode": self.face_detection.speed_mode.as_u8()
         });
 
         // Run Swift face detector

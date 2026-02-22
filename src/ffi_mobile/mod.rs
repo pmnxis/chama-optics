@@ -131,7 +131,7 @@ fn save_image_with_c_format(
         COutputFormat::Jpeg => {
             use image::codecs::jpeg::JpegEncoder;
             let file =
-                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
+                std::fs::File::create(output_path).map_err(image::ImageError::IoError)?;
             let mut encoder = JpegEncoder::new_with_quality(file, quality);
             encoder.encode_image(image)
         }
@@ -139,7 +139,7 @@ fn save_image_with_c_format(
         COutputFormat::Webp => {
             use image::codecs::webp::WebPEncoder;
             let file =
-                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
+                std::fs::File::create(output_path).map_err(image::ImageError::IoError)?;
             let rgba = image.to_rgba8();
             WebPEncoder::new_lossless(file).encode(
                 rgba.as_raw(),

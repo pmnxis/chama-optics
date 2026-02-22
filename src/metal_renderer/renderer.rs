@@ -114,8 +114,10 @@ impl Renderer {
         Self::load_fonts(&context);
 
         // Set display info
-        let mut raw_input = RawInput::default();
-        raw_input.viewport_id = egui::ViewportId::ROOT;
+        let mut raw_input = RawInput {
+            viewport_id: egui::ViewportId::ROOT,
+            ..Default::default()
+        };
         raw_input.viewports.insert(
             egui::ViewportId::ROOT,
             egui::ViewportInfo {
