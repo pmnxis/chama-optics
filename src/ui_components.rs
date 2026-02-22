@@ -137,6 +137,7 @@ fn render_version_info(ui: &mut egui::Ui) {
 }
 
 /// Icon type for tab buttons - either a text emoji or a texture image
+#[allow(dead_code)]
 pub enum TabIcon<'a> {
     Text(&'a str),
     Texture(&'a egui::TextureHandle),
@@ -146,7 +147,7 @@ pub enum TabIcon<'a> {
 pub fn render_tab_sidebar(
     ui: &mut egui::Ui,
     selected_tab: &mut crate::app::MainTab,
-    cheki_icon: Option<&egui::TextureHandle>,
+    _cheki_icon: Option<&egui::TextureHandle>,
 ) {
     use crate::app::MainTab;
 
@@ -181,31 +182,19 @@ pub fn render_tab_sidebar(
 
                 ui.add_space(5.0);
 
-                // Tab 3: Theme Preview (▦)
+                // Tab 3: Edit (🎨) — unified Color + LUT + Crop/Rotate + Theme + Cheki
                 render_tab_button(
                     ui,
                     selected_tab,
-                    MainTab::ThemePreview,
-                    TabIcon::Text("▦"),
-                    "Theme",
-                    &t!("tabs.theme_preview"),
-                );
-
-                ui.add_space(5.0);
-
-                // Tab 4: Color Grading (🎨)
-                render_tab_button(
-                    ui,
-                    selected_tab,
-                    MainTab::Color,
+                    MainTab::Edit,
                     TabIcon::Text("🎨"),
-                    "Color",
-                    &t!("tabs.color", default = "Color Grading"),
+                    "Edit",
+                    &t!("tabs.edit", default = "Edit"),
                 );
 
                 ui.add_space(5.0);
 
-                // Tab 5: Sticker (🎭)
+                // Tab 4: Sticker (🎭)
                 render_tab_button(
                     ui,
                     selected_tab,
@@ -217,25 +206,7 @@ pub fn render_tab_sidebar(
 
                 ui.add_space(5.0);
 
-                // Tab 6: Cheki (custom icon)
-                {
-                    let icon = match cheki_icon {
-                        Some(tex) => TabIcon::Texture(tex),
-                        None => TabIcon::Text("📸"),
-                    };
-                    render_tab_button(
-                        ui,
-                        selected_tab,
-                        MainTab::Cheki,
-                        icon,
-                        "Cheki",
-                        &t!("tabs.cheki", default = "Cheki"),
-                    );
-                }
-
-                ui.add_space(5.0);
-
-                // Tab 7: Import&Export (⚙)
+                // Tab 5: Config (⚙)
                 render_tab_button(
                     ui,
                     selected_tab,

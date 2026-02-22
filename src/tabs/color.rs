@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: MIT OR Apache-2.0
  */
 
-//! Color Tab UI - LUT-based color grading with split-view preview
+//! Crop/Rotate & LUT helpers used by the unified Edit tab.
 //!
-//! Each image has its own LUT configuration (per-image LUT selection).
+//! Contains: crop canvas generation, crop/rotate UI, LUT gallery,
+//! per-image LUT selection, and LUT file dialog.
 
 use crate::ChamaOptics;
 use crate::effect::lut_storage::{LutItem, LutUiAction, StoredLutType};
@@ -14,360 +15,12 @@ use rust_i18n::t;
 use uuid::Uuid;
 
 impl ChamaOptics {
-    /// Generate color preview textures (original and LUT-applied)
-    /// Uses the per-image lut_id from PackedImage
-    pub(crate) fn generate_color_preview(&mut self, ui_ctx: &egui::Context) -> Option<()> {
-        let idx = self.color_selected_index?;
-        let packed_image = self.packed_images.get(idx)?;
-
-        // Get the per-image LUT ID
-        let image_lut_id = packed_image.lut_id;
-
-        // Check if we need to regenerate (cache invalidation)
-        // Cache key includes per-image lut_id and color adjustments
-        let cache_key = (idx, image_lut_id, self.color_adjustments.clone());
-        if self.color_preview_cache_key.as_ref() == Some(&cache_key) {
-            // Cache is still valid
-            return Some(());
-        }
-
-        // Load original image (supports HEIF/HIF via PackedImage)
-        let orientation = packed_image.view_exif.orientation;
-        let crop_rotate = packed_image.crop_rotate.clone();
-        let (mut original_image, need_orientation) = match packed_image.get_image() {
-            Ok(result) => result,
-            Err(e) => {
-                log::error!("Failed to load image {:?}: {:?}", packed_image.path, e);
-                return None;
-            }
-        };
-
-        // Apply EXIF orientation if needed
-        if need_orientation {
-            original_image.apply_orientation(orientation);
-        }
-
-        // Apply crop/rotate transform
-        if !crop_rotate.is_identity() {
-            original_image = crop_rotate.apply(&original_image);
-        }
-
-        // Calculate preview size (max 1920px dimension for performance)
-        let max_preview_size = 1920u32;
-        let (orig_w, orig_h) = (original_image.width(), original_image.height());
-        let scale = if orig_w > max_preview_size || orig_h > max_preview_size {
-            let scale_w = max_preview_size as f32 / orig_w as f32;
-            let scale_h = max_preview_size as f32 / orig_h as f32;
-            scale_w.min(scale_h)
-        } else {
-            1.0
-        };
-
-        let preview_image = if scale < 1.0 {
-            let new_w = (orig_w as f32 * scale) as u32;
-            let new_h = (orig_h as f32 * scale) as u32;
-            original_image.resize(new_w, new_h, image::imageops::FilterType::Triangle)
-        } else {
-            original_image
-        };
-
-        // Create original texture
-        let original_rgba = preview_image.to_rgba8();
-        let size = [
-            original_rgba.width() as usize,
-            original_rgba.height() as usize,
-        ];
-        let original_color_image = egui::ColorImage::from_rgba_unmultiplied(size, &original_rgba);
-        let original_texture = ui_ctx.load_texture(
-            format!("color_original_{}", idx),
-            original_color_image,
-            egui::TextureOptions::LINEAR,
-        );
-        self.color_original_texture = Some(original_texture);
-
-        // Create processed texture (color adjustments + LUT)
-        let mut processed_image = image::DynamicImage::ImageRgba8(original_rgba.clone());
-
-        // Apply color adjustments first
-        self.color_adjustments.apply(&mut processed_image);
-
-        // Apply LUT if configured for this image
-        if let Some(lut_id) = image_lut_id {
-            self.lut_storage
-                .apply_lut_to_image(lut_id, &mut processed_image);
-        }
-
-        // Check if any processing was done (color adjustments or LUT)
-        let has_processing = !self.color_adjustments.is_identity() || image_lut_id.is_some();
-
-        if has_processing {
-            let processed_rgba = processed_image.to_rgba8();
-            let processed_color_image =
-                egui::ColorImage::from_rgba_unmultiplied(size, &processed_rgba);
-            let processed_texture = ui_ctx.load_texture(
-                format!("color_processed_{}", idx),
-                processed_color_image,
-                egui::TextureOptions::LINEAR,
-            );
-            self.color_lut_texture = Some(processed_texture);
-        } else {
-            // No processing applied - show same as original
-            self.color_lut_texture = self.color_original_texture.clone();
-        }
-
-        self.color_preview_cache_key = Some(cache_key);
-        Some(())
-    }
-
-    /// Render the Color tab with split-view preview
-    /// Per-image LUT selection - each image has its own LUT configuration
-    pub(crate) fn render_color_tab(&mut self, ui: &mut egui::Ui) {
-        // Poll pending LUT file picker dialog
-        #[cfg(feature = "rfd")]
-        if let Some(ref pending) = self.pending_lut_pick
-            && let Some(result) = pending.try_recv()
-        {
-            self.pending_lut_pick = None;
-            if let Some(path) = result {
-                let name = path
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("Unnamed LUT")
-                    .to_string();
-
-                match self.lut_storage.add_lut(name.clone(), &path) {
-                    Ok(id) => {
-                        log::info!("Successfully added LUT: {} (id: {})", name, id);
-                        if let Some(idx) = self.color_selected_index
-                            && let Some(pi) = self.packed_images.get_mut(idx)
-                        {
-                            pi.lut_id = Some(id);
-                            log::info!("Auto-assigned new LUT to image index {}", idx);
-                        }
-                        self.color_preview_cache_key = None;
-                    }
-                    Err(e) => {
-                        log::error!("Failed to add LUT: {:?}", e);
-                    }
-                }
-            }
-        }
-
-        ui.heading(t!("tabs.color_heading", default = "Color Grading"));
-        ui.separator();
-
-        // Show image gallery only if images exist
-        if !self.packed_images.is_empty() {
-            // Top: Horizontal scrollable gallery of loaded images
-            ui.label(t!("color.select_image", default = "Select Image"));
-
-            let current_selected = self.color_selected_index;
-
-            use crate::ui_components::render_horizontal_gallery;
-
-            let image_to_delete = render_horizontal_gallery(
-                ui,
-                self.packed_images.iter().enumerate(),
-                |(idx, _img)| *idx,
-                |(_idx, img)| {
-                    img.path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
-                },
-                |_ctx, (_idx, img)| Some(img.texture.get().clone()),
-                |idx| current_selected == Some(idx),
-                // Show indicator for images with LUT configured
-                Some(|item: &(usize, &crate::packed_image::PackedImage)| item.1.lut_id.is_some()),
-                None::<fn(&_) -> Option<(bool, bool)>>,
-                &mut |idx| {
-                    self.color_selected_index = Some(idx);
-                    // Invalidate cache when selection changes
-                    self.color_preview_cache_key = None;
-                },
-                Some(&mut |idx| {
-                    log::info!("Delete button clicked for image index {}", idx);
-                }),
-            );
-
-            // Handle deletion outside of function call to avoid borrow conflicts
-            if let Some(idx) = image_to_delete {
-                self.delete_image_by_index(idx);
-            }
-
-            ui.separator();
-
-            // Middle: Split-view preview area
-            if let Some(idx) = self.color_selected_index {
-                if idx < self.packed_images.len() {
-                    // Generate preview if needed
-                    self.generate_color_preview(ui.ctx());
-
-                    // Header with refresh button
-                    ui.horizontal(|ui| {
-                        ui.label(t!("color.preview_label", default = "Preview"));
-
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui
-                                .button(t!("color.refresh_button", default = "Refresh"))
-                                .clicked()
-                            {
-                                // Invalidate cache to force regeneration
-                                self.color_preview_cache_key = None;
-                                self.color_original_texture = None;
-                                self.color_lut_texture = None;
-                                log::info!("Color preview cache invalidated by user");
-                            }
-                        });
-                    });
-
-                    // Split-view: Original (left) | LUT Applied (right)
-                    let preview_height = ui.available_height() * 0.5;
-                    let total_width = ui.available_width();
-                    let half_width = (total_width - 10.0) / 2.0; // 10px gap between
-
-                    // Get current image's LUT for display
-                    let current_lut_id = self.packed_images.get(idx).and_then(|pi| pi.lut_id);
-                    let current_lut_name = current_lut_id
-                        .and_then(|id| self.lut_storage.get_lut(id))
-                        .map(|l| l.name.clone());
-
-                    ui.horizontal(|ui| {
-                        // Left side: Original image
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(half_width, preview_height),
-                            egui::Layout::top_down(egui::Align::Center),
-                            |ui| {
-                                ui.group(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(t!(
-                                            "color.original",
-                                            default = "Original"
-                                        ))
-                                        .strong(),
-                                    );
-
-                                    self.render_preview_image(
-                                        ui,
-                                        &self.color_original_texture.clone(),
-                                    );
-                                });
-                            },
-                        );
-
-                        ui.add_space(5.0);
-
-                        // Right side: Processed image (color adjustments + LUT)
-                        ui.allocate_ui_with_layout(
-                            egui::vec2(half_width, preview_height),
-                            egui::Layout::top_down(egui::Align::Center),
-                            |ui| {
-                                ui.group(|ui| {
-                                    // Build label showing what processing is applied
-                                    let has_adjustments = !self.color_adjustments.is_identity();
-                                    let processed_label = match (has_adjustments, &current_lut_name)
-                                    {
-                                        (true, Some(lut)) => format!(
-                                            "{} + {}",
-                                            t!("color.adjustments", default = "Adjustments"),
-                                            lut
-                                        ),
-                                        (true, None) => {
-                                            t!("color.adjustments", default = "Adjustments")
-                                                .to_string()
-                                        }
-                                        (false, Some(lut)) => lut.clone(),
-                                        (false, None) => {
-                                            t!("color.original", default = "Original").to_string()
-                                        }
-                                    };
-                                    ui.label(egui::RichText::new(processed_label).strong());
-
-                                    self.render_preview_image(ui, &self.color_lut_texture.clone());
-                                });
-                            },
-                        );
-                    });
-
-                    ui.separator();
-                }
-            } else if !self.packed_images.is_empty() {
-                // Auto-select first image if none selected
-                self.color_selected_index = Some(0);
-            }
-        } else {
-            // Show placeholder when no images loaded with drop hint
-            ui.vertical_centered(|ui| {
-                ui.add_space(20.0);
-                ui.label(
-                    egui::RichText::new(t!("color.no_images", default = "No images loaded"))
-                        .size(14.0)
-                        .color(ui.visuals().weak_text_color()),
-                );
-                ui.add_space(5.0);
-                ui.label(
-                    egui::RichText::new(t!(
-                        "color.drop_images_hint",
-                        default = "Drop images here to add"
-                    ))
-                    .size(12.0)
-                    .italics()
-                    .color(ui.visuals().weak_text_color()),
-                );
-                ui.add_space(10.0);
-            });
-            ui.separator();
-        }
-
-        // LUT settings section - per-image LUT selection
-        egui::ScrollArea::vertical()
-            .id_salt("color_settings")
-            .show(ui, |ui| {
-                ui.label(t!("color.lut_settings", default = "LUT Settings"));
-
-                // Per-image LUT selection UI
-                let action = self.render_per_image_lut_ui(ui);
-
-                // Handle LUT UI actions
-                if action == LutUiAction::OpenAddDialog {
-                    self.spawn_lut_file_dialog();
-                }
-
-                ui.add_space(10.0);
-                ui.separator();
-
-                // Color adjustments panel
-                let adjustments_before = self.color_adjustments.clone();
-                ui.collapsing(
-                    t!("color.adjustments_section", default = "Color Adjustments"),
-                    |ui| {
-                        self.color_adjustments.update_ui(ui);
-                    },
-                );
-                // Invalidate caches if color adjustments changed
-                if self.color_adjustments != adjustments_before {
-                    self.color_preview_cache_key = None;
-                    self.detection_preview_cache_key = None;
-                    self.theme_preview_cache_key = None;
-                }
-
-                ui.add_space(10.0);
-                ui.separator();
-
-                // Crop & Rotate section
-                ui.collapsing(
-                    t!("color.crop_rotate_section", default = "Crop & Rotate"),
-                    |ui| {
-                        self.render_crop_rotate_ui(ui);
-                    },
-                );
-            });
-    }
+    // generate_color_preview and render_color_tab removed — superseded by Edit tab
+    // Remaining functions: crop/rotate, LUT gallery, LUT file dialog (used by Edit tab)
 
     /// Start async crop canvas texture generation (background thread)
-    fn start_crop_canvas_generation(&mut self) -> Option<()> {
-        let idx = self.color_selected_index?;
+    pub(crate) fn start_crop_canvas_generation(&mut self) -> Option<()> {
+        let idx = self.edit_selected_index?;
         let packed_image = self.packed_images.get(idx)?;
 
         let cache_key = (
@@ -485,11 +138,11 @@ impl ChamaOptics {
     }
 
     /// Process crop canvas preview from background thread queue
-    fn process_crop_preview(&mut self, ui_ctx: &egui::Context) {
+    pub(crate) fn process_crop_preview(&mut self, ui_ctx: &egui::Context) {
         if let Ok(mut queue) = self.crop_preview_queue.try_lock()
             && let Some((color_image, idx, orig_size)) = queue.take()
         {
-            let still_relevant = self.color_selected_index == Some(idx);
+            let still_relevant = self.edit_selected_index == Some(idx);
             if still_relevant {
                 let texture = ui_ctx.load_texture(
                     format!("crop_canvas_{}", idx),
@@ -503,8 +156,8 @@ impl ChamaOptics {
     }
 
     /// Render crop/rotate interactive canvas and controls
-    fn render_crop_rotate_ui(&mut self, ui: &mut egui::Ui) {
-        let Some(idx) = self.color_selected_index else {
+    pub(crate) fn render_crop_rotate_ui(&mut self, ui: &mut egui::Ui) {
+        let Some(idx) = self.edit_selected_index else {
             ui.label(t!(
                 "color.select_image_first",
                 default = "Select an image first"
@@ -600,10 +253,10 @@ impl ChamaOptics {
 
         if rotation_changed {
             self.crop_canvas_cache_key = None;
-            self.color_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
         }
         if crop_changed {
-            self.color_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
         }
     }
 
@@ -767,7 +420,7 @@ impl ChamaOptics {
         // On drag stop → finalize and invalidate caches
         if response.drag_stopped() {
             self.crop_interaction_state = CropInteractionState::Idle;
-            self.color_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
             return;
         }
 
@@ -923,7 +576,7 @@ impl ChamaOptics {
                     width: 0.6,
                     height: 0.6,
                 });
-                self.color_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
             }
         }
     }
@@ -997,7 +650,7 @@ impl ChamaOptics {
 
         // Get current image's LUT ID for selection highlight
         let current_lut_id = self
-            .color_selected_index
+            .edit_selected_index
             .and_then(|idx| self.packed_images.get(idx))
             .and_then(|pi| pi.lut_id);
 
@@ -1236,11 +889,11 @@ impl ChamaOptics {
                                             lut_to_delete = Some(*lut_id);
                                         } else if image_response.clicked() {
                                             // Select this LUT for current image
-                                            if let Some(idx) = self.color_selected_index
+                                            if let Some(idx) = self.edit_selected_index
                                                 && let Some(pi) = self.packed_images.get_mut(idx)
                                             {
                                                 pi.lut_id = Some(*lut_id);
-                                                self.color_preview_cache_key = None;
+                                                self.edit_preview_cache_key = None;
                                                 log::info!(
                                                     "Selected LUT {} for image {}",
                                                     lut_id,
@@ -1251,11 +904,11 @@ impl ChamaOptics {
                                     }
                                 } else if image_response.clicked() {
                                     // Select this LUT for current image
-                                    if let Some(idx) = self.color_selected_index
+                                    if let Some(idx) = self.edit_selected_index
                                         && let Some(pi) = self.packed_images.get_mut(idx)
                                     {
                                         pi.lut_id = Some(*lut_id);
-                                        self.color_preview_cache_key = None;
+                                        self.edit_preview_cache_key = None;
                                         log::info!("Selected LUT {} for image {}", lut_id, idx);
                                     }
                                 }
@@ -1272,7 +925,7 @@ impl ChamaOptics {
 
     /// Render per-image LUT selection UI with horizontal gallery
     /// Sets lut_id on the current PackedImage instead of global selection
-    fn render_per_image_lut_ui(&mut self, ui: &mut egui::Ui) -> LutUiAction {
+    pub(crate) fn render_per_image_lut_ui(&mut self, ui: &mut egui::Ui) -> LutUiAction {
         let mut action = LutUiAction::None;
 
         // Horizontal LUT gallery
@@ -1296,11 +949,11 @@ impl ChamaOptics {
             // Remove cached icon texture
             self.lut_icon_textures.remove(&lut_id);
             // Invalidate preview cache
-            self.color_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
             log::info!("Removed LUT {}", lut_id);
         }
 
-        let Some(idx) = self.color_selected_index else {
+        let Some(idx) = self.edit_selected_index else {
             ui.label(t!(
                 "color.select_image_first",
                 default = "Select an image first to assign a LUT"
@@ -1334,7 +987,7 @@ impl ChamaOptics {
                 && let Some(pi) = self.packed_images.get_mut(idx)
             {
                 pi.lut_id = None;
-                self.color_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
                 log::info!("Cleared LUT for image index {}", idx);
             }
         });
@@ -1351,7 +1004,7 @@ impl ChamaOptics {
                 for pi in &mut self.packed_images {
                     pi.lut_id = lut_to_apply;
                 }
-                self.color_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
                 log::info!("Applied LUT {:?} to all images", lut_to_apply);
             }
 
@@ -1362,7 +1015,7 @@ impl ChamaOptics {
                 for pi in &mut self.packed_images {
                     pi.lut_id = None;
                 }
-                self.color_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
                 log::info!("Cleared LUT from all images");
             }
         });
@@ -1370,36 +1023,8 @@ impl ChamaOptics {
         action
     }
 
-    /// Helper to render a preview image within available space
-    fn render_preview_image(&self, ui: &mut egui::Ui, texture: &Option<egui::TextureHandle>) {
-        if let Some(texture) = texture {
-            let available_size = ui.available_size();
-            let texture_size = texture.size_vec2();
-
-            // Calculate scaling to fit within available space while maintaining aspect ratio
-            let scale = (available_size.x / texture_size.x)
-                .min(available_size.y / texture_size.y)
-                .min(1.0); // Don't scale up
-
-            let display_size = texture_size * scale;
-
-            ui.centered_and_justified(|ui| {
-                ui.image(egui::ImageSource::Texture(egui::load::SizedTexture::new(
-                    texture.id(),
-                    display_size,
-                )));
-            });
-        } else {
-            // Show loading spinner
-            ui.centered_and_justified(|ui| {
-                ui.spinner();
-                ui.label(t!("color.generating", default = "Processing..."));
-            });
-        }
-    }
-
-    /// Spawn async file dialog to add a LUT file (result polled in render_color_tab)
-    fn spawn_lut_file_dialog(&mut self) {
+    /// Spawn async file dialog to add a LUT file
+    pub(crate) fn spawn_lut_file_dialog(&mut self) {
         #[cfg(feature = "rfd")]
         if self.pending_lut_pick.is_none() {
             let title: String =
@@ -1431,13 +1056,13 @@ impl ChamaOptics {
                 match self.lut_storage.add_lut(name.clone(), &path) {
                     Ok(id) => {
                         log::info!("Successfully added LUT: {} (id: {})", name, id);
-                        if let Some(idx) = self.color_selected_index
+                        if let Some(idx) = self.edit_selected_index
                             && let Some(pi) = self.packed_images.get_mut(idx)
                         {
                             pi.lut_id = Some(id);
                             log::info!("Auto-assigned new LUT to image index {}", idx);
                         }
-                        self.color_preview_cache_key = None;
+                        self.edit_preview_cache_key = None;
                     }
                     Err(e) => {
                         log::error!("Failed to add LUT: {:?}", e);

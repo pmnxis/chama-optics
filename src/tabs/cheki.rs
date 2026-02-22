@@ -216,8 +216,8 @@ fn draw_sticker_handles(painter: &egui::Painter, sd: &StickerDisplay, is_active:
 impl ChamaOptics {
     /// Start background thread to generate base image texture with color effects applied.
     /// Applies: EXIF orientation → crop/rotate → color adjustments → LUT
-    fn start_cheki_base_texture_generation(&mut self) -> Option<()> {
-        let idx = self.cheki_selected_index?;
+    pub(crate) fn start_cheki_base_texture_generation(&mut self) -> Option<()> {
+        let idx = self.edit_selected_index?;
         let packed_image = self.packed_images.get(idx)?;
 
         // Include crop_rotate, lut_id, and color_adjustments in cache key
@@ -322,12 +322,12 @@ impl ChamaOptics {
     }
 
     /// Process base texture from background thread queue
-    fn process_cheki_base_texture(&mut self, ctx: &egui::Context) {
+    pub(crate) fn process_cheki_base_texture(&mut self, ctx: &egui::Context) {
         if let Ok(mut queue) = self.cheki_preview_queue.try_lock()
             && let Some((color_image, image_uuid)) = queue.take()
         {
             let still_relevant = self
-                .cheki_selected_index
+                .edit_selected_index
                 .and_then(|idx| self.packed_images.get(idx))
                 .is_some_and(|pi| pi.uuid == image_uuid);
 
@@ -342,199 +342,12 @@ impl ChamaOptics {
         }
     }
 
-    /// Render the Cheki tab
-    pub(crate) fn render_cheki_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("tabs.cheki_heading", default = "Cheki - Polaroid Style"));
-        ui.separator();
-
-        if self.packed_images.is_empty() {
-            egui::ScrollArea::vertical()
-                .id_salt("cheki_empty")
-                .show(ui, |ui| {
-                    // Info card
-                    ui.add_space(10.0);
-                    egui::Frame::group(ui.style())
-                        .fill(ui.visuals().faint_bg_color)
-                        .show(ui, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new("ℹ").size(16.0));
-                                ui.vertical(|ui| {
-                                    ui.label(
-                                        egui::RichText::new(t!(
-                                            "cheki.no_images",
-                                            default = "No images loaded"
-                                        ))
-                                        .size(14.0),
-                                    );
-                                    ui.label(
-                                        egui::RichText::new(t!(
-                                            "cheki.no_images_hint",
-                                            default = "Go to the Gallery tab to add images, then come back to apply Cheki decoration."
-                                        ))
-                                        .size(11.0)
-                                        .color(ui.visuals().weak_text_color()),
-                                    );
-                                });
-                            });
-                        });
-
-                    ui.add_space(8.0);
-
-                    // Greyed-out settings preview
-                    ui.scope(|ui| {
-                        ui.disable();
-                        ui.style_mut().visuals.override_text_color =
-                            Some(ui.visuals().weak_text_color());
-
-                        // Border Settings
-                        ui.separator();
-                        ui.strong(t!("cheki.border_settings", default = "Border Settings"));
-                        ui.horizontal(|ui| {
-                            ui.label(t!("cheki.border_width", default = "Border"));
-                            ui.add(egui::Slider::new(&mut 0.04_f32, 0.01..=0.15));
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label(t!("cheki.bottom_extra", default = "Bottom"));
-                            ui.add(egui::Slider::new(&mut 0.15_f32, 0.05..=0.35));
-                        });
-
-                        ui.add_space(3.0);
-
-                        // Date Stamp
-                        ui.separator();
-                        ui.strong(t!("cheki.date_section", default = "Date Stamp"));
-                        let mut preview_check = true;
-                        ui.checkbox(
-                            &mut preview_check,
-                            t!("cheki.date_enabled", default = "Enable date stamp"),
-                        );
-
-                        ui.add_space(3.0);
-
-                        // Text / Sign
-                        ui.separator();
-                        ui.strong(t!("cheki.text_section", default = "Text / Sign"));
-                        let mut preview_text = String::new();
-                        ui.add(
-                            egui::TextEdit::singleline(&mut preview_text)
-                                .desired_width(ui.available_width()),
-                        );
-
-                        ui.add_space(3.0);
-
-                        // Random Character
-                        ui.separator();
-                        ui.strong(t!("cheki.dice_section", default = "Random Character"));
-                        ui.add_space(2.0);
-                        let _ = ui.button(
-                            egui::RichText::new(t!(
-                                "cheki.play_dice",
-                                default = "Play Dice!"
-                            ))
-                            .strong(),
-                        );
-                    });
-                });
-            return;
-        }
-
-        // Image gallery
-        ui.label(t!("cheki.select_image", default = "Select Image"));
-
-        let current_selected = self.cheki_selected_index;
-        let image_to_delete = crate::ui_components::render_horizontal_gallery(
-            ui,
-            self.packed_images.iter().enumerate(),
-            |(idx, _img)| *idx,
-            |(_idx, img)| {
-                img.path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .to_string()
-            },
-            |_ctx, (_idx, img)| Some(img.texture.get().clone()),
-            |idx| current_selected == Some(idx),
-            Some(|item: &(usize, &crate::packed_image::PackedImage)| {
-                self.cheki_decorations.contains_key(&item.1.uuid)
-            }),
-            None::<fn(&_) -> Option<(bool, bool)>>,
-            &mut |idx| {
-                self.cheki_selected_index = Some(idx);
-                self.cheki_preview_cache_key = None;
-            },
-            Some(&mut |idx| {
-                log::info!("Delete button clicked for image index {} in cheki tab", idx);
-            }),
-        );
-
-        if let Some(idx) = image_to_delete {
-            self.delete_image_by_index(idx);
-        }
-
-        ui.separator();
-
-        // Auto-select first if none selected
-        if self.cheki_selected_index.is_none() && !self.packed_images.is_empty() {
-            self.cheki_selected_index = Some(0);
-        }
-
-        let Some(idx) = self.cheki_selected_index else {
-            return;
-        };
-
-        if idx >= self.packed_images.len() {
-            self.cheki_selected_index = None;
-            return;
-        }
-
-        let image_uuid = self.packed_images[idx].uuid;
-
-        // Ensure decoration exists for this image
-        self.cheki_decorations.entry(image_uuid).or_default();
-
-        // Warning: both cheki and theme active
-        let theme_name = self
-            .export_config
-            .theme_reg
-            .selected_theme_read()
-            .unique_name()
-            .to_string();
-        if theme_name != "nothing" {
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(t!(
-                        "cheki.theme_warning",
-                        default =
-                            "Note: Cheki decoration will be applied ON TOP of the selected theme"
-                    ))
-                    .size(11.0)
-                    .color(ui.visuals().warn_fg_color),
-                );
-            });
-            ui.add_space(3.0);
-        }
-
-        // Generate base texture (async) and process results
-        self.process_cheki_base_texture(ui.ctx());
-        self.start_cheki_base_texture_generation();
-
-        // Vertical layout: full-width Canvas TOP | Controls BOTTOM
-        let available = ui.available_size();
-        let canvas_height = (available.y * 0.50).max(200.0);
-
-        ui.allocate_ui(egui::vec2(available.x, canvas_height), |ui| {
-            self.render_cheki_canvas(ui, image_uuid);
-        });
-
-        ui.separator();
-
-        self.render_cheki_controls(ui, image_uuid);
-    }
+    // render_cheki_tab removed — superseded by Edit tab
+    // Remaining functions: canvas rendering, controls, texture gen (used by Edit tab)
 
     /// Render the cheki canvas using egui-native drawing.
     /// Stickers are drawn rotated via custom mesh; handles shown for resize/rotate.
-    fn render_cheki_canvas(&mut self, ui: &mut egui::Ui, image_uuid: uuid::Uuid) {
+    pub(crate) fn render_cheki_canvas(&mut self, ui: &mut egui::Ui, image_uuid: uuid::Uuid) {
         let Some(base_texture) = self.cheki_preview_texture.clone() else {
             ui.centered_and_justified(|ui| {
                 ui.label(t!("cheki.loading_preview", default = "Loading preview..."));
@@ -1130,7 +943,7 @@ impl ChamaOptics {
     }
 
     /// Render cheki control panel
-    fn render_cheki_controls(&mut self, ui: &mut egui::Ui, image_uuid: uuid::Uuid) {
+    pub(crate) fn render_cheki_controls(&mut self, ui: &mut egui::Ui, image_uuid: uuid::Uuid) {
         egui::ScrollArea::vertical()
             .id_salt("cheki_controls")
             .show(ui, |ui| {
@@ -1303,7 +1116,7 @@ impl ChamaOptics {
                             ))
                             .clicked()
                             && let Some(pi) = self
-                                .cheki_selected_index
+                                .edit_selected_index
                                 .and_then(|idx| self.packed_images.get(idx))
                                 && let Some(dt) = pi.view_exif.datetime {
                                     deco.date_text = dt.format("%Y.%m.%d").to_string();

@@ -23,8 +23,8 @@ impl ChamaOptics {
         }
 
         // Auto-select first image if none selected (like theme preview tab)
-        if self.preview_selected_index.is_none() && !self.packed_images.is_empty() {
-            self.preview_selected_index = Some(0);
+        if self.edit_selected_index.is_none() && !self.packed_images.is_empty() {
+            self.edit_selected_index = Some(0);
             // Load previously configured faces if available
             if let Some(img) = self.packed_images.first()
                 && !img.configured_faces.is_empty()
@@ -42,17 +42,17 @@ impl ChamaOptics {
         ui.label(t!("face_detection.select_image"));
         use crate::ui_components::render_horizontal_gallery;
 
-        let current_selected = self.preview_selected_index;
+        let current_selected = self.edit_selected_index;
 
         let mut on_select = |idx| {
             if current_selected != Some(idx) {
-                self.preview_selected_index = Some(idx);
+                self.edit_selected_index = Some(idx);
                 // Reset zoom and pan when image changes
                 self.detection_zoom = 1.0;
                 self.detection_pan = egui::Vec2::ZERO;
                 self.detection_preview_texture = None;
                 self.detection_preview_cache_key = None;
-                self.theme_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
 
                 // Reset detection progress state to allow detection on new image
                 self.detection_progress = crate::ui_state::ProgressState::new();
@@ -149,12 +149,12 @@ impl ChamaOptics {
                     self.detected_faces.clear();
                     self.selected_face_index = None;
                     // Clear configured faces for current image
-                    if let Some(idx) = self.preview_selected_index
+                    if let Some(idx) = self.edit_selected_index
                         && let Some(img) = self.packed_images.get_mut(idx)
                     {
                         img.configured_faces.clear();
                         self.detection_preview_cache_key = None;
-                        self.theme_preview_cache_key = None;
+                        self.edit_preview_cache_key = None;
                     }
                 }
             }
@@ -180,10 +180,10 @@ impl ChamaOptics {
                 self.detected_faces.remove(selected_idx);
                 self.selected_face_index = None;
                 self.detection_preview_cache_key = None;
-                self.theme_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
 
                 // Update configured faces
-                if let Some(idx) = self.preview_selected_index
+                if let Some(idx) = self.edit_selected_index
                     && let Some(img) = self.packed_images.get_mut(idx)
                 {
                     img.configured_faces = self.detected_faces.clone();
@@ -252,7 +252,7 @@ impl ChamaOptics {
 
                         ui.label(t!("face_detection.preview"));
 
-                        if let Some(idx) = self.preview_selected_index {
+                        if let Some(idx) = self.edit_selected_index {
                             if let Some(packed_image) = self.packed_images.get(idx) {
                                 // Clone data needed before mutable operations
                                 let image_path = packed_image.path.clone();
@@ -381,7 +381,7 @@ impl ChamaOptics {
                                     // Invalidate preview cache if faces were deleted
                                     if faces_deleted {
                                         self.detection_preview_cache_key = None;
-                                        self.theme_preview_cache_key = None;
+                                        self.edit_preview_cache_key = None;
                                     }
                                 });
 
@@ -427,7 +427,7 @@ impl ChamaOptics {
                                                     }
                                                     // Invalidate preview cache to regenerate with updated effect
                                                     self.detection_preview_cache_key = None;
-                                                    self.theme_preview_cache_key = None;
+                                                    self.edit_preview_cache_key = None;
                                                 }
                                             }
                                         });
@@ -470,7 +470,7 @@ impl ChamaOptics {
                                                         None;
                                                     // Invalidate preview cache to regenerate with updated sticker
                                                     self.detection_preview_cache_key = None;
-                                                    self.theme_preview_cache_key = None;
+                                                    self.edit_preview_cache_key = None;
                                                 }
 
                                                 // Sticker options
@@ -488,7 +488,7 @@ impl ChamaOptics {
                                                             .sticker_id = Some(sticker.id);
                                                         // Invalidate preview cache to regenerate with updated sticker
                                                         self.detection_preview_cache_key = None;
-                                                        self.theme_preview_cache_key = None;
+                                                        self.edit_preview_cache_key = None;
                                                     }
                                                 }
                                             });
@@ -751,12 +751,12 @@ impl ChamaOptics {
         if response.drag_stopped() {
             // Invalidate preview cache to trigger regeneration with updated face positions
             self.detection_preview_cache_key = None;
-            self.theme_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
             log::info!("Preview cache invalidated - manual face edit completed");
             self.face_interaction_state = FaceInteractionState::Idle;
 
             // Save updated configured faces for export to avoid re-detection
-            if let Some(idx) = self.preview_selected_index
+            if let Some(idx) = self.edit_selected_index
                 && let Some(img) = self.packed_images.get_mut(idx)
             {
                 img.configured_faces = self.detected_faces.clone();
@@ -932,7 +932,7 @@ impl ChamaOptics {
                     }
                     // Invalidate preview cache when face is deleted
                     self.detection_preview_cache_key = None;
-                    self.theme_preview_cache_key = None;
+                    self.edit_preview_cache_key = None;
                     return;
                 }
             }
@@ -980,7 +980,7 @@ impl ChamaOptics {
                 self.selected_face_index = Some(self.detected_faces.len() - 1);
                 // Invalidate preview cache when new face is added
                 self.detection_preview_cache_key = None;
-                self.theme_preview_cache_key = None;
+                self.edit_preview_cache_key = None;
             }
         }
     }
@@ -1124,7 +1124,7 @@ impl ChamaOptics {
 
     /// Add a new face manually at the center of the current view
     fn add_face_manually(&mut self) {
-        if let Some(idx) = self.preview_selected_index {
+        if let Some(idx) = self.edit_selected_index {
             // Get original image dimensions
             let (orig_w, orig_h) = self.detection_preview_original_size.unwrap_or((1000, 1000));
 
@@ -1140,7 +1140,7 @@ impl ChamaOptics {
             self.detected_faces.push(new_face);
             self.selected_face_index = Some(self.detected_faces.len() - 1);
             self.detection_preview_cache_key = None;
-            self.theme_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
 
             // Update configured faces
             if let Some(packed_image) = self.packed_images.get_mut(idx) {
@@ -1153,7 +1153,7 @@ impl ChamaOptics {
 
     /// Run face detection on selected image (asynchronous)
     fn run_face_detection(&mut self) {
-        let Some(idx) = self.preview_selected_index else {
+        let Some(idx) = self.edit_selected_index else {
             return;
         };
         let Some(packed_image) = self.packed_images.get(idx) else {
@@ -1171,7 +1171,7 @@ impl ChamaOptics {
         self.detected_faces.clear();
         self.selected_face_index = None;
         self.detection_preview_cache_key = None;
-        self.theme_preview_cache_key = None;
+        self.edit_preview_cache_key = None;
 
         // Start progress tracking (1 item to detect)
         self.detection_progress.start(1);
@@ -1333,7 +1333,7 @@ impl ChamaOptics {
             && let Some((faces, image_uuid, oriented_size)) = queue.take()
         {
             // Verify this result is for the currently selected image
-            if let Some(selected_idx) = self.preview_selected_index {
+            if let Some(selected_idx) = self.edit_selected_index {
                 if let Some(selected_image) = self.packed_images.get_mut(selected_idx) {
                     if selected_image.uuid == image_uuid {
                         log::info!("Applying detection results for current image");
@@ -1745,7 +1745,7 @@ impl ChamaOptics {
             && let Some((color_image, image_uuid, orig_size, sticker_processed)) = queue.take()
         {
             // Verify this is for the currently selected image
-            if let Some(selected_idx) = self.preview_selected_index
+            if let Some(selected_idx) = self.edit_selected_index
                 && let Some(selected_image) = self.packed_images.get(selected_idx)
                 && selected_image.uuid == image_uuid
             {
@@ -1791,7 +1791,7 @@ impl ChamaOptics {
                     .insert(image_uuid, sticker_processed.clone());
 
                 // Store sticker bytes in the PackedImage struct using selected index
-                if let Some(selected_idx) = self.preview_selected_index
+                if let Some(selected_idx) = self.edit_selected_index
                     && let Some(packed_image) = self.packed_images.get_mut(selected_idx)
                 {
                     packed_image.sticker_bytes = sticker_bytes.clone();

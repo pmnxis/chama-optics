@@ -41,17 +41,27 @@ type CropPreviewData = (egui::ColorImage, usize, (u32, u32));
 /// Type alias for thread-safe crop canvas preview queue
 type CropPreviewQueue = Arc<Mutex<Option<CropPreviewData>>>;
 
+/// Decoration mode for the Edit tab (None / Theme / Cheki)
+#[derive(
+    serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, Debug, Default, Hash,
+)]
+pub enum DecorationMode {
+    #[default]
+    None,
+    Theme,
+    Cheki,
+}
+
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
 pub enum MainTab {
     #[default]
     ImageList,
     Detection,
-    ThemePreview,
-    Color,
+    Edit,
     Sticker,
-    Cheki,
     ImportExport,
+    #[serde(other)]
     Settings,
 }
 
@@ -182,26 +192,6 @@ pub struct ChamaOptics {
     pub(crate) selected_sticker_id: Option<uuid::Uuid>,
 
     #[serde(skip)]
-    /// Selected image index for color tab
-    pub(crate) color_selected_index: Option<usize>,
-
-    #[serde(skip)]
-    /// Cached original image texture for color tab (left side)
-    pub(crate) color_original_texture: Option<egui::TextureHandle>,
-
-    #[serde(skip)]
-    /// Cached LUT-applied image texture for color tab (right side)
-    pub(crate) color_lut_texture: Option<egui::TextureHandle>,
-
-    #[serde(skip)]
-    /// Color preview cache key (image_index, lut_id, color_adjustments)
-    pub(crate) color_preview_cache_key: Option<(
-        usize,
-        Option<uuid::Uuid>,
-        crate::effect::color_adjustments::ColorAdjustments,
-    )>,
-
-    #[serde(skip)]
     /// Cached LUT icon textures for gallery display (lut_id -> texture)
     pub(crate) lut_icon_textures: std::collections::HashMap<uuid::Uuid, egui::TextureHandle>,
 
@@ -211,18 +201,6 @@ pub struct ChamaOptics {
     #[serde(skip)]
     /// Active image groups (if grouping has been applied)
     pub image_groups: Option<Vec<crate::image_group::ImageGroup>>,
-
-    #[serde(skip)]
-    /// Selected image index for theme preview tab
-    pub(crate) preview_selected_index: Option<usize>,
-
-    #[serde(skip)]
-    /// Cached theme preview texture
-    pub(crate) theme_preview_texture: Option<egui::TextureHandle>,
-
-    #[serde(skip)]
-    /// Last theme preview generation params (to detect when to regenerate)
-    pub(crate) theme_preview_cache_key: Option<(usize, u64)>, // (image_index, params_hash)
 
     #[serde(skip)]
     /// Cached detection preview texture
@@ -338,10 +316,6 @@ pub struct ChamaOptics {
     pub cheki_decorations:
         std::collections::HashMap<uuid::Uuid, crate::effect::cheki::ChekiDecoration>,
 
-    /// Selected image index for Cheki tab
-    #[serde(skip)]
-    pub(crate) cheki_selected_index: Option<usize>,
-
     /// Cached Cheki preview texture
     #[serde(skip)]
     pub(crate) cheki_preview_texture: Option<egui::TextureHandle>,
@@ -353,6 +327,21 @@ pub struct ChamaOptics {
     /// Cheki canvas interaction state (sticker/text dragging)
     #[serde(skip)]
     pub(crate) cheki_interaction_state: ChekiInteractionState,
+
+    /// Selected image index for Edit tab
+    #[serde(skip)]
+    pub(crate) edit_selected_index: Option<usize>,
+
+    /// Cached Edit preview texture
+    #[serde(skip)]
+    pub(crate) edit_preview_texture: Option<egui::TextureHandle>,
+
+    /// Edit preview cache key (image_index, params_hash)
+    #[serde(skip)]
+    pub(crate) edit_preview_cache_key: Option<(usize, u64)>,
+
+    /// Decoration mode for Edit tab (None / Theme / Cheki)
+    pub decoration_mode: DecorationMode,
 
     /// Crop/rotate canvas: rotated base image texture (before crop applied)
     #[serde(skip)]
@@ -428,16 +417,9 @@ impl Default for ChamaOptics {
             lut_storage: crate::effect::lut_storage::LutStorage::new(),
             color_adjustments: crate::effect::color_adjustments::ColorAdjustments::default(),
             selected_sticker_id: None,
-            color_selected_index: None,
-            color_original_texture: None,
-            color_lut_texture: None,
-            color_preview_cache_key: None,
             lut_icon_textures: std::collections::HashMap::new(),
             packed_images: vec![],
             image_groups: None,
-            preview_selected_index: None,
-            theme_preview_texture: None,
-            theme_preview_cache_key: None,
             detection_preview_texture: None,
             sticker_processed_images: std::collections::HashMap::new(),
             detection_preview_cache_key: None,
@@ -466,10 +448,13 @@ impl Default for ChamaOptics {
             #[cfg(all(feature = "desktop", not(feature = "ios_integration")))]
             loaded_image_queue: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
             cheki_decorations: std::collections::HashMap::new(),
-            cheki_selected_index: None,
             cheki_preview_texture: None,
             cheki_preview_cache_key: None,
             cheki_interaction_state: ChekiInteractionState::default(),
+            edit_selected_index: None,
+            edit_preview_texture: None,
+            edit_preview_cache_key: None,
+            decoration_mode: DecorationMode::default(),
             crop_canvas_texture: None,
             crop_canvas_cache_key: None,
             crop_canvas_original_size: None,
@@ -498,17 +483,14 @@ impl ChamaOptics {
 
     /// Invalidate all preview and detection caches
     pub fn invalidate_caches(&mut self) {
-        self.theme_preview_cache_key = None;
-        self.theme_preview_texture = None;
         self.detection_preview_cache_key = None;
         self.detection_preview_texture = None;
         self.detected_faces.clear();
         self.selected_face_index = None;
-        // Color tab caches
-        self.color_preview_cache_key = None;
-        self.color_original_texture = None;
-        self.color_lut_texture = None;
-        // Cheki tab caches
+        // Edit tab caches
+        self.edit_preview_cache_key = None;
+        self.edit_preview_texture = None;
+        // Cheki preview cache
         self.cheki_preview_cache_key = None;
         self.cheki_preview_texture = None;
         // Crop/rotate canvas caches
@@ -556,11 +538,11 @@ impl ChamaOptics {
         // Clean up related data
         self.sticker_processed_images.remove(&removed_uuid);
 
-        // Adjust preview_selected_index if needed
-        if let Some(selected) = self.preview_selected_index {
+        // Adjust edit_selected_index if needed
+        if let Some(selected) = self.edit_selected_index {
             if selected == idx {
                 // Deleted the selected image, try to select another
-                self.preview_selected_index = if self.packed_images.is_empty() {
+                self.edit_selected_index = if self.packed_images.is_empty() {
                     None
                 } else if idx >= self.packed_images.len() {
                     // Was the last image, select the new last image
@@ -571,7 +553,7 @@ impl ChamaOptics {
                 };
             } else if selected > idx {
                 // Selected image shifted left due to deletion
-                self.preview_selected_index = Some(selected - 1);
+                self.edit_selected_index = Some(selected - 1);
             }
         }
 
@@ -1502,7 +1484,7 @@ impl ChamaOptics {
                                 }
                             }
                         }
-                        MainTab::Color => {
+                        MainTab::Edit => {
                             for path in paths.iter() {
                                 let ext = path
                                     .extension()
@@ -1524,12 +1506,12 @@ impl ChamaOptics {
                                                 name,
                                                 id
                                             );
-                                            if let Some(idx) = self.color_selected_index
+                                            if let Some(idx) = self.edit_selected_index
                                                 && let Some(pi) = self.packed_images.get_mut(idx)
                                             {
                                                 pi.lut_id = Some(id);
                                             }
-                                            self.color_preview_cache_key = None;
+                                            self.edit_preview_cache_key = None;
                                         }
                                         Err(e) => {
                                             log::error!("Failed to add LUT {}: {:?}", name, e)
@@ -1895,10 +1877,8 @@ impl ChamaOptics {
             match self.selected_tab {
                 MainTab::ImageList => self.render_image_list_tab(ui),
                 MainTab::Detection => self.render_detection_tab(ui),
-                MainTab::ThemePreview => self.render_theme_preview_tab(ui),
-                MainTab::Color => self.render_color_tab(ui),
+                MainTab::Edit => self.render_edit_tab(ui),
                 MainTab::Sticker => self.render_sticker_tab(ui),
-                MainTab::Cheki => self.render_cheki_tab(ui),
                 MainTab::ImportExport => self.render_import_export_tab(ui),
                 MainTab::Settings => self.render_settings_tab(ui),
             }
