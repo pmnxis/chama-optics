@@ -640,63 +640,61 @@ impl VariableTextSlot {
         }
     }
 
-    /// Get font - on iOS loads directly from font_file
+    /// Get font with weight applied - on iOS/Android loads from font_file and applies weight variation
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
     pub fn get_font(&self) -> ab_glyph::FontArc {
-        self.get_font_from_file()
+        let (font, _) = self.get_font_with_new_weight(self.weight);
+        font
     }
 
-    /// Load font directly from font_file (for iOS)
-    /// Uses FONTS_BASE_DIR + font_file to construct full path
+    /// Resolve font_file to a full filesystem path (iOS/Android)
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-    fn get_font_from_file(&self) -> ab_glyph::FontArc {
-        use ab_glyph::FontArc;
+    fn resolve_font_path(&self) -> std::path::PathBuf {
         use std::path::{Path, PathBuf};
 
         if self.font_file.is_empty() {
             panic!("Font loading failed on iOS: font_file is empty");
         }
 
-        // Construct full path from base directory + filename
         let base_dir = get_fonts_base_directory();
-        let full_path = if base_dir.is_empty() {
-            // If no base dir set, try using font_file as-is (might be full path)
-            PathBuf::from(&self.font_file)
-        } else {
-            let font_path = Path::new(&self.font_file);
+        if base_dir.is_empty() {
+            return PathBuf::from(&self.font_file);
+        }
 
-            // If it's an absolute path that exists, use it directly
-            if font_path.is_absolute() && font_path.exists() {
-                font_path.to_path_buf()
-            } else if let Some(filename) = font_path.file_name().and_then(|n| n.to_str()) {
-                // Check if this is a stale /tmp path (old container UUID)
-                // Try to find the same filename in current /tmp directory
-                if self.font_file.contains("/tmp/") {
-                    let tmp_path = std::env::temp_dir().join(filename);
-                    if tmp_path.exists() {
-                        log::debug!(
-                            "Found font in current /tmp (old path was stale): {:?}",
-                            tmp_path
-                        );
+        let font_path = Path::new(&self.font_file);
+
+        if font_path.is_absolute() && font_path.exists() {
+            font_path.to_path_buf()
+        } else if let Some(filename) = font_path.file_name().and_then(|n| n.to_str()) {
+            if self.font_file.contains("/tmp/") {
+                let tmp_path = std::env::temp_dir().join(filename);
+                if tmp_path.exists() {
+                    log::debug!(
+                        "Found font in current /tmp (old path was stale): {:?}",
                         tmp_path
-                    } else {
-                        // /tmp font doesn't exist in current session, fall back to app bundle
-                        PathBuf::from(&base_dir).join(filename)
-                    }
+                    );
+                    tmp_path
                 } else {
-                    // Fall back to app bundle (handles old container UUID for built-in fonts)
                     PathBuf::from(&base_dir).join(filename)
                 }
             } else {
-                // Can't extract filename, use font_file as-is
-                PathBuf::from(&self.font_file)
+                PathBuf::from(&base_dir).join(filename)
             }
-        };
+        } else {
+            PathBuf::from(&self.font_file)
+        }
+    }
+
+    /// Load font directly from font_file (for iOS)
+    /// Uses FONTS_BASE_DIR + font_file to construct full path
+    #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+    fn get_font_from_file(&self) -> ab_glyph::FontArc {
+        let full_path = self.resolve_font_path();
 
         log::debug!("Loading font from: {:?}", full_path);
 
         if let Ok(data) = std::fs::read(&full_path) {
-            if let Ok(font) = FontArc::try_from_vec(data) {
+            if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
                 return font;
             }
             log::error!("Failed to parse font file: {:?}", full_path);
@@ -704,6 +702,7 @@ impl VariableTextSlot {
             log::error!("Failed to read font file: {:?}", full_path);
         }
 
+        let base_dir = get_fonts_base_directory();
         panic!(
             "Font loading failed on iOS. font_file='{}', base_dir='{}', full_path='{:?}'",
             self.font_file, base_dir, full_path
@@ -732,10 +731,27 @@ impl VariableTextSlot {
         }
     }
 
-    /// iOS version - weight is ignored, uses font_file directly
+    /// iOS/Android version - loads font from file and applies weight variation for variable fonts
     #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-    pub fn get_font_with_new_weight(&self, _weight: u16) -> (ab_glyph::FontArc, bool) {
-        // On iOS, fonts are loaded from file, weight is not adjustable at runtime
+    pub fn get_font_with_new_weight(&self, weight: u16) -> (ab_glyph::FontArc, bool) {
+        use ab_glyph::VariableFont;
+
+        let full_path = self.resolve_font_path();
+
+        if let Ok(data) = std::fs::read(&full_path) {
+            if let Ok(mut font) = ab_glyph::FontVec::try_from_vec(data) {
+                if weight > 0 {
+                    font.set_variation(b"wght", weight as f32);
+                    return (font.into(), true);
+                }
+                return (font.into(), false);
+            }
+            log::error!("Failed to parse font file: {:?}", full_path);
+        } else {
+            log::error!("Failed to read font file: {:?}", full_path);
+        }
+
+        // Fallback: load without weight
         (self.get_font_from_file(), false)
     }
 

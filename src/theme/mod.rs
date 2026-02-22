@@ -88,36 +88,43 @@ pub(crate) fn text_dimensions_with_fallback(
     (total_width, max_height)
 }
 
-/// Load SourceHanSans as CJK fallback font (iOS/Android)
-/// Tries fonts base directory first, then embedded resources.
+/// Cache raw bytes for CJK fallback font (iOS/Android)
+/// Uses Box::leak to get &'static [u8] so we can create FontRef<'static> with weight variation.
 #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
-fn get_fallback_font() -> Option<ab_glyph::FontArc> {
+fn get_fallback_font_bytes() -> Option<&'static [u8]> {
     use std::sync::OnceLock;
-    static FALLBACK: OnceLock<Option<ab_glyph::FontArc>> = OnceLock::new();
-    FALLBACK
-        .get_or_init(|| {
-            // 1st: Load from fonts base directory (app bundle)
-            let base_dir = crate::effect::variable_text::get_fonts_base_directory();
-            if !base_dir.is_empty() {
-                let path = std::path::PathBuf::from(&base_dir).join("SourceHanSansVF-remapped.otf");
-                if let Ok(data) = std::fs::read(&path) {
-                    if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
-                        log::info!("✅ Loaded CJK fallback font from: {}", path.display());
-                        return Some(font);
-                    }
-                }
+    static FALLBACK_BYTES: OnceLock<Option<&'static [u8]>> = OnceLock::new();
+    *FALLBACK_BYTES.get_or_init(|| {
+        // 1st: Load from fonts base directory (app bundle)
+        let base_dir = crate::effect::variable_text::get_fonts_base_directory();
+        if !base_dir.is_empty() {
+            let path = std::path::PathBuf::from(&base_dir).join("SourceHanSansVF-remapped.otf");
+            if let Ok(data) = std::fs::read(&path) {
+                log::info!("✅ Loaded CJK fallback font bytes from: {}", path.display());
+                return Some(Box::leak(data.into_boxed_slice()) as &'static [u8]);
             }
-            // 2nd: Load from embedded resources
-            if let Some(data) = crate::resources::load_font("SourceHanSansVF-remapped.otf") {
-                if let Ok(font) = ab_glyph::FontArc::try_from_vec(data) {
-                    log::info!("✅ Loaded CJK fallback font from embedded resources");
-                    return Some(font);
-                }
-            }
-            log::warn!("⚠️ Failed to load CJK fallback font (SourceHanSans)");
-            None
-        })
-        .clone()
+        }
+        // 2nd: Load from embedded resources
+        if let Some(data) = crate::resources::load_font("SourceHanSansVF-remapped.otf") {
+            log::info!("✅ Loaded CJK fallback font bytes from embedded resources");
+            return Some(Box::leak(data.into_boxed_slice()) as &'static [u8]);
+        }
+        log::warn!("⚠️ Failed to load CJK fallback font bytes (SourceHanSans)");
+        None
+    })
+}
+
+/// Get CJK fallback font with weight variation applied (iOS/Android)
+/// Creates a fresh FontRef from cached bytes and applies set_variation for variable font weight.
+#[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+fn get_fallback_font(weight: u16) -> Option<ab_glyph::FontArc> {
+    use ab_glyph::VariableFont;
+    let bytes = get_fallback_font_bytes()?;
+    let mut font = ab_glyph::FontRef::try_from_slice(bytes).ok()?;
+    if weight > 0 {
+        font.set_variation(b"wght", weight as f32);
+    }
+    Some(font.into())
 }
 
 /// Calculate text dimensions with automatic fallback to SourceHanSans (iOS/Android version)
@@ -125,12 +132,12 @@ fn get_fallback_font() -> Option<ab_glyph::FontArc> {
 pub(crate) fn text_dimensions_with_fallback(
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
-    _weight: u16,
+    weight: u16,
     text: &str,
 ) -> (f32, f32) {
     use ab_glyph::{Font, ScaleFont};
 
-    let fallback = get_fallback_font();
+    let fallback = get_fallback_font(weight);
     let scaled_primary = primary_font.as_scaled(scale);
     let max_height = scaled_primary.height();
 
@@ -217,7 +224,7 @@ pub(crate) fn draw_text_with_fallback<I>(
     y: i32,
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
-    _weight: u16,
+    weight: u16,
     text: &str,
 ) where
     I: image::GenericImage<Pixel = image::Rgba<u8>>,
@@ -228,7 +235,7 @@ pub(crate) fn draw_text_with_fallback<I>(
         return;
     }
 
-    let fallback = get_fallback_font();
+    let fallback = get_fallback_font(weight);
     let mut current_x = x as f32;
     let scaled_primary = primary_font.as_scaled(scale);
 
@@ -321,7 +328,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
     y: i32,
     scale: ab_glyph::PxScale,
     primary_font: &ab_glyph::FontArc,
-    _weight: u16,
+    weight: u16,
     text: &str,
 ) where
     I: image::GenericImage<Pixel = image::Luma<u8>>,
@@ -332,7 +339,7 @@ pub(crate) fn draw_text_with_fallback_luma<I>(
         return;
     }
 
-    let fallback = get_fallback_font();
+    let fallback = get_fallback_font(weight);
     let mut current_x = x as f32;
     let scaled_primary = primary_font.as_scaled(scale);
 

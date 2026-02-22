@@ -14,10 +14,10 @@ edit:
 
   # Edit mode toggle
   mode_individual:
-    en: "Individual"
+    en: "Each"
     ko: "개별"
     ja: "個別"
-    id: "Individual"
+    id: "Setiap"
   mode_all:
     en: "All"
     ko: "전체"

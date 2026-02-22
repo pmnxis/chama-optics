@@ -288,6 +288,17 @@ fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
         .read_from_container(&mut buf_reader)
         .ok()?;
 
+    // Read parent file's EXIF orientation so we can apply it to the extracted preview.
+    // Embedded previews are typically stored with raw sensor orientation (not pixel-rotated).
+    let orientation = {
+        use exif::{In, Tag};
+        let value = exif
+            .get_field(Tag::Orientation, In::PRIMARY)
+            .and_then(|field| field.value.get_uint(0));
+        image::metadata::Orientation::from_exif(value.unwrap_or(0) as u8)
+            .unwrap_or(image::metadata::Orientation::NoTransforms)
+    };
+
     // Store thumbnails to extend lifetime
     let thumbnails = exif.thumbnails();
 
@@ -303,7 +314,11 @@ fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
         return None;
     }
 
-    log::info!("Found EXIF thumbnail: {} bytes", biggest_thumbnail.length);
+    log::info!(
+        "Found EXIF thumbnail: {} bytes, orientation: {:?}",
+        biggest_thumbnail.length,
+        orientation
+    );
 
     // Reopen file to extract thumbnail data
     let file = std::fs::File::open(image_path).ok()?;
@@ -311,8 +326,10 @@ fn extract_exif_preview(image_path: &str) -> Option<image::DynamicImage> {
 
     let thumbnail_data = biggest_thumbnail.extract_data(&mut buf_reader).ok()?;
 
-    // Load the thumbnail as an image
-    image::load_from_memory(&thumbnail_data).ok()
+    // Load the thumbnail and apply the parent file's EXIF orientation
+    let mut img = image::load_from_memory(&thumbnail_data).ok()?;
+    img.apply_orientation(orientation);
+    Some(img)
 }
 
 // ============================================================================

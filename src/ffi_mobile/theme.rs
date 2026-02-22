@@ -25,17 +25,14 @@ use crate::error::ChamaOpticsError;
 fn update_theme_from_json(
     theme: &mut dyn crate::theme::Theme,
     params_json: &str,
+    font_path: &str,
+    font_weight: u32,
 ) -> Result<(), ChamaOpticsError> {
     use crate::theme::parameter_schema::ThemeParameters;
 
     // Parse JSON
-    let updates: serde_json::Map<String, serde_json::Value> = serde_json::from_str(params_json)
+    let mut updates: serde_json::Map<String, serde_json::Value> = serde_json::from_str(params_json)
         .map_err(|e| ChamaOpticsError::InvalidParameters(format!("JSON parse error: {}", e)))?;
-
-    if updates.is_empty() {
-        log::debug!("No parameter updates provided");
-        return Ok(());
-    }
 
     // Try to downcast to each concrete theme type and update
     // This is necessary because Rust doesn't allow trait upcasting
@@ -44,6 +41,32 @@ fn update_theme_from_json(
             if let Some(concrete_theme) =
                 (theme as &mut dyn std::any::Any).downcast_mut::<$theme_type>()
             {
+                // Inject global font/weight defaults for parameters not already in the JSON.
+                // Per-position overrides from the client take precedence.
+                #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+                {
+                    use crate::theme::parameter_schema::ParameterType;
+                    let schema = concrete_theme.schema();
+                    for param in &schema.parameters {
+                        if param.param_type == ParameterType::Font
+                            && !updates.contains_key(&param.name)
+                            && !font_path.is_empty()
+                        {
+                            updates.insert(param.name.clone(), serde_json::json!(font_path));
+                        }
+                        if param.name.ends_with(".weight")
+                            && !updates.contains_key(&param.name)
+                            && font_weight > 0
+                        {
+                            updates
+                                .insert(param.name.clone(), serde_json::json!(font_weight as f64));
+                        }
+                    }
+                }
+
+                if updates.is_empty() {
+                    return Ok(());
+                }
                 return concrete_theme
                     .update_from_json(&updates)
                     .map_err(|e| ChamaOpticsError::InvalidParameters(e));
@@ -106,11 +129,9 @@ fn generate_preview_impl(
     let mut theme = crate::theme::create_theme(theme_name).ok_or(ChamaOpticsError::InvalidTheme)?;
 
     // 4. Update theme parameters from JSON
-    update_theme_from_json(&mut *theme, params_json)?;
+    update_theme_from_json(&mut *theme, params_json, font_path, font_weight)?;
 
-    // 5. Validate font path and weight
-    // Font path and weight will be used by theme rendering
-    // Note: font_weight (100-900) will be handled by Swift's variable font system
+    // 5. Validate font path
     if !Path::new(font_path).exists() {
         log::warn!("Font path does not exist: {}", font_path);
         return Err(ChamaOpticsError::InvalidFont);
@@ -261,12 +282,15 @@ pub(super) fn export_final_impl(params: &ThemeExportParams) -> Result<(), ChamaO
     let mut theme =
         crate::theme::create_theme(params.theme_name).ok_or(ChamaOpticsError::InvalidTheme)?;
 
-    // 4. Update theme parameters from JSON
-    update_theme_from_json(&mut *theme, params.params_json)?;
+    // 4. Update theme parameters from JSON (includes global font/weight injection)
+    update_theme_from_json(
+        &mut *theme,
+        params.params_json,
+        params.font_path,
+        params.font_weight,
+    )?;
 
-    // 5. Validate font path and weight
-    // Font path and weight will be used by theme rendering
-    // Note: font_weight (100-900) will be handled by Swift's variable font system
+    // 5. Validate font path
     if !Path::new(params.font_path).exists() {
         log::warn!("Font path does not exist: {}", params.font_path);
         return Err(ChamaOpticsError::InvalidFont);

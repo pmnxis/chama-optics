@@ -469,6 +469,37 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
                 // Store key and field access for direct update code generation
                 ios_font_updates.push((font_param_key, font_field_access));
 
+                // iOS/Android: Also generate weight slider parameter for VariableTextSlot
+                let weight_param_key = format!("{}.weight", param_key);
+                let weight_field_access = quote! { #field_access.weight };
+                let default_weight = if let Some(ref const_name) = default_const {
+                    let ident = syn::Ident::new(const_name, field_name.span());
+                    quote! { #ident.weight }
+                } else {
+                    quote! { 400u16 }
+                };
+
+                ios_font_params.push(quote! {
+                    crate::theme::parameter_schema::ParameterMeta {
+                        name: #weight_param_key.to_string(),
+                        label: {
+                            #[cfg(any(feature = "ios_integration", feature = "android_integration"))]
+                            { "fonts.weight".to_string() }
+                            #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
+                            { rust_i18n::t!("fonts.weight").to_string() }
+                        },
+                        hint: None,
+                        param_type: crate::theme::parameter_schema::ParameterType::Slider,
+                        min: Some(100.0_f64),
+                        max: Some(900.0_f64),
+                        default: serde_json::json!(#default_weight as f64),
+                        current: serde_json::json!(#weight_field_access as f64),
+                        exif_fields: None,
+                    }
+                });
+
+                ios_font_updates.push((weight_param_key, weight_field_access));
+
                 // Generate UI for text - use VariableTextSlot::ui() method with Rust label
                 let default_ident_name = default_const.clone().unwrap_or(default.clone());
                 let default_ident = syn::Ident::new(&default_ident_name, field_name.span());
@@ -574,16 +605,26 @@ pub fn derive_theme_parameters(input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    // For iOS font updates, generate actual match arms with assignment code
+    // For iOS font/weight updates, generate actual match arms with assignment code
     let ios_update_handling = if has_ios_font_params {
-        // Generate match arms that directly assign string values to font_file fields
+        // Generate match arms: font keys use string assignment, weight keys use numeric assignment
         let ios_match_arms: Vec<_> = ios_font_updates
             .iter()
             .map(|(key, field_access)| {
-                quote! {
-                    #key => {
-                        if let Some(s) = value.as_str() {
-                            #field_access = s.to_string();
+                if key.ends_with(".weight") {
+                    quote! {
+                        #key => {
+                            if let Some(n) = value.as_f64() {
+                                #field_access = n as u16;
+                            }
+                        }
+                    }
+                } else {
+                    quote! {
+                        #key => {
+                            if let Some(s) = value.as_str() {
+                                #field_access = s.to_string();
+                            }
                         }
                     }
                 }
