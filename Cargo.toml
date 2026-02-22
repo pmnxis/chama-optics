@@ -168,10 +168,8 @@ mozjpeg = { version = "0.10.13", optional = true }
 webp = { version = "0.3.1", optional = true }
 img-parts = "0.4"
 oxipng = { version = "^10", optional = true }
-libheif-rs = { version = "^2.6", default-features = false, features = [
-    "v1_18",
-], optional = true }
-libheif-sys = { version = "^5", optional = true, default-features = false }
+# libheif-rs → [target.'cfg(any(windows, linux, freebsd))'.dependencies]
+# libheif-sys → [target.'cfg(any(linux, freebsd))'.dependencies]
 font-kit = { git = "https://github.com/pmnxis/font-kit", rev = "1ca5612b779c5707eca06c6c13a168b392a3199a", optional = true }
 
 # ONNX Runtime for face detection
@@ -231,6 +229,16 @@ zip = { version = ">=8.1", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.15"
+
+# libheif for desktop HEIC decoding (macOS/iOS use native Apple ImageIO)
+# libheif-rs: Windows/Linux/FreeBSD — Rust wrapper around libheif
+[target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "freebsd"))'.dependencies]
+libheif-rs = { version = "^2.6", default-features = false, features = [
+    "v1_18",
+], optional = true }
+# libheif-sys: Linux/FreeBSD only — embedded build from source (distro-dependent, selected by external build script)
+[target.'cfg(any(target_os = "linux", target_os = "freebsd"))'.dependencies]
+libheif-sys = { version = "^5", optional = true, default-features = false }
 
 [target.'cfg(not(windows))'.dependencies]
 candle-core = { version = "0.9", optional = true }

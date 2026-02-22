@@ -75,8 +75,11 @@ pub fn load_image(
             match heic_suppose_or_err {
                 image::ImageError::Unsupported(unsp_e) => {
                     if img_format.is_none() {
-                        // Try HEIC loader if available (libheif on Windows/Linux)
-                        #[cfg(feature = "libheif")]
+                        // Try HEIC loader if available (libheif on Windows/Linux/FreeBSD)
+                        #[cfg(all(
+                            feature = "libheif",
+                            any(target_os = "windows", target_os = "linux", target_os = "freebsd")
+                        ))]
                         {
                             crate::image::heic::load_heif(path)
                                 .map(|img| (img, false))
@@ -93,7 +96,10 @@ pub fn load_image(
                                     )
                                 })
                         }
-                        #[cfg(not(feature = "libheif"))]
+                        #[cfg(not(all(
+                            feature = "libheif",
+                            any(target_os = "windows", target_os = "linux", target_os = "freebsd")
+                        )))]
                         {
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }

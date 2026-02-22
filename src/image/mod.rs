@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-// libheif is only used on Windows/Linux (macOS/iOS use native Apple ImageIO)
-#[cfg(feature = "libheif")]
+// libheif is only used on Windows/Linux/FreeBSD (macOS/iOS use native Apple ImageIO)
+#[cfg(all(
+    feature = "libheif",
+    any(target_os = "windows", target_os = "linux", target_os = "freebsd")
+))]
 pub(crate) mod heic;
 
 #[cfg(target_arch = "wasm32")]

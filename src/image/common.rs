@@ -146,8 +146,8 @@ pub(crate) fn __load_image(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    // libheif is only used on Windows/Linux
-                    #[cfg(feature = "libheif")]
+                    // libheif is only used on Windows/Linux/FreeBSD
+                    #[cfg(all(feature = "libheif", any(target_os = "windows", target_os = "linux", target_os = "freebsd")))]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -170,7 +170,7 @@ pub(crate) fn __load_image(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(not(feature = "libheif"))]
+                    #[cfg(not(all(feature = "libheif", any(target_os = "windows", target_os = "linux", target_os = "freebsd"))))]
                     {
                         // Try Apple native HEIF decoder for iOS/macOS
                         #[cfg(any(target_os = "ios", target_os = "macos"))]
@@ -234,8 +234,8 @@ pub(crate) fn __load_image_from_vec(
                 // Pass buffer reader in to ffi is difficult.
                 // Keep using path
                 image::ImageError::Unsupported(unsp_e) => {
-                    // libheif is only used on Windows/Linux
-                    #[cfg(feature = "libheif")]
+                    // libheif is only used on Windows/Linux/FreeBSD
+                    #[cfg(all(feature = "libheif", any(target_os = "windows", target_os = "linux", target_os = "freebsd")))]
                     {
                         if img_format.is_none() {
                             crate::image::heic::load_heif(path)
@@ -258,7 +258,7 @@ pub(crate) fn __load_image_from_vec(
                             Err(image::error::ImageError::Unsupported(unsp_e))
                         }
                     }
-                    #[cfg(not(feature = "libheif"))]
+                    #[cfg(not(all(feature = "libheif", any(target_os = "windows", target_os = "linux", target_os = "freebsd"))))]
                     {
                         // Try Apple native HEIF decoder for iOS/macOS
                         #[cfg(any(target_os = "ios", target_os = "macos"))]
