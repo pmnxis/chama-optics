@@ -217,6 +217,11 @@ common:
 
   # Common labels
   labels:
+    cancel:
+      en: "Cancel"
+      ko: "취소"
+      ja: "キャンセル"
+      id: "Batal"
     none:
       en: "None"
       ko: "없음"

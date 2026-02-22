@@ -88,6 +88,11 @@ pub extern "C" fn chama_optics_apply_face_effect(
             }
         };
 
+        // Ensure image is RGBA8 (JPEG decodes as RGB8, but face effects require RGBA8)
+        if dyn_image.as_rgba8().is_none() {
+            dyn_image = image::DynamicImage::ImageRgba8(dyn_image.to_rgba8());
+        }
+
         // Collect face rectangles
         let face_areas = super::collect_face_areas(face_rects, face_count);
 
