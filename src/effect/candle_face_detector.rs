@@ -415,6 +415,7 @@ impl CandleFaceDetector {
         Self::iou_float((ax1, ay1, aw, ah), (bx1, by1, bw, bh))
     }
 
+    #[allow(dead_code)]
     fn nms_float(mut faces: Vec<(f32, f32, f32, f32, f32)>) -> Vec<(f32, f32, f32, f32, f32)> {
         if faces.is_empty() {
             return faces;
