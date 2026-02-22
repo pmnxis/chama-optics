@@ -20,6 +20,9 @@ use serde::{Deserialize, Serialize};
 #[cfg(any(feature = "desktop", target_arch = "wasm32"))]
 use rust_i18n::t;
 
+#[allow(dead_code)]
+const PARALLEL_THRESHOLD: usize = 100_000; // Use parallel processing for large images (> 100K pixels)
+
 /// Color adjustment parameters (Lightroom-style)
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -277,9 +280,6 @@ impl ColorAdjustments {
         // Get mutable access to raw pixel data
         let pixels: &mut [u8] = rgba.as_mut();
 
-        // Use parallel processing for large images (> 100K pixels)
-        const PARALLEL_THRESHOLD: usize = 100_000;
-
         #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {
             // Process in chunks of 4 bytes (RGBA) using rayon
@@ -340,9 +340,6 @@ impl ColorAdjustments {
         // Get mutable access to raw pixel data
         let pixels: &mut [u8] = rgba.as_mut();
 
-        // Use parallel processing for large images
-        const PARALLEL_THRESHOLD: usize = 100_000;
-
         #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {
             pixels.par_chunks_exact_mut(4).for_each(|chunk| {
@@ -392,9 +389,6 @@ impl ColorAdjustments {
 
         // Get mutable access to raw pixel data
         let pixels: &mut [u8] = rgb.as_mut();
-
-        // Use parallel processing for large images
-        const PARALLEL_THRESHOLD: usize = 100_000;
 
         #[cfg(feature = "threading")]
         if total_pixels >= PARALLEL_THRESHOLD {

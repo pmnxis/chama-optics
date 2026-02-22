@@ -7,10 +7,11 @@
 //! Output format, but actually describe about encoder configuration together
 
 use image::{DynamicImage, ImageEncoder};
-use rust_i18n::t;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use strum::{EnumIter, IntoEnumIterator};
+use strum::EnumIter;
+#[allow(unused)] // to avoid cfg hell
+use strum::IntoEnumIterator;
 
 #[derive(EnumIter, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum OutputExtension {
@@ -28,6 +29,7 @@ impl OutputExtension {
         }
     }
 
+    #[allow(unused)]
     fn label(&self) -> &str {
         match self {
             Self::Jpeg { .. } => "JPEG",
@@ -239,6 +241,7 @@ impl OutputFormat {
         }
     }
 
+    #[allow(unused)]
     fn has_quality(&self) -> bool {
         matches!(self.ext, OutputExtension::Jpeg | OutputExtension::Webp)
     }
@@ -246,7 +249,7 @@ impl OutputFormat {
     #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
     pub fn update_ui(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            ui.label(t!("output_format.label"));
+            ui.label(rust_i18n::t!("output_format.label"));
 
             egui::ComboBox::from_id_salt("export_format_combo")
                 .selected_text(self.ext.label())
@@ -263,7 +266,8 @@ impl OutputFormat {
 
             if self.has_quality() {
                 ui.add(
-                    egui::Slider::new(&mut self.quality, 1..=100).text(t!("output_format.quality")),
+                    egui::Slider::new(&mut self.quality, 1..=100)
+                        .text(rust_i18n::t!("output_format.quality")),
                 );
             }
         });

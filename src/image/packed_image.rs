@@ -15,6 +15,7 @@ use crate::exif_impl::{OriginalExif, SimplifiedExif};
 use rust_i18n::t;
 
 // Re-export PackedImageEvent from common module for external access
+#[allow(unused)]
 pub use crate::image::common::PackedImageEvent;
 
 #[non_exhaustive]
