@@ -29,13 +29,13 @@ pub const ALL_BUILTIN_LUT_IDS: &[Uuid] = &[
 
 // ─── Built-in sticker UUIDs (prefix 00000000-0000-0000-0001-xxxxxxxxxxxx) ─────
 
-pub const BUILTIN_STICKER_HAATON_ID: Uuid = uuid!("00000000-0000-0000-0001-000000000003");
+pub const BUILTIN_STICKER_HAATON_ID: Uuid = uuid!("00000000-0000-0000-0001-000000000001");
 
 pub const ALL_BUILTIN_STICKER_IDS: &[Uuid] = &[BUILTIN_STICKER_HAATON_ID];
 
 // ─── Built-in character sticker UUIDs (prefix 00000000-0000-0000-0002-xxxxxxxxx) ─
 
-pub const BUILTIN_CHARACTER_HAATO_ID: Uuid = uuid!("00000000-0000-0000-0002-000000000004");
+pub const BUILTIN_CHARACTER_HAATO_ID: Uuid = uuid!("00000000-0000-0000-0002-000000000001");
 
 pub const ALL_BUILTIN_CHARACTER_IDS: &[Uuid] = &[BUILTIN_CHARACTER_HAATO_ID];
 
