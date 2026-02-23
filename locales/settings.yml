@@ -169,11 +169,26 @@ settings:
     ko: "추가됨:"
     ja: "追加済み："
     id: "Ditambahkan:"
+  sticker_builtin:
+    en: "(Built-in)"
+    ko: "(기본내장됨)"
+    ja: "(組み込み)"
+    id: "(Bawaan)"
   sticker_storage_footer:
     en: "Add custom stickers to apply to detected faces. Use transparent PNG images for best results. Toggle the dice icon to include a sticker in Cheki tab's Play Dice random placement."
     ko: "감지된 얼굴에 적용할 사용자 정의 스티커를 추가하세요. 최상의 결과를 위해 투명 PNG 이미지를 사용하세요. 주사위 아이콘을 켜면 체키 탭의 주사위 랜덤 배치에 포함됩니다."
     ja: "検出された顔に適用するカスタムステッカーを追加します。最高の結果を得るために透明PNG画像を使用してください。ダイスアイコンをオンにすると、チェキタブのダイスランダム配置に含まれます。"
     id: "Tambahkan stiker kustom untuk diterapkan pada wajah terdeteksi. Gunakan gambar PNG transparan untuk hasil terbaik. Aktifkan ikon dadu untuk menyertakan stiker dalam penempatan acak Play Dice di tab Cheki."
+  restore_default_stickers:
+    en: "Restore Default Stickers"
+    ko: "기본 스티커 복원"
+    ja: "デフォルトステッカーを復元"
+    id: "Pulihkan Stiker Bawaan"
+  restore_default_luts:
+    en: "Restore Default LUTs"
+    ko: "기본 LUT 복원"
+    ja: "デフォルトLUTを復元"
+    id: "Pulihkan LUT Bawaan"
 
   # Default face effect
   default_face_effect:

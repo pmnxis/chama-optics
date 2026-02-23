@@ -127,15 +127,49 @@ impl ChamaOptics {
                     });
                 ui.add_space(5.0);
 
-                // Sticker preview section with images
-                if !self.sticker_storage.stickers.is_empty() {
+                // "Restore Default Stickers" button — shown when any built-in is hidden
+                let has_hidden_builtins = self
+                    .sticker_storage
+                    .stickers
+                    .iter()
+                    .any(|s| s.is_builtin && s.is_hidden);
+                if has_hidden_builtins
+                    && ui
+                        .button(t!(
+                            "sticker.restore_defaults",
+                            default = "Restore Default Stickers"
+                        ))
+                        .on_hover_text(t!(
+                            "sticker.restore_defaults_hint",
+                            default = "Restore built-in stickers that were hidden"
+                        ))
+                        .clicked()
+                {
+                    let restored = self.sticker_storage.restore_builtin_stickers();
+                    log::info!("Restored {} hidden built-in stickers", restored);
+                }
+
+                // Sticker preview section with images (only visible stickers)
+                let visible_count = self
+                    .sticker_storage
+                    .stickers
+                    .iter()
+                    .filter(|s| !s.is_hidden)
+                    .count();
+                if visible_count > 0 {
                     ui.separator();
                     ui.heading(t!("sticker.preview"));
                     ui.add_space(10.0);
 
                     // Sticker gallery - horizontal scrollable thumbnails at top
-                    // Clone sticker data to avoid borrow checker issues
-                    let stickers: Vec<_> = self.sticker_storage.stickers.to_vec();
+                    // Clone visible sticker data to avoid borrow checker issues
+                    let stickers: Vec<_> = self
+                        .sticker_storage
+                        .stickers
+                        .iter()
+                        .filter(|s| !s.is_hidden)
+                        .cloned()
+                        .collect();
                     let default_sticker_id = self.sticker_storage.default_sticker_id;
 
                     egui::ScrollArea::horizontal()
@@ -191,10 +225,15 @@ impl ChamaOptics {
                                                 response
                                             };
 
-                                            // File name
+                                            // File name (with built-in badge)
+                                            let display_name = if sticker.is_builtin {
+                                                format!("📦 {}", sticker.name)
+                                            } else {
+                                                sticker.name.clone()
+                                            };
                                             ui.add(
                                                 egui::Label::new(
-                                                    egui::RichText::new(&sticker.name)
+                                                    egui::RichText::new(&display_name)
                                                         .size(10.0)
                                                         .color(ui.visuals().weak_text_color()),
                                                 )
@@ -231,7 +270,7 @@ impl ChamaOptics {
                                                 self.selected_sticker_id = Some(sticker.id);
                                             }
 
-                                            // Delete button on hover
+                                            // Delete/hide button on hover
                                             let pointer_pos = ui.input(|i| i.pointer.hover_pos());
                                             if let Some(pos) = pointer_pos
                                                 && image_response.rect.contains(pos)
@@ -243,32 +282,56 @@ impl ChamaOptics {
                                                     egui::vec2(button_size, button_size),
                                                 );
 
-                                                // Draw delete button
                                                 let center = delete_button_rect.center();
-                                                ui.painter().circle_filled(
-                                                    center,
-                                                    10.0,
-                                                    egui::Color32::from_rgba_premultiplied(
-                                                        220, 50, 50, 220,
-                                                    ),
-                                                );
-                                                let x_size = 5.0;
-                                                ui.painter().line_segment(
-                                                    [
-                                                        center + egui::vec2(-x_size, -x_size),
-                                                        center + egui::vec2(x_size, x_size),
-                                                    ],
-                                                    egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                                );
-                                                ui.painter().line_segment(
-                                                    [
-                                                        center + egui::vec2(x_size, -x_size),
-                                                        center + egui::vec2(-x_size, x_size),
-                                                    ],
-                                                    egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                                );
+                                                if sticker.is_builtin {
+                                                    // Amber button with eye for built-in (hide)
+                                                    ui.painter().circle_filled(
+                                                        center,
+                                                        10.0,
+                                                        egui::Color32::from_rgba_premultiplied(
+                                                            200, 140, 0, 220,
+                                                        ),
+                                                    );
+                                                    ui.painter().text(
+                                                        center,
+                                                        egui::Align2::CENTER_CENTER,
+                                                        "👁",
+                                                        egui::FontId::proportional(11.0),
+                                                        egui::Color32::WHITE,
+                                                    );
+                                                } else {
+                                                    // Red button with X for user stickers (delete)
+                                                    ui.painter().circle_filled(
+                                                        center,
+                                                        10.0,
+                                                        egui::Color32::from_rgba_premultiplied(
+                                                            220, 50, 50, 220,
+                                                        ),
+                                                    );
+                                                    let x_size = 5.0;
+                                                    ui.painter().line_segment(
+                                                        [
+                                                            center + egui::vec2(-x_size, -x_size),
+                                                            center + egui::vec2(x_size, x_size),
+                                                        ],
+                                                        egui::Stroke::new(
+                                                            2.0,
+                                                            egui::Color32::WHITE,
+                                                        ),
+                                                    );
+                                                    ui.painter().line_segment(
+                                                        [
+                                                            center + egui::vec2(x_size, -x_size),
+                                                            center + egui::vec2(-x_size, x_size),
+                                                        ],
+                                                        egui::Stroke::new(
+                                                            2.0,
+                                                            egui::Color32::WHITE,
+                                                        ),
+                                                    );
+                                                }
 
-                                                // Check if delete button clicked
+                                                // Check if delete/hide button clicked
                                                 if delete_button_rect.contains(pos)
                                                     && image_response.clicked()
                                                 {
@@ -299,9 +362,14 @@ impl ChamaOptics {
                                 self.sticker_storage.default_sticker_id == Some(selected_id);
                             let file_missing = selected_sticker.file_missing;
                             let hash_mismatch = selected_sticker.hash_mismatch;
+                            let is_builtin = selected_sticker.is_builtin;
 
                             ui.vertical(|ui| {
                                 ui.horizontal(|ui| {
+                                    // Built-in badge in title
+                                    if is_builtin {
+                                        ui.label(egui::RichText::new("📦").small());
+                                    }
                                     ui.label(t!("sticker.selected_sticker"));
                                     ui.label(egui::RichText::new(&sticker_name).strong());
 
@@ -309,11 +377,16 @@ impl ChamaOptics {
                                     ui.with_layout(
                                         egui::Layout::right_to_left(egui::Align::Center),
                                         |ui| {
-                                            // Delete button (always visible in preview)
-                                            if ui
-                                                .button("🗑")
-                                                .on_hover_text(t!("sticker.delete"))
-                                                .clicked()
+                                            // Delete/hide button (always visible in preview)
+                                            let (btn_text, btn_hint) = if is_builtin {
+                                                (
+                                                    "👁",
+                                                    t!("sticker.hide", default = "Hide (built-in)"),
+                                                )
+                                            } else {
+                                                ("🗑", t!("sticker.delete"))
+                                            };
+                                            if ui.button(btn_text).on_hover_text(btn_hint).clicked()
                                             {
                                                 self.sticker_storage.remove_sticker(selected_id);
                                                 self.selected_sticker_id = None;
@@ -435,9 +508,11 @@ impl ChamaOptics {
                                 );
                             });
                         }
-                    } else if !self.sticker_storage.stickers.is_empty() {
-                        // Auto-select first sticker if none selected
-                        if let Some(first_sticker) = self.sticker_storage.stickers.first() {
+                    } else if visible_count > 0 {
+                        // Auto-select first visible sticker if none selected
+                        if let Some(first_sticker) =
+                            self.sticker_storage.stickers.iter().find(|s| !s.is_hidden)
+                        {
                             self.selected_sticker_id = Some(first_sticker.id);
                         }
                     }

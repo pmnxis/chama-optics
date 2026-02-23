@@ -81,7 +81,14 @@ pub unsafe extern "C" fn chama_lut_init() {
     if let Ok(mut storage) = LUT_STORAGE.lock() {
         // Verify all existing LUTs
         storage.verify_all_luts();
-        log::info!("LUT storage initialized with {} LUTs", storage.luts.len());
+
+        // Initialize built-in LUTs (skips items already registered)
+        let added = crate::builtins::lut_presets::init_builtin_luts(&mut storage);
+        log::info!(
+            "LUT storage initialized with {} LUTs ({} built-in added)",
+            storage.luts.len(),
+            added
+        );
     }
 }
 
@@ -103,6 +110,7 @@ pub unsafe extern "C" fn chama_lut_get_list() -> *mut c_char {
     let luts: Vec<serde_json::Value> = storage
         .luts
         .iter()
+        .filter(|lut| !lut.is_hidden)
         .map(|lut| {
             serde_json::json!({
                 "id": lut.id.to_string(),
@@ -115,6 +123,8 @@ pub unsafe extern "C" fn chama_lut_get_list() -> *mut c_char {
                 "size_info": lut.lut_size_info,
                 "file_missing": lut.file_missing,
                 "hash_mismatch": lut.hash_mismatch,
+                "is_builtin": lut.is_builtin,
+                "is_hidden": lut.is_hidden,
             })
         })
         .collect();
@@ -460,7 +470,14 @@ pub unsafe extern "C" fn chama_lut_load_state() -> bool {
             // Verify all LUTs
             storage.verify_all_luts();
 
-            log::info!("Loaded LUT state: {} LUTs", storage.luts.len());
+            // Initialize built-in LUTs (adds any that weren't in saved state)
+            let added = crate::builtins::lut_presets::init_builtin_luts(&mut storage);
+
+            log::info!(
+                "Loaded LUT state: {} LUTs ({} built-in added)",
+                storage.luts.len(),
+                added
+            );
             true
         }
         Err(e) => {
@@ -468,4 +485,18 @@ pub unsafe extern "C" fn chama_lut_load_state() -> bool {
             false
         }
     }
+}
+
+/// Restore all hidden built-in LUTs
+/// Returns the number of LUTs restored, or -1 on error
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn chama_lut_restore_builtins() -> i32 {
+    let mut storage = match LUT_STORAGE.lock() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+
+    let restored = storage.restore_builtin_luts() as i32;
+    log::info!("Restored {} hidden built-in LUTs", restored);
+    restored
 }

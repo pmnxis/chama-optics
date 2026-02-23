@@ -98,8 +98,9 @@ pub fn load_image_data(
     let original_exif = OriginalExif::new(
         match exif::Reader::new().read_from_container(&mut buf_reader) {
             Ok(exif) => Some(exif),
+            Err(exif::Error::NotFound(_)) => None,
             Err(e) => {
-                log::error!("Failed to parse EXIF from {:?}: {e:?}", path);
+                log::warn!("Failed to parse EXIF from {:?}: {e:?}", path);
                 None
             }
         },
@@ -164,8 +165,9 @@ pub fn load_image_from_memory(
     let original_exif: OriginalExif =
         OriginalExif::new(match exif::Reader::new().read_from_container(&mut cursor) {
             Ok(exif) => Some(exif),
+            Err(exif::Error::NotFound(_)) => None,
             Err(e) => {
-                log::error!("Failed to parse EXIF from {}: {e:?}", filename);
+                log::warn!("Failed to parse EXIF from {}: {e:?}", filename);
                 None
             }
         });

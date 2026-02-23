@@ -13,6 +13,11 @@ edit:
     id: "Foto %d/%d"
 
   # Edit mode toggle
+  mode_label:
+    en: "Edit Mode:"
+    ko: "편집 모드:"
+    ja: "編集モード:"
+    id: "Mode Edit:"
   mode_individual:
     en: "Each"
     ko: "개별"
@@ -87,6 +92,11 @@ edit:
 
   # Decoration mode labels
   decoration:
+    none:
+      en: "None"
+      ko: "없음"
+      ja: "なし"
+      id: "Tidak ada"
     cheki:
       en: "Cheki"
       ko: "체키"

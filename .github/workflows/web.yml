@@ -7,7 +7,8 @@ name: Web Deploy
 on:
   push:
     tags:
-      - 'web/v*'
+      - 'web/v*'   # strict: failure = failure
+      - 'v*'       # best-effort: failure is treated as success
     branches:
       - master
       - main
@@ -34,8 +35,10 @@ jobs:
   build:
     name: Build WASM
     runs-on: ubuntu-24.04
-    # Non-blocking: web build failures should not block other workflows
-    continue-on-error: true
+    # web/v* tags : strict — failure is a real failure
+    # v*     tags : best-effort — failure does NOT block the release tag
+    # branches/PRs: strict
+    continue-on-error: ${{ startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/web/') }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,7 +77,7 @@ jobs:
         run: trunk build --release --public-url /chama-optics/
 
       - name: Upload Pages artifact
-        if: startsWith(github.ref, 'refs/tags/web/')
+        if: startsWith(github.ref, 'refs/tags/web/') || startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
@@ -83,8 +86,10 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-24.04
-    # Only deploy on web/* tags, not on regular pushes
-    if: startsWith(github.ref, 'refs/tags/web/')
+    # Deploy on web/v* tags (strict) and v* tags (best-effort)
+    if: startsWith(github.ref, 'refs/tags/web/') || startsWith(github.ref, 'refs/tags/v')
+    # v* non-web tags: deploy failure is non-blocking
+    continue-on-error: ${{ startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/web/') }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

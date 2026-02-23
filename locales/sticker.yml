@@ -106,3 +106,15 @@ sticker:
     ko: "체키 탭 주사위에서 랜덤 배치에 사용"
     ja: "チェキタブのダイスでランダム配置に使用"
     id: "Aktifkan untuk penempatan acak pada dadu tab Cheki"
+
+  # Built-in sticker display names
+  builtin_haato_name:
+    en: "HAACHAMA with a camera"
+    ko: "사진찍는 하쨔마"
+    ja: "写真撮ってる赤井はあと"
+    id: "HAACHAMA dengan Kamera"
+  builtin_haaton_name:
+    en: "Haaton"
+    ko: "하아톤"
+    ja: "はあとん"
+    id: "Haaton"

@@ -10,13 +10,29 @@
 //! into a single 2-panel layout with a shared preview canvas.
 
 use crate::ChamaOptics;
-use crate::app::DecorationMode;
+use crate::app::{DecorationMode, EditTargetMode};
 use rust_i18n::t;
 
 impl ChamaOptics {
     /// Render the unified Edit tab
     pub(crate) fn render_edit_tab(&mut self, ui: &mut egui::Ui) {
-        ui.heading(t!("tabs.edit", default = "Edit"));
+        // Heading row: "Edit" on left, All/Each toggle on right
+        ui.horizontal(|ui| {
+            ui.heading(t!("tabs.edit", default = "Edit"));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // right_to_left: added first = rightmost on screen → All rightmost, Each left of All
+                ui.selectable_value(
+                    &mut self.edit_target_mode,
+                    EditTargetMode::All,
+                    egui::RichText::new(t!("edit.mode_all", default = "All")).heading(),
+                );
+                ui.selectable_value(
+                    &mut self.edit_target_mode,
+                    EditTargetMode::Individual,
+                    egui::RichText::new(t!("edit.mode_individual", default = "Each")).heading(),
+                );
+            });
+        });
         ui.separator();
 
         if self.packed_images.is_empty() {
@@ -71,10 +87,27 @@ impl ChamaOptics {
             // Show indicator for images with LUT configured
             Some(|item: &(usize, &crate::packed_image::PackedImage)| item.1.lut_id.is_some()),
             None::<fn(&_) -> Option<(bool, bool)>>,
-            &mut |idx| {
+            &mut |idx: usize| {
+                // In Individual mode: save current image's adjustments, load new image's
+                if self.edit_target_mode == EditTargetMode::Individual {
+                    if let Some(old_idx) = self.edit_selected_index
+                        && old_idx < self.packed_images.len()
+                    {
+                        let old_uuid = self.packed_images[old_idx].uuid;
+                        self.per_image_adjustments
+                            .insert(old_uuid, self.color_adjustments.clone());
+                    }
+                    let new_uuid = self.packed_images[idx].uuid;
+                    self.color_adjustments = self
+                        .per_image_adjustments
+                        .get(&new_uuid)
+                        .cloned()
+                        .unwrap_or_default();
+                }
                 self.edit_selected_index = Some(idx);
-                // Invalidate cache when selection changes
+                // Invalidate cache when selection changes (clear texture too to avoid stale preview)
                 self.edit_preview_cache_key = None;
+                self.edit_preview_texture = None;
             },
             Some(&mut |idx| {
                 log::info!("Delete button clicked for image index {}", idx);
@@ -88,12 +121,14 @@ impl ChamaOptics {
 
         ui.separator();
 
-        // 2-Panel layout: Preview (left) | Controls (right)
+        // 2-Panel layout: responsive
+        //   Landscape (w >= h): controls on the right
+        //   Portrait  (h >  w): controls below (9:16 window etc.)
         if let Some(idx) = self.edit_selected_index
             && idx < self.packed_images.len()
         {
-            let available_width = ui.available_width();
-            let controls_width = available_width * 0.40;
+            let available = ui.available_size();
+            let is_portrait = available.y > available.x;
 
             // Generate preview for None/Theme modes (Cheki uses its own texture)
             if self.decoration_mode != DecorationMode::Cheki {
@@ -129,16 +164,28 @@ impl ChamaOptics {
                 }
             }
 
-            // Right panel (side panel): Controls — rendered first so the remainder goes to preview
-            egui::Panel::right("edit_controls_panel")
-                .resizable(true)
-                .default_size(controls_width)
-                .size_range(200.0..=available_width * 0.6)
-                .show_inside(ui, |ui| {
-                    self.render_edit_controls_panel(ui, idx);
-                });
+            // Controls panel — rendered first so the remaining space goes to preview
+            if is_portrait {
+                // Portrait: controls below the preview
+                egui::Panel::bottom("edit_controls_bottom")
+                    .resizable(true)
+                    .default_size(available.y * 0.45)
+                    .size_range(120.0..=available.y * 0.6)
+                    .show_inside(ui, |ui| {
+                        self.render_edit_controls_panel(ui, idx);
+                    });
+            } else {
+                // Landscape: controls to the right
+                egui::Panel::right("edit_controls_right")
+                    .resizable(true)
+                    .default_size(available.x * 0.40)
+                    .size_range(200.0..=available.x * 0.6)
+                    .show_inside(ui, |ui| {
+                        self.render_edit_controls_panel(ui, idx);
+                    });
+            }
 
-            // Left panel: Preview canvas (fills remaining space)
+            // Preview canvas fills the remaining space
             self.render_edit_preview_panel(ui, idx);
         }
     }
@@ -269,6 +316,11 @@ impl ChamaOptics {
                 ui.collapsing(
                     t!("color.crop_rotate_section", default = "Crop & Rotate"),
                     |ui| {
+                        ui.label(
+                            egui::RichText::new(t!("color.crop_rotate_warning"))
+                                .color(ui.visuals().warn_fg_color)
+                                .italics(),
+                        );
                         self.render_crop_rotate_ui(ui);
                     },
                 );
@@ -278,13 +330,14 @@ impl ChamaOptics {
 
                 // Section 4: Decoration (None / Theme / Cheki)
                 ui.label(
-                    egui::RichText::new(t!("edit.decoration", default = "Decoration")).strong(),
+                    egui::RichText::new(t!("edit.section.decoration", default = "Decoration"))
+                        .strong(),
                 );
                 ui.horizontal(|ui| {
                     if ui
                         .selectable_label(
                             self.decoration_mode == DecorationMode::None,
-                            t!("edit.decoration_none", default = "None"),
+                            t!("edit.decoration.none", default = "None"),
                         )
                         .clicked()
                     {
@@ -293,22 +346,22 @@ impl ChamaOptics {
                     }
                     if ui
                         .selectable_label(
-                            self.decoration_mode == DecorationMode::Theme,
-                            t!("edit.decoration_theme", default = "Theme"),
-                        )
-                        .clicked()
-                    {
-                        self.decoration_mode = DecorationMode::Theme;
-                        self.edit_preview_cache_key = None;
-                    }
-                    if ui
-                        .selectable_label(
                             self.decoration_mode == DecorationMode::Cheki,
-                            t!("edit.decoration_cheki", default = "Cheki"),
+                            t!("edit.decoration.cheki", default = "Cheki"),
                         )
                         .clicked()
                     {
                         self.decoration_mode = DecorationMode::Cheki;
+                        self.edit_preview_cache_key = None;
+                    }
+                    if ui
+                        .selectable_label(
+                            self.decoration_mode == DecorationMode::Theme,
+                            t!("edit.decoration.theme", default = "Theme"),
+                        )
+                        .clicked()
+                    {
+                        self.decoration_mode = DecorationMode::Theme;
                         self.edit_preview_cache_key = None;
                     }
                 });

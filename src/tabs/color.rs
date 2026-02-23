@@ -654,11 +654,13 @@ impl ChamaOptics {
             .and_then(|idx| self.packed_images.get(idx))
             .and_then(|pi| pi.lut_id);
 
-        // Collect LUT data to avoid borrow conflicts
-        let lut_data: Vec<(Uuid, String, StoredLutType, String, bool, bool)> = self
+        // Collect visible LUT data to avoid borrow conflicts
+        // Tuple: (id, name, lut_type, size_info, file_missing, hash_mismatch, is_builtin)
+        let lut_data: Vec<(Uuid, String, StoredLutType, String, bool, bool, bool)> = self
             .lut_storage
             .luts
             .iter()
+            .filter(|l| !l.is_hidden)
             .map(|l| {
                 (
                     l.id,
@@ -667,6 +669,7 @@ impl ChamaOptics {
                     l.lut_size_info.clone(),
                     l.file_missing,
                     l.hash_mismatch,
+                    l.is_builtin,
                 )
             })
             .collect();
@@ -743,8 +746,15 @@ impl ChamaOptics {
                             }
 
                             // Render each LUT item
-                            for (lut_id, name, lut_type, size_info, file_missing, hash_mismatch) in
-                                &lut_data
+                            for (
+                                lut_id,
+                                name,
+                                lut_type,
+                                size_info,
+                                file_missing,
+                                hash_mismatch,
+                                is_builtin,
+                            ) in &lut_data
                             {
                                 let is_selected = current_lut_id == Some(*lut_id);
 
@@ -759,6 +769,8 @@ impl ChamaOptics {
                                     lut_size_info: size_info.clone(),
                                     hash_mismatch: *hash_mismatch,
                                     file_missing: *file_missing,
+                                    is_builtin: *is_builtin,
+                                    is_hidden: false,
                                 };
 
                                 let texture = self.get_or_create_lut_icon(ui.ctx(), &temp_lut_item);
@@ -806,8 +818,13 @@ impl ChamaOptics {
                                             egui::Color32::WHITE,
                                         );
 
-                                        // Name label
-                                        let mut name_text = egui::RichText::new(name)
+                                        // Name label (with built-in badge prefix)
+                                        let display_name = if *is_builtin {
+                                            format!("📦 {}", name)
+                                        } else {
+                                            name.clone()
+                                        };
+                                        let mut name_text = egui::RichText::new(&display_name)
                                             .size(10.0)
                                             .color(ui.visuals().weak_text_color());
 
@@ -848,7 +865,7 @@ impl ChamaOptics {
                                 let is_hovered =
                                     pointer_pos.map(|pos| rect.contains(pos)).unwrap_or(false);
 
-                                // Delete button on hover
+                                // Delete/hide button on hover
                                 if is_hovered {
                                     let button_size = 20.0;
                                     let delete_button_rect = egui::Rect::from_min_size(
@@ -856,32 +873,51 @@ impl ChamaOptics {
                                         egui::vec2(button_size, button_size),
                                     );
 
-                                    // Draw delete button
                                     let center = delete_button_rect.center();
-                                    ui.painter().circle_filled(
-                                        center,
-                                        10.0,
-                                        egui::Color32::from_rgba_premultiplied(220, 50, 50, 220),
-                                    );
 
-                                    // Draw X
-                                    let x_size = 5.0;
-                                    ui.painter().line_segment(
-                                        [
-                                            center + egui::vec2(-x_size, -x_size),
-                                            center + egui::vec2(x_size, x_size),
-                                        ],
-                                        egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                    );
-                                    ui.painter().line_segment(
-                                        [
-                                            center + egui::vec2(x_size, -x_size),
-                                            center + egui::vec2(-x_size, x_size),
-                                        ],
-                                        egui::Stroke::new(2.0, egui::Color32::WHITE),
-                                    );
+                                    if *is_builtin {
+                                        // Amber button with eye-slash for built-in (hide, not delete)
+                                        ui.painter().circle_filled(
+                                            center,
+                                            10.0,
+                                            egui::Color32::from_rgba_premultiplied(
+                                                200, 140, 0, 220,
+                                            ),
+                                        );
+                                        ui.painter().text(
+                                            center,
+                                            egui::Align2::CENTER_CENTER,
+                                            "👁",
+                                            egui::FontId::proportional(11.0),
+                                            egui::Color32::WHITE,
+                                        );
+                                    } else {
+                                        // Red button with X for user LUTs (delete)
+                                        ui.painter().circle_filled(
+                                            center,
+                                            10.0,
+                                            egui::Color32::from_rgba_premultiplied(
+                                                220, 50, 50, 220,
+                                            ),
+                                        );
+                                        let x_size = 5.0;
+                                        ui.painter().line_segment(
+                                            [
+                                                center + egui::vec2(-x_size, -x_size),
+                                                center + egui::vec2(x_size, x_size),
+                                            ],
+                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                        );
+                                        ui.painter().line_segment(
+                                            [
+                                                center + egui::vec2(x_size, -x_size),
+                                                center + egui::vec2(-x_size, x_size),
+                                            ],
+                                            egui::Stroke::new(2.0, egui::Color32::WHITE),
+                                        );
+                                    }
 
-                                    // Check delete click
+                                    // Check delete/hide click
                                     if let Some(pos) = pointer_pos {
                                         if delete_button_rect.contains(pos)
                                             && image_response.clicked()
@@ -936,7 +972,7 @@ impl ChamaOptics {
             action = gallery_action;
         }
 
-        // Handle LUT deletion
+        // Handle LUT deletion/hiding
         if let Some(lut_id) = lut_to_delete {
             // Clear this LUT from all images that use it
             for pi in &mut self.packed_images {
@@ -944,13 +980,35 @@ impl ChamaOptics {
                     pi.lut_id = None;
                 }
             }
-            // Remove from storage
+            // Remove (user) or hide (built-in) from storage
             self.lut_storage.remove_lut(lut_id);
             // Remove cached icon texture
             self.lut_icon_textures.remove(&lut_id);
             // Invalidate preview cache
             self.edit_preview_cache_key = None;
-            log::info!("Removed LUT {}", lut_id);
+            log::info!("Removed/hid LUT {}", lut_id);
+        }
+
+        // "Restore Default LUTs" button — shown when any built-in is hidden
+        let has_hidden_builtins = self
+            .lut_storage
+            .luts
+            .iter()
+            .any(|l| l.is_builtin && l.is_hidden);
+        if has_hidden_builtins
+            && ui
+                .button(t!(
+                    "color.restore_defaults",
+                    default = "Restore Default LUTs"
+                ))
+                .on_hover_text(t!(
+                    "color.restore_defaults_hint",
+                    default = "Restore built-in LUT presets that were hidden"
+                ))
+                .clicked()
+        {
+            let restored = self.lut_storage.restore_builtin_luts();
+            log::info!("Restored {} hidden built-in LUTs", restored);
         }
 
         let Some(idx) = self.edit_selected_index else {

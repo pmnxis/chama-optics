@@ -183,8 +183,9 @@ impl PackedImage {
 
                     (Some(exif), thumbnail)
                 }
+                Err(exif::Error::NotFound(_)) => (None, None),
                 Err(e) => {
-                    log::error!("Failed to parse EXIF from image: {e:?}");
+                    log::warn!("Failed to parse EXIF from image: {e:?}");
                     (None, None)
                 }
             }
@@ -259,8 +260,9 @@ impl PackedImage {
         let original_exif = OriginalExif::new(
             match exif::Reader::new().read_from_container(&mut buf_reader) {
                 Ok(exif) => Some(exif),
+                Err(exif::Error::NotFound(_)) => None,
                 Err(e) => {
-                    log::error!("Failed to parse EXIF from image: {e:?}");
+                    log::warn!("Failed to parse EXIF from image: {e:?}");
                     None
                 }
             },

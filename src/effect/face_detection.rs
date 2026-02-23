@@ -739,6 +739,40 @@ impl FaceDetection {
         false
     }
 
+    /// Containment ratio threshold: if the smaller face's area is >60% inside the
+    /// larger face, the smaller one is suppressed (kept: larger, removed: smaller).
+    const CONTAINMENT_SUPPRESS_THRESHOLD: f32 = 0.6;
+
+    /// Calculate what fraction of the *smaller* face is covered by the intersection.
+    /// Returns a value in [0, 1].  High value means one rect is mostly inside the other.
+    #[allow(clippy::too_many_arguments)]
+    fn calculate_containment_ratio(
+        &self,
+        x1: i32,
+        y1: i32,
+        w1: u32,
+        h1: u32,
+        x2: i32,
+        y2: i32,
+        w2: u32,
+        h2: u32,
+    ) -> f32 {
+        let x1_end = x1 + w1 as i32;
+        let y1_end = y1 + h1 as i32;
+        let x2_end = x2 + w2 as i32;
+        let y2_end = y2 + h2 as i32;
+
+        let x_overlap = (x1_end.min(x2_end) - x1.max(x2)).max(0);
+        let y_overlap = (y1_end.min(y2_end) - y1.max(y2)).max(0);
+        let intersection = (x_overlap * y_overlap) as u32;
+
+        let smaller_area = (w1 * h1).min(w2 * h2);
+        if smaller_area == 0 {
+            return 0.0;
+        }
+        intersection as f32 / smaller_area as f32
+    }
+
     /// Calculate intersection over union for two rectangles
     #[allow(clippy::too_many_arguments)]
     fn calculate_iou(
@@ -813,11 +847,22 @@ impl FaceDetection {
             let mut is_duplicate = false;
 
             for existing in &unique_faces {
+                // Standard IoU deduplication (similarly-sized overlapping boxes)
                 let iou = self.calculate_iou(
                     face.0, face.1, face.2, face.3, existing.0, existing.1, existing.2, existing.3,
                 );
-
                 if iou > 0.5 {
+                    is_duplicate = true;
+                    break;
+                }
+
+                // Containment suppression: if this (smaller) face is mostly inside
+                // an already-kept (larger) face, suppress it.
+                // Faces are processed large→small, so `face` is always the smaller one here.
+                let containment = self.calculate_containment_ratio(
+                    face.0, face.1, face.2, face.3, existing.0, existing.1, existing.2, existing.3,
+                );
+                if containment > Self::CONTAINMENT_SUPPRESS_THRESHOLD {
                     is_duplicate = true;
                     break;
                 }

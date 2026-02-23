@@ -52,6 +52,16 @@ pub enum DecorationMode {
     Cheki,
 }
 
+/// Edit mode: apply changes to All images or Individual (Each) image
+#[derive(
+    serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, Debug, Default, Hash,
+)]
+pub enum EditTargetMode {
+    #[default]
+    All,
+    Individual,
+}
+
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
 pub enum MainTab {
@@ -343,6 +353,14 @@ pub struct ChamaOptics {
     /// Decoration mode for Edit tab (None / Theme / Cheki)
     pub decoration_mode: DecorationMode,
 
+    /// Each/All edit mode for the Edit tab
+    pub edit_target_mode: EditTargetMode,
+
+    /// Per-image color adjustments for Individual (Each) edit mode
+    /// Keyed by packed_image.uuid; loaded/saved on image selection change
+    pub per_image_adjustments:
+        std::collections::HashMap<uuid::Uuid, crate::effect::color_adjustments::ColorAdjustments>,
+
     /// Crop/rotate canvas: rotated base image texture (before crop applied)
     #[serde(skip)]
     pub(crate) crop_canvas_texture: Option<egui::TextureHandle>,
@@ -455,6 +473,8 @@ impl Default for ChamaOptics {
             edit_preview_texture: None,
             edit_preview_cache_key: None,
             decoration_mode: DecorationMode::default(),
+            edit_target_mode: EditTargetMode::default(),
+            per_image_adjustments: std::collections::HashMap::new(),
             crop_canvas_texture: None,
             crop_canvas_cache_key: None,
             crop_canvas_original_size: None,
@@ -582,6 +602,21 @@ impl ChamaOptics {
 
         app.lang.update_i18n();
 
+        // Initialize built-in stickers and LUTs (skips items already registered)
+        {
+            let added =
+                crate::builtins::sticker_presets::init_builtin_stickers(&mut app.sticker_storage);
+            if added > 0 {
+                log::info!("Initialized {} built-in stickers", added);
+            }
+        }
+        {
+            let added = crate::builtins::lut_presets::init_builtin_luts(&mut app.lut_storage);
+            if added > 0 {
+                log::info!("Initialized {} built-in LUTs", added);
+            }
+        }
+
         app
     }
 
@@ -605,6 +640,8 @@ impl ChamaOptics {
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform,
             /// Per-image cheki decoration (if configured)
             cheki_decoration: Option<crate::effect::cheki::ChekiDecoration>,
+            /// Color adjustments (per-image in Individual mode, global copy in All mode)
+            color_adjustments: crate::effect::color_adjustments::ColorAdjustments,
         }
 
         // save each
@@ -620,7 +657,6 @@ impl ChamaOptics {
             lut_storage: &mut crate::effect::lut_storage::LutStorage,
             sticker_storage: &crate::effect::sticker_storage::StickerStorage,
             import_config: &crate::import_config::ImportConfig,
-            color_adjustments: &crate::effect::color_adjustments::ColorAdjustments,
         ) -> Result<(), image::ImageError> {
             // Reconstruct PackedImage from path
             let mut pi = crate::packed_image::PackedImage::try_from_path_cli(&task.path)?;
@@ -634,7 +670,7 @@ impl ChamaOptics {
 
             // Apply Color Adjustments and/or LUT to image if configured
             // Order: color adjustments → LUT (matching mobile pipeline)
-            let needs_color_adj = !color_adjustments.is_identity();
+            let needs_color_adj = !task.color_adjustments.is_identity();
             if needs_color_adj || task.lut_id.is_some() {
                 log::info!(
                     "Export: color_adj={}, LUT={:?} for image {}",
@@ -648,7 +684,7 @@ impl ChamaOptics {
 
                 // Apply color adjustments first (before LUT)
                 if needs_color_adj {
-                    color_adjustments.apply(&mut dyn_image);
+                    task.color_adjustments.apply(&mut dyn_image);
                     log::info!("Export: Applied color adjustments to image {}", idx);
                 }
 
@@ -823,8 +859,22 @@ impl ChamaOptics {
             // todo - warning on UI
         }
 
+        // In Individual mode: flush the current image's adjustments to the HashMap before export
+        if self.edit_target_mode == EditTargetMode::Individual
+            && let Some(idx) = self.edit_selected_index
+            && let Some(pi) = self.packed_images.get(idx)
+        {
+            self.per_image_adjustments
+                .insert(pi.uuid, self.color_adjustments.clone());
+        }
+
         // Clone cheki decorations for SaveTask construction
         let cheki_decos = &self.cheki_decorations;
+
+        // Snapshot for borrow checker (needed to access per_image_adjustments in closure)
+        let per_image_adj = &self.per_image_adjustments;
+        let global_adj = &self.color_adjustments;
+        let is_individual = self.edit_target_mode == EditTargetMode::Individual;
 
         // Convert PackedImages to SaveTasks for parallel processing
         // If grouping is active, use group-specific prefix/postfix
@@ -858,6 +908,11 @@ impl ChamaOptics {
                         lut_id: pi.lut_id,
                         crop_rotate: pi.crop_rotate.clone(),
                         cheki_decoration: cheki_decos.get(&pi.uuid).cloned(),
+                        color_adjustments: if is_individual {
+                            per_image_adj.get(&pi.uuid).cloned().unwrap_or_default()
+                        } else {
+                            global_adj.clone()
+                        },
                     }
                 })
                 .collect()
@@ -875,6 +930,11 @@ impl ChamaOptics {
                     lut_id: pi.lut_id,
                     crop_rotate: pi.crop_rotate.clone(),
                     cheki_decoration: cheki_decos.get(&pi.uuid).cloned(),
+                    color_adjustments: if is_individual {
+                        per_image_adj.get(&pi.uuid).cloned().unwrap_or_default()
+                    } else {
+                        global_adj.clone()
+                    },
                 })
                 .collect()
         };
@@ -912,8 +972,6 @@ impl ChamaOptics {
         let import_config = self.import_config.clone();
 
         // Clone color_adjustments for the background thread
-        let color_adjustments = self.color_adjustments.clone();
-
         // Clone progress counter for use in parallel threads
         let progress_counter = self.save_progress.counter();
 
@@ -953,7 +1011,6 @@ impl ChamaOptics {
                             &mut lut_storage_guard,
                             &sticker_storage,
                             &import_config,
-                            &color_adjustments,
                         ) {
                             Ok(_) => {
                                 log::info!("Successfully saved image {}", idx);
@@ -988,7 +1045,6 @@ impl ChamaOptics {
                         &mut lut_storage_guard,
                         &sticker_storage,
                         &import_config,
-                        &color_adjustments,
                     ) {
                         Ok(_) => log::info!("Successfully saved image {}", idx),
                         Err(e) => log::error!("Failed to save image {}: {e:?}", idx),
@@ -1017,13 +1073,13 @@ impl ChamaOptics {
                 let original_sticker_bytes = self.packed_images[idx].sticker_bytes.clone();
 
                 // Apply Color Adjustments and/or LUT to image if configured
-                let needs_color_adj = !self.color_adjustments.is_identity();
+                let needs_color_adj = !task.color_adjustments.is_identity();
                 if needs_color_adj || task.lut_id.is_some() {
                     match self.packed_images[idx].get_image() {
                         Ok((mut dyn_image, _)) => {
                             // Apply color adjustments first (before LUT)
                             if needs_color_adj {
-                                self.color_adjustments.apply(&mut dyn_image);
+                                task.color_adjustments.apply(&mut dyn_image);
                             }
 
                             // Apply LUT second

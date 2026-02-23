@@ -96,7 +96,7 @@ fn main() {
     {
         let is_dirty = {
             let output = std::process::Command::new("git")
-                .args(["status", "--porcelain"])
+                .args(["status", "--porcelain", "--untracked-files=no"])
                 .output()
                 .expect("Failed to execute git status");
 
@@ -183,7 +183,8 @@ fn main() {
             }
         }
 
-        println!("cargo:warning=Web fonts staged in web_fonts/");
+        println!("cargo:rerun-if-changed=web_fonts/");
+        eprintln!("Web fonts staged in web_fonts/");
     }
 
     // Download face models (desktop + candle WASM face detection)

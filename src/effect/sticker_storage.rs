@@ -37,6 +37,13 @@ pub struct StickerItem {
     /// Whether this sticker is a "character" type (eligible for random dice placement in Cheki tab)
     #[serde(default)]
     pub is_character: bool,
+    /// Whether this is a built-in sticker bundled with the app
+    /// Built-ins cannot be permanently deleted — "deleting" hides them instead
+    #[serde(default)]
+    pub is_builtin: bool,
+    /// Whether this sticker is hidden (applies only to built-ins; restored via Restore Defaults)
+    #[serde(default)]
+    pub is_hidden: bool,
 }
 
 fn default_timestamp() -> u64 {
@@ -58,6 +65,8 @@ impl StickerItem {
             hash_mismatch: false,
             file_missing: false,
             is_character: false,
+            is_builtin: false,
+            is_hidden: false,
         }
     }
 
@@ -199,21 +208,54 @@ impl StickerStorage {
         Ok(id)
     }
 
-    /// Remove a sticker by ID
+    /// Remove a sticker by ID.
+    /// For built-in stickers, sets `is_hidden = true` instead of deleting.
+    /// For user stickers, removes from storage and deletes the file.
     pub fn remove_sticker(&mut self, id: Uuid) -> bool {
-        if let Some(pos) = self.stickers.iter().position(|s| s.id == id) {
-            let sticker = self.stickers.remove(pos);
-            // Try to delete the file (ignore errors)
-            let _ = std::fs::remove_file(&sticker.image_path);
+        let Some(pos) = self.stickers.iter().position(|s| s.id == id) else {
+            return false;
+        };
 
-            // Clear default if this was the default sticker
+        if self.stickers[pos].is_builtin {
+            // Hide instead of delete
+            self.stickers[pos].is_hidden = true;
             if self.default_sticker_id == Some(id) {
                 self.default_sticker_id = None;
             }
-            true
-        } else {
-            false
+            return true;
         }
+
+        let sticker = self.stickers.remove(pos);
+        // Try to delete the file (ignore errors)
+        let _ = std::fs::remove_file(&sticker.image_path);
+
+        // Clear default if this was the default sticker
+        if self.default_sticker_id == Some(id) {
+            self.default_sticker_id = None;
+        }
+
+        #[cfg(feature = "egui")]
+        self.texture_cache.remove(&id);
+
+        true
+    }
+
+    /// Restore all hidden built-in stickers (make them visible again).
+    /// Returns the number of stickers restored.
+    pub fn restore_builtin_stickers(&mut self) -> usize {
+        let mut count = 0;
+        for sticker in &mut self.stickers {
+            if sticker.is_builtin && sticker.is_hidden {
+                sticker.is_hidden = false;
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Iterate over stickers that are visible (not hidden).
+    pub fn visible_stickers(&self) -> impl Iterator<Item = &StickerItem> {
+        self.stickers.iter().filter(|s| !s.is_hidden)
     }
 
     /// Get sticker by ID
@@ -231,15 +273,19 @@ impl StickerStorage {
         self.default_sticker_id = id;
     }
 
-    /// Get all stickers marked as character type (eligible for dice placement)
+    /// Get all visible stickers marked as character type (eligible for dice placement).
     pub fn character_stickers(&self) -> Vec<&StickerItem> {
-        self.stickers.iter().filter(|s| s.is_character).collect()
+        self.stickers
+            .iter()
+            .filter(|s| s.is_character && !s.is_hidden)
+            .collect()
     }
 
-    /// Build a lookup dictionary from sticker ID to image path
+    /// Build a lookup dictionary from sticker ID to image path (visible stickers only).
     pub fn build_sticker_dict(&self) -> HashMap<String, PathBuf> {
         self.stickers
             .iter()
+            .filter(|s| !s.is_hidden)
             .map(|s| (s.id.to_string(), s.image_path.clone()))
             .collect()
     }

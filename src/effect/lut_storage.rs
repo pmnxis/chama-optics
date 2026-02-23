@@ -43,6 +43,13 @@ pub struct LutItem {
     /// Whether the file is missing (runtime only, not serialized)
     #[serde(skip)]
     pub file_missing: bool,
+    /// Whether this is a built-in LUT bundled with the app
+    /// Built-ins cannot be permanently deleted — "deleting" hides them instead
+    #[serde(default)]
+    pub is_builtin: bool,
+    /// Whether this LUT is hidden (applies only to built-ins; restored via Restore Defaults)
+    #[serde(default)]
+    pub is_hidden: bool,
 }
 
 /// Stored LUT type (serializable version of wagahai_lut::LutType)
@@ -86,6 +93,8 @@ impl LutItem {
             lut_size_info,
             hash_mismatch: false,
             file_missing: false,
+            is_builtin: false,
+            is_hidden: false,
         }
     }
 
@@ -226,24 +235,53 @@ impl LutStorage {
         Ok(item_id)
     }
 
-    /// Remove a LUT by ID
+    /// Remove a LUT by ID.
+    /// For built-in LUTs, sets `is_hidden = true` instead of deleting.
+    /// For user LUTs, removes from storage and deletes the file.
     pub fn remove_lut(&mut self, id: Uuid) -> bool {
-        if let Some(pos) = self.luts.iter().position(|l| l.id == id) {
-            let lut_item = self.luts.remove(pos);
-            // Try to delete the file (ignore errors)
-            let _ = std::fs::remove_file(&lut_item.file_path);
+        let Some(pos) = self.luts.iter().position(|l| l.id == id) else {
+            return false;
+        };
 
-            // Clear cache
-            self.lut_cache.remove(&id);
-
-            // Clear selection if this was the selected LUT
+        if self.luts[pos].is_builtin {
+            // Hide instead of delete
+            self.luts[pos].is_hidden = true;
             if self.selected_lut_id == Some(id) {
                 self.selected_lut_id = None;
             }
-            true
-        } else {
-            false
+            return true;
         }
+
+        let lut_item = self.luts.remove(pos);
+        // Try to delete the file (ignore errors)
+        let _ = std::fs::remove_file(&lut_item.file_path);
+
+        // Clear cache
+        self.lut_cache.remove(&id);
+
+        // Clear selection if this was the selected LUT
+        if self.selected_lut_id == Some(id) {
+            self.selected_lut_id = None;
+        }
+        true
+    }
+
+    /// Restore all hidden built-in LUTs (make them visible again).
+    /// Returns the number of LUTs restored.
+    pub fn restore_builtin_luts(&mut self) -> usize {
+        let mut count = 0;
+        for lut in &mut self.luts {
+            if lut.is_builtin && lut.is_hidden {
+                lut.is_hidden = false;
+                count += 1;
+            }
+        }
+        count
+    }
+
+    /// Iterate over LUTs that are visible (not hidden).
+    pub fn visible_luts(&self) -> impl Iterator<Item = &LutItem> {
+        self.luts.iter().filter(|l| !l.is_hidden)
     }
 
     /// Get LUT item by ID

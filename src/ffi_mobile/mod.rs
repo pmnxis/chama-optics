@@ -136,16 +136,11 @@ fn save_image_with_c_format(
         }
         COutputFormat::Png => image.save(output_path),
         COutputFormat::Webp => {
-            use image::codecs::webp::WebPEncoder;
-            let file =
-                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
-            let rgba = image.to_rgba8();
-            WebPEncoder::new_lossless(file).encode(
-                rgba.as_raw(),
-                rgba.width(),
-                rgba.height(),
-                image::ExtendedColorType::Rgba8,
-            )
+            use webp::Encoder;
+            let rgb = image.to_rgb8();
+            let encoder = Encoder::from_rgb(rgb.as_raw(), rgb.width(), rgb.height());
+            let webp_data = encoder.encode(quality as f32);
+            std::fs::write(output_path, &*webp_data).map_err(image::ImageError::IoError)
         }
     }
 }

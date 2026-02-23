@@ -48,6 +48,9 @@ pub mod art;
 // Effect modules - available for desktop, web, and iOS integration
 pub mod effect;
 
+// Built-in default stickers and LUT presets bundled with the application
+pub mod builtins;
+
 #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]
 pub(crate) mod image_group;
 
