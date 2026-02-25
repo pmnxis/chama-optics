@@ -128,11 +128,33 @@ fn save_image_with_c_format(
 ) -> Result<(), image::ImageError> {
     match format {
         COutputFormat::Jpeg => {
-            use image::codecs::jpeg::JpegEncoder;
-            let file =
-                std::fs::File::create(output_path).map_err(|e| image::ImageError::IoError(e))?;
-            let mut encoder = JpegEncoder::new_with_quality(file, quality);
-            encoder.encode_image(image)
+            use mozjpeg::ColorSpace;
+
+            let rgb = image.to_rgb8();
+            let mut comp = mozjpeg::Compress::new(ColorSpace::JCS_RGB);
+            comp.set_size(rgb.width() as usize, rgb.height() as usize);
+            comp.set_quality(quality as f32);
+
+            let mut comp = comp.start_compress(Vec::new()).map_err(|e| {
+                image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Exact(image::ImageFormat::Jpeg),
+                    e,
+                ))
+            })?;
+            comp.write_scanlines(&rgb).map_err(|e| {
+                image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Exact(image::ImageFormat::Jpeg),
+                    e,
+                ))
+            })?;
+            let jpeg_data = comp.finish().map_err(|e| {
+                image::ImageError::Encoding(image::error::EncodingError::new(
+                    image::error::ImageFormatHint::Exact(image::ImageFormat::Jpeg),
+                    e,
+                ))
+            })?;
+
+            std::fs::write(output_path, jpeg_data).map_err(image::ImageError::IoError)
         }
         COutputFormat::Png => image.save(output_path),
         COutputFormat::Webp => {

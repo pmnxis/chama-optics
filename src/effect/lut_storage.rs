@@ -103,7 +103,7 @@ impl LutItem {
         if lut.is_3d() {
             if let Some(lut_3d) = lut.lut_3d() {
                 let size = lut_3d.size();
-                format!("3D {}x{}x{}", size, size, size)
+                format!("3D {}\u{00B3}", size)
             } else {
                 "3D".to_string()
             }

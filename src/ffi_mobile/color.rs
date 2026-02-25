@@ -134,6 +134,8 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
     let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
     let json_str = cstr_to_str!(adjustments_json, return ChamaError::InvalidParameters);
 
+    let total_start = std::time::Instant::now();
+
     // Parse JSON into ColorAdjustments
     let color_adj: crate::effect::color_adjustments::ColorAdjustments =
         match serde_json::from_str(json_str) {
@@ -145,7 +147,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
         };
 
     log::info!(
-        "Applying color adjustments (JSON) to image: {} (exposure={}, contrast={}, saturation={})",
+        "⏱️ [CADJ-PERF] START — image: {} (exposure={}, contrast={}, saturation={})",
         image_path_str,
         color_adj.exposure,
         color_adj.contrast,
@@ -153,6 +155,7 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
     );
 
     // Load image with EXIF orientation
+    let t0 = std::time::Instant::now();
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -160,15 +163,33 @@ pub unsafe extern "C" fn chama_color_adjustments_apply_json(
             return ChamaError::ImageLoadError;
         }
     };
+    let load_ms = t0.elapsed().as_millis();
+    log::info!(
+        "⏱️ [CADJ-PERF] image::open() = {}ms ({}x{})",
+        load_ms,
+        dyn_image.width(),
+        dyn_image.height()
+    );
+
+    let t1 = std::time::Instant::now();
     dyn_image.apply_orientation(super::read_exif_orientation(image_path_str));
+    let orient_ms = t1.elapsed().as_millis();
+    log::info!("⏱️ [CADJ-PERF] apply_orientation = {}ms", orient_ms);
 
     // Apply adjustments
+    let t2 = std::time::Instant::now();
     color_adj.apply(&mut dyn_image);
+    let apply_ms = t2.elapsed().as_millis();
+    log::info!("⏱️ [CADJ-PERF] color_adj.apply = {}ms", apply_ms);
 
     // Save with specified format and quality
+    let t3 = std::time::Instant::now();
     match super::save_image_with_c_format(&dyn_image, output_path_str, output_format, quality) {
         Ok(_) => {
-            log::info!("Successfully saved adjusted image to: {}", output_path_str);
+            let save_ms = t3.elapsed().as_millis();
+            let total_ms = total_start.elapsed().as_millis();
+            log::info!("⏱️ [CADJ-PERF] save_image = {}ms", save_ms);
+            log::info!("⏱️ [CADJ-PERF] TOTAL = {}ms", total_ms);
             ChamaError::Success
         }
         Err(e) => {

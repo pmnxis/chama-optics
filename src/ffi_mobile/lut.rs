@@ -317,9 +317,14 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
     let image_path_str = cstr_to_str!(image_path, return ChamaError::InvalidPath);
     let output_path_str = cstr_to_str!(output_path, return ChamaError::InvalidPath);
 
-    log::info!("Applying LUT to image: {}", image_path_str);
+    let total_start = std::time::Instant::now();
+    log::info!(
+        "⏱️ [LUT-PERF] chama_lut_apply_with_format START — image: {}",
+        image_path_str
+    );
 
     // Load image with EXIF orientation
+    let t0 = std::time::Instant::now();
     let mut dyn_image = match image::open(image_path_str) {
         Ok(img) => img,
         Err(e) => {
@@ -327,7 +332,18 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
             return ChamaError::ImageLoadError;
         }
     };
+    let load_ms = t0.elapsed().as_millis();
+    log::info!(
+        "⏱️ [LUT-PERF] image::open() = {}ms ({}x{})",
+        load_ms,
+        dyn_image.width(),
+        dyn_image.height()
+    );
+
+    let t1 = std::time::Instant::now();
     dyn_image.apply_orientation(read_exif_orientation(image_path_str));
+    let orient_ms = t1.elapsed().as_millis();
+    log::info!("⏱️ [LUT-PERF] apply_orientation = {}ms", orient_ms);
 
     // Apply LUT if specified
     if !lut_id.is_null() {
@@ -342,23 +358,37 @@ pub unsafe extern "C" fn chama_lut_apply_with_format(
                 }
             };
 
+            let t2 = std::time::Instant::now();
             let mut storage = match LUT_STORAGE.lock() {
                 Ok(s) => s,
                 Err(_) => return ChamaError::Unknown,
             };
+            let lock_ms = t2.elapsed().as_millis();
+            log::info!("⏱️ [LUT-PERF] LUT_STORAGE.lock() = {}ms", lock_ms);
 
+            let t3 = std::time::Instant::now();
             if !storage.apply_lut_to_image(uuid, &mut dyn_image) {
                 log::error!("Failed to apply LUT");
                 return ChamaError::ImageProcessError;
             }
-            log::info!("LUT applied successfully");
+            let apply_ms = t3.elapsed().as_millis();
+            log::info!("⏱️ [LUT-PERF] apply_lut_to_image = {}ms", apply_ms);
         }
     }
 
     // Save with specified format
+    let t4 = std::time::Instant::now();
     match save_image_with_c_format(&dyn_image, output_path_str, output_format, quality) {
         Ok(_) => {
-            log::info!("Successfully saved to: {}", output_path_str);
+            let save_ms = t4.elapsed().as_millis();
+            let total_ms = total_start.elapsed().as_millis();
+            log::info!(
+                "⏱️ [LUT-PERF] save_image = {}ms (format={:?}, quality={})",
+                save_ms,
+                output_format,
+                quality
+            );
+            log::info!("⏱️ [LUT-PERF] TOTAL = {}ms", total_ms);
             ChamaError::Success
         }
         Err(e) => {
