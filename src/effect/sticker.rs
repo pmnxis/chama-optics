@@ -83,13 +83,24 @@ pub fn apply_sticker(
     let sticker_source = load_sticker_source(config);
 
     for (x, y, width, height) in face_areas {
+        // Skip degenerate faces with zero dimensions
+        if width == 0 || height == 0 {
+            continue;
+        }
+
         // Calculate sticker size based on face size and scale
         let target_size = ((width as f32 * config.scale) as u32).max(20);
 
         // Calculate sticker dimensions (after aspect ratio preservation)
         let sticker_aspect = sticker_source
             .as_ref()
-            .map(|img| img.width() as f32 / img.height() as f32)
+            .map(|img| {
+                if img.height() > 0 {
+                    img.width() as f32 / img.height() as f32
+                } else {
+                    1.0
+                }
+            })
             .unwrap_or(1.0);
         let (sticker_w, sticker_h) = if sticker_aspect >= 1.0 {
             (target_size as f32, target_size as f32 / sticker_aspect)
@@ -118,6 +129,9 @@ pub fn apply_sticker(
                 // Calculate aspect ratio to maintain original proportions
                 let orig_width = source_img.width();
                 let orig_height = source_img.height();
+                if orig_height == 0 || orig_width == 0 {
+                    continue;
+                }
                 let aspect_ratio = orig_width as f32 / orig_height as f32;
 
                 // Calculate dimensions that maintain aspect ratio within target_size

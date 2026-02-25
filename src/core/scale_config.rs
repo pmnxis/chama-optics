@@ -42,6 +42,10 @@ impl Default for ScaleConfig {
 
 impl ScaleConfig {
     pub fn apply(&self, src_width: u32, src_height: u32, is_vertical_rotated: bool) -> (u32, u32) {
+        // Guard against zero-dimension images
+        if src_width == 0 || src_height == 0 {
+            return (src_width.max(1), src_height.max(1));
+        }
         match self.mode {
             ScaleMode::None => (src_width, src_height),
             ScaleMode::MaxWidth => {
@@ -86,10 +90,14 @@ impl ScaleConfig {
             }
             ScaleMode::Divide => {
                 let divider = self.scale_value;
-                (
-                    (src_width as f64 / divider).round() as u32,
-                    (src_height as f64 / divider).round() as u32,
-                )
+                if divider <= 0.0 {
+                    (src_width, src_height)
+                } else {
+                    (
+                        (src_width as f64 / divider).round().max(1.0) as u32,
+                        (src_height as f64 / divider).round().max(1.0) as u32,
+                    )
+                }
             }
             ScaleMode::NearCommonDivisorConsiderWidth => {
                 // Simplified version
