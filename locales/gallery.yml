@@ -196,3 +196,15 @@ gallery:
     ko: "상세 EXIF 정보"
     ja: "詳細なEXIF情報"
     id: "Informasi EXIF Lengkap"
+
+  # Unsupported image format
+  unsupported_format_title:
+    en: "Unsupported Format"
+    ko: "지원하지 않는 형식"
+    ja: "非対応フォーマット"
+    id: "Format Tidak Didukung"
+  unsupported_format_message:
+    en: "RAW image format (%@) is not supported. Please convert to JPEG or PNG first."
+    ko: "RAW 이미지 형식 (%@)은(는) 지원되지 않습니다. JPEG 또는 PNG로 변환 후 추가해주세요."
+    ja: "RAW画像形式 (%@) には対応していません。JPEGまたはPNGに変換してから追加してください。"
+    id: "Format gambar RAW (%@) tidak didukung. Harap konversi ke JPEG atau PNG terlebih dahulu."
