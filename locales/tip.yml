@@ -1,0 +1,164 @@
+# SPDX-FileCopyrightText: © 2025 Jinwoo Park (pmnxis@gmail.com)
+#
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+# TipKit onboarding tutorial translations
+# Used in iOS TipKit sequential tips
+
+_version: 2
+
+tip:
+  add_photo:
+    title:
+      en: "Add Photos"
+      ko: "사진 추가"
+      ja: "写真を追加"
+      id: "Tambah Foto"
+    message:
+      en: "Tap + to add photos to your gallery"
+      ko: "+ 버튼을 눌러 갤러리에 사진을 추가하세요"
+      ja: "+ をタップしてギャラリーに写真を追加"
+      id: "Ketuk + untuk menambahkan foto ke galeri Anda"
+  face_detection:
+    title:
+      en: "Detect Faces"
+      ko: "얼굴 인식"
+      ja: "顔を検出"
+      id: "Deteksi Wajah"
+    message:
+      en: "Tap the face icon to detect faces in your photo"
+      ko: "얼굴 아이콘을 눌러 사진에서 얼굴을 인식하세요"
+      ja: "顔アイコンをタップして写真の顔を検出しましょう"
+      id: "Ketuk ikon wajah untuk mendeteksi wajah di foto Anda"
+  open_preview:
+    title:
+      en: "Open Preview"
+      ko: "프리뷰 열기"
+      ja: "プレビューを開く"
+      id: "Buka Pratinjau"
+    message:
+      en: "Tap a photo to preview and edit face effects"
+      ko: "사진을 눌러 얼굴 효과를 확인하세요"
+      ja: "写真をタップして顔エフェクトを確認"
+      id: "Ketuk foto untuk pratinjau efek wajah"
+  preview_effect_default:
+    title:
+      en: "Try Face Effects"
+      ko: "얼굴 효과 체험"
+      ja: "顔エフェクトを試す"
+      id: "Coba Efek Wajah"
+    message:
+      en: "Tap the effect buttons below to try different face effects"
+      ko: "아래 효과 버튼을 눌러 다양한 효과를 시도해보세요"
+      ja: "下のエフェクトボタンをタップして色々な効果を試しましょう"
+      id: "Ketuk tombol efek di bawah untuk mencoba berbagai efek wajah"
+  preview_mosaic:
+    title:
+      en: "Mosaic Effect"
+      ko: "모자이크 효과"
+      ja: "モザイクエフェクト"
+      id: "Efek Mosaik"
+    message:
+      en: "Tap Mosaic to pixelate detected faces"
+      ko: "모자이크를 눌러 얼굴을 모자이크 처리하세요"
+      ja: "モザイクをタップして顔をモザイク処理"
+      id: "Ketuk Mosaik untuk memikselkan wajah"
+  preview_sticker:
+    title:
+      en: "Sticker Effect"
+      ko: "스티커 효과"
+      ja: "ステッカーエフェクト"
+      id: "Efek Stiker"
+    message:
+      en: "Tap Sticker to place images on faces"
+      ko: "스티커를 눌러 얼굴에 이미지를 배치하세요"
+      ja: "ステッカーをタップして顔に画像を配置"
+      id: "Ketuk Stiker untuk menempatkan gambar di wajah"
+  preview_save_close:
+    title:
+      en: "Save or Close"
+      ko: "저장 또는 닫기"
+      ja: "保存または閉じる"
+      id: "Simpan atau Tutup"
+    message:
+      en: "Tap Save to export, or Close to return to gallery"
+      ko: "저장으로 내보내거나, 닫기로 갤러리로 돌아가세요"
+      ja: "保存でエクスポート、閉じるでギャラリーに戻る"
+      id: "Ketuk Simpan untuk ekspor, atau Tutup untuk kembali"
+  go_to_edit:
+    title:
+      en: "Edit Tab"
+      ko: "편집 탭"
+      ja: "編集タブ"
+      id: "Tab Edit"
+    message:
+      en: "Go to Edit tab to add Cheki frames and themes"
+      ko: "편집 탭에서 체키 프레임과 테마를 적용하세요"
+      ja: "編集タブでチェキフレームとテーマを適用"
+      id: "Buka tab Edit untuk menambah bingkai Cheki dan tema"
+  cheki:
+    title:
+      en: "Draw Cheki Frame"
+      ko: "체키 프레임"
+      ja: "チェキフレーム"
+      id: "Bingkai Cheki"
+    message:
+      en: "Enable Cheki to add a decorative photo frame"
+      ko: "체키를 활성화하여 사진 프레임을 추가하세요"
+      ja: "チェキを有効にして写真フレームを追加"
+      id: "Aktifkan Cheki untuk menambahkan bingkai foto dekoratif"
+  detection_speed:
+    title:
+      en: "Detect More Faces"
+      ko: "더 많은 얼굴 인식"
+      ja: "より多くの顔を検出"
+      id: "Deteksi Lebih Banyak Wajah"
+    message:
+      en: "Set Detection Speed to Slowest for maximum accuracy"
+      ko: "인식 속도를 Slowest로 설정하면 최대한 많은 얼굴을 찾습니다"
+      ja: "検出速度をSlowestに設定すると最大精度で検出します"
+      id: "Atur Kecepatan Deteksi ke Slowest untuk akurasi maksimum"
+  add_sticker:
+    title:
+      en: "Add Stickers"
+      ko: "스티커 추가"
+      ja: "ステッカーを追加"
+      id: "Tambah Stiker"
+    message:
+      en: "Add custom sticker images for face effects"
+      ko: "커스텀 스티커 이미지를 추가하여 얼굴 효과에 사용하세요"
+      ja: "カスタムステッカー画像を追加して顔エフェクトに使用"
+      id: "Tambahkan gambar stiker kustom untuk efek wajah"
+  play_dice:
+    title:
+      en: "Play Dice!"
+      ko: "주사위 굴리기!"
+      ja: "サイコロを振る!"
+      id: "Lempar Dadu!"
+    message:
+      en: "Tap Play Dice to randomly place character stickers"
+      ko: "Play Dice를 눌러 캐릭터 스티커를 랜덤 배치해보세요"
+      ja: "Play Diceをタップしてキャラクターステッカーをランダム配置"
+      id: "Ketuk Play Dice untuk menempatkan stiker karakter secara acak"
+  cheki_guide:
+    title:
+      en: "Customize & Export"
+      ko: "꾸미기 & 내보내기"
+      ja: "カスタマイズ & エクスポート"
+      id: "Kustomisasi & Ekspor"
+    message:
+      en: "Edit date stamp or add text below. Export at the very bottom."
+      ko: "아래에서 날짜 스탬프를 수정하거나 중앙에 들어갈 텍스트를 추가할 수 있습니다. 맨 아래에서 내보낼 수 있습니다."
+      ja: "下で日付スタンプを編集したりテキストを追加できます。一番下でエクスポートできます。"
+      id: "Edit stempel tanggal atau tambah teks di bawah. Ekspor di paling bawah."
+  go_to_settings:
+    title:
+      en: "Settings Tab"
+      ko: "설정 탭"
+      ja: "設定タブ"
+      id: "Tab Pengaturan"
+    message:
+      en: "Go to Settings to adjust detection speed and add stickers"
+      ko: "설정 탭에서 인식 속도 조절과 스티커 추가를 할 수 있습니다"
+      ja: "設定タブで検出速度の調整やステッカーの追加ができます"
+      id: "Buka Pengaturan untuk mengatur kecepatan deteksi dan menambah stiker"
