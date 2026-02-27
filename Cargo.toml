@@ -72,10 +72,10 @@ libheif = ["libheif-rs"]
 # Note: codec dependencies (libde265, libaom, etc.) are still dynamically linked
 embedded_libheif = ["libheif-sys/embedded-libheif"]
 # iOS-specific features (Photos library, Share extension) - core library only, no GUI
-ios_integration = ["metal_integration", "face_detection_visionkit", "dep:dirs", "dep:env_logger", "dep:webp", "mozjpeg"]
+ios_integration = ["native_encoders", "metal_integration", "face_detection_visionkit", "dep:dirs", "dep:env_logger"]
 # Android-specific features - core library only, no Metal/VisionKit
 # egui is needed for types (Color32, Vec2) used in themes/effects, not for GUI
-android_integration = ["egui", "dep:dirs", "dep:webp", "mozjpeg"]
+android_integration = ["egui", "dep:dirs", "native_encoders"]
 # Disable logging - for Xcode Release/TestFlight builds (logging enabled by default for Debug)
 disable_logging = ["log/max_level_off", "log/release_max_level_off"]
 # Theme support for iOS (without egui GUI dependencies) - not currently used
