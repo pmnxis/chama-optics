@@ -144,6 +144,28 @@ impl CoreImage {
     pub fn load_image_direct(
         path: &std::path::Path,
     ) -> Result<image::DynamicImage, image::ImageError> {
+        // On Apple platforms, try native HEIF decoder first for .heic/.heif/.hif files
+        #[cfg(any(target_os = "ios", target_os = "macos"))]
+        {
+            if crate::ffi_apple_heif::is_heif_format(path) {
+                log::info!("load_image_direct: HEIF format detected, using Apple native decoder");
+                match crate::ffi_apple_heif::decode_heif(path) {
+                    Ok(img) => {
+                        log::info!(
+                            "load_image_direct: Apple native HEIF decode success: {}x{}",
+                            img.width(),
+                            img.height()
+                        );
+                        return Ok(img);
+                    }
+                    Err(e) => {
+                        log::error!("load_image_direct: Apple native HEIF decode failed: {}", e);
+                        // Fall through to standard image crate
+                    }
+                }
+            }
+        }
+
         use image::ImageReader;
         let mut dyn_image = ImageReader::open(path)?.decode()?;
 
