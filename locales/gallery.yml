@@ -140,6 +140,21 @@ gallery:
     ko: "사진 저장 실패. 권한을 확인하세요."
     ja: "写真の保存に失敗しました。権限を確認してください。"
     id: "Gagal menyimpan foto. Harap periksa izin."
+  permission_denied_title:
+    en: "Photo Access Required"
+    ko: "사진 접근 권한 필요"
+    ja: "写真へのアクセス許可が必要"
+    id: "Diperlukan Akses Foto"
+  permission_denied_message:
+    en: "Please allow photo access in Settings > Apps > Chama Optics > Photos."
+    ko: "설정 > 앱 > Chama Optics > 사진 에서 권한을 허용해주세요."
+    ja: "設定 > アプリ > Chama Optics > 写真 からアクセスを許可してください。"
+    id: "Izinkan akses foto di Pengaturan > App > Chama Optics > Foto."
+  open_settings:
+    en: "Open Settings"
+    ko: "설정 열기"
+    ja: "設定を開く"
+    id: "Buka Pengaturan"
 
   # Loading states
   loading_image:
