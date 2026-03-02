@@ -361,11 +361,13 @@ impl ChamaOptics {
                 self.packed_images.iter().enumerate(),
                 |(idx, _img)| *idx,
                 |(_idx, img)| {
-                    img.path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .to_string()
+                    crate::util::normalize_for_display(
+                        img.path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                    )
                 },
                 |_ctx, (_idx, img)| Some(img.texture.get().clone()),
                 |idx| current_selected == Some(idx),

@@ -15,3 +15,17 @@ pub(crate) mod web_helper;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod web_download;
+
+/// Apply NFC normalization for display on macOS.
+/// macOS APFS/HFS+ uses NFD for file paths, which decomposes Korean characters (한글 → ㅎㅏㄴㄱㅡㄹ).
+/// This function recomposes them for proper display.
+#[cfg(target_os = "macos")]
+pub(crate) fn normalize_for_display(s: String) -> String {
+    use unicode_normalization::UnicodeNormalization;
+    s.nfc().collect()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn normalize_for_display(s: String) -> String {
+    s
+}

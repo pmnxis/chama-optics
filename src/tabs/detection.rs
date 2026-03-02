@@ -85,11 +85,13 @@ impl ChamaOptics {
             self.packed_images.iter().enumerate(),
             |(idx, _img)| *idx, // Use index as ID (dereference)
             |(_idx, img)| {
-                img.path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("Unknown")
-                    .to_string()
+                crate::util::normalize_for_display(
+                    img.path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("Unknown")
+                        .to_string(),
+                )
             },
             |_ctx, (_idx, img)| Some(img.texture.get().clone()),
             |idx| current_selected == Some(idx),

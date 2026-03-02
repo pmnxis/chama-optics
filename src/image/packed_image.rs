@@ -290,12 +290,14 @@ impl PackedImage {
     }
 
     pub fn file_name(&self) -> String {
-        self.path
-            .clone()
-            .file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
+        crate::util::normalize_for_display(
+            self.path
+                .clone()
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string(),
+        )
     }
 
     pub fn prepostfixed_filename(
@@ -350,7 +352,7 @@ impl PackedImage {
     }
 
     pub fn file_path(&self) -> String {
-        self.path.clone().to_string_lossy().to_string()
+        crate::util::normalize_for_display(self.path.clone().to_string_lossy().to_string())
     }
 
     #[cfg(not(any(feature = "ios_integration", feature = "android_integration")))]

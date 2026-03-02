@@ -149,6 +149,7 @@ strum_macros = "0.28"
 sys-locale = { version = "0.3.2", optional = true }
 dirs = { version = "6.0", optional = true }
 num-traits = "0.2.19"
+unicode-normalization = "0.1"
 clap = { version = "4.5.59", features = ["derive"], optional = true }
 chrono = { version = "^0.4", features = ["serde"] }
 resvg = "^0.47"
