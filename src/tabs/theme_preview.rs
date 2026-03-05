@@ -60,6 +60,13 @@ impl ChamaOptics {
             return Some(());
         }
 
+        // Clear sticker_bytes to load original image and prevent LUT/effect stacking
+        // (preview re-applies all effects from scratch; sticker_bytes is re-set before theme call)
+        if let Some(pi) = self.packed_images.get_mut(idx) {
+            pi.sticker_bytes = None;
+            pi.sticker_oriented = false;
+        }
+
         // Generate preview with full pipeline
         let preview_result = if !self.detected_faces.is_empty() {
             log::info!(
@@ -67,9 +74,15 @@ impl ChamaOptics {
                 idx
             );
 
-            // Load original image
+            // Load original image and apply orientation before face effects
             let mut dyn_image = match self.packed_images[idx].get_image() {
-                Ok((img, _)) => img,
+                Ok((mut img, need_orientation)) => {
+                    if need_orientation {
+                        let orientation = self.packed_images[idx].view_exif.orientation;
+                        img.apply_orientation(orientation);
+                    }
+                    img
+                }
                 Err(e) => {
                     log::error!("Failed to load image {:?}: {:?}", image_path, e);
                     return None;
@@ -221,6 +234,7 @@ impl ChamaOptics {
                 let bytes_len = bytes.len();
                 if let Some(packed_img) = self.packed_images.get_mut(idx) {
                     packed_img.sticker_bytes = Some(bytes);
+                    packed_img.sticker_oriented = true;
                     log::info!(
                         "Updated sticker_bytes in PackedImage[{}]: {} bytes (full pipeline)",
                         idx,
@@ -252,7 +266,13 @@ impl ChamaOptics {
 
             if needs_processing {
                 let mut dyn_image = match self.packed_images[idx].get_image() {
-                    Ok((img, _)) => img,
+                    Ok((mut img, need_orientation)) => {
+                        if need_orientation {
+                            let orientation = self.packed_images[idx].view_exif.orientation;
+                            img.apply_orientation(orientation);
+                        }
+                        img
+                    }
                     Err(e) => {
                         log::error!("Failed to load image {:?}: {:?}", image_path, e);
                         return None;
@@ -292,6 +312,7 @@ impl ChamaOptics {
                     && let Some(packed_img) = self.packed_images.get_mut(idx)
                 {
                     packed_img.sticker_bytes = Some(bytes);
+                    packed_img.sticker_oriented = true;
                     log::info!(
                         "Updated sticker_bytes in PackedImage[{}] with processed image",
                         idx

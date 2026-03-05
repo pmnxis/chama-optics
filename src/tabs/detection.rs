@@ -1797,6 +1797,7 @@ impl ChamaOptics {
                     && let Some(packed_image) = self.packed_images.get_mut(selected_idx)
                 {
                     packed_image.sticker_bytes = sticker_bytes.clone();
+                    packed_image.sticker_oriented = sticker_bytes.is_some();
                     log::info!(
                         "Updated sticker_bytes in PackedImage[{}]: {} bytes",
                         selected_idx,

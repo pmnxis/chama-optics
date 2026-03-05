@@ -48,6 +48,11 @@ pub struct PackedImage {
     /// This allows theme preview and export to use stickers without temporary files
     pub sticker_bytes: Option<Vec<u8>>,
 
+    /// Whether sticker_bytes has already been orientation-corrected.
+    /// When true, get_image() returns need_orientation=false for sticker content,
+    /// preventing double-orientation application by theme's with_scale_and_orientation().
+    pub sticker_oriented: bool,
+
     /// Perceptual hash for image similarity comparison (64-bit average hash)
     /// Calculated once during image loading for efficient grouping
     pub perceptual_hash: Option<u64>,
@@ -80,7 +85,7 @@ impl PackedImage {
             && let Ok(sticker_img) = image::load_from_memory(sticker_bytes)
         {
             log::info!("Loading sticker-processed image from sticker_bytes field");
-            return Ok((sticker_img, true));
+            return Ok((sticker_img, !self.sticker_oriented));
         }
 
         #[cfg(feature = "desktop")]
@@ -161,55 +166,27 @@ impl PackedImage {
     }
 
     pub fn try_from_path(path: &PathBuf, ctx: &egui::Context) -> Result<Self, image::ImageError> {
-        fn get_exif_with_thumbnail(
-            buf_reader: &mut std::io::BufReader<std::fs::File>,
-        ) -> (Option<exif::Exif>, Option<Vec<u8>>) {
-            match exif::Reader::new().read_from_container(buf_reader) {
-                Ok(exif) => {
-                    // Currently it's temporary. EXIF-RS has optional MPF parsing stuff.
-                    let thumbnail =
-                        if let Some(biggest) = exif.thumbnails().iter().max_by_key(|e| e.length) {
-                            // Avoid 160x120 image
-                            log::info!("Thumbnail : {:?}", biggest);
-                            if biggest.length >= 100 * 1024 {
-                                log::info!("find out good thumbnail");
-                                biggest.extract_data(buf_reader).ok()
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
-                    (Some(exif), thumbnail)
-                }
-                Err(exif::Error::NotFound(_)) => (None, None),
-                Err(e) => {
-                    log::warn!("Failed to parse EXIF from image: {e:?}");
-                    (None, None)
-                }
-            }
-        }
-
         let file = std::fs::File::open(path)?;
         let mut buf_reader = std::io::BufReader::new(file);
 
-        // Parse EXIF first
-        let (exif_or_none, exif_thumbnail) = get_exif_with_thumbnail(&mut buf_reader);
-        let original_exif = OriginalExif::new(exif_or_none);
+        // Parse EXIF (without MPF thumbnails - they can differ from the main image)
+        let original_exif = OriginalExif::new(
+            match exif::Reader::new().read_from_container(&mut buf_reader) {
+                Ok(exif) => Some(exif),
+                Err(exif::Error::NotFound(_)) => None,
+                Err(e) => {
+                    log::warn!("Failed to parse EXIF from image: {e:?}");
+                    None
+                }
+            },
+        );
 
         buf_reader
             .seek(std::io::SeekFrom::Start(0))
             .expect("Failed reset seek zero");
 
-        let (dyn_image, need_orientation) = if let Some(exif_thumbnail) = exif_thumbnail {
-            log::info!("Used EXIF thumbnail : [{:X}]", exif_thumbnail.len());
-            crate::dump!(exif_thumbnail);
-
-            __load_image_from_vec(path, &exif_thumbnail)
-        } else {
-            __load_image(path, &mut buf_reader)
-        }?;
+        // Always load thumbnail from main image (not EXIF/MPF sub-images)
+        let (dyn_image, need_orientation) = __load_image(path, &mut buf_reader)?;
 
         log::debug!("{} x {}", dyn_image.width(), dyn_image.height());
 
@@ -242,10 +219,11 @@ impl PackedImage {
             )),
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // Desktop uses file system, doesn't need bytes in memory
-            sticker_bytes: None,   // No sticker data for manually loaded images
-            perceptual_hash: None, // Not calculated for manually loaded images
+            sticker_bytes: None,     // No sticker data for manually loaded images
+            sticker_oriented: false, // No sticker data yet
+            perceptual_hash: None,   // Not calculated for manually loaded images
             configured_faces: Vec::new(), // No faces configured yet
-            lut_id: None,          // No LUT configured yet
+            lut_id: None,            // No LUT configured yet
             crop_rotate: crate::effect::crop_rotate::CropRotateTransform::default(),
             #[cfg(feature = "rfd")]
             pending_save: None,
@@ -280,6 +258,7 @@ impl PackedImage {
             #[cfg(not(feature = "desktop"))]
             image_bytes: None, // CLI mode is desktop-only, doesn't need bytes in memory
             sticker_bytes: None, // CLI mode doesn't have sticker-processed images
+            sticker_oriented: false, // No sticker data yet
             perceptual_hash: None, // CLI mode doesn't calculate hash
             configured_faces: Vec::new(), // No faces configured in CLI mode
             lut_id: None,        // No LUT configured in CLI mode

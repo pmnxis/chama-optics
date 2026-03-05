@@ -284,6 +284,54 @@ fn render_tab_button(
     });
 }
 
+/// Render the right-side sub-tab icon bar within the Edit tab's controls panel
+pub fn render_edit_sub_tab_sidebar(
+    ui: &mut egui::Ui,
+    selected_sub_tab: &mut crate::app::EditSubTab,
+) {
+    use crate::app::EditSubTab;
+
+    egui::Panel::right("edit_sub_tab_bar")
+        .resizable(false)
+        .exact_size(40.0)
+        .show_inside(ui, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.add_space(10.0);
+
+                render_sub_tab_button(ui, selected_sub_tab, EditSubTab::Color, "🌈", "Color");
+                ui.add_space(5.0);
+                render_sub_tab_button(ui, selected_sub_tab, EditSubTab::Lut, "🎞", "LUT");
+                ui.add_space(5.0);
+                render_sub_tab_button(ui, selected_sub_tab, EditSubTab::CropRotate, "✂", "Crop");
+                ui.add_space(5.0);
+                render_sub_tab_button(ui, selected_sub_tab, EditSubTab::Decoration, "🖼", "Decor");
+            });
+        });
+}
+
+/// Render a single sub-tab button with icon and short label
+fn render_sub_tab_button(
+    ui: &mut egui::Ui,
+    selected: &mut crate::app::EditSubTab,
+    tab: crate::app::EditSubTab,
+    icon: &str,
+    label: &str,
+) {
+    ui.vertical_centered(|ui| {
+        let is_active = *selected == tab;
+        let response = ui.selectable_label(is_active, egui::RichText::new(icon).size(20.0));
+        if response.clicked() {
+            *selected = tab;
+        }
+        let text_color = if is_active {
+            ui.visuals().strong_text_color()
+        } else {
+            ui.visuals().weak_text_color()
+        };
+        ui.label(egui::RichText::new(label).size(8.0).color(text_color));
+    });
+}
+
 /// Common horizontal scrollable gallery component for image selection
 ///
 /// # Type Parameters

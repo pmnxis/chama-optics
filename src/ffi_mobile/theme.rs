@@ -157,6 +157,7 @@ fn generate_preview_impl(
         #[cfg(not(feature = "desktop"))]
         image_bytes: std::fs::read(image_path).ok(),
         sticker_bytes: None,
+        sticker_oriented: false,
         perceptual_hash: None,
         // For now normal preview doesn't draw face effect.
         configured_faces: Vec::with_capacity(0),
@@ -333,6 +334,7 @@ pub(super) fn export_final_impl(params: &ThemeExportParams) -> Result<(), ChamaO
         #[cfg(not(feature = "desktop"))]
         image_bytes,
         sticker_bytes: None,
+        sticker_oriented: false,
         perceptual_hash: None,
         configured_faces: Vec::with_capacity(0), // todo - check is this right?
         lut_id: None,                            // iOS FFI doesn't use LUT yet

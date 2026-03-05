@@ -298,7 +298,8 @@ pub fn create_packed_image_from_data(
             texture,
             #[cfg(not(feature = "desktop"))]
             image_bytes: data.image_bytes,
-            sticker_bytes: None, // No sticker data from loader
+            sticker_bytes: None,     // No sticker data from loader
+            sticker_oriented: false, // No sticker data yet
             perceptual_hash: *perceptual_hash,
             configured_faces: Vec::new(), // No faces configured from loader
             lut_id: None,                 // No LUT configured from loader

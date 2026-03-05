@@ -160,6 +160,7 @@ impl ImageProcessor {
             #[cfg(not(feature = "desktop"))]
             image_bytes: None,
             sticker_bytes: None,
+            sticker_oriented: false,
             perceptual_hash: None,
             configured_faces: Vec::new(),
             lut_id: None, // Core processor doesn't use LUT

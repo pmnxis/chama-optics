@@ -62,6 +62,18 @@ pub enum EditTargetMode {
     Individual,
 }
 
+/// Sub-tab selection within the Edit tab's right icon bar
+#[derive(
+    serde::Deserialize, serde::Serialize, PartialEq, Eq, Clone, Copy, Debug, Default, Hash,
+)]
+pub enum EditSubTab {
+    #[default]
+    Color,
+    Lut,
+    CropRotate,
+    Decoration,
+}
+
 /// Main tab selection for the left sidebar
 #[derive(serde::Deserialize, serde::Serialize, PartialEq, Clone, Copy, Debug, Default)]
 pub enum MainTab {
@@ -353,6 +365,9 @@ pub struct ChamaOptics {
     /// Decoration mode for Edit tab (None / Theme / Cheki)
     pub decoration_mode: DecorationMode,
 
+    /// Currently selected sub-tab in the Edit tab's right icon bar
+    pub edit_sub_tab: EditSubTab,
+
     /// Each/All edit mode for the Edit tab
     pub edit_target_mode: EditTargetMode,
 
@@ -473,6 +488,7 @@ impl Default for ChamaOptics {
             edit_preview_texture: None,
             edit_preview_cache_key: None,
             decoration_mode: DecorationMode::default(),
+            edit_sub_tab: EditSubTab::default(),
             edit_target_mode: EditTargetMode::default(),
             per_image_adjustments: std::collections::HashMap::new(),
             crop_canvas_texture: None,
@@ -632,6 +648,7 @@ impl ChamaOptics {
             prefix: Option<String>,
             postfix: Option<String>,
             sticker_bytes: Option<Vec<u8>>,
+            sticker_oriented: bool,
             #[allow(dead_code)] // todo - windows issue, resolve later
             configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
             /// LUT ID configured for this image (for color grading)
@@ -713,6 +730,7 @@ impl ChamaOptics {
                     .is_ok()
                 {
                     pi.sticker_bytes = Some(bytes);
+                    pi.sticker_oriented = false; // image::open() does not apply orientation
                     log::info!(
                         "Export: Saved processed image to sticker_bytes for image {}",
                         idx
@@ -721,6 +739,7 @@ impl ChamaOptics {
             } else {
                 // No color adj, no LUT - use sticker_bytes from task if available
                 pi.sticker_bytes = task.sticker_bytes.clone();
+                pi.sticker_oriented = task.sticker_oriented;
             }
 
             // Use sticker-processed image from HashMap as fallback
@@ -904,6 +923,7 @@ impl ChamaOptics {
                             }
                         }),
                         sticker_bytes: pi.sticker_bytes.clone(),
+                        sticker_oriented: pi.sticker_oriented,
                         configured_faces: pi.configured_faces.clone(),
                         lut_id: pi.lut_id,
                         crop_rotate: pi.crop_rotate.clone(),
@@ -926,6 +946,7 @@ impl ChamaOptics {
                     prefix: None,
                     postfix: None,
                     sticker_bytes: pi.sticker_bytes.clone(),
+                    sticker_oriented: pi.sticker_oriented,
                     configured_faces: pi.configured_faces.clone(),
                     lut_id: pi.lut_id,
                     crop_rotate: pi.crop_rotate.clone(),
@@ -1069,8 +1090,9 @@ impl ChamaOptics {
             for (idx, task) in tasks.iter().enumerate() {
                 log::info!("WASM export: Processing image {}/{}", idx + 1, total);
 
-                // Save original sticker_bytes to restore after export
+                // Save original sticker_bytes/sticker_oriented to restore after export
                 let original_sticker_bytes = self.packed_images[idx].sticker_bytes.clone();
+                let original_sticker_oriented = self.packed_images[idx].sticker_oriented;
 
                 // Apply Color Adjustments and/or LUT to image if configured
                 let needs_color_adj = !task.color_adjustments.is_identity();
@@ -1098,6 +1120,7 @@ impl ChamaOptics {
                                 .is_ok()
                             {
                                 self.packed_images[idx].sticker_bytes = Some(bytes);
+                                self.packed_images[idx].sticker_oriented = false;
                             }
                         }
                         Err(e) => {
@@ -1110,6 +1133,7 @@ impl ChamaOptics {
                 } else {
                     // No color adj, no LUT - use sticker_bytes from task
                     self.packed_images[idx].sticker_bytes = task.sticker_bytes.clone();
+                    self.packed_images[idx].sticker_oriented = task.sticker_oriented;
                 }
 
                 // Apply theme
@@ -1118,8 +1142,9 @@ impl ChamaOptics {
                     .selected_theme_read()
                     .apply_to_image(&self.packed_images[idx], &export_config);
 
-                // Restore original sticker_bytes
+                // Restore original sticker_bytes and sticker_oriented
                 self.packed_images[idx].sticker_bytes = original_sticker_bytes;
+                self.packed_images[idx].sticker_oriented = original_sticker_oriented;
 
                 let themed_image = match themed_result {
                     Ok(img) => img,

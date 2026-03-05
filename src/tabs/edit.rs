@@ -282,113 +282,116 @@ impl ChamaOptics {
 
     /// Render the right controls panel (scrollable)
     fn render_edit_controls_panel(&mut self, ui: &mut egui::Ui, idx: usize) {
+        // Right-side sub-tab icon bar (claims 40px from right)
+        crate::ui_components::render_edit_sub_tab_sidebar(ui, &mut self.edit_sub_tab);
+
+        // Remaining space: selected sub-tab's controls
         egui::ScrollArea::vertical()
-            .id_salt("edit_controls")
-            .show(ui, |ui| {
-                // Section 1: Color Adjustments
-                let adjustments_before = self.color_adjustments.clone();
-                ui.collapsing(
-                    t!("color.adjustments_section", default = "Color Adjustments"),
-                    |ui| {
-                        self.color_adjustments.update_ui(ui);
-                    },
-                );
-                // Invalidate caches if color adjustments changed
-                if self.color_adjustments != adjustments_before {
-                    self.edit_preview_cache_key = None;
-                    self.detection_preview_cache_key = None;
-                }
-
-                ui.add_space(5.0);
-                ui.separator();
-
-                // Section 2: LUT Settings
-                ui.collapsing(t!("color.lut_settings", default = "LUT Settings"), |ui| {
-                    let action = self.render_per_image_lut_ui_for_edit(ui, idx);
-                    if action == crate::effect::lut_storage::LutUiAction::OpenAddDialog {
-                        self.spawn_lut_file_dialog();
-                    }
-                });
-
-                ui.add_space(5.0);
-                ui.separator();
-
-                // Section 3: Crop & Rotate
-                // edit_selected_index is already set by the caller
-                ui.collapsing(
-                    t!("color.crop_rotate_section", default = "Crop & Rotate"),
-                    |ui| {
-                        ui.label(
-                            egui::RichText::new(t!("color.crop_rotate_warning"))
-                                .color(ui.visuals().warn_fg_color)
-                                .italics(),
-                        );
-                        self.render_crop_rotate_ui(ui);
-                    },
-                );
-
-                ui.add_space(5.0);
-                ui.separator();
-
-                // Section 4: Decoration (None / Theme / Cheki)
-                ui.label(
-                    egui::RichText::new(t!("edit.section.decoration", default = "Decoration"))
-                        .strong(),
-                );
-                ui.horizontal(|ui| {
-                    if ui
-                        .selectable_label(
-                            self.decoration_mode == DecorationMode::None,
-                            t!("edit.decoration.none", default = "None"),
-                        )
-                        .clicked()
-                    {
-                        self.decoration_mode = DecorationMode::None;
-                        self.edit_preview_cache_key = None;
-                    }
-                    if ui
-                        .selectable_label(
-                            self.decoration_mode == DecorationMode::Cheki,
-                            t!("edit.decoration.cheki", default = "Cheki"),
-                        )
-                        .clicked()
-                    {
-                        self.decoration_mode = DecorationMode::Cheki;
-                        self.edit_preview_cache_key = None;
-                    }
-                    if ui
-                        .selectable_label(
-                            self.decoration_mode == DecorationMode::Theme,
-                            t!("edit.decoration.theme", default = "Theme"),
-                        )
-                        .clicked()
-                    {
-                        self.decoration_mode = DecorationMode::Theme;
-                        self.edit_preview_cache_key = None;
-                    }
-                });
-
-                ui.add_space(5.0);
-
-                // Decoration-specific controls
-                match self.decoration_mode {
-                    DecorationMode::None => {}
-                    DecorationMode::Theme => {
-                        // Theme selection UI
-                        self.export_config
-                            .theme_reg
-                            .update_ui(ui, self.show_theme_name_in_english);
-                    }
-                    DecorationMode::Cheki => {
-                        // Cheki decoration controls
-                        if let Some(packed_image) = self.packed_images.get(idx) {
-                            let image_uuid = packed_image.uuid;
-                            self.cheki_decorations.entry(image_uuid).or_default();
-                            self.render_cheki_controls(ui, image_uuid);
-                        }
-                    }
-                }
+            .id_salt("edit_sub_tab_controls")
+            .show(ui, |ui| match self.edit_sub_tab {
+                crate::app::EditSubTab::Color => self.render_edit_color_controls(ui),
+                crate::app::EditSubTab::Lut => self.render_edit_lut_controls(ui, idx),
+                crate::app::EditSubTab::CropRotate => self.render_edit_crop_rotate_controls(ui),
+                crate::app::EditSubTab::Decoration => self.render_edit_decoration_controls(ui, idx),
             });
+    }
+
+    fn render_edit_color_controls(&mut self, ui: &mut egui::Ui) {
+        ui.label(
+            egui::RichText::new(t!(
+                "color.adjustments_section",
+                default = "Color Adjustments"
+            ))
+            .strong(),
+        );
+        ui.add_space(5.0);
+
+        let adjustments_before = self.color_adjustments.clone();
+        self.color_adjustments.update_ui(ui);
+        if self.color_adjustments != adjustments_before {
+            self.edit_preview_cache_key = None;
+            self.detection_preview_cache_key = None;
+        }
+    }
+
+    fn render_edit_lut_controls(&mut self, ui: &mut egui::Ui, idx: usize) {
+        ui.label(egui::RichText::new(t!("color.lut_settings", default = "LUT Settings")).strong());
+        ui.add_space(5.0);
+
+        let action = self.render_per_image_lut_ui_for_edit(ui, idx);
+        if action == crate::effect::lut_storage::LutUiAction::OpenAddDialog {
+            self.spawn_lut_file_dialog();
+        }
+    }
+
+    fn render_edit_crop_rotate_controls(&mut self, ui: &mut egui::Ui) {
+        ui.label(
+            egui::RichText::new(t!("color.crop_rotate_section", default = "Crop & Rotate"))
+                .strong(),
+        );
+        ui.add_space(5.0);
+        ui.label(
+            egui::RichText::new(t!("color.crop_rotate_warning"))
+                .color(ui.visuals().warn_fg_color)
+                .italics(),
+        );
+        self.render_crop_rotate_ui(ui);
+    }
+
+    fn render_edit_decoration_controls(&mut self, ui: &mut egui::Ui, idx: usize) {
+        ui.label(
+            egui::RichText::new(t!("edit.section.decoration", default = "Decoration")).strong(),
+        );
+        ui.horizontal(|ui| {
+            if ui
+                .selectable_label(
+                    self.decoration_mode == DecorationMode::None,
+                    t!("edit.decoration.none", default = "None"),
+                )
+                .clicked()
+            {
+                self.decoration_mode = DecorationMode::None;
+                self.edit_preview_cache_key = None;
+            }
+            if ui
+                .selectable_label(
+                    self.decoration_mode == DecorationMode::Cheki,
+                    t!("edit.decoration.cheki", default = "Cheki"),
+                )
+                .clicked()
+            {
+                self.decoration_mode = DecorationMode::Cheki;
+                self.edit_preview_cache_key = None;
+            }
+            if ui
+                .selectable_label(
+                    self.decoration_mode == DecorationMode::Theme,
+                    t!("edit.decoration.theme", default = "Theme"),
+                )
+                .clicked()
+            {
+                self.decoration_mode = DecorationMode::Theme;
+                self.edit_preview_cache_key = None;
+            }
+        });
+
+        ui.add_space(5.0);
+
+        match self.decoration_mode {
+            DecorationMode::None => {}
+            DecorationMode::Theme => {
+                self.export_config
+                    .theme_reg
+                    .update_ui(ui, self.show_theme_name_in_english);
+            }
+            DecorationMode::Cheki => {
+                if let Some(packed_image) = self.packed_images.get(idx) {
+                    let image_uuid = packed_image.uuid;
+                    self.cheki_decorations.entry(image_uuid).or_default();
+                    self.render_cheki_controls(ui, image_uuid);
+                }
+            }
+        }
     }
 
     /// LUT UI adapted for Edit tab (edit_selected_index is already set by caller)
@@ -477,6 +480,13 @@ impl ChamaOptics {
 
         if self.edit_preview_cache_key.as_ref() == Some(&cache_key) {
             return Some(());
+        }
+
+        // Clear sticker_bytes to load original image and prevent LUT/effect stacking
+        // (preview re-applies all effects from scratch; sticker_bytes is re-set in Theme mode)
+        if let Some(pi) = self.packed_images.get_mut(idx) {
+            pi.sticker_bytes = None;
+            pi.sticker_oriented = false;
         }
 
         // Load image
@@ -626,6 +636,7 @@ impl ChamaOptics {
                 && let Some(packed_img) = self.packed_images.get_mut(idx)
             {
                 packed_img.sticker_bytes = Some(bytes);
+                packed_img.sticker_oriented = true;
             }
 
             // Apply theme
