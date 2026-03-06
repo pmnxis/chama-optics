@@ -68,7 +68,7 @@ if [ $FONT_COUNT -eq 0 ]; then
 fi
 
 # Also copy build-time downloaded fonts (e.g. DynaPuff from build.rs)
-for build_font in DynaPuff-Variable.ttf; do
+for build_font in DynaPuff-Variable.ttf "digital-7.ttf" "digital-7 (italic).ttf"; do
     FONT_SOURCE=$(find target/release/build -name "$build_font" 2>/dev/null | head -1)
     if [ -n "$FONT_SOURCE" ] && [ -f "$FONT_SOURCE" ]; then
         cp "$FONT_SOURCE" target/release/bundle/osx/Chama\ Optics.app/Contents/Resources/Fonts/
