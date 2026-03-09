@@ -39,7 +39,7 @@ mkdir -p target/release/bundle/osx/Chama\ Optics.app/Contents/Resources/Logos
 
 # 1. Copy InsightFace ONNX model
 echo "Copying models..."
-MODEL_SOURCE=$(find target/release/build -name "det_10g.onnx" 2>/dev/null | head -1)
+MODEL_SOURCE=$(find target -name "det_10g.onnx" 2>/dev/null | head -1)
 if [ -n "$MODEL_SOURCE" ] && [ -f "$MODEL_SOURCE" ]; then
     cp "$MODEL_SOURCE" target/release/bundle/osx/Chama\ Optics.app/Contents/Resources/Models/
     MODEL_SIZE=$(du -h "$MODEL_SOURCE" | cut -f1)
@@ -69,7 +69,7 @@ fi
 
 # Also copy build-time downloaded fonts (e.g. DynaPuff from build.rs)
 for build_font in DynaPuff-Variable.ttf "digital-7.ttf" "digital-7 (italic).ttf"; do
-    FONT_SOURCE=$(find target/release/build -name "$build_font" 2>/dev/null | head -1)
+    FONT_SOURCE=$(find target -name "$build_font" 2>/dev/null | head -1)
     if [ -n "$FONT_SOURCE" ] && [ -f "$FONT_SOURCE" ]; then
         cp "$FONT_SOURCE" target/release/bundle/osx/Chama\ Optics.app/Contents/Resources/Fonts/
         FONT_SIZE=$(du -h "$FONT_SOURCE" | cut -f1)
@@ -83,7 +83,7 @@ done
 # 3. Copy logos (SVG files downloaded during build)
 echo "Copying logos..."
 LOGO_COUNT=0
-LOGO_SOURCE_DIR=$(find target/release/build -type d -name "download" 2>/dev/null | head -1)
+LOGO_SOURCE_DIR=$(find target -type d -name "download" 2>/dev/null | head -1)
 if [ -n "$LOGO_SOURCE_DIR" ] && [ -d "$LOGO_SOURCE_DIR" ]; then
     for logo in "$LOGO_SOURCE_DIR"/*.svg; do
         if [ -f "$logo" ]; then

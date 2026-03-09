@@ -21,6 +21,13 @@ face_detection:
     ja: "顔検出設定"
     id: "Konfigurasi deteksi wajah"
 
+  # Default effect selector (Detection tab)
+  default_effect:
+    en: "Default Effect"
+    ko: "기본 효과"
+    ja: "デフォルトエフェクト"
+    id: "Efek Bawaan"
+
   # Override effect selector (Edit tab Face Detection Area)
   override_effect:
     en: "Override Effect"
