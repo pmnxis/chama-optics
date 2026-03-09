@@ -649,7 +649,6 @@ impl ChamaOptics {
             postfix: Option<String>,
             sticker_bytes: Option<Vec<u8>>,
             sticker_oriented: bool,
-            #[allow(dead_code)] // todo - windows issue, resolve later
             configured_faces: Vec<crate::effect::sticker_storage::FaceArea>,
             /// LUT ID configured for this image (for color grading)
             lut_id: Option<uuid::Uuid>,
@@ -659,6 +658,11 @@ impl ChamaOptics {
             cheki_decoration: Option<crate::effect::cheki::ChekiDecoration>,
             /// Color adjustments (per-image in Individual mode, global copy in All mode)
             color_adjustments: crate::effect::color_adjustments::ColorAdjustments,
+            /// Face effect parameters (used when sticker_bytes not available)
+            mosaic_block_size: u32,
+            stroke_thickness: u32,
+            stroke_color: [u8; 4],
+            sticker_config: crate::effect::sticker_storage::StickerConfig,
         }
 
         // save each
@@ -667,10 +671,6 @@ impl ChamaOptics {
             idx: usize,
             task: &SaveTask,
             export_config: &crate::export_config::ExportConfig,
-            sticker_processed_images: &std::collections::HashMap<
-                uuid::Uuid,
-                Option<image::DynamicImage>,
-            >,
             lut_storage: &mut crate::effect::lut_storage::LutStorage,
             sticker_storage: &crate::effect::sticker_storage::StickerStorage,
             import_config: &crate::import_config::ImportConfig,
@@ -685,8 +685,130 @@ impl ChamaOptics {
             pi.lut_id = task.lut_id;
             pi.crop_rotate = task.crop_rotate.clone();
 
-            // Apply Color Adjustments and/or LUT to image if configured
-            // Order: color adjustments → LUT (matching mobile pipeline)
+            let img_format = match task
+                .path
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("jpg")
+                .to_lowercase()
+                .as_str()
+            {
+                "png" => image::ImageFormat::Png,
+                "heic" | "heif" => image::ImageFormat::Jpeg,
+                _ => image::ImageFormat::Jpeg,
+            };
+
+            // Step A: Ensure face effects are in sticker_bytes.
+            // If task.sticker_bytes is already set (from Detection tab preview), use it directly.
+            // If not but configured_faces have effects, apply them now from the original image.
+            let mut effective_sticker_bytes = task.sticker_bytes.clone();
+            let mut effective_sticker_oriented = task.sticker_oriented;
+
+            if effective_sticker_bytes.is_none() && !task.configured_faces.is_empty() {
+                let has_any_effect = task.configured_faces.iter().any(|f| {
+                    f.effect_mode != crate::effect::FaceEffectMode::None
+                        || f.sticker_id.is_some()
+                });
+
+                if has_any_effect {
+                    let mut base_image = image::open(&task.path)?;
+                    base_image.apply_orientation(task.view_exif.orientation);
+
+                    use crate::effect::FaceEffectMode;
+                    let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
+                    let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
+
+                    for face in &task.configured_faces {
+                        let ft = (face.x, face.y, face.width, face.height);
+                        match face.effect_mode {
+                            FaceEffectMode::None => {}
+                            FaceEffectMode::Mosaic => mosaic_faces.push(ft),
+                            FaceEffectMode::Stroke => stroke_faces.push(ft),
+                            FaceEffectMode::MosaicStroke => {
+                                mosaic_faces.push(ft);
+                                stroke_faces.push(ft);
+                            }
+                            FaceEffectMode::Sticker => {}
+                        }
+                    }
+
+                    if !mosaic_faces.is_empty() {
+                        let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                            block_size: task.mosaic_block_size,
+                            intensity: 1.0,
+                        };
+                        let _ = crate::effect::mosaic::MosaicEffect::apply(
+                            &mut base_image,
+                            &mosaic_faces,
+                            &mosaic_config,
+                        );
+                    }
+
+                    if !stroke_faces.is_empty() {
+                        let sc = task.stroke_color;
+                        let stroke_config = crate::effect::stroke::StrokeEffect {
+                            thickness: task.stroke_thickness,
+                            color: (sc[0], sc[1], sc[2], sc[3]),
+                        };
+                        let _ = crate::effect::stroke::StrokeEffect::apply(
+                            &mut base_image,
+                            &stroke_faces,
+                            &stroke_config,
+                        );
+                    }
+
+                    for face in &task.configured_faces {
+                        if let Some(sticker_id) = face.sticker_id
+                            && let Some(sticker_img) =
+                                sticker_storage.get_sticker_image(sticker_id)
+                        {
+                            let sticker_aspect =
+                                sticker_img.width() as f32 / sticker_img.height() as f32;
+                            let face_aspect = face.width as f32 / face.height as f32;
+                            let sw = face.width as f32 * task.sticker_config.scale;
+                            let sh = face.height as f32 * task.sticker_config.scale;
+                            let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
+                                (sw as u32, (sw / sticker_aspect) as u32)
+                            } else {
+                                ((sh * sticker_aspect) as u32, sh as u32)
+                            };
+                            let resized = sticker_img.resize(
+                                sticker_w,
+                                sticker_h,
+                                image::imageops::FilterType::Lanczos3,
+                            );
+                            let cx = face.x as f32 + face.width as f32 / 2.0;
+                            let cy = face.y as f32 + face.height as f32 / 2.0;
+                            let ox = sticker_w as f32
+                                * task.sticker_config.offset_x as f32
+                                / 100.0;
+                            let oy = sticker_h as f32
+                                * task.sticker_config.offset_y as f32
+                                / 100.0;
+                            let sx = (cx + ox - sticker_w as f32 / 2.0) as i64;
+                            let sy = (cy + oy - sticker_h as f32 / 2.0) as i64;
+                            image::imageops::overlay(&mut base_image, &resized, sx, sy);
+                        }
+                    }
+
+                    let mut bytes = Vec::new();
+                    if base_image
+                        .write_to(&mut std::io::Cursor::new(&mut bytes), img_format)
+                        .is_ok()
+                    {
+                        effective_sticker_bytes = Some(bytes);
+                        effective_sticker_oriented = true;
+                        log::info!(
+                            "Export: Generated face effects at export time for image {}",
+                            idx
+                        );
+                    }
+                }
+            }
+
+            // Step B: Apply color adjustments and/or LUT.
+            // Use effective_sticker_bytes (with face effects) as base when available,
+            // so face effects are preserved even when color adjustments are applied.
             let needs_color_adj = !task.color_adjustments.is_identity();
             if needs_color_adj || task.lut_id.is_some() {
                 log::info!(
@@ -696,128 +818,67 @@ impl ChamaOptics {
                     idx
                 );
 
-                // Load original image
-                let mut dyn_image = image::open(&task.path)?;
+                // Prefer sticker_bytes (face effects applied) over loading from file
+                let (mut dyn_image, used_sticker) =
+                    if let Some(ref sb) = effective_sticker_bytes
+                        && let Ok(img) = image::load_from_memory(sb)
+                    {
+                        (img, true)
+                    } else {
+                        (image::open(&task.path)?, false)
+                    };
 
-                // Apply color adjustments first (before LUT)
                 if needs_color_adj {
                     task.color_adjustments.apply(&mut dyn_image);
                     log::info!("Export: Applied color adjustments to image {}", idx);
                 }
 
-                // Apply LUT second
                 if let Some(lut_id) = task.lut_id {
                     lut_storage.apply_lut_to_image(lut_id, &mut dyn_image);
                     log::info!("Export: Applied LUT {:?} to image {}", lut_id, idx);
                 }
 
-                // Save processed image to sticker_bytes for theme to use
-                let original_ext = task
-                    .path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("jpg");
-
-                let format = match original_ext.to_lowercase().as_str() {
-                    "png" => image::ImageFormat::Png,
-                    "heic" | "heif" => image::ImageFormat::Jpeg,
-                    _ => image::ImageFormat::Jpeg,
-                };
-
                 let mut bytes = Vec::new();
                 if dyn_image
-                    .write_to(&mut std::io::Cursor::new(&mut bytes), format)
+                    .write_to(&mut std::io::Cursor::new(&mut bytes), img_format)
                     .is_ok()
                 {
                     pi.sticker_bytes = Some(bytes);
-                    pi.sticker_oriented = false; // image::open() does not apply orientation
+                    // Preserve orientation state: used sticker_bytes (already oriented) or raw file
+                    pi.sticker_oriented =
+                        if used_sticker { effective_sticker_oriented } else { false };
                     log::info!(
-                        "Export: Saved processed image to sticker_bytes for image {}",
+                        "Export: Saved color-adjusted image to sticker_bytes for image {}",
                         idx
                     );
                 }
             } else {
-                // No color adj, no LUT - use sticker_bytes from task if available
-                pi.sticker_bytes = task.sticker_bytes.clone();
-                pi.sticker_oriented = task.sticker_oriented;
+                pi.sticker_bytes = effective_sticker_bytes;
+                pi.sticker_oriented = effective_sticker_oriented;
             }
 
-            // Use sticker-processed image from HashMap as fallback
-            let temp_path =
-                if let Some(Some(sticker_image)) = sticker_processed_images.get(&pi.uuid) {
-                    log::info!(
-                        "Using sticker-processed image from HashMap for image {}",
-                        idx
-                    );
-
-                    // Create temporary file with sticker-processed image
-                    let temp_dir = std::env::temp_dir();
-                    let temp_file_name = format!(
-                        "chama_optics_sticker_{}{}",
-                        idx,
-                        task.path
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .unwrap_or("png")
-                    );
-                    let temp_path = temp_dir.join(&temp_file_name);
-
-                    // Save sticker-processed image to temporary file
-                    if let Err(e) = sticker_image.save(&temp_path) {
-                        log::error!("Failed to save temp sticker image: {:?}", e);
-                        None
-                    } else {
-                        log::info!("Successfully saved temp sticker image: {:?}", temp_path);
-                        Some(temp_path)
-                    }
-                } else {
-                    None
-                };
-
-            // Use sticker-processed image directly if available
-            // NOTE: We keep pi.path pointing to original file to avoid format errors
-            // The theme system will apply stickers from sticker_bytes field
-
-            let sticker_available =
-                task.sticker_bytes.is_some() || sticker_processed_images.get(&pi.uuid).is_some();
-
             log::info!(
-                "Export: Image {} - sticker_available={}, temp_path.is_some={}, task.sticker_bytes.len={:?}, lookup_found={:?}",
+                "Export: Image {} - sticker_bytes.len={:?}",
                 idx,
-                sticker_available,
-                temp_path.is_some(),
-                task.sticker_bytes.as_ref().map(|b| b.len()),
-                sticker_processed_images.get(&pi.uuid).is_some()
+                pi.sticker_bytes.as_ref().map(|b| b.len()),
             );
 
             // Generate output path with export config (prefix, postfix, format, etc.)
-            // NOTE: Always use original path, NOT: temp file path
             let new_path = pi.bulk_path_with_override(
                 export_config,
                 task.prefix.as_deref(),
                 task.postfix.as_deref(),
             );
 
-            // Detect faces on ORIGINAL image BEFORE theming (macOS only)
-            // IMPORTANT: Only use faces if user has explicitly configured them in Detection tab
-            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> = {
-                if !task.configured_faces.is_empty() {
-                    // Use configured faces from Detection tab - skip re-detection!
-                    Some(
-                        task.configured_faces
-                            .iter()
-                            .map(|f| (f.x, f.y, f.width, f.height))
-                            .collect(),
-                    )
-                } else {
-                    // No configured faces - skip face detection entirely
-                    // Face detection should only run when explicitly ordered from Detection tab
-                    log::info!(
-                        "[INFO][Face Detection] No configured faces - skipping automatic face detection"
-                    );
-                    None
-                }
-            };
+            // Pass pre-detected face coordinates to theme pipeline for coordinate scaling.
+            // Passing Some(vec![]) when no faces ensures auto-detection is suppressed.
+            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> =
+                Some(
+                    task.configured_faces
+                        .iter()
+                        .map(|f| (f.x, f.y, f.width, f.height))
+                        .collect(),
+                );
 
             // Apply theme (and face effects)
             // If cheki decoration is present, we apply it after the theme
@@ -933,6 +994,13 @@ impl ChamaOptics {
                         } else {
                             global_adj.clone()
                         },
+                        mosaic_block_size: self.mosaic_block_size,
+                        stroke_thickness: self.stroke_thickness,
+                        stroke_color: {
+                            let c = self.stroke_color;
+                            [c.r(), c.g(), c.b(), c.a()]
+                        },
+                        sticker_config: self.sticker_config.clone(),
                     }
                 })
                 .collect()
@@ -956,6 +1024,13 @@ impl ChamaOptics {
                     } else {
                         global_adj.clone()
                     },
+                    mosaic_block_size: self.mosaic_block_size,
+                    stroke_thickness: self.stroke_thickness,
+                    stroke_color: {
+                        let c = self.stroke_color;
+                        [c.r(), c.g(), c.b(), c.a()]
+                    },
+                    sticker_config: self.sticker_config.clone(),
                 })
                 .collect()
         };
@@ -1028,7 +1103,6 @@ impl ChamaOptics {
                             idx,
                             task,
                             &export_config,
-                            &sticker_processed_images,
                             &mut lut_storage_guard,
                             &sticker_storage,
                             &import_config,
@@ -1062,7 +1136,6 @@ impl ChamaOptics {
                         idx,
                         task,
                         &export_config,
-                        &sticker_processed_images,
                         &mut lut_storage_guard,
                         &sticker_storage,
                         &import_config,
