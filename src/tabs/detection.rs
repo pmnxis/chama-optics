@@ -172,12 +172,16 @@ impl ChamaOptics {
                 self.add_face_manually();
             }
 
-            // Delete selected face button
+            // Delete selected face button (or Delete/Esc key)
+            let delete_key_pressed = ui.input(|i| {
+                i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Escape)
+            });
             if let Some(selected_idx) = self.selected_face_index
-                && ui
-                    .button(t!("face_detection.delete_face"))
-                    .on_hover_text(t!("face_detection.delete_face_hint"))
-                    .clicked()
+                && (delete_key_pressed
+                    || ui
+                        .button(t!("face_detection.delete_face"))
+                        .on_hover_text(t!("face_detection.delete_face_hint"))
+                        .clicked())
             {
                 self.detected_faces.remove(selected_idx);
                 self.selected_face_index = None;
