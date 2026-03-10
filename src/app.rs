@@ -29,6 +29,10 @@ type DetectionResultsData = (Vec<(i32, i32, u32, u32)>, uuid::Uuid, (u32, u32));
 /// Type alias for thread-safe detection results queue
 type DetectionResultsQueue = Arc<Mutex<Option<DetectionResultsData>>>;
 
+/// Type alias for bulk (all-images) face detection results queue
+type BulkDetectionResultsQueue =
+    Arc<Mutex<std::collections::VecDeque<(uuid::Uuid, Vec<(i32, i32, u32, u32)>)>>>;
+
 /// Type alias for cheki preview queue data: (ColorImage, image_uuid)
 type ChekiPreviewData = (egui::ColorImage, uuid::Uuid);
 
@@ -295,8 +299,12 @@ pub struct ChamaOptics {
     pub(crate) detection_raw_image_size: Option<(u32, u32)>,
 
     #[serde(skip)]
-    /// Queue for face detection results from background thread
+    /// Queue for face detection results from background thread (single image)
     pub detection_results_queue: DetectionResultsQueue,
+
+    #[serde(skip)]
+    /// Queue for bulk face detection results (all images)
+    pub bulk_detection_results_queue: BulkDetectionResultsQueue,
 
     #[serde(skip)]
     /// Cached InsightFace detector for reuse
@@ -469,6 +477,9 @@ impl Default for ChamaOptics {
             detection_pending_orientation: None,
             detection_raw_image_size: None,
             detection_results_queue: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            bulk_detection_results_queue: std::sync::Arc::new(std::sync::Mutex::new(
+                std::collections::VecDeque::new(),
+            )),
             #[cfg(feature = "face_detection_insightface")]
             insightface_detector: std::sync::Arc::new(std::sync::Mutex::new(None)),
             background_texture: None,
@@ -2050,6 +2061,7 @@ impl ChamaOptics {
 
         // Process face detection results from background thread
         self.process_detection_results();
+        self.process_bulk_detection_results();
 
         // Process preview texture from background thread
         self.process_preview_texture(ui);

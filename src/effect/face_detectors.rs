@@ -19,109 +19,120 @@ pub trait FaceDetector: Send + Sync {
     fn engine_name(&self) -> &'static str;
 }
 
-/// VisionKit detector (Swift bridge on macOS/iOS)
-#[cfg(any(target_os = "ios", target_os = "macos"))]
-pub struct VisionKitDetector;
+// ── VisionKit FFI (macOS: linked Swift static library) ──
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(all(target_os = "macos", feature = "face_detection_visionkit"))]
+#[repr(C)]
+struct CFaceRectResult {
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+}
+
+#[cfg(all(target_os = "macos", feature = "face_detection_visionkit"))]
+unsafe extern "C" {
+    fn visionkit_detect_faces(
+        image_path: *const std::ffi::c_char,
+        speed_mode: i32,
+        out_count: *mut i32,
+    ) -> *mut std::ffi::c_void;
+
+    fn visionkit_free_faces(ptr: *mut std::ffi::c_void, count: i32);
+}
+
+/// VisionKit detector (Swift FFI on macOS, Swift app bridge on iOS)
+#[cfg(all(
+    any(target_os = "ios", target_os = "macos"),
+    feature = "face_detection_visionkit"
+))]
+pub struct VisionKitDetector {
+    speed_mode: i32,
+}
+
+#[cfg(all(
+    any(target_os = "ios", target_os = "macos"),
+    feature = "face_detection_visionkit"
+))]
 impl Default for VisionKitDetector {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(all(
+    any(target_os = "ios", target_os = "macos"),
+    feature = "face_detection_visionkit"
+))]
 impl VisionKitDetector {
     pub fn new() -> Self {
-        Self
+        Self { speed_mode: 0 } // Fastest by default
+    }
+
+    pub fn with_speed_mode(speed_mode: i32) -> Self {
+        Self { speed_mode }
     }
 }
 
-#[cfg(any(target_os = "ios", target_os = "macos"))]
+#[cfg(all(
+    any(target_os = "ios", target_os = "macos"),
+    feature = "face_detection_visionkit"
+))]
 impl FaceDetector for VisionKitDetector {
     fn detect_faces(&self, image_path: &Path) -> Vec<(i32, i32, u32, u32)> {
-        // This calls Swift bridge - Swift code handles autoreleasepool
-        // The Rust FFI function is stateless
         #[cfg(target_os = "ios")]
         {
-            // iOS: Call Swift bridge via FFI
-            // The Swift side handles Vision framework with proper memory management
             log::info!("VisionKit detector called on iOS for: {:?}", image_path);
-            // TODO: Implement FFI call to Swift bridge
+            // iOS: Face detection handled by Swift app (FaceDetectionBridge.swift)
             vec![]
         }
 
         #[cfg(target_os = "macos")]
         {
-            // macOS: Call swift script via process
-            log::info!("VisionKit detector called on macOS for: {:?}", image_path);
+            use std::ffi::CString;
 
-            // Call swift script for actual Vision framework detection
-            use std::process::Command;
+            let path_str = match image_path.to_str() {
+                Some(s) => s,
+                None => {
+                    log::error!("VisionKit: invalid image path (non-UTF8)");
+                    return vec![];
+                }
+            };
 
-            let script_path = Path::new("macos/face_detector.swift");
-            if !script_path.exists() {
-                log::error!("VisionKit script not found at: {:?}", script_path);
+            let c_path = match CString::new(path_str) {
+                Ok(c) => c,
+                Err(_) => {
+                    log::error!("VisionKit: image path contains null byte");
+                    return vec![];
+                }
+            };
+
+            let mut count: i32 = 0;
+            let raw_ptr = unsafe {
+                visionkit_detect_faces(c_path.as_ptr(), self.speed_mode, &mut count)
+            };
+
+            if raw_ptr.is_null() || count <= 0 {
+                log::info!("VisionKit detected 0 face(s) in {}", path_str);
                 return vec![];
             }
 
-            // Create JSON input
-            let input_json = serde_json::json!({
-                "image_path": image_path.to_str()
-            });
+            let ptr = raw_ptr as *const CFaceRectResult;
+            let faces: Vec<(i32, i32, u32, u32)> = (0..count as usize)
+                .map(|i| unsafe {
+                    let r = &*ptr.add(i);
+                    (r.x, r.y, r.width, r.height)
+                })
+                .collect();
 
-            let output = Command::new("swift")
-                .arg(script_path)
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .and_then(|mut child| {
-                    use std::io::Write;
-                    let stdin = child.stdin.as_mut().expect("stdin");
-                    stdin.write_all(input_json.to_string().as_bytes())?;
-                    child.wait_with_output()
-                });
+            unsafe { visionkit_free_faces(raw_ptr, count) };
 
-            match output {
-                Ok(result) => {
-                    if !result.status.success() {
-                        log::error!(
-                            "VisionKit script failed: {}",
-                            String::from_utf8_lossy(&result.stderr)
-                        );
-                        return vec![];
-                    }
-
-                    // Parse JSON output
-                    let output_str = String::from_utf8_lossy(&result.stdout);
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&output_str)
-                        && let Some(faces) = json["faces"].as_array()
-                    {
-                        return faces
-                            .iter()
-                            .filter_map(|face| {
-                                let x = face["x"].as_i64().map(|v| v as i32);
-                                let y = face["y"].as_i64().map(|v| v as i32);
-                                let width = face["width"].as_u64().map(|v| v as u32);
-                                let height = face["height"].as_u64().map(|v| v as u32);
-
-                                match (x, y, width, height) {
-                                    (Some(x), Some(y), Some(width), Some(height)) => {
-                                        Some((x, y, width, height))
-                                    }
-                                    _ => None,
-                                }
-                            })
-                            .collect();
-                    }
-                }
-                Err(e) => {
-                    log::error!("Failed to run VisionKit script: {}", e);
-                }
-            }
-
-            vec![]
+            log::info!(
+                "VisionKit detected {} face(s) in {}",
+                faces.len(),
+                path_str
+            );
+            faces
         }
     }
 
@@ -132,15 +143,13 @@ impl FaceDetector for VisionKitDetector {
 
 /// No-op detector for platforms without any detection engine
 #[cfg(not(any(
-    target_os = "ios",
-    target_os = "macos",
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface"
 )))]
 pub struct NoOpDetector;
 
 #[cfg(not(any(
-    target_os = "ios",
-    target_os = "macos",
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface"
 )))]
 impl NoOpDetector {
@@ -150,8 +159,7 @@ impl NoOpDetector {
 }
 
 #[cfg(not(any(
-    target_os = "ios",
-    target_os = "macos",
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface"
 )))]
 impl Default for NoOpDetector {
@@ -161,8 +169,7 @@ impl Default for NoOpDetector {
 }
 
 #[cfg(not(any(
-    target_os = "ios",
-    target_os = "macos",
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface"
 )))]
 impl FaceDetector for NoOpDetector {

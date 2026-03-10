@@ -19,7 +19,7 @@ rustup target add aarch64-apple-darwin
 # rustup target add x86_64-apple-darwin
 
 # Build with ext_res for macOS (smaller binary for notarization)
-cargo bundle --release --features "face_detection_insightface,ext_res"
+cargo bundle --release --features "face_detection_insightface,face_detection_visionkit,ext_res"
 
 echo otool for aarch64:
 # otool -L target/aarch64-apple-darwin/release/chama-optics

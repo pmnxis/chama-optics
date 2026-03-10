@@ -67,7 +67,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --features desktop,face_detection_insightface
+          args: --features desktop,face_detection_insightface,face_detection_visionkit
       - name: Check spelling of entire workspace
         uses: crate-ci/typos@master
       - name: Save logo assets cache
@@ -170,7 +170,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --features desktop,face_detection_insightface -- -D warnings
+          args: --features desktop,face_detection_insightface,face_detection_visionkit -- -D warnings
       - name: Save logo assets cache
         if: always() && steps.cache-logo-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -243,7 +243,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --verbose --release --features face_detection_insightface --target=${{ matrix.TARGET }}
+        args: --verbose --release --features face_detection_insightface,face_detection_visionkit --target=${{ matrix.TARGET }}
 
     # Windows build (with libheif)
     - name: Build Windows

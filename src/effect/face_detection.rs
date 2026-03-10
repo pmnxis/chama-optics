@@ -9,9 +9,10 @@ use std::path::Path;
 use strum::Display;
 
 /// Detection speed modes — controls sliding window strategy for large images.
-/// Shared by InsightFace (ort) and Candle face detectors.
+/// Shared by VisionKit, InsightFace (ort) and Candle face detectors.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg(any(
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface",
     feature = "face_detection_candle"
 ))]
@@ -29,6 +30,7 @@ pub enum SpeedMode {
 }
 
 #[cfg(any(
+    feature = "face_detection_visionkit",
     feature = "face_detection_insightface",
     feature = "face_detection_candle"
 ))]
@@ -50,6 +52,17 @@ impl SpeedMode {
             SpeedMode::Normal => 1,
             SpeedMode::Slow => 2,
             SpeedMode::Slowest => 3,
+        }
+    }
+
+    /// Convert to integer for FFI (matches Swift SpeedMode raw values)
+    pub fn as_i32(&self) -> i32 {
+        match self {
+            SpeedMode::Fastest => 0,
+            SpeedMode::Fast => 1,
+            SpeedMode::Normal => 2,
+            SpeedMode::Slow => 3,
+            SpeedMode::Slowest => 4,
         }
     }
 }
@@ -148,6 +161,7 @@ pub struct FaceDetection {
     /// Legacy: mask faces with blur (deprecated, use effect_mode instead)
     pub mask_faces: bool, // todo - is this really used?
     #[cfg(any(
+        feature = "face_detection_visionkit",
         feature = "face_detection_insightface",
         feature = "face_detection_candle"
     ))]
@@ -203,6 +217,7 @@ impl core::default::Default for FaceDetection {
                 border_color: egui::Color32::from_rgba_unmultiplied_const(r, g, b, a),
                 mosaic_block_size: DEFAULT_MOSAIC_BLOCK_SIZE,
                 mask_faces: false,
+                speed_mode: SpeedMode::Normal,
                 recursive_detection: false,
                 recursive_min_size: 64,
                 recursive_max_depth: 4,
@@ -927,13 +942,18 @@ impl FaceDetection {
 
                 ui.separator();
 
-                // Show speed mode options for InsightFace and Candle
+                // Show speed mode options for VisionKit, InsightFace and Candle
                 #[cfg(any(
+                    feature = "face_detection_visionkit",
                     feature = "face_detection_insightface",
                     feature = "face_detection_candle"
                 ))]
                 {
                     let mut show_speed_mode = false;
+                    #[cfg(feature = "face_detection_visionkit")]
+                    {
+                        show_speed_mode |= matches!(self.engine, FaceDetectionEngine::VisionKit);
+                    }
                     #[cfg(feature = "face_detection_insightface")]
                     {
                         show_speed_mode |= matches!(self.engine, FaceDetectionEngine::InsightFace);
@@ -986,7 +1006,7 @@ impl FaceDetection {
 
                         ui.separator();
                     }
-                } // #[cfg(any(face_detection_insightface, face_detection_candle))]
+                } // #[cfg(any(face_detection_visionkit, face_detection_insightface, face_detection_candle))]
 
                 // Execution provider selection (InsightFace only)
                 #[cfg(feature = "face_detection_insightface")]
@@ -1041,6 +1061,7 @@ impl FaceDetection {
             }
         }
         #[cfg(any(
+            feature = "face_detection_visionkit",
             feature = "face_detection_insightface",
             feature = "face_detection_candle"
         ))]
@@ -1052,6 +1073,7 @@ impl FaceDetection {
             )
         }
         #[cfg(not(any(
+            feature = "face_detection_visionkit",
             feature = "face_detection_insightface",
             feature = "face_detection_candle"
         )))]

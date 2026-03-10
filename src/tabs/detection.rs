@@ -133,11 +133,31 @@ impl ChamaOptics {
 
             ui.separator();
 
-            if ui.button(t!("face_detection.detect_faces")).clicked()
-                && !self.detection_progress.is_complete()
-            {
-                self.run_face_detection();
-            }
+            ui.horizontal(|ui| {
+                let detection_busy = self.detection_progress.is_active()
+                    && !self.detection_progress.is_complete();
+
+                if ui
+                    .add_enabled(
+                        !detection_busy,
+                        egui::Button::new(t!("face_detection.detect_faces")),
+                    )
+                    .clicked()
+                {
+                    self.run_face_detection();
+                }
+
+                if ui
+                    .add_enabled(
+                        !detection_busy,
+                        egui::Button::new(t!("gallery.detect_all_faces")),
+                    )
+                    .on_hover_text(format!("{} images", self.packed_images.len()))
+                    .clicked()
+                {
+                    self.run_face_detection_all();
+                }
+            });
 
             // Show progress bar while detecting
             if !self.detected_faces.is_empty() {
@@ -172,9 +192,11 @@ impl ChamaOptics {
                 self.add_face_manually();
             }
 
-            // Delete selected face button (or Delete/Esc key)
+            // Delete selected face button (or Delete/Backspace/Esc key)
             let delete_key_pressed = ui.input(|i| {
-                i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Escape)
+                i.key_pressed(egui::Key::Delete)
+                    || i.key_pressed(egui::Key::Backspace)
+                    || i.key_pressed(egui::Key::Escape)
             });
             if let Some(selected_idx) = self.selected_face_index
                 && (delete_key_pressed
@@ -1183,6 +1205,12 @@ impl ChamaOptics {
 
     /// Run face detection on selected image (asynchronous)
     fn run_face_detection(&mut self) {
+        // Prevent duplicate launches while detection is already running
+        if self.detection_progress.is_active() && !self.detection_progress.is_complete() {
+            log::warn!("Face detection already in progress, ignoring duplicate request");
+            return;
+        }
+
         let Some(idx) = self.edit_selected_index else {
             return;
         };
@@ -1217,6 +1245,7 @@ impl ChamaOptics {
         let orientation = packed_image.view_exif.orientation;
 
         #[cfg(any(
+            feature = "face_detection_visionkit",
             feature = "face_detection_insightface",
             feature = "face_detection_candle"
         ))]
@@ -1225,14 +1254,17 @@ impl ChamaOptics {
         let provider = self.export_config.face_detection.provider;
         #[cfg(feature = "face_detection_insightface")]
         let detector_cache = self.insightface_detector.clone();
+        #[cfg(feature = "face_detection_visionkit")]
+        let engine = self.export_config.face_detection.engine.clone();
 
         // Spawn background thread for face detection (desktop only — WASM uses wonnx in Phase 9)
         #[cfg(not(target_arch = "wasm32"))]
         std::thread::spawn(move || {
             log::info!("Face detection background thread started");
 
-            // Load image and apply EXIF orientation BEFORE detection
-            // This ensures the face detector sees upright faces
+            // Load image and apply EXIF orientation to determine oriented dimensions.
+            // VisionKit reads EXIF from the original file directly via Vision URL handler;
+            // InsightFace uses the orientation-corrected DynamicImage in memory.
             let mut img = match image::open(&image_path) {
                 Ok(img) => img,
                 Err(e) => {
@@ -1244,9 +1276,7 @@ impl ChamaOptics {
                 }
             };
 
-            // Apply orientation so faces are upright for detection
             img.apply_orientation(orientation);
-
             let oriented_size = (img.width(), img.height());
             log::info!(
                 "Image dimensions after orientation {:?}: {}x{}",
@@ -1254,6 +1284,26 @@ impl ChamaOptics {
                 oriented_size.0,
                 oriented_size.1
             );
+
+            // VisionKit: pass original file path — Swift reads EXIF orientation automatically
+            #[cfg(feature = "face_detection_visionkit")]
+            {
+                use crate::effect::face_detectors::FaceDetector as _;
+                if matches!(
+                    engine,
+                    crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                ) {
+                    let detector = crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
+                        speed_mode.as_i32(),
+                    );
+                    let faces = detector.detect_faces(&image_path);
+                    log::info!("VisionKit detected {} face(s)", faces.len());
+                    if let Ok(mut queue) = results_queue.lock() {
+                        *queue = Some((faces, image_uuid, oriented_size));
+                    }
+                    return;
+                }
+            }
 
             #[cfg(feature = "face_detection_insightface")]
             {
@@ -1362,60 +1412,65 @@ impl ChamaOptics {
         if let Ok(mut queue) = self.detection_results_queue.try_lock()
             && let Some((faces, image_uuid, oriented_size)) = queue.take()
         {
-            // Verify this result is for the currently selected image
-            if let Some(selected_idx) = self.edit_selected_index {
-                if let Some(selected_image) = self.packed_images.get_mut(selected_idx) {
-                    if selected_image.uuid == image_uuid {
-                        log::info!("Applying detection results for current image");
+            // Find target image by UUID (may differ from currently selected image)
+            let target_idx = self
+                .packed_images
+                .iter()
+                .position(|pi| pi.uuid == image_uuid);
 
-                        // Clear pending orientation (no longer needed for coordinate transformation
-                        // since detection now runs on orientation-corrected image)
-                        let _ = self.detection_pending_orientation.take();
+            if let Some(target_idx) = target_idx {
+                let (img_w, img_h) = oriented_size;
+                log::info!(
+                    "Received {} faces for oriented image ({}x{})",
+                    faces.len(),
+                    img_w,
+                    img_h
+                );
 
-                        let (img_w, img_h) = oriented_size;
-                        log::info!(
-                            "Received {} faces for oriented image ({}x{})",
-                            faces.len(),
-                            img_w,
-                            img_h
-                        );
+                // Build FaceArea list with default effect/sticker
+                let face_areas: Vec<FaceArea> = faces
+                    .into_iter()
+                    .map(|(x, y, w, h)| {
+                        let mut face = FaceArea::new(x, y, w, h);
+                        face.effect_mode = self.default_face_effect;
+                        if matches!(
+                            self.default_face_effect,
+                            crate::effect::FaceEffectMode::Sticker
+                                | crate::effect::FaceEffectMode::None
+                        ) {
+                            face.sticker_id = self.sticker_storage.default_sticker_id;
+                        }
+                        face
+                    })
+                    .collect();
 
-                        // Convert to FaceWithSticker - coordinates are already in the correct space
-                        // since detection ran on the orientation-corrected image
-                        self.detected_faces = faces
-                            .into_iter()
-                            .map(|(x, y, w, h)| {
-                                let mut face = FaceArea::new(x, y, w, h);
-                                // Apply default effect from settings
-                                face.effect_mode = self.default_face_effect;
-                                // Apply default sticker from storage (only if Sticker or None mode)
-                                if matches!(
-                                    self.default_face_effect,
-                                    crate::effect::FaceEffectMode::Sticker
-                                        | crate::effect::FaceEffectMode::None
-                                ) {
-                                    face.sticker_id = self.sticker_storage.default_sticker_id;
-                                }
-                                face
-                            })
-                            .collect();
+                // Always save configured faces for export to avoid re-detection
+                self.packed_images[target_idx].configured_faces = face_areas.clone();
 
-                        self.selected_face_index = if self.detected_faces.is_empty() {
-                            None
-                        } else {
-                            Some(0)
-                        };
+                // Only update live UI state if this is the currently selected image
+                let selected_uuid = self
+                    .edit_selected_index
+                    .and_then(|idx| self.packed_images.get(idx))
+                    .map(|pi| pi.uuid);
 
-                        // Save configured faces for export to avoid re-detection
-                        selected_image.configured_faces = self.detected_faces.clone();
-
-                        faces_processed = true;
+                if selected_uuid == Some(image_uuid) {
+                    log::info!("Applying detection results to currently selected image");
+                    let _ = self.detection_pending_orientation.take();
+                    self.detected_faces = face_areas;
+                    self.selected_face_index = if self.detected_faces.is_empty() {
+                        None
                     } else {
-                        log::warn!("Detection results are for different image, ignoring");
-                    }
+                        Some(0)
+                    };
+                } else {
+                    log::info!(
+                        "Detection results applied to background image (uuid mismatch), UI not updated"
+                    );
                 }
+
+                faces_processed = true;
             } else {
-                log::warn!("No image selected, ignoring detection results");
+                log::warn!("Detection results for unknown image uuid, ignoring");
             }
         }
 
@@ -1437,6 +1492,221 @@ impl ChamaOptics {
                 self.detection_progress.mark_complete();
             }
         }
+    }
+
+    /// Run face detection on ALL images sequentially in a background thread.
+    /// Results are pushed to `bulk_detection_results_queue` and consumed by
+    /// `process_bulk_detection_results()` on each frame update.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn run_face_detection_all(&mut self) {
+        let image_count = self.packed_images.len();
+        if image_count == 0 {
+            return;
+        }
+
+        // Prevent duplicate launches while detection is already running
+        if self.detection_progress.is_active() && !self.detection_progress.is_complete() {
+            log::warn!("Bulk face detection already in progress, ignoring duplicate request");
+            return;
+        }
+
+        // Collect per-image task data up-front (path, orientation, uuid)
+        let tasks: Vec<(uuid::Uuid, std::path::PathBuf, image::metadata::Orientation)> =
+            self.packed_images
+                .iter()
+                .map(|pi| (pi.uuid, pi.path.clone(), pi.view_exif.orientation))
+                .collect();
+
+        self.detection_progress.start(image_count);
+        let progress_counter = self.detection_progress.counter();
+        let bulk_queue = self.bulk_detection_results_queue.clone();
+
+        #[cfg(feature = "face_detection_visionkit")]
+        let engine = self.export_config.face_detection.engine.clone();
+        #[cfg(any(
+            feature = "face_detection_visionkit",
+            feature = "face_detection_insightface",
+        ))]
+        let speed_mode = self.export_config.face_detection.speed_mode;
+        #[cfg(feature = "face_detection_insightface")]
+        let provider = self.export_config.face_detection.provider;
+        #[cfg(feature = "face_detection_insightface")]
+        let detector_cache = self.insightface_detector.clone();
+
+        std::thread::spawn(move || {
+            log::info!("Bulk face detection started for {} image(s)", image_count);
+
+            // Create InsightFace detector once for all images (expensive init)
+            // Skip initialization entirely when VisionKit engine is selected
+            #[cfg(feature = "face_detection_insightface")]
+            let insightface = {
+                #[cfg(feature = "face_detection_visionkit")]
+                let need_insightface = !matches!(
+                    engine,
+                    crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                );
+                #[cfg(not(feature = "face_detection_visionkit"))]
+                let need_insightface = true;
+
+                if need_insightface {
+                    let mut cache = detector_cache.lock().unwrap();
+                    if let Some(d) = cache.as_ref() {
+                        Some(std::sync::Arc::clone(d))
+                    } else {
+                        match crate::effect::insightface_detector::InsightFaceDetector::new(
+                            speed_mode, provider,
+                        ) {
+                            Ok(d) => {
+                                let arc = std::sync::Arc::new(d);
+                                *cache = Some(std::sync::Arc::clone(&arc));
+                                Some(arc)
+                            }
+                            Err(e) => {
+                                log::error!("Failed to create InsightFace detector: {}", e);
+                                None
+                            }
+                        }
+                    }
+                } else {
+                    None
+                }
+            };
+
+            for (uuid, image_path, orientation) in tasks {
+                let mut img = match image::open(&image_path) {
+                    Ok(img) => img,
+                    Err(e) => {
+                        log::error!("Bulk: failed to open {}: {}", image_path.display(), e);
+                        if let Ok(mut q) = bulk_queue.lock() {
+                            q.push_back((uuid, vec![]));
+                        }
+                        progress_counter
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        continue;
+                    }
+                };
+
+                img.apply_orientation(orientation);
+
+                #[allow(unused_variables)]
+                let faces: Vec<(i32, i32, u32, u32)>;
+
+                // VisionKit: pass original path — Swift handles EXIF
+                #[cfg(feature = "face_detection_visionkit")]
+                {
+                    use crate::effect::face_detectors::FaceDetector as _;
+                    if matches!(
+                        engine,
+                        crate::effect::face_detection::FaceDetectionEngine::VisionKit
+                    ) {
+                        let detector = crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
+                            speed_mode.as_i32(),
+                        );
+                        faces = detector.detect_faces(&image_path);
+                        log::info!(
+                            "Bulk VisionKit: {} face(s) in {}",
+                            faces.len(),
+                            image_path.display()
+                        );
+                        if let Ok(mut q) = bulk_queue.lock() {
+                            q.push_back((uuid, faces));
+                        }
+                        progress_counter
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        continue;
+                    }
+                }
+
+                // InsightFace
+                #[cfg(feature = "face_detection_insightface")]
+                {
+                    if let Some(ref detector) = insightface {
+                        let detected = detector.detect_faces_from_image(&img);
+                        log::info!(
+                            "Bulk InsightFace: {} face(s) in {}",
+                            detected.len(),
+                            image_path.display()
+                        );
+                        if let Ok(mut q) = bulk_queue.lock() {
+                            q.push_back((uuid, detected));
+                        }
+                        progress_counter
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        continue;
+                    }
+                }
+
+                // No engine available
+                log::warn!("Bulk: no detection engine available for {}", image_path.display());
+                if let Ok(mut q) = bulk_queue.lock() {
+                    q.push_back((uuid, vec![]));
+                }
+                progress_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            }
+
+            log::info!("Bulk face detection finished");
+        });
+    }
+
+    /// Consume results pushed by `run_face_detection_all()` and apply to packed_images.
+    pub(crate) fn process_bulk_detection_results(&mut self) {
+        #[allow(clippy::type_complexity)]
+        let results: Vec<(uuid::Uuid, Vec<(i32, i32, u32, u32)>)> =
+            match self.bulk_detection_results_queue.try_lock() {
+                Ok(mut q) => q.drain(..).collect(),
+                Err(_) => return,
+            };
+
+        if results.is_empty() {
+            return;
+        }
+
+        let default_effect = self.default_face_effect;
+        let default_sticker_id = self.sticker_storage.default_sticker_id;
+        let selected_uuid = self
+            .edit_selected_index
+            .and_then(|idx| self.packed_images.get(idx))
+            .map(|pi| pi.uuid);
+
+        let mut new_selected_faces: Option<Vec<FaceArea>> = None;
+
+        for (uuid, raw_faces) in results {
+            let face_areas: Vec<FaceArea> = raw_faces
+                .into_iter()
+                .map(|(x, y, w, h)| {
+                    let mut face = FaceArea::new(x, y, w, h);
+                    face.effect_mode = default_effect;
+                    if matches!(
+                        default_effect,
+                        crate::effect::FaceEffectMode::Sticker | crate::effect::FaceEffectMode::None
+                    ) {
+                        face.sticker_id = default_sticker_id;
+                    }
+                    face
+                })
+                .collect();
+
+            if Some(uuid) == selected_uuid {
+                new_selected_faces = Some(face_areas.clone());
+            }
+
+            if let Some(pi) = self.packed_images.iter_mut().find(|pi| pi.uuid == uuid) {
+                pi.configured_faces = face_areas;
+            }
+        }
+
+        if let Some(faces) = new_selected_faces {
+            self.detected_faces = faces;
+            self.selected_face_index = if self.detected_faces.is_empty() {
+                None
+            } else {
+                Some(0)
+            };
+            self.detection_preview_cache_key = None;
+            self.edit_preview_cache_key = None;
+        }
+
+        self.detection_progress.mark_complete();
     }
 
     /// Start async preview generation in background thread

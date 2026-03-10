@@ -133,7 +133,7 @@ exif = { git = "https://github.com/pmnxis/exif-rs", rev = "c6f30cbca14d8d31e1aa7
 image = { version = "0.25.9", features = ["serde"] }
 rfd = { version = "0.17.2", optional = true }
 egui-file-dialog = { version = "0.12.0", optional = true }
-imageproc = { version = "0.26" }
+imageproc = { version = ">=0.26" }
 anyhow = "^1.0"
 thiserror = "^2"
 ab_glyph = "0.2.32"
@@ -143,7 +143,7 @@ gcd = "2.3.0"
 env_logger = { version = "0.11.9", optional = true }
 web-time = "1"
 rust-i18n = "3.1.5"
-uuid = { version = "1.21", features = ["v4", "serde"] }
+uuid = { version = "1.22", features = ["v4", "serde"] }
 strum = { version = "0.28", features = ["std", "derive"] }
 strum_macros = "0.28"
 sys-locale = { version = "0.3.2", optional = true }
@@ -156,7 +156,7 @@ resvg = "^0.47"
 tiny-skia = "^0.12"
 rand = "^0.10"
 rayon = { version = "1.11", optional = true }
-num_cpus = { version = "1.16", optional = true }
+num_cpus = { version = "1.17", optional = true }
 ndarray = { version = "0.17", optional = true }
 reqwest = { version = "^0.13", optional = true, features = [
     "gzip",
@@ -202,7 +202,7 @@ eframe = { git = "https://github.com/pmnxis/egui", rev = "ac14c7d289be4a382751af
 ], optional = true }
 # WASM randomness support
 getrandom = { version = "0.4", features = ["wasm_js"] }
-uuid = { version = "1.21", features = ["v4", "serde", "js"] }
+uuid = { version = "1.22", features = ["v4", "serde", "js"] }
 
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
@@ -226,7 +226,7 @@ web-sys = { version = "0.3", optional = true, features = [
 ] }
 js-sys = { version = "0.3", optional = true }
 # zip for WASM bulk export (create zip in memory → browser download)
-zip = { version = ">=8.1", default-features = false, features = ["deflate"] }
+zip = { version = ">=8.2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android_logger = "0.15"
@@ -234,7 +234,7 @@ android_logger = "0.15"
 # libheif for desktop HEIC decoding (macOS/iOS use native Apple ImageIO)
 # libheif-rs: Windows/Linux/FreeBSD — Rust wrapper around libheif
 [target.'cfg(any(target_os = "windows", target_os = "linux", target_os = "freebsd"))'.dependencies]
-libheif-rs = { version = "^2.6", default-features = false, features = [
+libheif-rs = { version = "^2.7", default-features = false, features = [
     "v1_18",
 ], optional = true }
 # libheif-sys: Linux/FreeBSD only — embedded build from source (distro-dependent, selected by external build script)

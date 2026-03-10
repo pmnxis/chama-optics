@@ -251,6 +251,92 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=CoreFoundation");
     }
 
+    // Compile VisionKit face detector Swift code into a static library (macOS only)
+    #[cfg(feature = "face_detection_visionkit")]
+    if target_os == "macos" {
+        let swift_source = "macos/face_detector_ffi.swift";
+        println!("cargo:rerun-if-changed={swift_source}");
+
+        let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+        let swift_target = match target_arch.as_str() {
+            "aarch64" => "arm64-apple-macosx10.15",
+            "x86_64" => "x86_64-apple-macosx10.15",
+            _ => "arm64-apple-macosx10.15",
+        };
+
+        // Re-run build.rs when Swift source changes
+        println!("cargo:rerun-if-changed=macos/face_detector_ffi.swift");
+
+        let out_dir_str = out_dir.display();
+        let obj_path = format!("{out_dir_str}/face_detector_ffi.o");
+        let lib_path = format!("{out_dir_str}/libface_detector_ffi.a");
+
+        // Compile Swift → object file
+        let swiftc_status = std::process::Command::new("swiftc")
+            .args([
+                "-c",
+                "-emit-object",
+                "-O",
+                "-target",
+                swift_target,
+                "-o",
+                &obj_path,
+                swift_source,
+            ])
+            .status()
+            .expect("Failed to run swiftc — is Xcode installed?");
+        assert!(swiftc_status.success(), "swiftc compilation failed");
+
+        // Create static library
+        let ar_status = std::process::Command::new("ar")
+            .args(["rcs", &lib_path, &obj_path])
+            .status()
+            .expect("Failed to run ar");
+        assert!(ar_status.success(), "ar failed to create static library");
+
+        // Link the static library
+        println!("cargo:rustc-link-search=native={out_dir_str}");
+        println!("cargo:rustc-link-lib=static=face_detector_ffi");
+
+        // Link Vision framework (required by the Swift code)
+        println!("cargo:rustc-link-lib=framework=Vision");
+        println!("cargo:rustc-link-lib=framework=CoreImage");
+
+        // Link Swift standard library (dynamic)
+        // Find the SDK path for Swift runtime libraries
+        if let Ok(sdk_output) = std::process::Command::new("xcrun")
+            .args(["--show-sdk-path"])
+            .output()
+        {
+            let sdk_path = String::from_utf8_lossy(&sdk_output.stdout)
+                .trim()
+                .to_string();
+            println!("cargo:rustc-link-search=native={sdk_path}/usr/lib/swift");
+        }
+
+        // Find the Swift toolchain lib path
+        if let Ok(toolchain_output) = std::process::Command::new("xcrun")
+            .args(["--toolchain", "default", "--find", "swiftc"])
+            .output()
+        {
+            let swiftc_path = String::from_utf8_lossy(&toolchain_output.stdout)
+                .trim()
+                .to_string();
+            // swiftc is at .../usr/bin/swiftc → lib is at .../usr/lib/swift/macosx
+            if let Some(bin_dir) = std::path::Path::new(&swiftc_path).parent()
+                && let Some(usr_dir) = bin_dir.parent()
+            {
+                let swift_lib = usr_dir.join("lib/swift/macosx");
+                println!(
+                    "cargo:rustc-link-search=native={}",
+                    swift_lib.display()
+                );
+            }
+        }
+
+        println!("cargo:rustc-link-lib=dylib=swiftCore");
+    }
+
     // Generate swift-bridge code for Metal rendering (iOS/macOS only)
     // Skip this on Windows, Linux, and Android
     #[cfg(feature = "metal_rendering")]
