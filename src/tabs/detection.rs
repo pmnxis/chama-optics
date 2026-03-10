@@ -134,8 +134,8 @@ impl ChamaOptics {
             ui.separator();
 
             ui.horizontal(|ui| {
-                let detection_busy = self.detection_progress.is_active()
-                    && !self.detection_progress.is_complete();
+                let detection_busy =
+                    self.detection_progress.is_active() && !self.detection_progress.is_complete();
 
                 if ui
                     .add_enabled(
@@ -1293,9 +1293,10 @@ impl ChamaOptics {
                     engine,
                     crate::effect::face_detection::FaceDetectionEngine::VisionKit
                 ) {
-                    let detector = crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
-                        speed_mode.as_i32(),
-                    );
+                    let detector =
+                        crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
+                            speed_mode.as_i32(),
+                        );
                     let faces = detector.detect_faces(&image_path);
                     log::info!("VisionKit detected {} face(s)", faces.len());
                     if let Ok(mut queue) = results_queue.lock() {
@@ -1511,11 +1512,11 @@ impl ChamaOptics {
         }
 
         // Collect per-image task data up-front (path, orientation, uuid)
-        let tasks: Vec<(uuid::Uuid, std::path::PathBuf, image::metadata::Orientation)> =
-            self.packed_images
-                .iter()
-                .map(|pi| (pi.uuid, pi.path.clone(), pi.view_exif.orientation))
-                .collect();
+        let tasks: Vec<(uuid::Uuid, std::path::PathBuf, image::metadata::Orientation)> = self
+            .packed_images
+            .iter()
+            .map(|pi| (pi.uuid, pi.path.clone(), pi.view_exif.orientation))
+            .collect();
 
         self.detection_progress.start(image_count);
         let progress_counter = self.detection_progress.counter();
@@ -1580,8 +1581,7 @@ impl ChamaOptics {
                         if let Ok(mut q) = bulk_queue.lock() {
                             q.push_back((uuid, vec![]));
                         }
-                        progress_counter
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        progress_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         continue;
                     }
                 };
@@ -1599,9 +1599,10 @@ impl ChamaOptics {
                         engine,
                         crate::effect::face_detection::FaceDetectionEngine::VisionKit
                     ) {
-                        let detector = crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
-                            speed_mode.as_i32(),
-                        );
+                        let detector =
+                            crate::effect::face_detectors::VisionKitDetector::with_speed_mode(
+                                speed_mode.as_i32(),
+                            );
                         faces = detector.detect_faces(&image_path);
                         log::info!(
                             "Bulk VisionKit: {} face(s) in {}",
@@ -1611,8 +1612,7 @@ impl ChamaOptics {
                         if let Ok(mut q) = bulk_queue.lock() {
                             q.push_back((uuid, faces));
                         }
-                        progress_counter
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        progress_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         continue;
                     }
                 }
@@ -1630,14 +1630,16 @@ impl ChamaOptics {
                         if let Ok(mut q) = bulk_queue.lock() {
                             q.push_back((uuid, detected));
                         }
-                        progress_counter
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        progress_counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                         continue;
                     }
                 }
 
                 // No engine available
-                log::warn!("Bulk: no detection engine available for {}", image_path.display());
+                log::warn!(
+                    "Bulk: no detection engine available for {}",
+                    image_path.display()
+                );
                 if let Ok(mut q) = bulk_queue.lock() {
                     q.push_back((uuid, vec![]));
                 }
@@ -1678,7 +1680,8 @@ impl ChamaOptics {
                     face.effect_mode = default_effect;
                     if matches!(
                         default_effect,
-                        crate::effect::FaceEffectMode::Sticker | crate::effect::FaceEffectMode::None
+                        crate::effect::FaceEffectMode::Sticker
+                            | crate::effect::FaceEffectMode::None
                     ) {
                         face.sticker_id = default_sticker_id;
                     }

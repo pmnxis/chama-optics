@@ -108,9 +108,8 @@ impl FaceDetector for VisionKitDetector {
             };
 
             let mut count: i32 = 0;
-            let raw_ptr = unsafe {
-                visionkit_detect_faces(c_path.as_ptr(), self.speed_mode, &mut count)
-            };
+            let raw_ptr =
+                unsafe { visionkit_detect_faces(c_path.as_ptr(), self.speed_mode, &mut count) };
 
             if raw_ptr.is_null() || count <= 0 {
                 log::info!("VisionKit detected 0 face(s) in {}", path_str);
@@ -127,11 +126,7 @@ impl FaceDetector for VisionKitDetector {
 
             unsafe { visionkit_free_faces(raw_ptr, count) };
 
-            log::info!(
-                "VisionKit detected {} face(s) in {}",
-                faces.len(),
-                path_str
-            );
+            log::info!("VisionKit detected {} face(s) in {}", faces.len(), path_str);
             faces
         }
     }

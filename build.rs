@@ -327,10 +327,7 @@ fn main() {
                 && let Some(usr_dir) = bin_dir.parent()
             {
                 let swift_lib = usr_dir.join("lib/swift/macosx");
-                println!(
-                    "cargo:rustc-link-search=native={}",
-                    swift_lib.display()
-                );
+                println!("cargo:rustc-link-search=native={}", swift_lib.display());
             }
         }
 

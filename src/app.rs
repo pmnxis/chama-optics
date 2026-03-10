@@ -186,6 +186,10 @@ pub struct ChamaOptics {
     /// Temporary directory location for intermediate files
     pub temp_dir: crate::app_state::TempDir,
 
+    /// Settings migration version (0 = ver <= 0.2.0-rc5, 1 = ver >= 0.2.0-rc6)
+    #[serde(default)]
+    migration_version: u32,
+
     /// Currently selected tab in sidebar
     selected_tab: MainTab,
 
@@ -448,6 +452,7 @@ impl Default for ChamaOptics {
             image_grouping: crate::image_group::ImageGroupConfig::default(),
             show_theme_name_in_english: true, // Default: show English names
             temp_dir: crate::app_state::TempDir::default(),
+            migration_version: 1, // New installs start at latest migration
             selected_tab: MainTab::default(),
             sticker_storage: crate::effect::sticker_storage::StickerStorage::new(),
             sticker_config: crate::effect::sticker_storage::StickerConfig::default(),
@@ -627,6 +632,19 @@ impl ChamaOptics {
         // Always start with ImageList tab
         app.selected_tab = MainTab::ImageList;
 
+        // One-time migration: switch engine to VisionKit for settings from ver <= 0.2.0-rc5.
+        // Does NOT override user's choice in ver >= 0.2.0-rc6 builds.
+        #[cfg(feature = "face_detection_visionkit")]
+        if app.migration_version < 1 {
+            use crate::effect::face_detection::FaceDetectionEngine;
+            log::info!(
+                "Migration v0→v1: switching face detection engine from {:?} to VisionKit",
+                app.export_config.face_detection.engine
+            );
+            app.export_config.face_detection.engine = FaceDetectionEngine::VisionKit;
+            app.migration_version = 1;
+        }
+
         app.lang.update_i18n();
 
         // Initialize built-in stickers and LUTs (skips items already registered)
@@ -766,8 +784,7 @@ impl ChamaOptics {
 
                 for face in &task.configured_faces {
                     if let Some(sticker_id) = face.sticker_id
-                        && let Some(sticker_img) =
-                            sticker_storage.get_sticker_image(sticker_id)
+                        && let Some(sticker_img) = sticker_storage.get_sticker_image(sticker_id)
                     {
                         let sticker_aspect =
                             sticker_img.width() as f32 / sticker_img.height() as f32;
@@ -786,10 +803,8 @@ impl ChamaOptics {
                         );
                         let cx = face.x as f32 + face.width as f32 / 2.0;
                         let cy = face.y as f32 + face.height as f32 / 2.0;
-                        let ox =
-                            sticker_w as f32 * task.sticker_config.offset_x as f32 / 100.0;
-                        let oy =
-                            sticker_h as f32 * task.sticker_config.offset_y as f32 / 100.0;
+                        let ox = sticker_w as f32 * task.sticker_config.offset_x as f32 / 100.0;
+                        let oy = sticker_h as f32 * task.sticker_config.offset_y as f32 / 100.0;
                         let sx = (cx + ox - sticker_w as f32 / 2.0) as i64;
                         let sy = (cy + oy - sticker_h as f32 / 2.0) as i64;
                         image::imageops::overlay(&mut base_image, &resized, sx, sy);
@@ -828,14 +843,13 @@ impl ChamaOptics {
                 );
 
                 // Prefer sticker_bytes (face effects applied) over loading from file
-                let (mut dyn_image, used_sticker) =
-                    if let Some(ref sb) = effective_sticker_bytes
-                        && let Ok(img) = image::load_from_memory(sb)
-                    {
-                        (img, true)
-                    } else {
-                        (image::open(&task.path)?, false)
-                    };
+                let (mut dyn_image, used_sticker) = if let Some(ref sb) = effective_sticker_bytes
+                    && let Ok(img) = image::load_from_memory(sb)
+                {
+                    (img, true)
+                } else {
+                    (image::open(&task.path)?, false)
+                };
 
                 if needs_color_adj {
                     task.color_adjustments.apply(&mut dyn_image);
@@ -854,8 +868,11 @@ impl ChamaOptics {
                 {
                     pi.sticker_bytes = Some(bytes);
                     // Preserve orientation state: used sticker_bytes (already oriented) or raw file
-                    pi.sticker_oriented =
-                        if used_sticker { effective_sticker_oriented } else { false };
+                    pi.sticker_oriented = if used_sticker {
+                        effective_sticker_oriented
+                    } else {
+                        false
+                    };
                     log::info!(
                         "Export: Saved color-adjusted image to sticker_bytes for image {}",
                         idx
@@ -881,13 +898,12 @@ impl ChamaOptics {
 
             // Pass pre-detected face coordinates to theme pipeline for coordinate scaling.
             // Passing Some(vec![]) when no faces ensures auto-detection is suppressed.
-            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> =
-                Some(
-                    task.configured_faces
-                        .iter()
-                        .map(|f| (f.x, f.y, f.width, f.height))
-                        .collect(),
-                );
+            let pre_detected_faces: Option<Vec<(i32, i32, u32, u32)>> = Some(
+                task.configured_faces
+                    .iter()
+                    .map(|f| (f.x, f.y, f.width, f.height))
+                    .collect(),
+            );
 
             // Apply theme (and face effects)
             // If cheki decoration is present, we apply it after the theme

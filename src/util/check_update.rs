@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: LicenseRef-Non-AI-MIT
  */
 
-use chrono::{DateTime, Utc};
 use reqwest::blocking::Client;
 use rust_i18n::t;
 use serde::Deserialize;
@@ -16,8 +15,8 @@ struct GitHubRelease {
     tag_name: String,
     html_url: String,
     draft: bool,
+    #[allow(dead_code)]
     prerelease: bool,
-    published_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Deserialize, Debug, PartialEq, Clone)]
@@ -34,10 +33,100 @@ pub struct CheckRelease {
     pub new_version: Arc<RwLock<Option<(String, String)>>>,
 }
 
-fn get_latest_stable_release() -> Option<(String, String)> {
+/// Parsed semantic version with optional pre-release tag
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SemVer {
+    major: u32,
+    minor: u32,
+    patch: u32,
+    /// None = stable release, Some("rc1") = pre-release
+    pre: Option<String>,
+}
+
+impl SemVer {
+    /// Parse "v0.2.0-rc1", "0.2.0", "v1.0.0" etc.
+    fn parse(tag: &str) -> Option<Self> {
+        let s = tag.strip_prefix('v').unwrap_or(tag).trim();
+        let (version_part, pre) = if let Some(idx) = s.find('-') {
+            (&s[..idx], Some(s[idx + 1..].to_lowercase()))
+        } else {
+            (s, None)
+        };
+
+        let parts: Vec<&str> = version_part.split('.').collect();
+        if parts.len() != 3 {
+            return None;
+        }
+
+        Some(SemVer {
+            major: parts[0].parse().ok()?,
+            minor: parts[1].parse().ok()?,
+            patch: parts[2].parse().ok()?,
+            pre,
+        })
+    }
+
+    fn is_prerelease(&self) -> bool {
+        self.pre.is_some()
+    }
+}
+
+impl PartialOrd for SemVer {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SemVer {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        let base = self
+            .major
+            .cmp(&other.major)
+            .then(self.minor.cmp(&other.minor))
+            .then(self.patch.cmp(&other.patch));
+
+        if base != Ordering::Equal {
+            return base;
+        }
+
+        // Pre-release < stable (e.g. 0.2.0-rc1 < 0.2.0)
+        match (&self.pre, &other.pre) {
+            (None, None) => Ordering::Equal,
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (Some(a), Some(b)) => compare_pre_release(a, b),
+        }
+    }
+}
+
+/// Compare pre-release strings: "rc1" vs "rc2", "alpha" vs "beta" etc.
+fn compare_pre_release(a: &str, b: &str) -> std::cmp::Ordering {
+    // Extract numeric suffix for same-prefix comparison (rc1 vs rc2)
+    fn split_prefix_num(s: &str) -> (&str, Option<u32>) {
+        let num_start = s.rfind(|c: char| !c.is_ascii_digit()).map_or(0, |i| i + 1);
+        if num_start < s.len() {
+            (&s[..num_start], s[num_start..].parse().ok())
+        } else {
+            (s, None)
+        }
+    }
+
+    let (a_prefix, a_num) = split_prefix_num(a);
+    let (b_prefix, b_num) = split_prefix_num(b);
+
+    a_prefix
+        .cmp(b_prefix)
+        .then_with(|| a_num.unwrap_or(0).cmp(&b_num.unwrap_or(0)))
+}
+
+fn get_latest_release() -> Option<(String, String)> {
     let repo_url = env!("CARGO_PKG_REPOSITORY");
-    let build_time_str = env!("BUILD_TIME");
-    let build_time: DateTime<Utc> = build_time_str.parse().unwrap();
+    let current_version = SemVer::parse(env!("CARGO_PKG_VERSION"));
+    let current_is_prerelease = current_version
+        .as_ref()
+        .is_some_and(|v| v.is_prerelease());
 
     let parts: Vec<&str> = repo_url.trim_end_matches('/').split('/').collect();
     if parts.len() < 2 {
@@ -61,30 +150,45 @@ fn get_latest_stable_release() -> Option<(String, String)> {
 
     let releases: Vec<GitHubRelease> = resp.json().ok()?;
 
+    let current = current_version.as_ref()?;
+
     for rel in releases {
-        // Skip draft or prerelease
-        if rel.draft || rel.prerelease {
+        if rel.draft {
             continue;
         }
 
-        // Skip pre-release suffixes (alpha/beta/gamma/delta/rc etc.)
-        let tag = rel.tag_name.to_lowercase();
-        if tag.contains("alpha")
-            || tag.contains("beta")
-            || tag.contains("gamma")
-            || tag.contains("delta")
-            || tag.contains("rc")
-        {
+        let candidate = match SemVer::parse(&rel.tag_name) {
+            Some(v) => v,
+            None => continue,
+        };
+
+        // If current is stable, only show stable releases
+        // If current is pre-release, show both stable and pre-release
+        if !current_is_prerelease && candidate.is_prerelease() {
             continue;
         }
 
-        // Check if published after our build
-        if let Some(published) = rel.published_at {
-            if published > build_time + chrono::Duration::hours(8) {
-                return Some((rel.tag_name, rel.html_url));
-            } else {
-                log::debug!("{} - {} found but pass", rel.tag_name, rel.html_url);
+        // Skip early pre-release stages (alpha/beta/gamma/delta) unless current is also one
+        if candidate.is_prerelease() {
+            let pre = candidate.pre.as_deref().unwrap_or("");
+            let is_early = pre.starts_with("alpha")
+                || pre.starts_with("beta")
+                || pre.starts_with("gamma")
+                || pre.starts_with("delta");
+            if is_early {
+                let current_pre = current.pre.as_deref().unwrap_or("");
+                let current_is_early = current_pre.starts_with("alpha")
+                    || current_pre.starts_with("beta")
+                    || current_pre.starts_with("gamma")
+                    || current_pre.starts_with("delta");
+                if !current_is_early {
+                    continue;
+                }
             }
+        }
+
+        if candidate > *current {
+            return Some((rel.tag_name, rel.html_url));
         } else {
             log::debug!("{} - {} found but pass", rel.tag_name, rel.html_url);
         }
@@ -112,7 +216,7 @@ impl CheckRelease {
             let before_start = web_time::Instant::now();
 
             log::info!("Let's check release from internet");
-            let got = get_latest_stable_release();
+            let got = get_latest_release();
             let is_new = got.is_some();
             *new_version_clone.write().unwrap() = got.clone();
             *status_clone.write().unwrap() = if is_new {
