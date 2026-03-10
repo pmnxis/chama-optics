@@ -45,6 +45,12 @@ tabs:
     ko: "얼굴 인식"
     ja: "顔認識"
     id: "Deteksi Wajah"
+    # Effect picker label in face detection tab
+    effect:
+      en: "Effect"
+      ko: "효과"
+      ja: "エフェクト"
+      id: "Efek"
 
   # Edit tab (unified iOS/Android 3-tab layout)
   edit:

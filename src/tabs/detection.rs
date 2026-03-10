@@ -431,6 +431,14 @@ impl ChamaOptics {
                                                         self.detected_faces[selected_idx]
                                                             .sticker_id = None;
                                                     }
+                                                    // Sync configured_faces so export uses the new effect
+                                                    if let Some(idx) = self.edit_selected_index
+                                                        && let Some(img) =
+                                                            self.packed_images.get_mut(idx)
+                                                    {
+                                                        img.configured_faces =
+                                                            self.detected_faces.clone();
+                                                    }
                                                     // Invalidate preview cache to regenerate with updated effect
                                                     self.detection_preview_cache_key = None;
                                                     self.edit_preview_cache_key = None;
@@ -474,6 +482,14 @@ impl ChamaOptics {
                                                 {
                                                     self.detected_faces[selected_idx].sticker_id =
                                                         None;
+                                                    // Sync configured_faces so export uses the new sticker
+                                                    if let Some(idx) = self.edit_selected_index
+                                                        && let Some(img) =
+                                                            self.packed_images.get_mut(idx)
+                                                    {
+                                                        img.configured_faces =
+                                                            self.detected_faces.clone();
+                                                    }
                                                     // Invalidate preview cache to regenerate with updated sticker
                                                     self.detection_preview_cache_key = None;
                                                     self.edit_preview_cache_key = None;
@@ -492,6 +508,14 @@ impl ChamaOptics {
                                                     {
                                                         self.detected_faces[selected_idx]
                                                             .sticker_id = Some(sticker.id);
+                                                        // Sync configured_faces so export uses the new sticker
+                                                        if let Some(idx) = self.edit_selected_index
+                                                            && let Some(img) =
+                                                                self.packed_images.get_mut(idx)
+                                                        {
+                                                            img.configured_faces =
+                                                                self.detected_faces.clone();
+                                                        }
                                                         // Invalidate preview cache to regenerate with updated sticker
                                                         self.detection_preview_cache_key = None;
                                                         self.edit_preview_cache_key = None;

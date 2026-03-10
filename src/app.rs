@@ -698,113 +698,111 @@ impl ChamaOptics {
                 _ => image::ImageFormat::Jpeg,
             };
 
-            // Step A: Ensure face effects are in sticker_bytes.
-            // If task.sticker_bytes is already set (from Detection tab preview), use it directly.
-            // If not but configured_faces have effects, apply them now from the original image.
-            let mut effective_sticker_bytes = task.sticker_bytes.clone();
-            let mut effective_sticker_oriented = task.sticker_oriented;
+            // Step A: Apply face effects from configured_faces onto the original image.
+            // Always regenerate from original when effects are configured — sticker_bytes from the
+            // Detection tab preview may not reflect the current effect settings (e.g., effect mode
+            // was changed after the last async preview, or app was restarted and sticker_bytes lost).
+            let has_any_effect = task.configured_faces.iter().any(|f| {
+                f.effect_mode != crate::effect::FaceEffectMode::None || f.sticker_id.is_some()
+            });
 
-            if effective_sticker_bytes.is_none() && !task.configured_faces.is_empty() {
-                let has_any_effect = task.configured_faces.iter().any(|f| {
-                    f.effect_mode != crate::effect::FaceEffectMode::None
-                        || f.sticker_id.is_some()
-                });
+            let (effective_sticker_bytes, effective_sticker_oriented) = if has_any_effect {
+                use crate::effect::FaceEffectMode;
+                let mut base_image = image::open(&task.path)?;
+                base_image.apply_orientation(task.view_exif.orientation);
 
-                if has_any_effect {
-                    let mut base_image = image::open(&task.path)?;
-                    base_image.apply_orientation(task.view_exif.orientation);
+                let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
+                let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
 
-                    use crate::effect::FaceEffectMode;
-                    let mut mosaic_faces: Vec<(i32, i32, u32, u32)> = vec![];
-                    let mut stroke_faces: Vec<(i32, i32, u32, u32)> = vec![];
-
-                    for face in &task.configured_faces {
-                        let ft = (face.x, face.y, face.width, face.height);
-                        match face.effect_mode {
-                            FaceEffectMode::None => {}
-                            FaceEffectMode::Mosaic => mosaic_faces.push(ft),
-                            FaceEffectMode::Stroke => stroke_faces.push(ft),
-                            FaceEffectMode::MosaicStroke => {
-                                mosaic_faces.push(ft);
-                                stroke_faces.push(ft);
-                            }
-                            FaceEffectMode::Sticker => {}
+                for face in &task.configured_faces {
+                    let ft = (face.x, face.y, face.width, face.height);
+                    match face.effect_mode {
+                        FaceEffectMode::None => {}
+                        FaceEffectMode::Mosaic => mosaic_faces.push(ft),
+                        FaceEffectMode::Stroke => stroke_faces.push(ft),
+                        FaceEffectMode::MosaicStroke => {
+                            mosaic_faces.push(ft);
+                            stroke_faces.push(ft);
                         }
-                    }
-
-                    if !mosaic_faces.is_empty() {
-                        let mosaic_config = crate::effect::mosaic::MosaicEffect {
-                            block_size: task.mosaic_block_size,
-                            intensity: 1.0,
-                        };
-                        let _ = crate::effect::mosaic::MosaicEffect::apply(
-                            &mut base_image,
-                            &mosaic_faces,
-                            &mosaic_config,
-                        );
-                    }
-
-                    if !stroke_faces.is_empty() {
-                        let sc = task.stroke_color;
-                        let stroke_config = crate::effect::stroke::StrokeEffect {
-                            thickness: task.stroke_thickness,
-                            color: (sc[0], sc[1], sc[2], sc[3]),
-                        };
-                        let _ = crate::effect::stroke::StrokeEffect::apply(
-                            &mut base_image,
-                            &stroke_faces,
-                            &stroke_config,
-                        );
-                    }
-
-                    for face in &task.configured_faces {
-                        if let Some(sticker_id) = face.sticker_id
-                            && let Some(sticker_img) =
-                                sticker_storage.get_sticker_image(sticker_id)
-                        {
-                            let sticker_aspect =
-                                sticker_img.width() as f32 / sticker_img.height() as f32;
-                            let face_aspect = face.width as f32 / face.height as f32;
-                            let sw = face.width as f32 * task.sticker_config.scale;
-                            let sh = face.height as f32 * task.sticker_config.scale;
-                            let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
-                                (sw as u32, (sw / sticker_aspect) as u32)
-                            } else {
-                                ((sh * sticker_aspect) as u32, sh as u32)
-                            };
-                            let resized = sticker_img.resize(
-                                sticker_w,
-                                sticker_h,
-                                image::imageops::FilterType::Lanczos3,
-                            );
-                            let cx = face.x as f32 + face.width as f32 / 2.0;
-                            let cy = face.y as f32 + face.height as f32 / 2.0;
-                            let ox = sticker_w as f32
-                                * task.sticker_config.offset_x as f32
-                                / 100.0;
-                            let oy = sticker_h as f32
-                                * task.sticker_config.offset_y as f32
-                                / 100.0;
-                            let sx = (cx + ox - sticker_w as f32 / 2.0) as i64;
-                            let sy = (cy + oy - sticker_h as f32 / 2.0) as i64;
-                            image::imageops::overlay(&mut base_image, &resized, sx, sy);
-                        }
-                    }
-
-                    let mut bytes = Vec::new();
-                    if base_image
-                        .write_to(&mut std::io::Cursor::new(&mut bytes), img_format)
-                        .is_ok()
-                    {
-                        effective_sticker_bytes = Some(bytes);
-                        effective_sticker_oriented = true;
-                        log::info!(
-                            "Export: Generated face effects at export time for image {}",
-                            idx
-                        );
+                        FaceEffectMode::Sticker => {}
                     }
                 }
-            }
+
+                if !mosaic_faces.is_empty() {
+                    let mosaic_config = crate::effect::mosaic::MosaicEffect {
+                        block_size: task.mosaic_block_size,
+                        intensity: 1.0,
+                    };
+                    let _ = crate::effect::mosaic::MosaicEffect::apply(
+                        &mut base_image,
+                        &mosaic_faces,
+                        &mosaic_config,
+                    );
+                }
+
+                if !stroke_faces.is_empty() {
+                    let sc = task.stroke_color;
+                    let stroke_config = crate::effect::stroke::StrokeEffect {
+                        thickness: task.stroke_thickness,
+                        color: (sc[0], sc[1], sc[2], sc[3]),
+                    };
+                    let _ = crate::effect::stroke::StrokeEffect::apply(
+                        &mut base_image,
+                        &stroke_faces,
+                        &stroke_config,
+                    );
+                }
+
+                for face in &task.configured_faces {
+                    if let Some(sticker_id) = face.sticker_id
+                        && let Some(sticker_img) =
+                            sticker_storage.get_sticker_image(sticker_id)
+                    {
+                        let sticker_aspect =
+                            sticker_img.width() as f32 / sticker_img.height() as f32;
+                        let face_aspect = face.width as f32 / face.height as f32;
+                        let sw = face.width as f32 * task.sticker_config.scale;
+                        let sh = face.height as f32 * task.sticker_config.scale;
+                        let (sticker_w, sticker_h) = if sticker_aspect > face_aspect {
+                            (sw as u32, (sw / sticker_aspect) as u32)
+                        } else {
+                            ((sh * sticker_aspect) as u32, sh as u32)
+                        };
+                        let resized = sticker_img.resize(
+                            sticker_w,
+                            sticker_h,
+                            image::imageops::FilterType::Lanczos3,
+                        );
+                        let cx = face.x as f32 + face.width as f32 / 2.0;
+                        let cy = face.y as f32 + face.height as f32 / 2.0;
+                        let ox =
+                            sticker_w as f32 * task.sticker_config.offset_x as f32 / 100.0;
+                        let oy =
+                            sticker_h as f32 * task.sticker_config.offset_y as f32 / 100.0;
+                        let sx = (cx + ox - sticker_w as f32 / 2.0) as i64;
+                        let sy = (cy + oy - sticker_h as f32 / 2.0) as i64;
+                        image::imageops::overlay(&mut base_image, &resized, sx, sy);
+                    }
+                }
+
+                let mut bytes = Vec::new();
+                if base_image
+                    .write_to(&mut std::io::Cursor::new(&mut bytes), img_format)
+                    .is_ok()
+                {
+                    log::info!(
+                        "Export: Applied face effects from configured_faces for image {}",
+                        idx
+                    );
+                    (Some(bytes), true)
+                } else {
+                    // encode failed — fall back to no effects
+                    (None, false)
+                }
+            } else {
+                // No face effects configured — use sticker_bytes as-is (orientation-corrected)
+                (task.sticker_bytes.clone(), task.sticker_oriented)
+            };
 
             // Step B: Apply color adjustments and/or LUT.
             // Use effective_sticker_bytes (with face effects) as base when available,

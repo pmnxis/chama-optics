@@ -100,8 +100,6 @@ impl ExportConfig {
             self.watermark.apply(dyn_image, margin)?;
         }
 
-        log::info!("Is this really called?");
-
         // Apply face detection
         #[cfg(target_os = "ios")]
         {

@@ -44,6 +44,10 @@ impl StrokeEffect {
         let (stroke_r, stroke_g, stroke_b, stroke_a) = config.color;
         let stroke_width = config.thickness.max(1);
 
+        // JPEG and some other formats load as Rgb8 — convert to Rgba8 so as_mut_rgba8() works
+        if image.as_rgba8().is_none() {
+            *image = DynamicImage::ImageRgba8(image.to_rgba8());
+        }
         let rgba = image.as_mut_rgba8().ok_or("Image is not RGBA8")?;
         let img_width = rgba.width();
         let img_height = rgba.height();
