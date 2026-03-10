@@ -166,25 +166,78 @@ impl ChamaOptics {
                 }
             }
 
-            // Controls panel — rendered first so the remaining space goes to preview
+            // Controls panel — rendered first so the remaining space goes to preview.
+            // Use exact_size from egui memory to avoid oscillation on resize.
             if is_portrait {
-                // Portrait: controls below the preview
                 egui::Panel::bottom("edit_controls_bottom")
                     .resizable(true)
                     .default_size(available.y * 0.45)
-                    .size_range(120.0..=available.y * 0.6)
+                    .size_range(120.0..=available.y - 120.0)
                     .show_inside(ui, |ui| {
                         self.render_edit_controls_panel(ui, idx);
                     });
             } else {
-                // Landscape: controls to the right
-                egui::Panel::right("edit_controls_right")
-                    .resizable(true)
-                    .default_size(available.x * 0.40)
-                    .size_range(200.0..=available.x * 0.6)
-                    .show_inside(ui, |ui| {
-                        self.render_edit_controls_panel(ui, idx);
-                    });
+                // Retrieve the stored panel width or default to 40%
+                let panel_id = egui::Id::new("edit_controls_right_size");
+                let stored_w: f32 = ui
+                    .ctx()
+                    .data_mut(|d| d.get_persisted(panel_id).unwrap_or(available.x * 0.40));
+                let panel_w = stored_w.clamp(200.0, available.x - 200.0);
+
+                let (right_rect, left_rect) = {
+                    let full = ui.available_rect_before_wrap();
+                    let split_x = full.right() - panel_w;
+                    (
+                        egui::Rect::from_min_max(
+                            egui::pos2(split_x, full.top()),
+                            full.right_bottom(),
+                        ),
+                        egui::Rect::from_min_max(
+                            full.left_top(),
+                            egui::pos2(split_x, full.bottom()),
+                        ),
+                    )
+                };
+
+                // Resize handle (vertical bar between preview and controls)
+                let handle_rect = egui::Rect::from_min_size(
+                    egui::pos2(right_rect.left() - 4.0, right_rect.top()),
+                    egui::vec2(8.0, right_rect.height()),
+                );
+                let handle_resp =
+                    ui.interact(handle_rect, panel_id.with("handle"), egui::Sense::drag());
+                if handle_resp.dragged() {
+                    let new_w =
+                        (panel_w - handle_resp.drag_delta().x).clamp(200.0, available.x - 200.0);
+                    ui.ctx().data_mut(|d| d.insert_persisted(panel_id, new_w));
+                }
+                if handle_resp.hovered() || handle_resp.dragged() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeHorizontal);
+                }
+
+                // Draw a subtle separator line at the handle
+                ui.painter().line_segment(
+                    [handle_rect.center_top(), handle_rect.center_bottom()],
+                    ui.visuals().widgets.noninteractive.bg_stroke,
+                );
+
+                // Right panel: controls
+                let mut controls_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .max_rect(right_rect.translate(egui::vec2(4.0, 0.0)))
+                        .layout(egui::Layout::top_down(egui::Align::Min)),
+                );
+                self.render_edit_controls_panel(&mut controls_ui, idx);
+
+                // Left panel: preview (allocate remaining space)
+                let mut preview_ui = ui.new_child(
+                    egui::UiBuilder::new()
+                        .max_rect(left_rect.shrink2(egui::vec2(2.0, 0.0)))
+                        .layout(egui::Layout::top_down(egui::Align::Min)),
+                );
+                self.render_edit_preview_panel(&mut preview_ui, idx);
+                // Skip the default preview rendering below
+                return;
             }
 
             // Preview canvas fills the remaining space

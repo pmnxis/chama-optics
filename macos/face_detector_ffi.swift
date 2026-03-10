@@ -87,10 +87,6 @@ private func detectFacesInRegion(
     scaleFactor: Double = 1.0
 ) -> [FaceRect] {
     let request = VNDetectFaceRectanglesRequest()
-    // Force CPU-only to avoid ANE resource exhaustion with many sequential calls
-    if #available(macOS 10.15, *) {
-        request.usesCPUOnly = true
-    }
     let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
 
     do {
@@ -437,7 +433,6 @@ public func visionkit_detect_faces(
     let mode = SpeedMode(rawValue: speedMode) ?? .fastest
 
     // Run detection directly on the calling thread.
-    // With usesCPUOnly=true, no ANE access, so no thread restrictions.
     let faces = autoreleasepool {
         detectFacesWithPyramid(imagePath: path, mode: mode)
     }
