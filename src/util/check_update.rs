@@ -124,9 +124,7 @@ fn compare_pre_release(a: &str, b: &str) -> std::cmp::Ordering {
 fn get_latest_release() -> Option<(String, String)> {
     let repo_url = env!("CARGO_PKG_REPOSITORY");
     let current_version = SemVer::parse(env!("CARGO_PKG_VERSION"));
-    let current_is_prerelease = current_version
-        .as_ref()
-        .is_some_and(|v| v.is_prerelease());
+    let current_is_prerelease = current_version.as_ref().is_some_and(|v| v.is_prerelease());
 
     let parts: Vec<&str> = repo_url.trim_end_matches('/').split('/').collect();
     if parts.len() < 2 {

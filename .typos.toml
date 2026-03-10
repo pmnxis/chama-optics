@@ -10,6 +10,7 @@ chama = "chama"
 haachama = "haachama"
 
 # Indonesian language words
+Seret = "Seret"         # Drag (as in drag-and-drop)
 Tema = "Tema"           # Theme
 Sistem = "Sistem"       # System
 sistem = "sistem"       # system (lowercase)
@@ -28,6 +29,7 @@ grup = "grup"           # group
 Faktor = "Faktor"       # Factor
 
 # Technical terms
+ANE = "ANE"             # Apple Neural Engine
 wdth = "wdth"           # Font variable axis for width
 wght = "wght"           # Font variable axis for weight
 iy = "iy"               # intersection y-coordinate variable prefix (iy1, iy2)
