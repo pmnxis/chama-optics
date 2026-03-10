@@ -147,6 +147,7 @@ impl ChamaOptics {
                     self.run_face_detection();
                 }
 
+                #[cfg(not(target_arch = "wasm32"))]
                 if ui
                     .add_enabled(
                         !detection_busy,
