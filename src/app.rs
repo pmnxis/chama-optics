@@ -537,8 +537,21 @@ impl ChamaOptics {
     pub fn invalidate_caches(&mut self) {
         self.detection_preview_cache_key = None;
         self.detection_preview_texture = None;
+        self.detection_preview_original_size = None;
         self.detected_faces.clear();
         self.selected_face_index = None;
+        // Drain any pending detection results so stale data doesn't reappear
+        if let Ok(mut q) = self.detection_results_queue.try_lock() {
+            let _ = q.take();
+        }
+        if let Ok(mut q) = self.bulk_detection_results_queue.try_lock() {
+            q.clear();
+        }
+        if let Ok(mut q) = self.preview_texture_queue.try_lock() {
+            let _ = q.take();
+        }
+        // Reset detection progress
+        self.detection_progress = crate::ui_state::ProgressState::new();
         // Edit tab caches
         self.edit_preview_cache_key = None;
         self.edit_preview_texture = None;
@@ -551,18 +564,38 @@ impl ChamaOptics {
         self.crop_canvas_original_size = None;
     }
 
-    /// Delete an image by index and handle related cleanup
+    /// Delete an image by index (convenience wrapper)
     pub fn delete_image_by_index(&mut self, idx: usize) {
-        if idx >= self.packed_images.len() {
+        if let Some(img) = self.packed_images.get(idx) {
+            let uuid = img.uuid;
+            self.delete_image_by_uuid(uuid);
+        } else {
             log::warn!("Attempted to delete image at invalid index {}", idx);
-            return;
         }
+    }
 
-        let removed_uuid = self.packed_images[idx].uuid;
+    /// Delete an image by UUID and handle related cleanup
+    pub fn delete_image_by_uuid(&mut self, target_uuid: uuid::Uuid) {
+        let Some(idx) = self
+            .packed_images
+            .iter()
+            .position(|pi| pi.uuid == target_uuid)
+        else {
+            log::warn!("Attempted to delete unknown image UUID {:?}", target_uuid);
+            return;
+        };
+
+        // Remember the currently selected image's UUID (not index) before removal
+        let selected_uuid = self
+            .edit_selected_index
+            .and_then(|i| self.packed_images.get(i))
+            .map(|pi| pi.uuid);
+        let deleting_selected = selected_uuid == Some(target_uuid);
+
         log::info!(
             "Deleting image at index {} with UUID {:?}",
             idx,
-            removed_uuid
+            target_uuid
         );
 
         // Remove the image
@@ -570,49 +603,47 @@ impl ChamaOptics {
 
         // Update grouping: remove UUID from all groups
         if let Some(groups) = &mut self.image_groups {
-            // Remove the UUID from all groups
             for group in groups.iter_mut() {
-                group.image_uuids.retain(|&uuid| uuid != removed_uuid);
+                group.image_uuids.retain(|&uuid| uuid != target_uuid);
             }
-
-            // Remove empty groups
             groups.retain(|g| !g.image_uuids.is_empty());
-
-            // Clear grouping if no groups remain
             if groups.is_empty() {
                 self.image_groups = None;
-                log::info!("All groups removed after image deletion");
-            } else {
-                log::info!("Updated grouping after removing image at index {}", idx);
             }
         }
 
         // Clean up related data
-        self.sticker_processed_images.remove(&removed_uuid);
+        self.sticker_processed_images.remove(&target_uuid);
 
-        // Adjust edit_selected_index if needed
-        if let Some(selected) = self.edit_selected_index {
-            if selected == idx {
-                // Deleted the selected image, try to select another
-                self.edit_selected_index = if self.packed_images.is_empty() {
-                    None
-                } else if idx >= self.packed_images.len() {
-                    // Was the last image, select the new last image
-                    Some(self.packed_images.len() - 1)
-                } else {
-                    // Select the image that moved into this position
-                    Some(idx)
-                };
-            } else if selected > idx {
-                // Selected image shifted left due to deletion
-                self.edit_selected_index = Some(selected - 1);
-            }
+        // Resolve new selection by UUID (stable across removals)
+        if deleting_selected {
+            // Deleted the selected image — pick a neighbor
+            self.edit_selected_index = if self.packed_images.is_empty() {
+                None
+            } else {
+                Some(idx.min(self.packed_images.len() - 1))
+            };
+        } else if let Some(prev_uuid) = selected_uuid {
+            // Selected image wasn't deleted — find its new index
+            self.edit_selected_index = self
+                .packed_images
+                .iter()
+                .position(|pi| pi.uuid == prev_uuid);
         }
 
         // Invalidate caches
         self.invalidate_caches();
 
-        log::info!("Successfully deleted image at index {}", idx);
+        // Restore detected_faces from the newly selected image's configured_faces
+        if let Some(new_idx) = self.edit_selected_index
+            && let Some(img) = self.packed_images.get(new_idx)
+            && !img.configured_faces.is_empty()
+        {
+            self.detected_faces = img.configured_faces.clone();
+            self.selected_face_index = Some(0);
+        }
+
+        log::info!("Successfully deleted image UUID {:?}", target_uuid);
     }
 
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {

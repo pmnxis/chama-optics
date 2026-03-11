@@ -62,6 +62,10 @@ for build_font in DynaPuff-Variable.ttf "digital-7.ttf" "digital-7 (italic).ttf"
     SRC=$(find target -name "$build_font" -not -path "*/bundle-dev/*" 2>/dev/null | head -1)
     [ -n "$SRC" ] && [ -f "$SRC" ] && cp "$SRC" "$RES_DIR/Fonts/"
 done
+# Rename "digital-7 (italic).ttf" to match the expected runtime filename
+if [ -f "$RES_DIR/Fonts/digital-7 (italic).ttf" ]; then
+    mv "$RES_DIR/Fonts/digital-7 (italic).ttf" "$RES_DIR/Fonts/digital-7-italic.ttf"
+fi
 FONT_COUNT=$(ls "$RES_DIR/Fonts/"*.{ttf,otf,ttc} 2>/dev/null | wc -l | xargs)
 echo "[OK] $FONT_COUNT font(s)"
 

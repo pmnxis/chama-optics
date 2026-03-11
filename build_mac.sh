@@ -79,6 +79,11 @@ for build_font in DynaPuff-Variable.ttf "digital-7.ttf" "digital-7 (italic).ttf"
         echo "  ⚠ WARNING: $build_font not found in build artifacts"
     fi
 done
+# Rename "digital-7 (italic).ttf" to match the expected runtime filename
+BUNDLE_FONTS="target/release/bundle/osx/Chama Optics.app/Contents/Resources/Fonts"
+if [ -f "$BUNDLE_FONTS/digital-7 (italic).ttf" ]; then
+    mv "$BUNDLE_FONTS/digital-7 (italic).ttf" "$BUNDLE_FONTS/digital-7-italic.ttf"
+fi
 
 # 3. Copy logos (SVG files downloaded during build)
 echo "Copying logos..."

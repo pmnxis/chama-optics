@@ -44,6 +44,12 @@ for build_font in DynaPuff-Variable.ttf "digital-7.ttf" "digital-7 (italic).ttf"
         echo "[WARN] $build_font not found in build artifacts"
     fi
 done
+# Rename "digital-7 (italic).ttf" to match the expected runtime filename
+for dir in target/debug/Resources/Fonts target/release/Resources/Fonts; do
+    if [ -f "$dir/digital-7 (italic).ttf" ]; then
+        mv "$dir/digital-7 (italic).ttf" "$dir/digital-7-italic.ttf"
+    fi
+done
 
 # Copy model if it exists
 # Try 1: Build directory (downloaded during build)
